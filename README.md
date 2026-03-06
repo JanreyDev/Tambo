@@ -1,52 +1,33 @@
 # BCMP V5 API
 
-Laravel 12 backend for the Barangay Comprehensive Management Platform.
-
-## Products Served
-
-| Product | Domain | Audience |
-|---------|--------|----------|
-| kapitan.ph | kapitan.ph | Barangay staff (admin/back-office) |
-| kabataan.ph | kabataan.ph | SK officers (youth council, age 15-30) |
-| barangay.org.ph | barangay.org.ph | Public / residents |
+Laravel 12 API backend for the Barangay Comprehensive Management Platform.
 
 ## Stack
 
-- **Framework:** Laravel 12 / PHP 8.2+
-- **Database:** PostgreSQL 18 with Row-Level Security (RLS)
-- **Auth:** Laravel Sanctum
-- **Queue:** Laravel Horizon + Redis
-- **Realtime:** Laravel Reverb (WebSockets)
-- **Search:** Meilisearch
-- **Testing:** Pest
-- **Error Tracking:** Sentry
-- **Logging:** Structured JSON (per-product channels)
-- **API Docs:** Scribe (auto-generated)
-- **CI/CD:** GitLab CI
+- PHP 8.4 + Laravel 12
+- PostgreSQL with Row Level Security
+- Laravel Sanctum (auth)
+- Laravel Horizon + Redis (queues)
+- Laravel Reverb (WebSockets)
+- Pest (testing)
+- Scribe (API docs)
 
-## Architecture
-
-- **Multi-tenant:** Shared database with tenant_id + PostgreSQL RLS
-- **Offline sync:** API supports conflict resolution for PWA/mobile sync
-- **BIMS integration:** Auto-import BIMS SQLite data for DILG compliance
-
-## Getting Started
+## Setup
 
 ```bash
-# Prerequisites: Docker Desktop running
-cp .env.example .env
-docker compose up -d
 composer install
+cp .env.example .env
 php artisan key:generate
 php artisan migrate --seed
 php artisan serve
 ```
 
-## Environment
+## Structure
 
-- **Staging:** staging-api-bcmp.primex.ventures
-- **Production:** api.kapitan.ph (TBD)
+- 19 migration files covering 60+ tables
+- Multi-tenant architecture (shared DB, tenant_id + RLS)
+- Modules: Residents, Households, Establishments, Officials, Documents, Judicial/KP, VAWC, Tanod, Finance, Inventory, Disaster/DRRM, GAD, HRIS, Public Portal, AI, Blockchain, Audit Logs
 
-## Access
+---
 
-This repository is restricted to Jeager and Claude only. Zero dev team access.
+Built by Claude for PrimeX Ventures Inc.
