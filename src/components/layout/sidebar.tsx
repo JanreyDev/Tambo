@@ -24,6 +24,8 @@ import {
   Receipt,
   ClipboardList,
   MapPin,
+  HardDrive,
+  MessageCircle,
 } from "lucide-react";
 
 interface NavItem {
@@ -75,7 +77,9 @@ const navGroups: NavGroup[] = [
     title: "TOOLS",
     items: [
       { label: "AI Assistant", href: "/dashboard/ai", icon: Bot },
+      { label: "Drive", href: "/dashboard/drive", icon: HardDrive },
       { label: "Public Portal", href: "/dashboard/public-portal", icon: Globe },
+      { label: "Support Tickets", href: "/dashboard/support", icon: MessageCircle },
     ],
   },
   {
