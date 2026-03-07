@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Api\V1\AccountController;
 use App\Http\Controllers\Api\V1\Admin\PlatformUpdateController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\Tenant\AssetController;
@@ -79,6 +80,11 @@ Route::prefix('v1')->group(function () {
             Route::get('me', [AuthController::class, 'me']);
             Route::post('logout', [AuthController::class, 'logout']);
             Route::post('logout-all', [AuthController::class, 'logoutAll']);
+        });
+
+        // Account
+        Route::prefix('account')->group(function () {
+            Route::patch('preferences', [AccountController::class, 'updatePreferences']);
         });
 
         // Platform updates (no tenant context needed)
