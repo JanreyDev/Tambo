@@ -587,7 +587,7 @@ export default function LoginPage() {
                 </div>
 
                 {/* Security features strip */}
-                <div className="flex items-center gap-1.5 pt-2 flex-wrap">
+                <div className="flex items-center justify-center gap-1.5 pt-2 flex-wrap">
                   {[
                     { label: "RA 10173 Compliant", active: true },
                     { label: "NPC Registered", active: true },
