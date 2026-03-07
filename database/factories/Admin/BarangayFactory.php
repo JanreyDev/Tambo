@@ -19,12 +19,12 @@ class BarangayFactory extends Factory
     {
         return [
             'psgc_code' => $this->faker->unique()->numerify('##########'),
-            'name' => 'Brgy. ' . $this->faker->unique()->word(),
+            'name' => 'Brgy. '.$this->faker->unique()->word(),
             'municipality_psgc' => $this->faker->numerify('##########'),
             'province_psgc' => $this->faker->numerify('##########'),
             'region_psgc' => $this->faker->numerify('##########'),
             'full_address' => $this->faker->address(),
-            'contact_phone' => '09' . $this->faker->numerify('#########'),
+            'contact_phone' => '09'.$this->faker->numerify('#########'),
             'contact_email' => $this->faker->safeEmail(),
             'population' => $this->faker->numberBetween(500, 50000),
             'status' => BarangayStatus::Active,

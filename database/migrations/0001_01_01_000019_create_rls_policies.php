@@ -120,6 +120,6 @@ return new class extends Migration
             DB::statement("ALTER TABLE {$table} DISABLE ROW LEVEL SECURITY");
         }
 
-        DB::statement("DROP ROLE IF EXISTS bcmp_admin");
+        DB::statement('DROP ROLE IF EXISTS bcmp_admin');
     }
 };

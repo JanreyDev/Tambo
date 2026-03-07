@@ -7,12 +7,12 @@ namespace App\Http\Controllers\Api\V1\Tenant;
 use App\Http\Controllers\Controller;
 use App\Models\Admin\Barangay;
 use App\Models\Platform\LoginLog;
-use App\Models\Tenant\Resident;
-use App\Models\Tenant\Records\Establishment;
-use App\Models\Tenant\Records\LotBuilding;
 use App\Models\Tenant\Documents\IssuedDocument;
 use App\Models\Tenant\Judicial\BlotterRecord;
 use App\Models\Tenant\Judicial\KpCase;
+use App\Models\Tenant\Records\Establishment;
+use App\Models\Tenant\Records\LotBuilding;
+use App\Models\Tenant\Resident;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -203,7 +203,7 @@ class DashboardController extends Controller
         foreach ($ranges as $label => [$min, $max]) {
             $distribution[$label] = Resident::where('barangay_id', $barangayId)
                 ->whereNotNull('date_of_birth')
-                ->whereRaw("EXTRACT(YEAR FROM AGE(date_of_birth)) BETWEEN ? AND ?", [$min, $max])
+                ->whereRaw('EXTRACT(YEAR FROM AGE(date_of_birth)) BETWEEN ? AND ?', [$min, $max])
                 ->count();
         }
 
@@ -213,13 +213,13 @@ class DashboardController extends Controller
     private function formatBytes(int $bytes): string
     {
         if ($bytes >= 1073741824) {
-            return number_format($bytes / 1073741824, 1) . ' GB';
+            return number_format($bytes / 1073741824, 1).' GB';
         }
 
         if ($bytes >= 1048576) {
-            return number_format($bytes / 1048576, 1) . ' MB';
+            return number_format($bytes / 1048576, 1).' MB';
         }
 
-        return number_format($bytes / 1024, 1) . ' KB';
+        return number_format($bytes / 1024, 1).' KB';
     }
 }

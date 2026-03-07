@@ -25,8 +25,8 @@ class TanodIncidentReportController extends Controller
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('incident_number', 'ilike', "%{$search}%")
-                  ->orWhere('what', 'ilike', "%{$search}%")
-                  ->orWhere('incident_location', 'ilike', "%{$search}%");
+                    ->orWhere('what', 'ilike', "%{$search}%")
+                    ->orWhere('incident_location', 'ilike', "%{$search}%");
             });
         }
 
@@ -99,7 +99,7 @@ class TanodIncidentReportController extends Controller
         $nextSeq = $lastReport
             ? ((int) preg_replace('/^TIR-\d{4}-/', '', $lastReport->incident_number)) + 1
             : 1;
-        $incidentNumber = "TIR-{$year}-" . str_pad((string) $nextSeq, 4, '0', STR_PAD_LEFT);
+        $incidentNumber = "TIR-{$year}-".str_pad((string) $nextSeq, 4, '0', STR_PAD_LEFT);
 
         $report = TanodIncidentReport::create([
             ...$validated,

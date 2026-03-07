@@ -186,7 +186,7 @@ class AuthController extends Controller
             // TODO: Send email with reset link
             // For now, log it so we can test the flow
             $resetUrl = config('app.frontend_url', 'https://staging-bcmp.primex.ventures')
-                . '/reset-password?token=' . $token . '&email=' . urlencode($email);
+                .'/reset-password?token='.$token.'&email='.urlencode($email);
 
             \Log::info('Password reset requested', [
                 'email' => $email,

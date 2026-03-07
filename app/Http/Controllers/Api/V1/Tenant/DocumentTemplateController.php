@@ -25,7 +25,7 @@ class DocumentTemplateController extends Controller
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'ilike', "%{$search}%")
-                  ->orWhere('category', 'ilike', "%{$search}%");
+                    ->orWhere('category', 'ilike', "%{$search}%");
             });
         }
 

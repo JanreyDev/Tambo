@@ -25,7 +25,7 @@ class EvacuationController extends Controller
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('evacuation_name', 'ilike', "%{$search}%")
-                  ->orWhere('evacuation_center', 'ilike', "%{$search}%");
+                    ->orWhere('evacuation_center', 'ilike', "%{$search}%");
             });
         }
 

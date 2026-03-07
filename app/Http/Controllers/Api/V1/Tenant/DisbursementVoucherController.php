@@ -25,8 +25,8 @@ class DisbursementVoucherController extends Controller
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('dv_number', 'ilike', "%{$search}%")
-                  ->orWhere('payee', 'ilike', "%{$search}%")
-                  ->orWhere('particulars', 'ilike', "%{$search}%");
+                    ->orWhere('payee', 'ilike', "%{$search}%")
+                    ->orWhere('particulars', 'ilike', "%{$search}%");
             });
         }
 
@@ -98,7 +98,7 @@ class DisbursementVoucherController extends Controller
         $nextSeq = $lastDv
             ? ((int) preg_replace('/^DV-\d{4}-/', '', $lastDv->dv_number)) + 1
             : 1;
-        $dvNumber = "DV-{$year}-" . str_pad((string) $nextSeq, 4, '0', STR_PAD_LEFT);
+        $dvNumber = "DV-{$year}-".str_pad((string) $nextSeq, 4, '0', STR_PAD_LEFT);
 
         $voucher = DisbursementVoucher::create([
             ...$validated,

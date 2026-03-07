@@ -25,9 +25,9 @@ class BlotterController extends Controller
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('blotter_number', 'ilike', "%{$search}%")
-                  ->orWhere('complainant_name', 'ilike', "%{$search}%")
-                  ->orWhere('respondent_name', 'ilike', "%{$search}%")
-                  ->orWhere('incident_type', 'ilike', "%{$search}%");
+                    ->orWhere('complainant_name', 'ilike', "%{$search}%")
+                    ->orWhere('respondent_name', 'ilike', "%{$search}%")
+                    ->orWhere('incident_type', 'ilike', "%{$search}%");
             });
         }
 
@@ -102,7 +102,7 @@ class BlotterController extends Controller
         $nextSeq = $lastBlotter
             ? ((int) preg_replace('/^BLT-\d{4}-/', '', $lastBlotter->blotter_number)) + 1
             : 1;
-        $blotterNumber = "BLT-{$year}-" . str_pad((string) $nextSeq, 4, '0', STR_PAD_LEFT);
+        $blotterNumber = "BLT-{$year}-".str_pad((string) $nextSeq, 4, '0', STR_PAD_LEFT);
 
         $blotter = BlotterRecord::create([
             ...$validated,

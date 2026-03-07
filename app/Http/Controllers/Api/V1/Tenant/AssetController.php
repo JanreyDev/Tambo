@@ -25,8 +25,8 @@ class AssetController extends Controller
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('description', 'ilike', "%{$search}%")
-                  ->orWhere('asset_id_tag', 'ilike', "%{$search}%")
-                  ->orWhere('uacs_code', 'ilike', "%{$search}%");
+                    ->orWhere('asset_id_tag', 'ilike', "%{$search}%")
+                    ->orWhere('uacs_code', 'ilike', "%{$search}%");
             });
         }
 

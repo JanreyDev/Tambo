@@ -25,7 +25,7 @@ class CollectionsDepositController extends Controller
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('deposit_slip_number', 'ilike', "%{$search}%")
-                  ->orWhere('bank_name', 'ilike', "%{$search}%");
+                    ->orWhere('bank_name', 'ilike', "%{$search}%");
             });
         }
 

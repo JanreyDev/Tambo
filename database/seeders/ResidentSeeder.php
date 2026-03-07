@@ -59,7 +59,7 @@ class ResidentSeeder extends Seeder
                 'mobile_number' => $data['mobile_number'],
                 'purok' => $puroks[array_rand($puroks)],
                 'street' => $streets[array_rand($streets)],
-                'house_block_lot' => fake()->numberBetween(1, 500) . ' ' . fake()->randomElement(['Blk', 'Lot', '#']) . ' ' . fake()->numberBetween(1, 50),
+                'house_block_lot' => fake()->numberBetween(1, 500).' '.fake()->randomElement(['Blk', 'Lot', '#']).' '.fake()->numberBetween(1, 50),
                 'zip_code' => '1700',
                 'is_voter' => $data['is_voter'],
                 'is_resident_voter' => $data['is_voter'],

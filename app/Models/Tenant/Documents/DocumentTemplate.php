@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace App\Models\Tenant\Documents;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\HasAuditColumns;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class DocumentTemplate extends Model
 {
-    use HasFactory, HasUuids, SoftDeletes, HasAuditColumns;
+    use HasAuditColumns, HasFactory, HasUuids, SoftDeletes;
 
     protected $table = 'document_templates';
 

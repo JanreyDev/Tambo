@@ -20,9 +20,9 @@ class EstablishmentController extends Controller
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'ilike', "%{$search}%")
-                  ->orWhere('owner_name', 'ilike', "%{$search}%")
-                  ->orWhere('establishment_number', 'ilike', "%{$search}%")
-                  ->orWhere('business_type', 'ilike', "%{$search}%");
+                    ->orWhere('owner_name', 'ilike', "%{$search}%")
+                    ->orWhere('establishment_number', 'ilike', "%{$search}%")
+                    ->orWhere('business_type', 'ilike', "%{$search}%");
             });
         }
 

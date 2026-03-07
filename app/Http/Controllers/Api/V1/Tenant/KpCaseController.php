@@ -25,8 +25,8 @@ class KpCaseController extends Controller
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('case_number', 'ilike', "%{$search}%")
-                  ->orWhere('nature', 'ilike', "%{$search}%")
-                  ->orWhere('nature_of_complaint', 'ilike', "%{$search}%");
+                    ->orWhere('nature', 'ilike', "%{$search}%")
+                    ->orWhere('nature_of_complaint', 'ilike', "%{$search}%");
             });
         }
 
@@ -97,7 +97,7 @@ class KpCaseController extends Controller
         $nextSeq = $lastCase
             ? ((int) preg_replace('/^KP-\d{4}-/', '', $lastCase->case_number)) + 1
             : 1;
-        $caseNumber = "KP-{$year}-" . str_pad((string) $nextSeq, 4, '0', STR_PAD_LEFT);
+        $caseNumber = "KP-{$year}-".str_pad((string) $nextSeq, 4, '0', STR_PAD_LEFT);
 
         $kpCase = KpCase::create([
             ...$validated,

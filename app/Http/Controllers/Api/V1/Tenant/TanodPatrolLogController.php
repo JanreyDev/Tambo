@@ -35,7 +35,7 @@ class TanodPatrolLogController extends Controller
         }
 
         if ($dateTo = $request->get('date_to')) {
-            $query->where('log_time', '<=', $dateTo . ' 23:59:59');
+            $query->where('log_time', '<=', $dateTo.' 23:59:59');
         }
 
         $sortBy = $request->get('sort_by', 'log_time');

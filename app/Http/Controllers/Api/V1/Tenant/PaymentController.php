@@ -25,8 +25,8 @@ class PaymentController extends Controller
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('or_number', 'ilike', "%{$search}%")
-                  ->orWhere('payer_name', 'ilike', "%{$search}%")
-                  ->orWhere('reference_number', 'ilike', "%{$search}%");
+                    ->orWhere('payer_name', 'ilike', "%{$search}%")
+                    ->orWhere('reference_number', 'ilike', "%{$search}%");
             });
         }
 

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Models\Platform;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
 class LoginLog extends Model
 {
@@ -18,6 +18,7 @@ class LoginLog extends Model
      * The login_logs table only has created_at (no updated_at).
      */
     public $timestamps = true;
+
     const UPDATED_AT = null;
 
     protected $fillable = [

@@ -26,10 +26,10 @@ class ResidentController extends Controller
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('first_name', 'ilike', "%{$search}%")
-                  ->orWhere('last_name', 'ilike', "%{$search}%")
-                  ->orWhere('middle_name', 'ilike', "%{$search}%")
-                  ->orWhere('resident_number', 'ilike', "%{$search}%")
-                  ->orWhere('mobile_number', 'ilike', "%{$search}%");
+                    ->orWhere('last_name', 'ilike', "%{$search}%")
+                    ->orWhere('middle_name', 'ilike', "%{$search}%")
+                    ->orWhere('resident_number', 'ilike', "%{$search}%")
+                    ->orWhere('mobile_number', 'ilike', "%{$search}%");
             });
         }
 

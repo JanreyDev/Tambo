@@ -20,9 +20,9 @@ class LotBuildingController extends Controller
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('owner_name', 'ilike', "%{$search}%")
-                  ->orWhere('record_number', 'ilike', "%{$search}%")
-                  ->orWhere('address', 'ilike', "%{$search}%")
-                  ->orWhere('lot_number', 'ilike', "%{$search}%");
+                    ->orWhere('record_number', 'ilike', "%{$search}%")
+                    ->orWhere('address', 'ilike', "%{$search}%")
+                    ->orWhere('lot_number', 'ilike', "%{$search}%");
             });
         }
 

@@ -56,7 +56,7 @@ class SetTenantContext
     private function setTenantSession(string $barangayId): void
     {
         if (DB::getDriverName() === 'pgsql') {
-            DB::statement("SET LOCAL app.current_barangay_id = ?", [$barangayId]);
+            DB::statement('SET LOCAL app.current_barangay_id = ?', [$barangayId]);
         }
     }
 }

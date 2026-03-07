@@ -20,7 +20,7 @@ use Laravel\Scout\Searchable;
 
 class Resident extends Model
 {
-    use HasFactory, HasUuids, SoftDeletes, BelongsToBarangay, HasAuditColumns, Searchable;
+    use BelongsToBarangay, HasAuditColumns, HasFactory, HasUuids, Searchable, SoftDeletes;
 
     protected $fillable = [
         'barangay_id',
@@ -168,11 +168,11 @@ class Resident extends Model
     {
         $parts = array_filter([
             $this->first_name,
-            $this->middle_name ? mb_substr($this->middle_name, 0, 1) . '.' : null,
+            $this->middle_name ? mb_substr($this->middle_name, 0, 1).'.' : null,
             $this->extension_name,
         ]);
 
-        return strtoupper($this->last_name ?? '') . ', ' . implode(' ', $parts);
+        return strtoupper($this->last_name ?? '').', '.implode(' ', $parts);
     }
 
     public function getAgeAttribute(): ?int

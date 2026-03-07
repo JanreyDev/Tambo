@@ -25,7 +25,7 @@ class EmployeeController extends Controller
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('employee_number', 'ilike', "%{$search}%")
-                  ->orWhere('position', 'ilike', "%{$search}%");
+                    ->orWhere('position', 'ilike', "%{$search}%");
             });
         }
 

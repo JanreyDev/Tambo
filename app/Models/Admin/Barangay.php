@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Barangay extends Model
 {
-    use HasFactory, HasUuids, SoftDeletes, HasAuditColumns;
+    use HasAuditColumns, HasFactory, HasUuids, SoftDeletes;
 
     protected $fillable = [
         'psgc_code',

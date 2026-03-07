@@ -26,8 +26,8 @@ class PublicComplaintController extends Controller
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('complaint_number', 'ilike', "%{$search}%")
-                  ->orWhere('subject', 'ilike', "%{$search}%")
-                  ->orWhere('complainant_name', 'ilike', "%{$search}%");
+                    ->orWhere('subject', 'ilike', "%{$search}%")
+                    ->orWhere('complainant_name', 'ilike', "%{$search}%");
             });
         }
 

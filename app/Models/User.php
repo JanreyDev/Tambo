@@ -16,7 +16,7 @@ use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    use HasFactory, HasUuids, Notifiable, SoftDeletes, HasApiTokens, HasRoles;
+    use HasApiTokens, HasFactory, HasRoles, HasUuids, Notifiable, SoftDeletes;
 
     protected $guard_name = 'sanctum';
 
@@ -69,14 +69,14 @@ class User extends Authenticatable
         $parts = array_filter([
             $this->last_name,
             $this->first_name,
-            $this->middle_name ? mb_substr($this->middle_name, 0, 1) . '.' : null,
+            $this->middle_name ? mb_substr($this->middle_name, 0, 1).'.' : null,
             $this->extension_name,
         ]);
 
-        return implode(', ', [$this->last_name ?? '']) . ', '
-            . implode(' ', array_filter([
+        return implode(', ', [$this->last_name ?? '']).', '
+            .implode(' ', array_filter([
                 $this->first_name,
-                $this->middle_name ? mb_substr($this->middle_name, 0, 1) . '.' : null,
+                $this->middle_name ? mb_substr($this->middle_name, 0, 1).'.' : null,
                 $this->extension_name,
             ]));
     }

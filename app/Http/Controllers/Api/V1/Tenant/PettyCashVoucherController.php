@@ -25,8 +25,8 @@ class PettyCashVoucherController extends Controller
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('pcv_number', 'ilike', "%{$search}%")
-                  ->orWhere('payee', 'ilike', "%{$search}%")
-                  ->orWhere('particulars', 'ilike', "%{$search}%");
+                    ->orWhere('payee', 'ilike', "%{$search}%")
+                    ->orWhere('particulars', 'ilike', "%{$search}%");
             });
         }
 
@@ -82,7 +82,7 @@ class PettyCashVoucherController extends Controller
         $nextSeq = $lastPcv
             ? ((int) preg_replace('/^PCV-\d{4}-/', '', $lastPcv->pcv_number)) + 1
             : 1;
-        $pcvNumber = "PCV-{$year}-" . str_pad((string) $nextSeq, 4, '0', STR_PAD_LEFT);
+        $pcvNumber = "PCV-{$year}-".str_pad((string) $nextSeq, 4, '0', STR_PAD_LEFT);
 
         $voucher = PettyCashVoucher::create([
             ...$validated,

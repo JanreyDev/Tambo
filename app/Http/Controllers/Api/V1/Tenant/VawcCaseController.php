@@ -148,7 +148,7 @@ class VawcCaseController extends Controller
         $nextSeq = $lastCase
             ? ((int) preg_replace('/^VAWC-\d{4}-/', '', $lastCase->case_number)) + 1
             : 1;
-        $caseNumber = "VAWC-{$year}-" . str_pad((string) $nextSeq, 4, '0', STR_PAD_LEFT);
+        $caseNumber = "VAWC-{$year}-".str_pad((string) $nextSeq, 4, '0', STR_PAD_LEFT);
 
         $vawcCase = VawcCase::create([
             ...$validated,

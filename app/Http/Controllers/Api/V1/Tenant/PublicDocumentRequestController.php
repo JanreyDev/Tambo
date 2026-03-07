@@ -26,7 +26,7 @@ class PublicDocumentRequestController extends Controller
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('request_number', 'ilike', "%{$search}%")
-                  ->orWhere('requester_name', 'ilike', "%{$search}%");
+                    ->orWhere('requester_name', 'ilike', "%{$search}%");
             });
         }
 

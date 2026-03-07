@@ -25,8 +25,8 @@ class TanodController extends Controller
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('badge_number', 'ilike', "%{$search}%")
-                  ->orWhere('beat_assignment', 'ilike', "%{$search}%")
-                  ->orWhere('team', 'ilike', "%{$search}%");
+                    ->orWhere('beat_assignment', 'ilike', "%{$search}%")
+                    ->orWhere('team', 'ilike', "%{$search}%");
             });
         }
 

@@ -25,8 +25,8 @@ class IssuedDocumentController extends Controller
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('document_number', 'ilike', "%{$search}%")
-                  ->orWhere('or_number', 'ilike', "%{$search}%")
-                  ->orWhere('purpose', 'ilike', "%{$search}%");
+                    ->orWhere('or_number', 'ilike', "%{$search}%")
+                    ->orWhere('purpose', 'ilike', "%{$search}%");
             });
         }
 

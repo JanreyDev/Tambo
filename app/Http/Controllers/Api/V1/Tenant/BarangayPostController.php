@@ -25,7 +25,7 @@ class BarangayPostController extends Controller
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('title', 'ilike', "%{$search}%")
-                  ->orWhere('content', 'ilike', "%{$search}%");
+                    ->orWhere('content', 'ilike', "%{$search}%");
             });
         }
 
