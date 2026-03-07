@@ -15,12 +15,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "kapitan.ph | BCMP V5",
+  title: "Welcome to BCMP | kapitan.ph",
   description: "Barangay Comprehensive Management Platform - Government System",
   generator: `BCMP v${APP_VERSION}`,
   icons: {
-    icon: "/kapitanph_logo.png",
-    apple: "/kapitanph_logo.png",
+    icon: "/favicon.ico",
+    apple: "/favicon.ico",
   },
   // Block all search engines and bots from indexing
   robots: {
