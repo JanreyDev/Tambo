@@ -118,8 +118,13 @@ deploy_staging:
         chown -R www-data:www-data /var/www/bcmp-api
         chmod -R 775 /var/www/bcmp-api/storage /var/www/bcmp-api/bootstrap/cache
 
-        # Restart PHP-FPM
+        # Restart PHP-FPM (also resets OPcache)
         systemctl restart php8.4-fpm
+
+        # Flush OPcache from within FPM to clear stale bytecode
+        echo "<?php opcache_reset(); echo 'ok';" > /var/www/bcmp-api/public/opcache_reset.php
+        curl -sk https://staging-api-bcmp.primex.ventures/opcache_reset.php --resolve staging-api-bcmp.primex.ventures:443:127.0.0.1 || true
+        rm -f /var/www/bcmp-api/public/opcache_reset.php
 
         # Cleanup
         rm -f /tmp/bcmp-api-deploy.tar.gz /tmp/bcmp-api-env-backup
@@ -190,6 +195,11 @@ deploy_production:
         chmod -R 775 /var/www/bcmp-api/storage /var/www/bcmp-api/bootstrap/cache
 
         systemctl restart php8.4-fpm
+
+        # Flush OPcache from within FPM
+        echo "<?php opcache_reset(); echo 'ok';" > /var/www/bcmp-api/public/opcache_reset.php
+        curl -sk https://api.kapitan.ph/opcache_reset.php --resolve api.kapitan.ph:443:127.0.0.1 || true
+        rm -f /var/www/bcmp-api/public/opcache_reset.php
 
         rm -f /tmp/bcmp-api-deploy.tar.gz /tmp/bcmp-api-env-backup
 

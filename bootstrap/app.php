@@ -19,8 +19,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'tenant' => SetTenantContext::class,
         ]);
 
-        // Sanctum stateful domains for SPA auth (cookie-based)
-        $middleware->statefulApi();
+        // Token-based auth only — no statefulApi() needed.
+        // statefulApi() adds CSRF validation which silently breaks
+        // JSON body parsing on FormRequest routes.
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // Return JSON for API 404s instead of HTML
