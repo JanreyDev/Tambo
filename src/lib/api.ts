@@ -95,6 +95,44 @@ async function request<T>(
   return res.json();
 }
 
+async function uploadFile<T>(
+  path: string,
+  formData: FormData,
+): Promise<T> {
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+  };
+
+  const token = getToken();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+
+  if (res.status === 401) {
+    clearToken();
+    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+      window.location.href = "/login";
+    }
+    const error: ApiError = { message: "Unauthorized" };
+    throw error;
+  }
+
+  if (!res.ok) {
+    const error: ApiError = await res.json().catch(() => ({
+      message: `Request failed with status ${res.status}`,
+    }));
+    throw error;
+  }
+
+  return res.json();
+}
+
 const api = {
   getToken,
   setToken,
@@ -137,7 +175,37 @@ const api = {
   },
 
   account: {
-    updatePreferences: (preferences: Record<string, string>) =>
+    getProfile: () =>
+      api.get<Record<string, unknown>>("/account/profile"),
+
+    updateProfile: (data: { first_name?: string; last_name?: string; middle_name?: string; extension_name?: string; email?: string; phone?: string }) =>
+      api.patch<{ message: string }>("/account/profile", data),
+
+    updateUsername: (username: string) =>
+      api.patch<{ message: string }>("/account/username", { username }),
+
+    uploadAvatar: (file: File) => {
+      const formData = new FormData();
+      formData.append("avatar", file);
+      return uploadFile<{ message: string; photo_url: string }>("/account/avatar", formData);
+    },
+
+    deleteAvatar: () =>
+      api.delete<{ message: string }>("/account/avatar"),
+
+    updatePassword: (current_password: string, password: string, password_confirmation: string) =>
+      api.patch<{ message: string }>("/account/password", { current_password, password, password_confirmation }),
+
+    getSessions: () =>
+      api.get<{ sessions: Array<{ id: string; name: string; is_current: boolean; last_used_at: string | null; created_at: string; expires_at: string | null }> }>("/account/sessions"),
+
+    revokeSession: (tokenId: string) =>
+      api.delete<{ message: string }>(`/account/sessions/${tokenId}`),
+
+    getActivity: () =>
+      api.get<{ activity: Array<{ id: string; action: string; ip_address: string; device_type: string; browser: string; created_at: string }> }>("/account/activity"),
+
+    updatePreferences: (preferences: Record<string, unknown>) =>
       api.patch<{ message: string; preferences: Record<string, unknown> }>(
         "/account/preferences",
         preferences

@@ -135,13 +135,19 @@ export function Header() {
           {userMenuOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
-              <div className="absolute right-0 top-full mt-1 w-64 rounded-xl border border-border bg-card shadow-lg z-50 py-1">
-                <div className="px-3 py-3 border-b border-border">
-                  <p className="text-sm font-medium text-foreground">{displayName}</p>
-                  <p className="text-xs text-muted-foreground">{roleName}</p>
-                  {user?.email && (
-                    <p className="text-xs text-muted-foreground/70 mt-0.5">{user.email}</p>
-                  )}
+              <div className="absolute right-0 top-full mt-1 w-72 rounded-xl border border-border bg-card shadow-lg z-50 py-1">
+                <div className="px-4 py-3.5 border-b border-border">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0" style={{ background: "var(--accent-primary)" }}>
+                      {initials}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-foreground truncate">{displayName}</p>
+                      <span className="inline-flex items-center mt-1 px-1.5 py-0.5 rounded text-[10px] font-medium" style={{ background: "var(--accent-bg)", color: "var(--accent-text)" }}>
+                        {roleName}
+                      </span>
+                    </div>
+                  </div>
                 </div>
                 <div className="py-1">
                   <button
