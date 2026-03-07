@@ -4,25 +4,45 @@ const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
 const TOKEN_KEY = "bcmp_token";
+const REMEMBER_KEY = "bcmp_remember";
 
 type RequestOptions = {
   headers?: Record<string, string>;
   skipAuth?: boolean;
 };
 
-function getToken(): string | null {
+function getStorage(): Storage | null {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem(TOKEN_KEY);
+  const remember = localStorage.getItem(REMEMBER_KEY);
+  return remember === "true" ? localStorage : sessionStorage;
 }
 
-function setToken(token: string): void {
+function getToken(): string | null {
+  if (typeof window === "undefined") return null;
+  // Check both storages — token could be in either
+  return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
+}
+
+function setToken(token: string, remember = false): void {
   if (typeof window === "undefined") return;
-  localStorage.setItem(TOKEN_KEY, token);
+  // Store preference
+  localStorage.setItem(REMEMBER_KEY, String(remember));
+  // Clear from both first
+  localStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(TOKEN_KEY);
+  // Store in the correct one
+  if (remember) {
+    localStorage.setItem(TOKEN_KEY, token);
+  } else {
+    sessionStorage.setItem(TOKEN_KEY, token);
+  }
 }
 
 function clearToken(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(REMEMBER_KEY);
 }
 
 async function request<T>(
@@ -102,6 +122,16 @@ const api = {
     logout: () => api.post<void>("/auth/logout"),
 
     logoutAll: () => api.post<void>("/auth/logout-all"),
+
+    forgotPassword: (email: string) =>
+      api.post<{ message: string }>("/auth/forgot-password", { email }, { skipAuth: true }),
+
+    resetPassword: (token: string, email: string, password: string, password_confirmation: string) =>
+      api.post<{ message: string }>(
+        "/auth/reset-password",
+        { token, email, password, password_confirmation },
+        { skipAuth: true }
+      ),
   },
 };
 
