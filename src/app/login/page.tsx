@@ -148,9 +148,9 @@ const colorMap: Record<string, { bg: string; text: string }> = {
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
-  const isDev = process.env.NODE_ENV === "development";
-  const [username, setUsername] = useState(isDev ? "kap_tambo" : "");
-  const [password, setPassword] = useState(isDev ? "Tambo@2026!" : "");
+  const isNonProd = typeof window !== "undefined" && (process.env.NODE_ENV === "development" || window.location.hostname.includes("staging"));
+  const [username, setUsername] = useState(isNonProd ? "kap_tambo" : "");
+  const [password, setPassword] = useState(isNonProd ? "Tambo@2026!" : "");
   const [rememberMe, setRememberMe] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
