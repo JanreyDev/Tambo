@@ -21,7 +21,7 @@ return new class extends Migration
             $table->string('category', 50); // photo, document, signature, thumbmark, attachment, seal, template_border
             $table->boolean('is_public')->default(false);
             $table->jsonb('metadata')->nullable();
-            $table->timestampTz('created_at');
+            $table->timestampsTz();
             $table->softDeletesTz();
 
             $table->foreign('barangay_id')->references('id')->on('barangays')->nullOnDelete();
