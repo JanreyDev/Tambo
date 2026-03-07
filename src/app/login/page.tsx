@@ -253,15 +253,16 @@ export default function LoginPage() {
         {/* Hero Text */}
         <div className="relative z-10 mb-8 lg:mb-10">
           <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-[2.75rem] font-bold leading-tight text-white mb-4">
-            Barangay Comprehensive{" "}
+            Digitize. Streamline.{" "}
             <br className="hidden sm:block" />
-            Management Platform
+            <span className="bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-500 bg-clip-text text-transparent">
+              Serve your community.
+            </span>
           </h1>
           <p className="text-gray-400 text-sm sm:text-base lg:text-lg leading-relaxed max-w-[520px]">
-            A SaaS platform that digitizes and streamlines barangay operations
-            through a unified, systematic approach. Designed to integrate all
-            barangay offices for efficient service delivery and continuous
-            community growth.
+            A unified platform integrating all barangay offices for efficient
+            service delivery — from resident management to judicial records,
+            finances, and community services.
           </p>
         </div>
 
@@ -288,21 +289,23 @@ export default function LoginPage() {
 
         {/* Stats + Footer */}
         <div className="relative z-10 mt-auto">
-          <div className="flex gap-6 sm:gap-10 mb-6">
-            <div>
-              <p className="text-xl sm:text-2xl font-bold text-white">1,200+</p>
-              <p className="text-gray-500 text-xs sm:text-sm mt-0.5">Barangays Served</p>
-            </div>
-            <div className="w-px bg-white/10" />
-            <div>
-              <p className="text-xl sm:text-2xl font-bold text-white">50K+</p>
-              <p className="text-gray-500 text-xs sm:text-sm mt-0.5">Documents Generated</p>
-            </div>
-            <div className="w-px bg-white/10" />
-            <div>
-              <p className="text-xl sm:text-2xl font-bold text-white">99.9%</p>
-              <p className="text-gray-500 text-xs sm:text-sm mt-0.5">Uptime</p>
-            </div>
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-6">
+            {[
+              { value: "10+", label: "Years Running", accent: "text-blue-400" },
+              { value: "1,200+", label: "Barangays Onboarded", accent: "text-cyan-400" },
+              { value: "500K+", label: "Residents Managed", accent: "text-emerald-400" },
+              { value: "120K+", label: "Documents Issued", accent: "text-violet-400" },
+              { value: "3", label: "Provinces Active", accent: "text-amber-400" },
+              { value: "99.9%", label: "System Uptime", accent: "text-rose-400" },
+            ].map((stat) => (
+              <div
+                key={stat.label}
+                className="text-center p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.06]"
+              >
+                <p className={`text-lg sm:text-xl font-bold ${stat.accent}`}>{stat.value}</p>
+                <p className="text-gray-500 text-[10px] sm:text-[11px] mt-0.5 leading-tight">{stat.label}</p>
+              </div>
+            ))}
           </div>
 
           <div className="flex items-center justify-between text-[11px] sm:text-xs text-gray-600">
