@@ -52,7 +52,6 @@ export default function ForgotPasswordPage() {
   // Shared
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
 
   // ── Username validation (debounced) ──
 
@@ -148,11 +147,9 @@ export default function ForgotPasswordPage() {
 
     setIsSubmitting(true);
     setError("");
-    setMessage("");
 
     try {
-      const res = await api.auth.forgotPassword(username.trim());
-      setMessage(res.message);
+      await api.auth.forgotPassword(username.trim());
       setOtpExpiresAt(Date.now() + 5 * 60 * 1000); // 5 minutes
       setResendCooldown(60); // 60 second cooldown before resend
       setStep("otp");
@@ -205,7 +202,6 @@ export default function ForgotPasswordPage() {
       await api.auth.forgotPassword(username.trim());
       setOtpExpiresAt(Date.now() + 5 * 60 * 1000);
       setResendCooldown(60);
-      setMessage("A new verification code has been sent.");
     } catch (err) {
       if (isApiError(err)) {
         setError(err.message || "Failed to resend code.");
@@ -298,7 +294,6 @@ export default function ForgotPasswordPage() {
                   setStep("username");
                   setOtp("");
                   setError("");
-                  setMessage("");
                   setOtpExpiresAt(null);
                 } else if (step === "new-password") {
                   setStep("otp");
@@ -430,12 +425,6 @@ export default function ForgotPasswordPage() {
                   Code has expired. Please resend.
                 </div>
               ) : null}
-
-              {message && (
-                <div className="bg-green-50 text-green-700 text-sm rounded-lg p-3 mb-4">
-                  {message}
-                </div>
-              )}
 
               <form onSubmit={handleVerifyOtp}>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
@@ -640,9 +629,11 @@ export default function ForgotPasswordPage() {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-xs text-slate-500 mt-6">
-          kapitan.ph v5.0.0 | PrimeX Ventures Inc.
-        </p>
+        <div className="text-center text-xs text-slate-500 mt-6 space-y-0.5">
+          <p>Developed and Maintained by PrimeX Ventures Inc.</p>
+          <p>Copyright &copy; 2015-2026 All Rights Reserved</p>
+          <p>v5.0.0</p>
+        </div>
       </div>
     </div>
   );
