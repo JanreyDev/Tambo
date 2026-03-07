@@ -332,10 +332,10 @@ export default function LoginPage() {
             {[
               { value: "10+", label: "Years Running", accent: "text-blue-400" },
               { value: "700+", label: "Barangays Onboarded", accent: "text-cyan-400" },
-              { value: "5M+", label: "Residents Managed", accent: "text-emerald-400" },
-              { value: "7M+", label: "Documents Issued", accent: "text-violet-400" },
-              { value: "7", label: "Provinces Active", accent: "text-amber-400" },
-              { value: "99.9%", label: "System Uptime", accent: "text-rose-400" },
+              { value: "5M+", label: "Residents Managed", accent: "text-violet-400" },
+              { value: "7M+", label: "Documents Issued", accent: "text-amber-400" },
+              { value: "7", label: "Provinces Active", accent: "text-rose-400" },
+              { value: "99.9%", label: "System Uptime", accent: "text-emerald-400" },
             ].map((stat) => (
               <div
                 key={stat.label}
