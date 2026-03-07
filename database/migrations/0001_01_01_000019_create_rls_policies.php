@@ -74,6 +74,11 @@ return new class extends Migration
 
     public function up(): void
     {
+        // RLS is PostgreSQL-specific — skip for SQLite (used in testing)
+        if (DB::getDriverName() !== 'pgsql') {
+            return;
+        }
+
         // Create a database role for admin users that bypasses RLS
         DB::statement("DO $$ BEGIN
             IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'bcmp_admin') THEN
@@ -106,6 +111,11 @@ return new class extends Migration
 
     public function down(): void
     {
+        // RLS is PostgreSQL-specific — skip for SQLite (used in testing)
+        if (DB::getDriverName() !== 'pgsql') {
+            return;
+        }
+
         foreach ($this->tenantTables as $table) {
             DB::statement("DROP POLICY IF EXISTS tenant_isolation ON {$table}");
             DB::statement("ALTER TABLE {$table} DISABLE ROW LEVEL SECURITY");

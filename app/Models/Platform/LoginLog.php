@@ -14,6 +14,12 @@ class LoginLog extends Model
 
     protected $table = 'login_logs';
 
+    /**
+     * The login_logs table only has created_at (no updated_at).
+     */
+    public $timestamps = true;
+    const UPDATED_AT = null;
+
     protected $fillable = [
         'user_id',
         'barangay_id',

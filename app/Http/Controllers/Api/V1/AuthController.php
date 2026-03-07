@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Auth\ForgotPasswordRequest;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Http\Requests\Auth\ResetPasswordRequest;
 use App\Models\Platform\LoginLog;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use App\Models\User;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -139,6 +143,112 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Logged out from all devices.',
+        ]);
+    }
+
+    /**
+     * Send password reset link.
+     * For now, logs the reset URL instead of sending email.
+     *
+     * POST /api/v1/auth/forgot-password
+     */
+    public function forgotPassword(ForgotPasswordRequest $request): JsonResponse
+    {
+        $email = $request->validated()['email'];
+
+        // Always return success — no user enumeration
+        $user = User::where('email', $email)->first();
+
+        if ($user) {
+            // Delete existing tokens for this email
+            DB::table('password_reset_tokens')->where('email', $email)->delete();
+
+            // Generate hashed token
+            $token = Str::random(64);
+
+            DB::table('password_reset_tokens')->insert([
+                'email' => $email,
+                'token' => Hash::make($token),
+                'created_at' => now(),
+            ]);
+
+            // TODO: Send email with reset link
+            // For now, log it so we can test the flow
+            $resetUrl = config('app.frontend_url', 'https://staging-bcmp.primex.ventures')
+                . '/reset-password?token=' . $token . '&email=' . urlencode($email);
+
+            \Log::info('Password reset requested', [
+                'email' => $email,
+                'reset_url' => $resetUrl,
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'If an account with that email exists, a password reset link has been sent.',
+        ]);
+    }
+
+    /**
+     * Reset password with token.
+     *
+     * POST /api/v1/auth/reset-password
+     */
+    public function resetPassword(ResetPasswordRequest $request): JsonResponse
+    {
+        $validated = $request->validated();
+
+        $record = DB::table('password_reset_tokens')
+            ->where('email', $validated['email'])
+            ->first();
+
+        if (! $record) {
+            return response()->json([
+                'message' => 'Invalid or expired reset token.',
+            ], 422);
+        }
+
+        // Check if token matches
+        if (! Hash::check($validated['token'], $record->token)) {
+            return response()->json([
+                'message' => 'Invalid or expired reset token.',
+            ], 422);
+        }
+
+        // Check if token is expired (60 minutes)
+        if (now()->diffInMinutes($record->created_at) > 60) {
+            DB::table('password_reset_tokens')->where('email', $validated['email'])->delete();
+
+            return response()->json([
+                'message' => 'Reset token has expired. Please request a new one.',
+            ], 422);
+        }
+
+        // Update password
+        $user = User::where('email', $validated['email'])->first();
+
+        if (! $user) {
+            return response()->json([
+                'message' => 'Invalid or expired reset token.',
+            ], 422);
+        }
+
+        $user->update([
+            'password' => Hash::make($validated['password']),
+        ]);
+
+        // Delete used token
+        DB::table('password_reset_tokens')->where('email', $validated['email'])->delete();
+
+        // Revoke all existing tokens (force re-login)
+        $user->tokens()->delete();
+
+        \Log::info('Password reset successful', [
+            'user_id' => $user->id,
+            'email' => $user->email,
+        ]);
+
+        return response()->json([
+            'message' => 'Password has been reset successfully. Please sign in with your new password.',
         ]);
     }
 

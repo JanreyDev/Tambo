@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -20,7 +21,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('platform_updates', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
+            $table->uuid('id')->primary();
 
             // Categorization
             $table->string('type', 20); // feature, improvement, bugfix, security, maintenance
@@ -54,7 +55,7 @@ return new class extends Migration
 
         // Also create sign_in_logs for login/logout monitoring
         Schema::create('sign_in_logs', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
+            $table->uuid('id')->primary();
             $table->uuid('user_id');
             $table->uuid('barangay_id')->nullable();
 

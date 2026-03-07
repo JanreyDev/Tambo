@@ -6,6 +6,8 @@ namespace App\Models\Tenant;
 
 use App\Enums\CivilStatus;
 use App\Enums\ResidentStatus;
+use App\Models\Tenant\Records\Household;
+use App\Models\Tenant\Records\ResidentSectoralTag;
 use App\Traits\BelongsToBarangay;
 use App\Traits\HasAuditColumns;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;

@@ -24,7 +24,7 @@ class SetTenantContext
 
         if ($user === null) {
             // Unauthenticated — public routes, no tenant context
-            DB::statement("SET LOCAL app.current_barangay_id = ''");
+            $this->setTenantSession('');
 
             return $next($request);
         }
@@ -32,7 +32,7 @@ class SetTenantContext
         if ($user->is_super_admin) {
             // Super admin bypasses tenant scoping
             // RLS policies allow all rows when setting is empty + user has bypass role
-            DB::statement("SET LOCAL app.current_barangay_id = ''");
+            $this->setTenantSession('');
             app()->instance('current_barangay_id', null);
         } else {
             $barangayId = $user->barangay_id;
@@ -42,10 +42,21 @@ class SetTenantContext
             }
 
             // SET LOCAL scopes to the current transaction
-            DB::statement("SET LOCAL app.current_barangay_id = ?", [$barangayId]);
+            $this->setTenantSession($barangayId);
             app()->instance('current_barangay_id', $barangayId);
         }
 
         return $next($request);
+    }
+
+    /**
+     * Set the tenant context in the database session.
+     * PostgreSQL uses SET LOCAL for RLS; other drivers (SQLite in tests) skip.
+     */
+    private function setTenantSession(string $barangayId): void
+    {
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement("SET LOCAL app.current_barangay_id = ?", [$barangayId]);
+        }
     }
 }
