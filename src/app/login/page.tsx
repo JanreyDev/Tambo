@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useEffect, useSyncExternalStore } from "react";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
+import { useAuth, isApiError } from "@/contexts/auth-context";
 import {
   Eye,
   EyeOff,
@@ -19,6 +22,9 @@ import {
   Wifi,
   Clock,
   ShieldCheck,
+  Loader2,
+  BarChart3,
+  Gavel,
 } from "lucide-react";
 
 // ── Security Detection ──────────────────────────────────────────
@@ -70,13 +76,81 @@ function detectOS(ua: string): string {
 
 const emptySubscribe = () => () => {};
 
+// ── Feature Cards Data ──────────────────────────────────────────
+
+const features = [
+  {
+    icon: Users,
+    label: "Resident Management",
+    desc: "Register and track all residents with biometric data",
+    color: "blue",
+  },
+  {
+    icon: FileText,
+    label: "Smart Documents",
+    desc: "Generate clearances and certificates in seconds",
+    color: "emerald",
+  },
+  {
+    icon: Gavel,
+    label: "Judicial & Peace Order",
+    desc: "KP cases, blotter, VAWC, and protection orders",
+    color: "amber",
+  },
+  {
+    icon: BarChart3,
+    label: "Finance & Budget",
+    desc: "Track barangay finances, disbursements, and reports",
+    color: "cyan",
+  },
+  {
+    icon: Bot,
+    label: "AI-Powered Assistant",
+    desc: "Built-in AI for data queries, reports, and insights",
+    color: "violet",
+  },
+  {
+    icon: Link2,
+    label: "Blockchain Verified",
+    desc: "Tamper-proof records with blockchain audit trails",
+    color: "rose",
+  },
+  {
+    icon: MessageSquare,
+    label: "SMS Messaging",
+    desc: "Blast announcements and alerts to residents via SMS",
+    color: "teal",
+  },
+  {
+    icon: Phone,
+    label: "Call System",
+    desc: "Direct call residents for urgent notifications",
+    color: "orange",
+  },
+];
+
+const colorMap: Record<string, { bg: string; text: string }> = {
+  blue: { bg: "bg-blue-500/20", text: "text-blue-400" },
+  emerald: { bg: "bg-emerald-500/20", text: "text-emerald-400" },
+  amber: { bg: "bg-amber-500/20", text: "text-amber-400" },
+  cyan: { bg: "bg-cyan-500/20", text: "text-cyan-400" },
+  violet: { bg: "bg-violet-500/20", text: "text-violet-400" },
+  rose: { bg: "bg-rose-500/20", text: "text-rose-400" },
+  teal: { bg: "bg-teal-500/20", text: "text-teal-400" },
+  orange: { bg: "bg-orange-500/20", text: "text-orange-400" },
+};
+
 // ── Login Page ──────────────────────────────────────────────────
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
+  const router = useRouter();
+  const { login, isAuthenticated, isLoading } = useAuth();
 
   const [securityInfo, setSecurityInfo] = useState<SecurityInfo | null>(null);
 
@@ -105,7 +179,6 @@ export default function LoginPage() {
       }),
     };
 
-    // Fetch IP then set everything at once (setState only in async callback)
     fetch("https://api.ipify.org?format=json")
       .then((r) => r.json())
       .then((data) => {
@@ -116,14 +189,45 @@ export default function LoginPage() {
       });
   }, []);
 
-  return (
-    <div className="min-h-screen flex">
-      {/* Left Panel — Dark immersive branding */}
-      <div className="hidden lg:flex lg:w-[52%] relative overflow-hidden flex-col justify-between p-12">
-        {/* Base gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[#060a16] via-[#0c1230] to-[#0a0e20]" />
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.replace("/dashboard");
+    }
+  }, [isLoading, isAuthenticated, router]);
 
-        {/* Grid pattern */}
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setIsSubmitting(true);
+
+    try {
+      await login(username, password);
+      router.push("/dashboard");
+    } catch (err) {
+      if (isApiError(err)) {
+        setError(err.message);
+      } else {
+        setError("Unable to connect to the server. Please try again.");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  if (isLoading || isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col lg:flex-row">
+      {/* ── Left Panel ── */}
+      <div className="relative overflow-hidden flex flex-col lg:w-[55%] p-6 sm:p-8 lg:p-10 xl:p-12">
+        {/* Background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#060a16] via-[#0c1230] to-[#0a0e20]" />
         <div
           className="absolute inset-0 opacity-[0.03]"
           style={{
@@ -131,139 +235,88 @@ export default function LoginPage() {
             backgroundSize: "60px 60px",
           }}
         />
-
-        {/* Accent glows */}
         <div className="absolute top-[-20%] right-[-10%] w-[500px] h-[500px] bg-blue-600/12 rounded-full blur-[140px]" />
         <div className="absolute bottom-[-10%] left-[-5%] w-[400px] h-[400px] bg-violet-600/8 rounded-full blur-[120px]" />
-        <div className="absolute top-[40%] left-[20%] w-[300px] h-[300px] bg-cyan-500/6 rounded-full blur-[100px]" />
 
-        {/* Floating cards — left column */}
-        <div className="absolute top-[10%] right-[52%] w-[185px] p-3.5 rounded-2xl bg-white/[0.04] backdrop-blur-sm border border-white/[0.07] -rotate-2 transition-transform hover:rotate-0 hover:bg-white/[0.06]">
-          <div className="flex items-center gap-2.5 mb-1.5">
-            <div className="w-7 h-7 rounded-lg bg-blue-500/20 flex items-center justify-center">
-              <Users className="w-3.5 h-3.5 text-blue-400" />
-            </div>
-            <span className="text-white/90 text-xs font-semibold">Resident Management</span>
-          </div>
-          <p className="text-white/30 text-[11px] leading-relaxed">Register and track all residents with biometric data</p>
+        {/* Logo */}
+        <div className="relative z-10 flex items-center gap-3 mb-8 lg:mb-auto">
+          <Image
+            src="/kapitanph_logo.png"
+            alt="kapitan.ph"
+            width={160}
+            height={44}
+            className="h-10 w-auto"
+            priority
+          />
         </div>
 
-        <div className="absolute top-[28%] right-[48%] w-[185px] p-3.5 rounded-2xl bg-white/[0.04] backdrop-blur-sm border border-white/[0.07] rotate-1 transition-transform hover:rotate-0 hover:bg-white/[0.06]">
-          <div className="flex items-center gap-2.5 mb-1.5">
-            <div className="w-7 h-7 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-              <FileText className="w-3.5 h-3.5 text-emerald-400" />
-            </div>
-            <span className="text-white/90 text-xs font-semibold">Smart Documents</span>
-          </div>
-          <p className="text-white/30 text-[11px] leading-relaxed">Generate clearances and certificates in seconds</p>
-        </div>
-
-        <div className="absolute top-[46%] right-[52%] w-[185px] p-3.5 rounded-2xl bg-white/[0.04] backdrop-blur-sm border border-white/[0.07] -rotate-1 transition-transform hover:rotate-0 hover:bg-white/[0.06]">
-          <div className="flex items-center gap-2.5 mb-1.5">
-            <div className="w-7 h-7 rounded-lg bg-amber-500/20 flex items-center justify-center">
-              <Bot className="w-3.5 h-3.5 text-amber-400" />
-            </div>
-            <span className="text-white/90 text-xs font-semibold">AI-Powered</span>
-          </div>
-          <p className="text-white/30 text-[11px] leading-relaxed">Built-in AI assistant for data queries and reports</p>
-        </div>
-
-        {/* Floating cards — right column */}
-        <div className="absolute top-[16%] right-[6%] w-[185px] p-3.5 rounded-2xl bg-gradient-to-br from-violet-500/[0.07] to-white/[0.02] backdrop-blur-sm border border-violet-400/[0.10] rotate-2 transition-transform hover:rotate-0 hover:from-violet-500/[0.10]">
-          <div className="flex items-center gap-2.5 mb-1.5">
-            <div className="w-7 h-7 rounded-lg bg-violet-500/20 flex items-center justify-center">
-              <Link2 className="w-3.5 h-3.5 text-violet-400" />
-            </div>
-            <span className="text-white/90 text-xs font-semibold">Blockchain Verified</span>
-          </div>
-          <p className="text-white/30 text-[11px] leading-relaxed">1st blockchain barangay system — tamper-proof records</p>
-        </div>
-
-        <div className="absolute top-[34%] right-[3%] w-[185px] p-3.5 rounded-2xl bg-white/[0.04] backdrop-blur-sm border border-white/[0.07] -rotate-1 transition-transform hover:rotate-0 hover:bg-white/[0.06]">
-          <div className="flex items-center gap-2.5 mb-1.5">
-            <div className="w-7 h-7 rounded-lg bg-cyan-500/20 flex items-center justify-center">
-              <MessageSquare className="w-3.5 h-3.5 text-cyan-400" />
-            </div>
-            <span className="text-white/90 text-xs font-semibold">SMS Messaging</span>
-          </div>
-          <p className="text-white/30 text-[11px] leading-relaxed">Blast announcements and alerts to all residents via SMS</p>
-        </div>
-
-        <div className="absolute top-[52%] right-[6%] w-[185px] p-3.5 rounded-2xl bg-white/[0.04] backdrop-blur-sm border border-white/[0.07] rotate-1 transition-transform hover:rotate-0 hover:bg-white/[0.06]">
-          <div className="flex items-center gap-2.5 mb-1.5">
-            <div className="w-7 h-7 rounded-lg bg-rose-500/20 flex items-center justify-center">
-              <Phone className="w-3.5 h-3.5 text-rose-400" />
-            </div>
-            <span className="text-white/90 text-xs font-semibold">Call System</span>
-          </div>
-          <p className="text-white/30 text-[11px] leading-relaxed">Direct call residents for urgent notifications and follow-ups</p>
-        </div>
-
-        {/* Decorative dots */}
-        <div className="absolute top-[8%] left-[42%] w-1.5 h-1.5 rounded-full bg-blue-400/30" />
-        <div className="absolute top-[22%] left-[38%] w-1 h-1 rounded-full bg-cyan-400/20" />
-        <div className="absolute top-[62%] left-[12%] w-2 h-2 rounded-full bg-violet-400/15" />
-        <div className="absolute top-[68%] left-[45%] w-1.5 h-1.5 rounded-full bg-emerald-400/20" />
-        <div className="absolute bottom-[18%] left-[25%] w-1 h-1 rounded-full bg-rose-400/20" />
-
-        {/* Content */}
-        <div className="relative z-10">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-blue-500/25">
-              K
-            </div>
-            <span className="text-white text-xl font-semibold tracking-tight">
-              kapitan<span className="text-blue-400">.ph</span>
-            </span>
-          </div>
-        </div>
-
-        <div className="relative z-10">
-          <h1 className="text-[3.5rem] font-bold leading-[1.05] text-white mb-5">
-            Barangay
-            <br />
-            management,
-            <br />
-            <span className="bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-500 bg-clip-text text-transparent">
-              simplified.
-            </span>
+        {/* Hero Text */}
+        <div className="relative z-10 mb-8 lg:mb-10">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-[2.75rem] font-bold leading-tight text-white mb-4">
+            Barangay Comprehensive{" "}
+            <br className="hidden sm:block" />
+            Management Platform
           </h1>
-          <p className="text-gray-400 text-lg leading-relaxed max-w-[400px] mb-14">
-            Residents, documents, judicial records, finances, and
-            community services — unified in one intelligent platform.
+          <p className="text-gray-400 text-sm sm:text-base lg:text-lg leading-relaxed max-w-[520px]">
+            A SaaS platform that digitizes and streamlines barangay operations
+            through a unified, systematic approach. Designed to integrate all
+            barangay offices for efficient service delivery and continuous
+            community growth.
           </p>
-
-          {/* Stats row */}
-          <div className="flex gap-10">
-            <div>
-              <p className="text-3xl font-bold text-white">1,200+</p>
-              <p className="text-gray-500 text-sm mt-1">Barangays Served</p>
-            </div>
-            <div className="w-px bg-white/10" />
-            <div>
-              <p className="text-3xl font-bold text-white">50K+</p>
-              <p className="text-gray-500 text-sm mt-1">Documents Generated</p>
-            </div>
-            <div className="w-px bg-white/10" />
-            <div>
-              <p className="text-3xl font-bold text-white">99.9%</p>
-              <p className="text-gray-500 text-sm mt-1">Uptime</p>
-            </div>
-          </div>
         </div>
 
-        {/* Footer */}
-        <div className="relative z-10 flex items-center justify-between text-sm text-gray-600">
-          <span>Copyright @ 2015-2026 All Rights Reserved</span>
-          <span className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50" />
-            All systems operational
-          </span>
+        {/* Feature Grid — responsive, no absolute positioning */}
+        <div className="relative z-10 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 gap-2 mb-8 lg:mb-10">
+          {features.map((f) => {
+            const c = colorMap[f.color];
+            return (
+              <div
+                key={f.label}
+                className="p-3 rounded-xl bg-white/[0.04] border border-white/[0.07] hover:bg-white/[0.07] transition-colors"
+              >
+                <div className="flex items-center gap-2 mb-1.5">
+                  <div className={`w-6 h-6 rounded-lg ${c.bg} flex items-center justify-center shrink-0`}>
+                    <f.icon className={`w-3 h-3 ${c.text}`} />
+                  </div>
+                  <span className="text-white/90 text-[11px] font-semibold leading-tight">{f.label}</span>
+                </div>
+                <p className="text-white/30 text-[10px] leading-snug">{f.desc}</p>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Stats + Footer */}
+        <div className="relative z-10 mt-auto">
+          <div className="flex gap-6 sm:gap-10 mb-6">
+            <div>
+              <p className="text-xl sm:text-2xl font-bold text-white">1,200+</p>
+              <p className="text-gray-500 text-xs sm:text-sm mt-0.5">Barangays Served</p>
+            </div>
+            <div className="w-px bg-white/10" />
+            <div>
+              <p className="text-xl sm:text-2xl font-bold text-white">50K+</p>
+              <p className="text-gray-500 text-xs sm:text-sm mt-0.5">Documents Generated</p>
+            </div>
+            <div className="w-px bg-white/10" />
+            <div>
+              <p className="text-xl sm:text-2xl font-bold text-white">99.9%</p>
+              <p className="text-gray-500 text-xs sm:text-sm mt-0.5">Uptime</p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between text-[11px] sm:text-xs text-gray-600">
+            <span>Copyright @ 2015-2026 All Rights Reserved | PrimeX Ventures Inc.</span>
+            <span className="hidden sm:flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50" />
+              All systems operational
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* Right Panel — Login Form + Security Intelligence */}
-      <div className="flex-1 flex items-center justify-center px-6 py-12 bg-background relative">
+      {/* ── Right Panel — Login Form + Security Intelligence ── */}
+      <div className="flex-1 flex items-center justify-center px-6 py-10 lg:py-12 bg-background relative">
         {/* Staging indicator */}
         {process.env.NODE_ENV !== "production" && (
           <div className="absolute top-4 right-4 px-3 py-1 bg-amber-500 text-white text-[11px] font-bold rounded tracking-wide">
@@ -272,16 +325,6 @@ export default function LoginPage() {
         )}
 
         <div className="w-full max-w-[420px]">
-          {/* Mobile logo */}
-          <div className="lg:hidden flex items-center gap-3 mb-10">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-lg">
-              K
-            </div>
-            <span className="text-xl font-semibold text-foreground">
-              kapitan<span className="text-blue-600">.ph</span>
-            </span>
-          </div>
-
           {/* Header */}
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-foreground">Welcome back</h2>
@@ -289,13 +332,7 @@ export default function LoginPage() {
           </div>
 
           {/* Login Form */}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              window.location.href = "/dashboard";
-            }}
-            className="space-y-4"
-          >
+          <form onSubmit={handleLogin} className="space-y-4">
             {/* Username */}
             <div>
               <label className="block text-sm font-medium text-foreground mb-1.5">
@@ -347,12 +384,21 @@ export default function LoginPage() {
               </button>
             </div>
 
+            {/* Error message */}
+            {error && (
+              <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-sm text-red-600 dark:text-red-400">
+                {error}
+              </div>
+            )}
+
             {/* Submit */}
             <button
               type="submit"
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium text-sm hover:from-blue-700 hover:to-blue-800 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 shadow-lg shadow-blue-600/20 active:scale-[0.99]"
+              disabled={isSubmitting}
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium text-sm hover:from-blue-700 hover:to-blue-800 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 shadow-lg shadow-blue-600/20 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100 flex items-center justify-center gap-2"
             >
-              Sign in
+              {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+              {isSubmitting ? "Signing in..." : "Sign in"}
             </button>
           </form>
 
@@ -370,7 +416,6 @@ export default function LoginPage() {
 
               {/* Security grid */}
               <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-0.5">
-                {/* Row 1: Connection + Encryption */}
                 <div className="grid grid-cols-2 gap-2">
                   <div className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-background/60">
                     <Lock className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
@@ -388,7 +433,6 @@ export default function LoginPage() {
                   </div>
                 </div>
 
-                {/* Row 2: Browser + OS */}
                 <div className="grid grid-cols-2 gap-2">
                   <div className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-background/60">
                     <Globe className="w-3.5 h-3.5 text-violet-500 shrink-0" />
@@ -408,7 +452,6 @@ export default function LoginPage() {
                   </div>
                 </div>
 
-                {/* Row 3: IP + Fingerprint */}
                 <div className="grid grid-cols-2 gap-2">
                   <div className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-background/60">
                     <Wifi className="w-3.5 h-3.5 text-amber-500 shrink-0" />
@@ -426,7 +469,6 @@ export default function LoginPage() {
                   </div>
                 </div>
 
-                {/* Row 4: Timezone + Session Time */}
                 <div className="grid grid-cols-2 gap-2">
                   <div className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-background/60">
                     <Clock className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
@@ -468,32 +510,6 @@ export default function LoginPage() {
               </div>
             </div>
           )}
-
-          {/* Divider */}
-          <div className="relative my-5">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-border" />
-            </div>
-            <div className="relative flex justify-center text-xs">
-              <span className="px-3 bg-background text-muted-foreground">New barangay?</span>
-            </div>
-          </div>
-
-          {/* Request Access */}
-          <button
-            type="button"
-            className="w-full py-2.5 rounded-xl border border-border text-sm font-medium text-foreground hover:bg-muted transition-all active:scale-[0.99]"
-          >
-            Request access for your barangay
-          </button>
-
-          {/* Support */}
-          <p className="text-center text-sm text-muted-foreground mt-5">
-            Need help?{" "}
-            <button type="button" className="text-blue-600 hover:text-blue-700 font-medium transition-colors">
-              Contact PrimeX Support
-            </button>
-          </p>
 
           {/* Copyright */}
           <p className="text-center text-[11px] text-muted-foreground/60 mt-6">
