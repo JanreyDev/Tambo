@@ -163,13 +163,20 @@ const api = {
 
     logoutAll: () => api.post<void>("/auth/logout-all"),
 
-    forgotPassword: (email: string) =>
-      api.post<{ message: string }>("/auth/forgot-password", { email }, { skipAuth: true }),
+    forgotPassword: (username: string) =>
+      api.post<{ message: string }>("/auth/forgot-password", { username }, { skipAuth: true }),
 
-    resetPassword: (token: string, email: string, password: string, password_confirmation: string) =>
+    verifyResetOtp: (username: string, code: string) =>
+      api.post<{ message: string; reset_token: string; phone_masked: string }>(
+        "/auth/verify-reset-otp",
+        { username, code },
+        { skipAuth: true }
+      ),
+
+    resetPassword: (username: string, reset_token: string, password: string, password_confirmation: string) =>
       api.post<{ message: string }>(
         "/auth/reset-password",
-        { token, email, password, password_confirmation },
+        { username, reset_token, password, password_confirmation },
         { skipAuth: true }
       ),
   },

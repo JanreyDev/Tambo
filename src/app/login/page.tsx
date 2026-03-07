@@ -485,9 +485,9 @@ export default function LoginPage() {
                     />
                     <span className="text-sm text-muted-foreground">Remember me</span>
                   </label>
-                  <button type="button" className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors opacity-50 cursor-not-allowed" disabled title="Coming soon">
+                  <a href="/forgot-password" className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors">
                     Forgot password?
-                  </button>
+                  </a>
                 </div>
 
                 {/* Submit — disabled until both fields are filled */}
