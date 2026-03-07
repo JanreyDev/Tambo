@@ -21,12 +21,12 @@ class FileUploadService
     /**
      * Upload a file to storage and create a File record.
      *
-     * @param  UploadedFile  $file       The uploaded file
-     * @param  string        $category   File category (photo, signature, thumbmark, document, seal, logo, avatar)
-     * @param  string        $path       Storage path prefix (e.g., "bcmp/{barangay_id}/residents/photos")
-     * @param  string|null   $uploadedBy User UUID who uploaded
-     * @param  string|null   $barangayId Barangay UUID for tenant scoping
-     * @param  bool          $isPublic   Whether file is publicly accessible
+     * @param  UploadedFile  $file  The uploaded file
+     * @param  string  $category  File category (photo, signature, thumbmark, document, seal, logo, avatar)
+     * @param  string  $path  Storage path prefix (e.g., "bcmp/{barangay_id}/residents/photos")
+     * @param  string|null  $uploadedBy  User UUID who uploaded
+     * @param  string|null  $barangayId  Barangay UUID for tenant scoping
+     * @param  bool  $isPublic  Whether file is publicly accessible
      */
     public function upload(
         UploadedFile $file,
@@ -111,7 +111,7 @@ class FileUploadService
         return $this->upload(
             file: $file,
             category: 'avatar',
-            path: "bcmp/system/avatars",
+            path: 'bcmp/system/avatars',
             uploadedBy: $userId,
             barangayId: $barangayId,
             isPublic: true,
