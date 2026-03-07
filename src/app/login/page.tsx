@@ -306,7 +306,17 @@ export default function LoginPage() {
           </div>
 
           <div className="flex items-center justify-between text-[11px] sm:text-xs text-gray-600">
-            <span>Copyright @ 2015-2026 All Rights Reserved | PrimeX Ventures Inc.</span>
+            <span>
+              Copyright @ 2015-2026 All Rights Reserved |{" "}
+              <a
+                href="https://primex.ventures/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gray-500 hover:text-blue-400 transition-colors"
+              >
+                PrimeX Ventures Inc.
+              </a>
+            </span>
             <span className="hidden sm:flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50" />
               All systems operational
@@ -512,9 +522,19 @@ export default function LoginPage() {
           )}
 
           {/* Copyright */}
-          <p className="text-center text-[11px] text-muted-foreground/60 mt-6">
-            Developed and Maintained by PrimeX Ventures Inc.
-          </p>
+          <div className="mt-8 pt-5 border-t border-border">
+            <p className="text-center text-[11px] text-muted-foreground/50">
+              Developed and Maintained by{" "}
+              <a
+                href="https://primex.ventures/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-muted-foreground/70 hover:text-blue-600 transition-colors"
+              >
+                PrimeX Ventures Inc.
+              </a>
+            </p>
+          </div>
         </div>
       </div>
     </div>
