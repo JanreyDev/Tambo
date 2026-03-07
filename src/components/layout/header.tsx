@@ -1,15 +1,31 @@
 "use client";
 
-import { Bell, Search, Moon, Sun, Bot, Menu, LogOut, ChevronDown } from "lucide-react";
+import { Bell, Search, Moon, Sun, Bot, Menu, LogOut, ChevronDown, UserCog } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useState, useSyncExternalStore } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/auth-context";
+import { persistThemePreference } from "@/hooks/use-theme-store";
 
 const emptySubscribe = () => () => {};
+
+function getInitials(firstName?: string, lastName?: string): string {
+  const f = firstName?.charAt(0)?.toUpperCase() || "";
+  const l = lastName?.charAt(0)?.toUpperCase() || "";
+  return `${f}${l}` || "??";
+}
+
+function formatRole(roles?: string[]): string {
+  if (!roles || roles.length === 0) return "Staff";
+  return roles[0].replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
 export function Header() {
   const { theme, setTheme } = useTheme();
   const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const { user, logout } = useAuth();
+  const router = useRouter();
 
   const today = new Date().toLocaleDateString("en-PH", {
     weekday: "long",
@@ -17,6 +33,10 @@ export function Header() {
     month: "long",
     day: "numeric",
   });
+
+  const displayName = user ? `${user.first_name} ${user.last_name}` : "Loading...";
+  const initials = getInitials(user?.first_name, user?.last_name);
+  const roleName = formatRole(user?.roles);
 
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-4 md:px-6 border-b border-border bg-card/80 backdrop-blur-sm">
@@ -76,7 +96,7 @@ export function Header() {
         {/* Theme toggle */}
         {mounted && (
           <button
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            onClick={() => { const next = theme === "dark" ? "light" : "dark"; setTheme(next); persistThemePreference(next); }}
             className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
             title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
@@ -100,14 +120,14 @@ export function Header() {
             aria-label="User menu"
           >
             <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold" style={{ background: "var(--accent-primary)" }}>
-              JM
+              {initials}
             </div>
             <div className="hidden md:block text-left">
               <p className="text-sm font-medium text-foreground leading-none">
-                Jeager Manalo
+                {displayName}
               </p>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                Super Admin
+                {roleName}
               </p>
             </div>
             <ChevronDown className="hidden md:block w-4 h-4 text-muted-foreground" />
@@ -115,14 +135,36 @@ export function Header() {
           {userMenuOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
-              <div className="absolute right-0 top-full mt-1 w-56 rounded-xl border border-border bg-card shadow-lg z-50 py-1">
-                <div className="px-3 py-2 border-b border-border">
-                  <p className="text-sm font-medium text-foreground">Jeager Manalo</p>
-                  <p className="text-xs text-muted-foreground">jeager@primex.ventures</p>
+              <div className="absolute right-0 top-full mt-1 w-64 rounded-xl border border-border bg-card shadow-lg z-50 py-1">
+                <div className="px-3 py-3 border-b border-border">
+                  <p className="text-sm font-medium text-foreground">{displayName}</p>
+                  <p className="text-xs text-muted-foreground">{roleName}</p>
+                  {user?.email && (
+                    <p className="text-xs text-muted-foreground/70 mt-0.5">{user.email}</p>
+                  )}
                 </div>
-                <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
-                  <LogOut className="w-4 h-4" /> Sign Out
-                </button>
+                <div className="py-1">
+                  <button
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      router.push("/dashboard/account");
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                  >
+                    <UserCog className="w-4 h-4 text-muted-foreground" /> My Account
+                  </button>
+                </div>
+                <div className="border-t border-border py-1">
+                  <button
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      logout();
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" /> Sign Out
+                  </button>
+                </div>
               </div>
             </>
           )}

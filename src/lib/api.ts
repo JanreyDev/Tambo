@@ -5,6 +5,7 @@ const BASE_URL =
 
 const TOKEN_KEY = "bcmp_token";
 const REMEMBER_KEY = "bcmp_remember";
+const AUTH_COOKIE = "bcmp_auth";
 
 type RequestOptions = {
   headers?: Record<string, string>;
@@ -30,13 +31,20 @@ function setToken(token: string, remember = false): void {
   } else {
     sessionStorage.setItem(TOKEN_KEY, token);
   }
+  // Set auth cookie for middleware (server-side route protection)
+  const maxAge = remember ? 30 * 24 * 60 * 60 : ""; // 30 days or session
+  document.cookie = `${AUTH_COOKIE}=1; path=/; SameSite=Lax${maxAge ? `; max-age=${maxAge}` : ""}`;
 }
 
 function clearToken(): void {
   if (typeof window === "undefined") return;
+  // Clear token from both storages
   localStorage.removeItem(TOKEN_KEY);
   sessionStorage.removeItem(TOKEN_KEY);
+  // Clear remember preference
   localStorage.removeItem(REMEMBER_KEY);
+  // Clear auth cookie (middleware uses this for server-side route protection)
+  document.cookie = `${AUTH_COOKIE}=; path=/; max-age=0; SameSite=Lax`;
 }
 
 async function request<T>(
@@ -125,6 +133,14 @@ const api = {
         "/auth/reset-password",
         { token, email, password, password_confirmation },
         { skipAuth: true }
+      ),
+  },
+
+  account: {
+    updatePreferences: (preferences: Record<string, string>) =>
+      api.patch<{ message: string; preferences: Record<string, unknown> }>(
+        "/account/preferences",
+        preferences
       ),
   },
 };

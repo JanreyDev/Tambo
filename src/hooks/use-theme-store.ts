@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useSyncExternalStore } from "react";
+import { api } from "@/lib/api";
 
 export type AccentColor =
   | "blue"
@@ -38,6 +39,38 @@ function getAccentServerSnapshot(): AccentColor {
   return "blue";
 }
 
+/**
+ * Apply user preferences from DB (called after login or /me response).
+ * Syncs DB values into localStorage so the UI matches immediately.
+ */
+function applyUserPreferences(preferences: Record<string, unknown> | null | undefined): void {
+  if (!preferences) return;
+
+  // Accent color
+  const dbAccent = preferences.accent_color as AccentColor | undefined;
+  if (dbAccent && ACCENT_COLORS[dbAccent]) {
+    localStorage.setItem(STORAGE_KEY, dbAccent);
+    applyAccent(dbAccent);
+    listeners.forEach((l) => l());
+  }
+
+  // Theme (next-themes reads from localStorage key "theme")
+  const dbTheme = preferences.theme as string | undefined;
+  if (dbTheme && ["light", "dark", "system"].includes(dbTheme)) {
+    localStorage.setItem("theme", dbTheme);
+  }
+}
+
+/**
+ * Persist theme choice to DB (fire and forget).
+ * Call this alongside next-themes' setTheme() so both localStorage and DB stay in sync.
+ */
+function persistThemePreference(theme: string): void {
+  api.account.updatePreferences({ theme }).catch(() => {
+    // Silently fail — localStorage still has the value, will sync next login
+  });
+}
+
 export function useAccentColor() {
   const accent = useSyncExternalStore(subscribe, getAccentSnapshot, getAccentServerSnapshot);
 
@@ -46,9 +79,15 @@ export function useAccentColor() {
   }, [accent]);
 
   const setAccent = useCallback((color: AccentColor) => {
+    // Update localStorage immediately (fast UI response)
     localStorage.setItem(STORAGE_KEY, color);
     applyAccent(color);
     listeners.forEach((l) => l());
+
+    // Persist to DB (fire and forget — localStorage is cache, DB is source of truth)
+    api.account.updatePreferences({ accent_color: color }).catch(() => {
+      // Silently fail — localStorage still has the value, will sync next login
+    });
   }, []);
 
   return { accent, setAccent, colors: ACCENT_COLORS };
@@ -64,4 +103,4 @@ function applyAccent(color: AccentColor) {
   root.style.setProperty("--accent-text", vars.text);
 }
 
-export { ACCENT_COLORS };
+export { ACCENT_COLORS, applyUserPreferences, persistThemePreference };

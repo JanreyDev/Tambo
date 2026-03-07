@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/auth-context";
 import {
   LayoutDashboard,
   Users,
@@ -102,6 +103,20 @@ const navGroups: NavGroup[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { user } = useAuth();
+
+  const barangay = user?.barangay;
+  const barangayName = barangay?.name || "Loading...";
+  // full_address is "Barangay Tambo, Paranaque City, Metro Manila" — strip the "Barangay X, " prefix
+  const barangayLocation = barangay?.full_address
+    ? barangay.full_address.replace(/^Barangay\s+\S+,\s*/i, "")
+    : "";
+  const barangayInitials = barangayName
+    .split(" ")
+    .map((w) => w.charAt(0))
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   const isActive = (href: string) =>
     pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
@@ -123,11 +138,11 @@ export function Sidebar() {
       {/* Barangay Info */}
       <div className="mx-4 mb-3 flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-muted/50">
         <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0" style={{ background: "var(--accent-primary)" }}>
-          BT
+          {barangayInitials}
         </div>
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-foreground truncate">Brgy. Tambo</p>
-          <p className="text-[11px] text-muted-foreground truncate">Paranaque, NCR</p>
+          <p className="text-sm font-semibold text-foreground truncate">Brgy. {barangayName}</p>
+          <p className="text-[11px] text-muted-foreground truncate">{barangayLocation}</p>
         </div>
       </div>
 

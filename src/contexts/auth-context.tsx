@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { applyUserPreferences } from "@/hooks/use-theme-store";
 import type { User, ApiError } from "@/lib/types";
 
 interface AuthContextValue {
@@ -22,6 +23,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshUser = useCallback(async () => {
     const token = api.getToken();
     if (!token) {
+      // Clear stale cookie if token is missing (e.g., sessionStorage cleared on restart)
+      // This prevents redirect loops: middleware sees cookie → allows access → no token → redirect to login → repeat
+      api.clearToken();
       setUser(null);
       setIsLoading(false);
       return;
@@ -30,6 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const userData = await api.auth.me();
       setUser(userData);
+      applyUserPreferences(userData.preferences);
     } catch {
       api.clearToken();
       setUser(null);
@@ -46,6 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const res = await api.auth.login(username, password);
     api.setToken(res.token, remember);
     setUser(res.user);
+    applyUserPreferences(res.user.preferences);
   }, []);
 
   const logout = useCallback(async () => {
