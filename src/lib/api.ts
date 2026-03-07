@@ -210,6 +210,15 @@ const api = {
         "/account/preferences",
         preferences
       ),
+
+    sendPhoneOtp: (phone: string) =>
+      api.post<{ message: string }>("/account/phone/send-otp", { phone }),
+
+    verifyPhone: (phone: string, code: string) =>
+      api.post<{ message: string }>("/account/phone/verify", { phone, code }),
+
+    requestDataExport: () =>
+      api.post<{ message: string; data: Record<string, unknown> }>("/account/data-export"),
   },
 };
 

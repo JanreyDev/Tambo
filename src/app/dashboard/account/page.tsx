@@ -17,14 +17,12 @@ import {
   Mail,
   Phone,
   Shield,
-  Smartphone,
   Monitor,
   Key,
   AlertTriangle,
   Check,
   Eye,
   EyeOff,
-  ChevronRight,
   Sun,
   Moon,
   Palette,
@@ -83,6 +81,7 @@ export default function AccountPage() {
   const [profileStatus, setProfileStatus] = useState<Status>("idle");
   const [contactStatus, setContactStatus] = useState<Status>("idle");
   const [usernameStatus, setUsernameStatus] = useState<Status>("idle");
+  const [usernameMessage, setUsernameMessage] = useState("");
   const [avatarStatus, setAvatarStatus] = useState<Status>("idle");
 
   // ── Security form state ──
@@ -102,6 +101,21 @@ export default function AccountPage() {
   // ── Activity ──
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [activityLoading, setActivityLoading] = useState(false);
+
+  // ── Phone verification ──
+  const [showPhoneVerify, setShowPhoneVerify] = useState(false);
+  const [phoneToVerify, setPhoneToVerify] = useState("");
+  const [phoneOtp, setPhoneOtp] = useState("");
+  const [phoneVerifyStatus, setPhoneVerifyStatus] = useState<Status>("idle");
+  const [phoneVerifyMessage, setPhoneVerifyMessage] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpCooldown, setOtpCooldown] = useState(0);
+
+  // ── Data export ──
+  const [exportStatus, setExportStatus] = useState<Status>("idle");
+
+  // ── Sign out all ──
+  const [signOutAllLoading, setSignOutAllLoading] = useState(false);
 
   // Populate form from user data
   useEffect(() => {
@@ -129,6 +143,13 @@ export default function AccountPage() {
       loadActivity();
     }
   }, [activeTab]);
+
+  // OTP cooldown timer
+  useEffect(() => {
+    if (otpCooldown <= 0) return;
+    const timer = setInterval(() => setOtpCooldown((c) => c - 1), 1000);
+    return () => clearInterval(timer);
+  }, [otpCooldown]);
 
   const loadSessions = async () => {
     setSessionsLoading(true);
@@ -183,15 +204,29 @@ export default function AccountPage() {
   };
 
   const handleUpdateUsername = async () => {
+    if (!username || username.length < 3) {
+      setUsernameStatus("error");
+      setUsernameMessage("Username must be at least 3 characters.");
+      setTimeout(() => { setUsernameStatus("idle"); setUsernameMessage(""); }, 3000);
+      return;
+    }
+    if (username === user?.username) {
+      setUsernameStatus("error");
+      setUsernameMessage("No changes to save.");
+      setTimeout(() => { setUsernameStatus("idle"); setUsernameMessage(""); }, 3000);
+      return;
+    }
     setUsernameStatus("loading");
     try {
       await api.account.updateUsername(username);
       setUsernameStatus("success");
+      setUsernameMessage("Username updated.");
       refreshUser();
-      setTimeout(() => setUsernameStatus("idle"), 2000);
-    } catch {
+      setTimeout(() => { setUsernameStatus("idle"); setUsernameMessage(""); }, 2000);
+    } catch (e: unknown) {
       setUsernameStatus("error");
-      setTimeout(() => setUsernameStatus("idle"), 3000);
+      setUsernameMessage(isApiError(e) ? (e.errors?.username?.[0] || e.message) : "Failed to update username.");
+      setTimeout(() => { setUsernameStatus("idle"); setUsernameMessage(""); }, 3000);
     }
   };
 
@@ -260,21 +295,87 @@ export default function AccountPage() {
   };
 
   const handleSignOutAll = async () => {
+    setSignOutAllLoading(true);
     try {
       await api.auth.logoutAll();
-      // This logs out the current session too, so redirect
       api.clearToken();
       window.location.href = "/login";
+    } catch {
+      setSignOutAllLoading(false);
+    }
+  };
+
+  const handleSaveNotificationPreference = async (key: string, value: unknown) => {
+    try {
+      await api.account.updatePreferences({ [key]: value });
     } catch {
       // silently fail
     }
   };
 
-  const handleSaveNotificationPreference = async (key: string, value: boolean) => {
+  // ── Phone verification ──
+
+  const handleSendPhoneOtp = async () => {
+    const phoneNum = phoneToVerify || phone;
+    if (!phoneNum) return;
+    setPhoneVerifyStatus("loading");
     try {
-      await api.account.updatePreferences({ [key]: value });
+      await api.account.sendPhoneOtp(phoneNum);
+      setOtpSent(true);
+      setPhoneVerifyStatus("idle");
+      setPhoneVerifyMessage("Verification code sent to your phone.");
+      setOtpCooldown(60);
+    } catch (e: unknown) {
+      setPhoneVerifyStatus("error");
+      setPhoneVerifyMessage(isApiError(e) ? e.message : "Failed to send code.");
+      setTimeout(() => { setPhoneVerifyStatus("idle"); setPhoneVerifyMessage(""); }, 3000);
+    }
+  };
+
+  const handleVerifyPhone = async () => {
+    const phoneNum = phoneToVerify || phone;
+    if (!phoneNum || !phoneOtp) return;
+    setPhoneVerifyStatus("loading");
+    try {
+      await api.account.verifyPhone(phoneNum, phoneOtp);
+      setPhoneVerifyStatus("success");
+      setPhoneVerifyMessage("Phone number verified.");
+      refreshUser();
+      setTimeout(() => {
+        setShowPhoneVerify(false);
+        setPhoneOtp("");
+        setOtpSent(false);
+        setPhoneVerifyStatus("idle");
+        setPhoneVerifyMessage("");
+      }, 2000);
+    } catch (e: unknown) {
+      setPhoneVerifyStatus("error");
+      setPhoneVerifyMessage(isApiError(e) ? e.message : "Invalid code.");
+      setTimeout(() => { setPhoneVerifyStatus("idle"); setPhoneVerifyMessage(""); }, 3000);
+    }
+  };
+
+  // ── Data export ──
+
+  const handleDataExport = async () => {
+    setExportStatus("loading");
+    try {
+      const res = await api.account.requestDataExport();
+      // Download as JSON file
+      const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `my-data-export-${new Date().toISOString().split("T")[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setExportStatus("success");
+      setTimeout(() => setExportStatus("idle"), 3000);
     } catch {
-      // silently fail
+      setExportStatus("error");
+      setTimeout(() => setExportStatus("idle"), 3000);
     }
   };
 
@@ -302,6 +403,8 @@ export default function AccountPage() {
     if (diffDay < 7) return `${diffDay}d ago`;
     return d.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" });
   };
+
+  const isPhoneVerified = !!(user?.preferences as Record<string, unknown>)?.phone_verified;
 
   const accentOptions: { name: string; value: AccentColor }[] = [
     { name: "Blue", value: "blue" },
@@ -390,7 +493,8 @@ export default function AccountPage() {
                 )}
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer"
+                  disabled={avatarStatus === "loading"}
+                  className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer disabled:cursor-wait"
                 >
                   {avatarStatus === "loading" ? (
                     <Loader2 className="w-6 h-6 text-white animate-spin" />
@@ -409,26 +513,18 @@ export default function AccountPage() {
               <div>
                 <p className="text-sm font-medium text-foreground">{user?.full_name || "Loading..."}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">{formatRole(user?.roles)}</p>
-                <div className="flex gap-2 mt-3">
+                {user?.photo_url && (
                   <button
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={handleRemoveAvatar}
                     disabled={avatarStatus === "loading"}
-                    className="px-3 py-1.5 text-xs font-medium rounded-lg text-white transition-colors disabled:opacity-50"
-                    style={{ background: "var(--accent-primary)" }}
+                    className="mt-3 px-3 py-1.5 text-xs font-medium rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
                   >
-                    {avatarStatus === "loading" ? "Uploading..." : "Upload Photo"}
+                    Remove Photo
                   </button>
-                  {user?.photo_url && (
-                    <button
-                      onClick={handleRemoveAvatar}
-                      disabled={avatarStatus === "loading"}
-                      className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
-                    >
-                      Remove
-                    </button>
-                  )}
-                </div>
-                <p className="text-[11px] text-muted-foreground/70 mt-2">JPG, PNG, GIF, or WebP. Max 2MB.</p>
+                )}
+                <p className="text-[11px] text-muted-foreground/70 mt-2">
+                  {avatarStatus === "success" ? "Photo updated." : avatarStatus === "error" ? "Upload failed. Try again." : "Hover the photo to change it. JPG, PNG, GIF, or WebP. Max 2MB."}
+                </p>
               </div>
             </div>
           </div>
@@ -474,7 +570,26 @@ export default function AccountPage() {
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5">
                   <span className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" /> Phone Number</span>
                 </label>
-                <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+63 9XX XXX XXXX" className="w-full px-3 py-2 rounded-lg border border-input-border bg-input-bg text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
+                <div className="flex gap-2">
+                  <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+63 9XX XXX XXXX" className="flex-1 px-3 py-2 rounded-lg border border-input-border bg-input-bg text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
+                  {phone && (
+                    <button
+                      onClick={() => { setPhoneToVerify(phone); setShowPhoneVerify(true); }}
+                      className={cn(
+                        "px-3 py-2 text-xs font-medium rounded-lg transition-colors whitespace-nowrap",
+                        isPhoneVerified && phone === user?.phone
+                          ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 cursor-default"
+                          : "text-white"
+                      )}
+                      style={!(isPhoneVerified && phone === user?.phone) ? { background: "var(--accent-primary)" } : undefined}
+                      disabled={isPhoneVerified && phone === user?.phone}
+                    >
+                      {isPhoneVerified && phone === user?.phone ? (
+                        <span className="flex items-center gap-1"><Check className="w-3 h-3" /> Verified</span>
+                      ) : "Verify"}
+                    </button>
+                  )}
+                </div>
                 <p className="text-[11px] text-muted-foreground/70 mt-1">Used for SMS alerts and 2FA verification.</p>
               </div>
             </div>
@@ -489,7 +604,11 @@ export default function AccountPage() {
             <p className="text-xs text-muted-foreground mb-4">Your login credential. Changing this will require you to use the new username on next login.</p>
             <div className="max-w-sm">
               <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-input-border bg-input-bg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
+              <p className="text-[11px] text-muted-foreground/70 mt-1">Only letters, numbers, and underscores. Minimum 3 characters.</p>
             </div>
+            {usernameMessage && (
+              <p className={`text-xs mt-2 ${usernameStatus === "error" ? "text-red-500" : "text-emerald-500"}`}>{usernameMessage}</p>
+            )}
             <div className="flex justify-end mt-4">
               <SaveButton status={usernameStatus} label="Update Username" onClick={handleUpdateUsername} />
             </div>
@@ -593,44 +712,66 @@ export default function AccountPage() {
             </div>
           </div>
 
-          {/* Two-Factor Authentication */}
+          {/* Two-Factor Authentication (SMS) */}
           <div className="bg-card border border-border rounded-xl p-6">
             <div className="flex items-start justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-card-foreground mb-1">Two-Factor Authentication</h2>
-                <p className="text-xs text-muted-foreground">Add an extra layer of security using authenticator app or SMS.</p>
+                <h2 className="text-lg font-semibold text-card-foreground mb-1">SMS Verification</h2>
+                <p className="text-xs text-muted-foreground">Verify your phone number to enable SMS-based security features.</p>
               </div>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
-                <AlertTriangle className="w-3 h-3" /> Coming Soon
-              </span>
+              {isPhoneVerified ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                  <Check className="w-3 h-3" /> Verified
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                  <AlertTriangle className="w-3 h-3" /> Not Verified
+                </span>
+              )}
             </div>
             <div className="mt-4 space-y-3">
-              <div className="flex items-center justify-between p-3 rounded-lg border border-border opacity-60">
+              <div className="flex items-center justify-between p-3 rounded-lg border border-border">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center"><Smartphone className="w-5 h-5 text-muted-foreground" /></div>
+                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                    <Phone className="w-5 h-5 text-muted-foreground" />
+                  </div>
                   <div className="text-left">
-                    <p className="text-sm font-medium text-foreground">Authenticator App</p>
-                    <p className="text-[11px] text-muted-foreground">Google Authenticator, Authy, or similar</p>
+                    <p className="text-sm font-medium text-foreground">Phone Number</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {user?.phone ? (
+                        isPhoneVerified ? `${user.phone} (verified)` : `${user.phone} (not verified)`
+                      ) : "No phone number set"}
+                    </p>
                   </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-muted-foreground" />
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-lg border border-border opacity-60">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center"><Phone className="w-5 h-5 text-muted-foreground" /></div>
-                  <div className="text-left">
-                    <p className="text-sm font-medium text-foreground">SMS Verification</p>
-                    <p className="text-[11px] text-muted-foreground">Receive a code via text message on login</p>
-                  </div>
-                </div>
-                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                {user?.phone ? (
+                  !isPhoneVerified && (
+                    <button
+                      onClick={() => { setPhoneToVerify(user.phone || ""); setShowPhoneVerify(true); }}
+                      className="px-3 py-1.5 text-xs font-medium rounded-lg text-white transition-colors"
+                      style={{ background: "var(--accent-primary)" }}
+                    >
+                      Verify Now
+                    </button>
+                  )
+                ) : (
+                  <button
+                    onClick={() => setActiveTab("profile")}
+                    className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Add Phone
+                  </button>
+                )}
               </div>
             </div>
           </div>
 
           {/* Active Sessions */}
           <div className="bg-card border border-border rounded-xl p-6">
-            <h2 className="text-lg font-semibold text-card-foreground mb-4">Active Sessions</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-card-foreground">Active Sessions</h2>
+              <button onClick={loadSessions} className="text-xs text-muted-foreground hover:text-foreground transition-colors">Refresh</button>
+            </div>
             {sessionsLoading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -687,9 +828,16 @@ export default function AccountPage() {
             <div className="flex items-start justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-red-600 dark:text-red-400 mb-1">Sign Out All Devices</h2>
-                <p className="text-xs text-muted-foreground">This will immediately revoke all active sessions. You will need to log in again.</p>
+                <p className="text-xs text-muted-foreground">This will immediately revoke all active sessions including this one. You will need to log in again.</p>
               </div>
-              <button onClick={handleSignOutAll} className="px-4 py-2 text-sm font-medium rounded-lg bg-red-500 hover:bg-red-600 text-white transition-colors whitespace-nowrap">Sign Out All</button>
+              <button
+                onClick={handleSignOutAll}
+                disabled={signOutAllLoading}
+                className="px-4 py-2 text-sm font-medium rounded-lg bg-red-500 hover:bg-red-600 text-white transition-colors whitespace-nowrap disabled:opacity-50 flex items-center gap-2"
+              >
+                {signOutAllLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                Sign Out All
+              </button>
             </div>
           </div>
         </div>
@@ -700,13 +848,13 @@ export default function AccountPage() {
       {/* ═══════════════════════════════════════════ */}
       {activeTab === "activity" && (
         <div className="space-y-6">
-          {/* Activity Log */}
           <div className="bg-card border border-border rounded-xl p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-lg font-semibold text-card-foreground">Activity Log</h2>
                 <p className="text-xs text-muted-foreground mt-0.5">Sign-in and sign-out history for your account</p>
               </div>
+              <button onClick={loadActivity} className="text-xs text-muted-foreground hover:text-foreground transition-colors">Refresh</button>
             </div>
 
             {activityLoading ? (
@@ -770,21 +918,13 @@ export default function AccountPage() {
                 { key: "notif_email_security", label: "Security Alerts", desc: "Unusual login attempts and password changes", defaultOn: true },
                 { key: "notif_email_weekly", label: "Weekly Summary", desc: "Weekly digest of barangay operations and statistics", defaultOn: false },
               ].map((item) => (
-                <div key={item.key} className="flex items-start justify-between py-1">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{item.label}</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">{item.desc}</p>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer flex-shrink-0 ml-4">
-                    <input
-                      type="checkbox"
-                      defaultChecked={(user?.preferences as Record<string, unknown>)?.[item.key] as boolean ?? item.defaultOn}
-                      onChange={(e) => handleSaveNotificationPreference(item.key, e.target.checked)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-9 h-5 bg-border rounded-full peer peer-checked:bg-[var(--accent-primary)] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full" />
-                  </label>
-                </div>
+                <NotificationToggle
+                  key={item.key}
+                  label={item.label}
+                  desc={item.desc}
+                  defaultChecked={(user?.preferences as Record<string, unknown>)?.[item.key] as boolean ?? item.defaultOn}
+                  onChange={(v) => handleSaveNotificationPreference(item.key, v)}
+                />
               ))}
             </div>
           </div>
@@ -802,21 +942,13 @@ export default function AccountPage() {
                 { key: "notif_sms_urgent", label: "Urgent Alerts", desc: "Disaster warnings, emergency notices from barangay", defaultOn: true },
                 { key: "notif_sms_doc_ready", label: "Document Ready", desc: "When a requested document is ready for pickup", defaultOn: false },
               ].map((item) => (
-                <div key={item.key} className="flex items-start justify-between py-1">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{item.label}</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">{item.desc}</p>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer flex-shrink-0 ml-4">
-                    <input
-                      type="checkbox"
-                      defaultChecked={(user?.preferences as Record<string, unknown>)?.[item.key] as boolean ?? item.defaultOn}
-                      onChange={(e) => handleSaveNotificationPreference(item.key, e.target.checked)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-9 h-5 bg-border rounded-full peer peer-checked:bg-[var(--accent-primary)] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full" />
-                  </label>
-                </div>
+                <NotificationToggle
+                  key={item.key}
+                  label={item.label}
+                  desc={item.desc}
+                  defaultChecked={(user?.preferences as Record<string, unknown>)?.[item.key] as boolean ?? item.defaultOn}
+                  onChange={(v) => handleSaveNotificationPreference(item.key, v)}
+                />
               ))}
             </div>
             {!user?.phone && (
@@ -843,21 +975,13 @@ export default function AccountPage() {
                 { key: "notif_app_residents", label: "Resident Updates", desc: "When a resident profile is updated by another staff member", defaultOn: false },
                 { key: "notif_app_sound", label: "Sound", desc: "Play a sound when a new notification arrives", defaultOn: false },
               ].map((item) => (
-                <div key={item.key} className="flex items-start justify-between py-1">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{item.label}</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">{item.desc}</p>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer flex-shrink-0 ml-4">
-                    <input
-                      type="checkbox"
-                      defaultChecked={(user?.preferences as Record<string, unknown>)?.[item.key] as boolean ?? item.defaultOn}
-                      onChange={(e) => handleSaveNotificationPreference(item.key, e.target.checked)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-9 h-5 bg-border rounded-full peer peer-checked:bg-[var(--accent-primary)] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full" />
-                  </label>
-                </div>
+                <NotificationToggle
+                  key={item.key}
+                  label={item.label}
+                  desc={item.desc}
+                  defaultChecked={(user?.preferences as Record<string, unknown>)?.[item.key] as boolean ?? item.defaultOn}
+                  onChange={(v) => handleSaveNotificationPreference(item.key, v)}
+                />
               ))}
             </div>
           </div>
@@ -873,23 +997,28 @@ export default function AccountPage() {
               <div className="flex items-center gap-3">
                 <div>
                   <label className="block text-[11px] text-muted-foreground mb-1">From</label>
-                  <input type="time" defaultValue="22:00" onChange={(e) => handleSaveNotificationPreference("quiet_hours_start", e.target.value as unknown as boolean)} className="px-2.5 py-1.5 rounded-lg border border-input-border bg-input-bg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
+                  <input
+                    type="time"
+                    defaultValue={(user?.preferences as Record<string, unknown>)?.quiet_hours_start as string ?? "22:00"}
+                    onChange={(e) => handleSaveNotificationPreference("quiet_hours_start", e.target.value)}
+                    className="px-2.5 py-1.5 rounded-lg border border-input-border bg-input-bg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent"
+                  />
                 </div>
                 <span className="text-muted-foreground mt-5">-</span>
                 <div>
                   <label className="block text-[11px] text-muted-foreground mb-1">To</label>
-                  <input type="time" defaultValue="06:00" onChange={(e) => handleSaveNotificationPreference("quiet_hours_end", e.target.value as unknown as boolean)} className="px-2.5 py-1.5 rounded-lg border border-input-border bg-input-bg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
+                  <input
+                    type="time"
+                    defaultValue={(user?.preferences as Record<string, unknown>)?.quiet_hours_end as string ?? "06:00"}
+                    onChange={(e) => handleSaveNotificationPreference("quiet_hours_end", e.target.value)}
+                    className="px-2.5 py-1.5 rounded-lg border border-input-border bg-input-bg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent"
+                  />
                 </div>
               </div>
-              <label className="relative inline-flex items-center cursor-pointer mt-5">
-                <input
-                  type="checkbox"
-                  defaultChecked={(user?.preferences as Record<string, unknown>)?.quiet_hours_enabled as boolean ?? false}
-                  onChange={(e) => handleSaveNotificationPreference("quiet_hours_enabled", e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-9 h-5 bg-border rounded-full peer peer-checked:bg-[var(--accent-primary)] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full" />
-              </label>
+              <NotificationToggleSmall
+                defaultChecked={(user?.preferences as Record<string, unknown>)?.quiet_hours_enabled as boolean ?? false}
+                onChange={(v) => handleSaveNotificationPreference("quiet_hours_enabled", v)}
+              />
             </div>
           </div>
         </div>
@@ -959,10 +1088,17 @@ export default function AccountPage() {
               Under RA 10173 Section 18, you have the right to access your personal information.
             </p>
             <div className="flex items-center gap-3">
-              <button className="px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}>
-                Request Data Export
+              <button
+                onClick={handleDataExport}
+                disabled={exportStatus === "loading"}
+                className="px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors disabled:opacity-50 flex items-center gap-2"
+                style={{ background: exportStatus === "success" ? "#059669" : "var(--accent-primary)" }}
+              >
+                {exportStatus === "loading" && <Loader2 className="w-4 h-4 animate-spin" />}
+                {exportStatus === "success" && <Check className="w-4 h-4" />}
+                {exportStatus === "success" ? "Downloaded" : exportStatus === "loading" ? "Exporting..." : "Download My Data"}
               </button>
-              <p className="text-[11px] text-muted-foreground">Delivered as a ZIP file via email.</p>
+              <p className="text-[11px] text-muted-foreground">JSON file with all your personal data.</p>
             </div>
           </div>
 
@@ -1002,7 +1138,15 @@ export default function AccountPage() {
                 <p className="text-xs text-muted-foreground mb-3">
                   Under RA 10173 Section 18(f), you have the right to erasure of personal data. This request is reviewed by your barangay administrator and processed within 10 business days.
                 </p>
-                <button className="px-4 py-2 text-sm font-medium rounded-lg bg-red-500 hover:bg-red-600 text-white transition-colors">
+                <button
+                  onClick={() => {
+                    if (confirm("Are you sure you want to request account deletion? This will be sent to your barangay administrator for review.")) {
+                      handleSaveNotificationPreference("deletion_requested", true);
+                      alert("Your account deletion request has been submitted. Your barangay administrator will review it within 10 business days.");
+                    }
+                  }}
+                  className="px-4 py-2 text-sm font-medium rounded-lg bg-red-500 hover:bg-red-600 text-white transition-colors"
+                >
                   Request Account Deletion
                 </button>
               </div>
@@ -1010,6 +1154,125 @@ export default function AccountPage() {
           </div>
         </div>
       )}
+
+      {/* ═══════════════════════════════════════════ */}
+      {/* PHONE VERIFICATION MODAL                   */}
+      {/* ═══════════════════════════════════════════ */}
+      {showPhoneVerify && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowPhoneVerify(false)}>
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-sm mx-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-card-foreground mb-1">Verify Phone Number</h3>
+            <p className="text-xs text-muted-foreground mb-4">
+              We will send a 6-digit verification code to <span className="font-medium text-foreground">{phoneToVerify}</span>
+            </p>
+
+            {!otpSent ? (
+              <button
+                onClick={handleSendPhoneOtp}
+                disabled={phoneVerifyStatus === "loading"}
+                className="w-full px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                style={{ background: "var(--accent-primary)" }}
+              >
+                {phoneVerifyStatus === "loading" && <Loader2 className="w-4 h-4 animate-spin" />}
+                Send Verification Code
+              </button>
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Enter 6-digit code</label>
+                  <input
+                    type="text"
+                    value={phoneOtp}
+                    onChange={(e) => setPhoneOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    placeholder="000000"
+                    maxLength={6}
+                    className="w-full px-3 py-2 rounded-lg border border-input-border bg-input-bg text-sm text-foreground text-center tracking-[0.5em] font-mono focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent"
+                    autoFocus
+                  />
+                </div>
+                <button
+                  onClick={handleVerifyPhone}
+                  disabled={phoneVerifyStatus === "loading" || phoneOtp.length !== 6}
+                  className="w-full px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  style={{ background: phoneVerifyStatus === "success" ? "#059669" : "var(--accent-primary)" }}
+                >
+                  {phoneVerifyStatus === "loading" && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {phoneVerifyStatus === "success" && <Check className="w-4 h-4" />}
+                  {phoneVerifyStatus === "success" ? "Verified" : "Verify"}
+                </button>
+                <button
+                  onClick={handleSendPhoneOtp}
+                  disabled={otpCooldown > 0}
+                  className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                >
+                  {otpCooldown > 0 ? `Resend code in ${otpCooldown}s` : "Resend code"}
+                </button>
+              </div>
+            )}
+
+            {phoneVerifyMessage && (
+              <p className={`text-xs mt-3 ${phoneVerifyStatus === "error" ? "text-red-500" : phoneVerifyStatus === "success" ? "text-emerald-500" : "text-muted-foreground"}`}>
+                {phoneVerifyMessage}
+              </p>
+            )}
+
+            <button
+              onClick={() => { setShowPhoneVerify(false); setOtpSent(false); setPhoneOtp(""); setPhoneVerifyMessage(""); }}
+              className="mt-4 w-full text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+// ── Reusable notification toggle component ──
+
+function NotificationToggle({ label, desc, defaultChecked, onChange }: {
+  label: string;
+  desc: string;
+  defaultChecked: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  const [checked, setChecked] = useState(defaultChecked);
+
+  return (
+    <div className="flex items-start justify-between py-1">
+      <div>
+        <p className="text-sm font-medium text-foreground">{label}</p>
+        <p className="text-[11px] text-muted-foreground mt-0.5">{desc}</p>
+      </div>
+      <label className="relative inline-flex items-center cursor-pointer flex-shrink-0 ml-4">
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={(e) => { setChecked(e.target.checked); onChange(e.target.checked); }}
+          className="sr-only peer"
+        />
+        <div className="w-9 h-5 bg-border rounded-full peer peer-checked:bg-[var(--accent-primary)] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full" />
+      </label>
+    </div>
+  );
+}
+
+function NotificationToggleSmall({ defaultChecked, onChange }: {
+  defaultChecked: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  const [checked, setChecked] = useState(defaultChecked);
+
+  return (
+    <label className="relative inline-flex items-center cursor-pointer mt-5">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => { setChecked(e.target.checked); onChange(e.target.checked); }}
+        className="sr-only peer"
+      />
+      <div className="w-9 h-5 bg-border rounded-full peer peer-checked:bg-[var(--accent-primary)] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full" />
+    </label>
   );
 }
