@@ -38,18 +38,30 @@ return Application::configure(basePath: dirname(__DIR__))
         // JSON body parsing on FormRequest routes.
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        // Return JSON for API 404s
+        // Unauthenticated requests: JSON clients get 401, browsers redirect to status page.
+        // Without this, Sanctum tries to redirect to a `login` named route which doesn't
+        // exist (API-only app), causing a 500 RouteNotFoundException.
+        $exceptions->render(function (AuthenticationException $e, Request $request) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Unauthenticated.'], 401);
+            }
+
+            return redirect('/');
+        });
+
+        // Return JSON for API 404s, redirect browser 404s to status page.
         $exceptions->render(function (NotFoundHttpException $e, Request $request) {
-            if ($request->is('api/*') || $request->expectsJson()) {
+            if ($request->expectsJson() || $request->is('api/*')) {
                 return response()->json([
                     'message' => 'Resource not found.',
                 ], 404);
             }
+
+            return redirect('/');
         });
 
         // Catch truly unhandled exceptions on API routes — never leak internals.
-        // Let Laravel handle ValidationException, AuthenticationException, and
-        // HttpExceptionInterface normally (they produce proper JSON responses).
+        // Let Laravel handle ValidationException and HttpExceptionInterface normally.
         $exceptions->render(function (\Throwable $e, Request $request) {
             if (! ($request->is('api/*') || $request->expectsJson())) {
                 return null;
@@ -57,7 +69,6 @@ return Application::configure(basePath: dirname(__DIR__))
 
             // Let Laravel's built-in handlers produce proper responses for these
             if ($e instanceof ValidationException
-                || $e instanceof AuthenticationException
                 || $e instanceof HttpExceptionInterface) {
                 return null;
             }
