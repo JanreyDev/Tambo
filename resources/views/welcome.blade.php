@@ -11,7 +11,7 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0a0a1a;
+            background: #0a0a14;
             color: #e2e8f0;
             min-height: 100vh;
             display: flex;
@@ -28,9 +28,9 @@
             left: -50%;
             width: 200%;
             height: 200%;
-            background: radial-gradient(ellipse at 20% 50%, rgba(124, 58, 237, 0.08) 0%, transparent 50%),
-                        radial-gradient(ellipse at 80% 20%, rgba(167, 139, 250, 0.06) 0%, transparent 50%),
-                        radial-gradient(ellipse at 50% 80%, rgba(99, 102, 241, 0.04) 0%, transparent 50%);
+            background: radial-gradient(ellipse at 20% 50%, rgba(234, 88, 12, 0.08) 0%, transparent 50%),
+                        radial-gradient(ellipse at 80% 20%, rgba(251, 146, 60, 0.06) 0%, transparent 50%),
+                        radial-gradient(ellipse at 50% 80%, rgba(249, 115, 22, 0.04) 0%, transparent 50%);
             animation: bgShift 20s ease-in-out infinite;
             z-index: 0;
         }
@@ -46,8 +46,8 @@
             position: fixed;
             inset: 0;
             background-image:
-                linear-gradient(rgba(124, 58, 237, 0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(124, 58, 237, 0.03) 1px, transparent 1px);
+                linear-gradient(rgba(234, 88, 12, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(234, 88, 12, 0.03) 1px, transparent 1px);
             background-size: 60px 60px;
             z-index: 0;
         }
@@ -55,19 +55,19 @@
         .container { position: relative; z-index: 1; text-align: center; max-width: 580px; padding: 0 24px; }
 
         .logo-mark { width: 72px; height: 72px; margin: 0 auto 32px; position: relative; }
-        .logo-ring { position: absolute; inset: 0; border: 2px solid rgba(124, 58, 237, 0.3); border-radius: 50%; animation: ringPulse 3s ease-in-out infinite; }
-        .logo-ring:nth-child(2) { inset: -8px; border-color: rgba(167, 139, 250, 0.15); animation-delay: 0.5s; }
-        .logo-ring:nth-child(3) { inset: -16px; border-color: rgba(124, 58, 237, 0.08); animation-delay: 1s; }
+        .logo-ring { position: absolute; inset: 0; border: 2px solid rgba(234, 88, 12, 0.3); border-radius: 50%; animation: ringPulse 3s ease-in-out infinite; }
+        .logo-ring:nth-child(2) { inset: -8px; border-color: rgba(251, 146, 60, 0.15); animation-delay: 0.5s; }
+        .logo-ring:nth-child(3) { inset: -16px; border-color: rgba(234, 88, 12, 0.08); animation-delay: 1s; }
 
         @keyframes ringPulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.05); opacity: 0.6; } }
 
-        .logo-inner { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, rgba(124, 58, 237, 0.15), rgba(99, 102, 241, 0.15)); border-radius: 50%; backdrop-filter: blur(8px); border: 1px solid rgba(124, 58, 237, 0.2); }
-        .logo-inner svg { width: 32px; height: 32px; color: #7c3aed; }
+        .logo-inner { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, rgba(234, 88, 12, 0.15), rgba(249, 115, 22, 0.15)); border-radius: 50%; backdrop-filter: blur(8px); border: 1px solid rgba(234, 88, 12, 0.2); }
+        .logo-inner svg { width: 32px; height: 32px; color: #ea580c; }
 
-        .badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 16px; background: rgba(124, 58, 237, 0.1); border: 1px solid rgba(124, 58, 237, 0.2); border-radius: 20px; font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: #a78bfa; margin-bottom: 24px; }
-        .badge-dot { width: 6px; height: 6px; background: #7c3aed; border-radius: 50%; animation: dotPulse 2s ease-in-out infinite; }
+        .badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 16px; background: rgba(234, 88, 12, 0.1); border: 1px solid rgba(234, 88, 12, 0.2); border-radius: 20px; font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: #fb923c; margin-bottom: 24px; }
+        .badge-dot { width: 6px; height: 6px; background: #ea580c; border-radius: 50%; animation: dotPulse 2s ease-in-out infinite; }
 
-        @keyframes dotPulse { 0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.4); } 50% { opacity: 0.8; box-shadow: 0 0 0 6px rgba(124, 58, 237, 0); } }
+        @keyframes dotPulse { 0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(234, 88, 12, 0.4); } 50% { opacity: 0.8; box-shadow: 0 0 0 6px rgba(234, 88, 12, 0); } }
 
         h1 { font-size: 36px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 8px; background: linear-gradient(135deg, #f8fafc, #94a3b8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
         .subtitle { font-size: 14px; color: #64748b; margin-bottom: 40px; line-height: 1.6; }
@@ -86,28 +86,28 @@
 
         .endpoints { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 40px; }
         .endpoint { display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(51, 65, 85, 0.3); border-radius: 8px; font-size: 12px; font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace; color: #64748b; transition: all 0.2s; }
-        .endpoint:hover { border-color: rgba(124, 58, 237, 0.3); color: #94a3b8; }
+        .endpoint:hover { border-color: rgba(234, 88, 12, 0.3); color: #94a3b8; }
         .endpoint-method { font-weight: 700; font-size: 10px; padding: 1px 4px; border-radius: 3px; }
         .method-get { color: #34d399; }
-        .method-post { color: #a78bfa; }
+        .method-post { color: #fb923c; }
 
         .footer { color: #334155; font-size: 12px; line-height: 1.8; }
         .footer a { color: #475569; text-decoration: none; border-bottom: 1px solid rgba(71, 85, 105, 0.3); transition: color 0.2s; }
         .footer a:hover { color: #64748b; }
 
-        .particle { position: fixed; width: 2px; height: 2px; background: rgba(124, 58, 237, 0.3); border-radius: 50%; z-index: 0; animation: float linear infinite; }
+        .particle { position: fixed; width: 2px; height: 2px; background: rgba(234, 88, 12, 0.3); border-radius: 50%; z-index: 0; animation: float linear infinite; }
 
         @keyframes float { 0% { transform: translateY(100vh) scale(0); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translateY(-10vh) scale(1); opacity: 0; } }
     </style>
 </head>
 <body>
     <div class="particle" style="left:10%;animation-duration:18s;animation-delay:0s;"></div>
-    <div class="particle" style="left:25%;animation-duration:22s;animation-delay:3s;width:3px;height:3px;background:rgba(167,139,250,0.2);"></div>
+    <div class="particle" style="left:25%;animation-duration:22s;animation-delay:3s;width:3px;height:3px;background:rgba(251,146,60,0.2);"></div>
     <div class="particle" style="left:40%;animation-duration:16s;animation-delay:6s;"></div>
-    <div class="particle" style="left:55%;animation-duration:24s;animation-delay:2s;width:1px;height:1px;background:rgba(99,102,241,0.3);"></div>
+    <div class="particle" style="left:55%;animation-duration:24s;animation-delay:2s;width:1px;height:1px;background:rgba(249,115,22,0.3);"></div>
     <div class="particle" style="left:70%;animation-duration:20s;animation-delay:5s;"></div>
-    <div class="particle" style="left:85%;animation-duration:19s;animation-delay:8s;width:3px;height:3px;background:rgba(167,139,250,0.15);"></div>
-    <div class="particle" style="left:15%;animation-duration:25s;animation-delay:10s;background:rgba(99,102,241,0.2);"></div>
+    <div class="particle" style="left:85%;animation-duration:19s;animation-delay:8s;width:3px;height:3px;background:rgba(251,146,60,0.15);"></div>
+    <div class="particle" style="left:15%;animation-duration:25s;animation-delay:10s;background:rgba(249,115,22,0.2);"></div>
     <div class="particle" style="left:60%;animation-duration:17s;animation-delay:4s;"></div>
 
     <div class="container">
