@@ -5,19 +5,22 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Auth\ForgotPasswordRequest;
 use App\Http\Requests\Auth\LoginRequest;
-use App\Http\Requests\Auth\ResetPasswordRequest;
 use App\Models\Platform\LoginLog;
 use App\Models\User;
+use App\Services\SmsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
+use Illuminate\Validation\Rules\Password;
 
 class AuthController extends Controller
 {
+    public function __construct(
+        private readonly SmsService $smsService,
+    ) {}
+
     /**
      * Authenticate user and issue Sanctum token.
      *
@@ -162,84 +165,99 @@ class AuthController extends Controller
     }
 
     /**
-     * Send password reset link.
-     * For now, logs the reset URL instead of sending email.
+     * Send password reset OTP via SMS.
+     * Looks up user by username, sends OTP to their registered phone.
      *
      * POST /api/v1/auth/forgot-password
      */
-    public function forgotPassword(ForgotPasswordRequest $request): JsonResponse
+    public function forgotPassword(Request $request): JsonResponse
     {
-        $email = $request->validated()['email'];
+        $validated = $request->validate([
+            'username' => ['required', 'string'],
+        ]);
 
-        // Always return success — no user enumeration
-        $user = User::where('email', $email)->first();
+        // Always return generic success — no user enumeration
+        $user = User::where('username', $validated['username'])->first();
 
-        if ($user) {
-            // Delete existing tokens for this email
-            DB::table('password_reset_tokens')->where('email', $email)->delete();
+        if ($user && $user->phone) {
+            $barangay = $user->barangay;
 
-            // Generate hashed token
-            $token = Str::random(64);
+            // Set tenant context for RLS (SMS transaction logging)
+            if ($barangay && DB::getDriverName() === 'pgsql') {
+                DB::statement("SET app.current_barangay_id = '{$barangay->id}'");
+            }
 
-            DB::table('password_reset_tokens')->insert([
-                'email' => $email,
-                'token' => Hash::make($token),
-                'created_at' => now(),
-            ]);
+            $otp = $this->smsService->sendOtp($user->phone, 'password_reset', $barangay);
 
-            // TODO: Send email with reset link
-            // For now, log it so we can test the flow
-            $resetUrl = config('app.frontend_url', 'https://staging-bcmp.primex.ventures')
-                .'/reset-password?token='.$token.'&email='.urlencode($email);
-
-            \Log::info('Password reset requested', [
-                'email' => $email,
-                'reset_url' => $resetUrl,
-            ]);
+            if ($otp) {
+                \Log::info('Password reset OTP sent', [
+                    'user_id' => $user->id,
+                    'phone' => substr($user->phone, 0, 4).'****',
+                ]);
+            }
         }
 
         return response()->json([
-            'message' => 'If an account with that email exists, a password reset link has been sent.',
+            'message' => 'If an account with that username exists and has a registered phone number, a verification code has been sent.',
         ]);
     }
 
     /**
-     * Reset password with token.
+     * Verify password reset OTP.
+     * Returns a one-time reset token if OTP is valid.
+     *
+     * POST /api/v1/auth/verify-reset-otp
+     */
+    public function verifyResetOtp(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'username' => ['required', 'string'],
+            'code' => ['required', 'string', 'size:6'],
+        ]);
+
+        $user = User::where('username', $validated['username'])->first();
+
+        if (! $user || ! $user->phone) {
+            return response()->json([
+                'message' => 'Invalid verification code.',
+            ], 422);
+        }
+
+        if (! $this->smsService->verifyOtp($user->phone, $validated['code'], 'password_reset')) {
+            return response()->json([
+                'message' => 'Invalid or expired verification code.',
+            ], 422);
+        }
+
+        // Generate a short-lived reset token (stored in cache, 10 min TTL)
+        $resetToken = bin2hex(random_bytes(32));
+        \Illuminate\Support\Facades\Cache::put(
+            "password_reset:{$user->id}",
+            $resetToken,
+            now()->addMinutes(10)
+        );
+
+        return response()->json([
+            'message' => 'Code verified.',
+            'reset_token' => $resetToken,
+            'phone_masked' => substr($user->phone, 0, 4).'****'.substr($user->phone, -2),
+        ]);
+    }
+
+    /**
+     * Reset password with verified reset token.
      *
      * POST /api/v1/auth/reset-password
      */
-    public function resetPassword(ResetPasswordRequest $request): JsonResponse
+    public function resetPassword(Request $request): JsonResponse
     {
-        $validated = $request->validated();
+        $validated = $request->validate([
+            'username' => ['required', 'string'],
+            'reset_token' => ['required', 'string'],
+            'password' => ['required', 'string', 'confirmed', Password::min(8)->mixedCase()->numbers()],
+        ]);
 
-        $record = DB::table('password_reset_tokens')
-            ->where('email', $validated['email'])
-            ->first();
-
-        if (! $record) {
-            return response()->json([
-                'message' => 'Invalid or expired reset token.',
-            ], 422);
-        }
-
-        // Check if token matches
-        if (! Hash::check($validated['token'], $record->token)) {
-            return response()->json([
-                'message' => 'Invalid or expired reset token.',
-            ], 422);
-        }
-
-        // Check if token is expired (60 minutes)
-        if (now()->diffInMinutes($record->created_at) > 60) {
-            DB::table('password_reset_tokens')->where('email', $validated['email'])->delete();
-
-            return response()->json([
-                'message' => 'Reset token has expired. Please request a new one.',
-            ], 422);
-        }
-
-        // Update password
-        $user = User::where('email', $validated['email'])->first();
+        $user = User::where('username', $validated['username'])->first();
 
         if (! $user) {
             return response()->json([
@@ -247,19 +265,28 @@ class AuthController extends Controller
             ], 422);
         }
 
+        // Verify the reset token from cache
+        $storedToken = \Illuminate\Support\Facades\Cache::get("password_reset:{$user->id}");
+
+        if (! $storedToken || $storedToken !== $validated['reset_token']) {
+            return response()->json([
+                'message' => 'Invalid or expired reset token.',
+            ], 422);
+        }
+
+        // Update password
         $user->update([
             'password' => Hash::make($validated['password']),
         ]);
 
-        // Delete used token
-        DB::table('password_reset_tokens')->where('email', $validated['email'])->delete();
+        // Delete used reset token
+        \Illuminate\Support\Facades\Cache::forget("password_reset:{$user->id}");
 
         // Revoke all existing tokens (force re-login)
         $user->tokens()->delete();
 
-        \Log::info('Password reset successful', [
+        \Log::info('Password reset successful via SMS OTP', [
             'user_id' => $user->id,
-            'email' => $user->email,
         ]);
 
         return response()->json([

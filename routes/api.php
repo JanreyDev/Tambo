@@ -67,6 +67,8 @@ Route::prefix('v1')->group(function () {
             ->middleware('throttle:5,1'); // 5 attempts per minute — brute force protection
         Route::post('forgot-password', [AuthController::class, 'forgotPassword'])
             ->middleware('throttle:3,1'); // 3 attempts per minute
+        Route::post('verify-reset-otp', [AuthController::class, 'verifyResetOtp'])
+            ->middleware('throttle:5,1'); // 5 attempts per minute
         Route::post('reset-password', [AuthController::class, 'resetPassword'])
             ->middleware('throttle:3,1');
     });

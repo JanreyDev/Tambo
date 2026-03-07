@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rules\Password;
 
 class AccountController extends Controller
@@ -310,8 +311,10 @@ class AccountController extends Controller
         $user = $request->user();
         $barangay = $user->barangay;
 
-        // Check SMS credits before sending
-        if ($barangay && ! $barangay->hasSmsCredits()) {
+        // Estimate cost (OTP messages are ~65 chars = 1 segment)
+        $estimatedCost = SmsService::costPerSegment();
+
+        if ($barangay && ! $barangay->hasSmsCredits($estimatedCost)) {
             return response()->json([
                 'message' => 'Insufficient SMS credits. Contact your administrator.',
             ], 422);
