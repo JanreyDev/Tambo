@@ -56,7 +56,9 @@ class SetTenantContext
     private function setTenantSession(string $barangayId): void
     {
         if (DB::getDriverName() === 'pgsql') {
-            DB::statement('SET LOCAL app.current_barangay_id = ?', [$barangayId]);
+            // SET doesn't support parameterized queries in PostgreSQL.
+            // Safe: barangay_id is a UUID from the authenticated user record, not user input.
+            DB::statement("SET LOCAL app.current_barangay_id = '{$barangayId}'");
         }
     }
 }
