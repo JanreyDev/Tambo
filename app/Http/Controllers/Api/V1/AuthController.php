@@ -57,6 +57,13 @@ class AuthController extends Controller
             }
         }
 
+        // Set tenant context for RLS-protected tables (login happens before middleware sets this)
+        // Using SET (session-level) not SET LOCAL (transaction-level) because Laravel doesn't
+        // wrap individual queries in explicit transactions — SET LOCAL would vanish immediately.
+        if ($user->barangay_id) {
+            DB::statement("SET app.current_barangay_id = '{$user->barangay_id}'");
+        }
+
         // Revoke existing tokens for this device (single session per device)
         $user->tokens()->where('name', $validated['device_name'] ?? 'web')->delete();
 
@@ -101,9 +108,7 @@ class AuthController extends Controller
         $user = $request->user();
         $user->load(['barangay']);
 
-        return response()->json([
-            'user' => $this->formatUser($user),
-        ]);
+        return response()->json($this->formatUser($user));
     }
 
     /**
@@ -114,6 +119,11 @@ class AuthController extends Controller
     public function logout(Request $request): JsonResponse
     {
         $user = $request->user();
+
+        // Set tenant context for RLS-protected login_logs table
+        if ($user->barangay_id) {
+            DB::statement("SET app.current_barangay_id = '{$user->barangay_id}'");
+        }
 
         LoginLog::create([
             'barangay_id' => $user->barangay_id,

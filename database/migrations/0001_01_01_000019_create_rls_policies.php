@@ -22,7 +22,6 @@ return new class extends Migration
     private array $tenantTables = [
         'residents',
         'resident_sectoral_tags',
-        'resident_cross_barangay_flags',
         'households',
         'establishments',
         'lots_buildings',

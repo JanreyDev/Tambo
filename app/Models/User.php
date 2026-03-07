@@ -18,6 +18,8 @@ class User extends Authenticatable
 {
     use HasFactory, HasUuids, Notifiable, SoftDeletes, HasApiTokens, HasRoles;
 
+    protected $guard_name = 'sanctum';
+
     protected $fillable = [
         'barangay_id',
         'username',
