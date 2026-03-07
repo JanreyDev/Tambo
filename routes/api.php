@@ -100,8 +100,12 @@ Route::prefix('v1')->group(function () {
             Route::get('activity', [AccountController::class, 'activity']);
             Route::patch('preferences', [AccountController::class, 'updatePreferences']);
             Route::post('phone/send-otp', [AccountController::class, 'sendPhoneOtp'])
-                ->middleware('throttle:3,1');
+                ->middleware('throttle:5,1');
             Route::post('phone/verify', [AccountController::class, 'verifyPhone'])
+                ->middleware('throttle:5,1');
+            Route::post('email/send-otp', [AccountController::class, 'sendEmailOtp'])
+                ->middleware('throttle:5,1');
+            Route::post('email/verify', [AccountController::class, 'verifyEmail'])
                 ->middleware('throttle:5,1');
             Route::post('data-export', [AccountController::class, 'requestDataExport']);
         });

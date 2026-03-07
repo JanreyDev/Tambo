@@ -10,9 +10,11 @@ use App\Services\FileUploadService;
 use App\Services\SmsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rules\Password;
 
 class AccountController extends Controller
@@ -363,6 +365,104 @@ class AccountController extends Controller
 
         return response()->json([
             'message' => 'Phone number verified.',
+        ]);
+    }
+
+    // ════════════════════════════════════════════
+    // EMAIL VERIFICATION (OTP via Mail)
+    // ════════════════════════════════════════════
+
+    /**
+     * Send OTP to email address for verification.
+     *
+     * POST /api/v1/account/email/send-otp
+     */
+    public function sendEmailOtp(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'email', 'max:255'],
+        ]);
+
+        $user = $request->user();
+        $email = $validated['email'];
+        $otp = (string) random_int(100000, 999999);
+
+        // Store OTP in cache with 5-minute TTL
+        Cache::put("email_otp:{$user->id}:{$email}", $otp, now()->addMinutes(5));
+
+        try {
+            Mail::raw(
+                "[Kapitan] Your email verification code is {$otp}. Valid for 5 minutes. Do not share this code with anyone.",
+                function ($message) use ($email) {
+                    $message->to($email)
+                        ->subject('[Kapitan] Email Verification Code')
+                        ->from(config('mail.from.address', 'noreply@kapitan.ph'), config('mail.from.name', 'Kapitan'));
+                }
+            );
+        } catch (\Throwable $e) {
+            Log::error('Email OTP send failed', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Failed to send verification code. Please try again.',
+            ], 500);
+        }
+
+        return response()->json([
+            'message' => 'Verification code sent to your email.',
+        ]);
+    }
+
+    /**
+     * Verify email address with OTP code.
+     *
+     * POST /api/v1/account/email/verify
+     */
+    public function verifyEmail(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'email', 'max:255'],
+            'code' => ['required', 'string', 'size:6'],
+        ]);
+
+        $user = $request->user();
+        $email = $validated['email'];
+        $cacheKey = "email_otp:{$user->id}:{$email}";
+        $storedOtp = Cache::get($cacheKey);
+
+        if (! $storedOtp || $storedOtp !== $validated['code']) {
+            return response()->json([
+                'message' => 'Invalid or expired verification code.',
+            ], 422);
+        }
+
+        // Delete used OTP
+        Cache::forget($cacheKey);
+
+        // Check uniqueness (another user might have this email)
+        $existing = \App\Models\User::where('email', $email)
+            ->where('id', '!=', $user->id)
+            ->exists();
+
+        if ($existing) {
+            return response()->json([
+                'message' => 'This email address is already in use.',
+            ], 422);
+        }
+
+        $preferences = $user->preferences ?? [];
+        $preferences['email_verified'] = true;
+        $preferences['email_verified_at'] = now()->toIso8601String();
+
+        $user->update([
+            'email' => $email,
+            'preferences' => $preferences,
+        ]);
+
+        return response()->json([
+            'message' => 'Email address verified.',
         ]);
     }
 
