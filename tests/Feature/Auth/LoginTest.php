@@ -200,12 +200,10 @@ test('authenticated user can get their profile', function () {
 
     $response->assertOk()
         ->assertJsonStructure([
-            'user' => [
-                'id', 'username', 'email', 'first_name', 'last_name',
-                'is_super_admin', 'status', 'barangay', 'roles', 'permissions',
-            ],
+            'id', 'username', 'email', 'first_name', 'last_name',
+            'is_super_admin', 'status', 'barangay', 'roles', 'permissions',
         ])
-        ->assertJsonPath('user.username', 'testuser');
+        ->assertJsonPath('username', 'testuser');
 });
 
 test('profile includes barangay details', function () {
@@ -216,8 +214,8 @@ test('profile includes barangay details', function () {
     ]);
 
     $response->assertOk()
-        ->assertJsonPath('user.barangay.id', $this->barangay->id)
-        ->assertJsonPath('user.barangay.name', $this->barangay->name);
+        ->assertJsonPath('barangay.id', $this->barangay->id)
+        ->assertJsonPath('barangay.name', $this->barangay->name);
 });
 
 test('unauthenticated request to profile returns 401', function () {

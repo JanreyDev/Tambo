@@ -60,7 +60,8 @@ class AuthController extends Controller
         // Set tenant context for RLS-protected tables (login happens before middleware sets this)
         // Using SET (session-level) not SET LOCAL (transaction-level) because Laravel doesn't
         // wrap individual queries in explicit transactions — SET LOCAL would vanish immediately.
-        if ($user->barangay_id) {
+        // Only on PostgreSQL — SQLite (used in testing) has no RLS.
+        if ($user->barangay_id && DB::getDriverName() === 'pgsql') {
             DB::statement("SET app.current_barangay_id = '{$user->barangay_id}'");
         }
 
@@ -120,8 +121,8 @@ class AuthController extends Controller
     {
         $user = $request->user();
 
-        // Set tenant context for RLS-protected login_logs table
-        if ($user->barangay_id) {
+        // Set tenant context for RLS-protected login_logs table (PostgreSQL only)
+        if ($user->barangay_id && DB::getDriverName() === 'pgsql') {
             DB::statement("SET app.current_barangay_id = '{$user->barangay_id}'");
         }
 

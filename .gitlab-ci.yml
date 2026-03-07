@@ -1,0 +1,203 @@
+stages:
+  - lint
+  - test
+  - deploy
+
+variables:
+  PHP_VERSION: "8.4"
+  STAGING_HOST: "159.89.207.105"
+  STAGING_USER: "root"
+  STAGING_PATH: "/var/www/bcmp-api"
+
+# Cache composer dependencies between jobs
+cache:
+  key:
+    files:
+      - composer.lock
+  paths:
+    - vendor/
+
+# ---------------------
+# Lint Stage — Pint
+# ---------------------
+lint:
+  stage: lint
+  image: php:${PHP_VERSION}-cli-alpine
+  before_script:
+    - apk add --no-cache git unzip
+    - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+    - composer install --no-interaction --prefer-dist --no-progress
+  script:
+    - ./vendor/bin/pint --test
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH == "production"
+
+# ---------------------
+# Test Stage — Pest
+# ---------------------
+test:
+  stage: test
+  image: php:${PHP_VERSION}-cli-alpine
+  before_script:
+    - apk add --no-cache git unzip
+    - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+    - composer install --no-interaction --prefer-dist --no-progress
+    - cp .env.example .env
+    - php artisan key:generate
+  script:
+    - php artisan test --parallel
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH == "production"
+
+# ---------------------
+# Deploy to Staging
+# ---------------------
+deploy_staging:
+  stage: deploy
+  image: alpine:latest
+  needs:
+    - lint
+    - test
+  before_script:
+    - apk add --no-cache openssh-client tar
+    - eval $(ssh-agent -s)
+    - chmod 600 "$SSH_PRIVATE_KEY"
+    - ssh-add "$SSH_PRIVATE_KEY"
+    - mkdir -p ~/.ssh
+    - echo "$SSH_KNOWN_HOSTS" >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+  script:
+    # Create deploy archive (exclude dev/test files)
+    - tar -czf deploy.tar.gz
+        --exclude=".git"
+        --exclude=".env"
+        --exclude="vendor"
+        --exclude="node_modules"
+        --exclude="tests"
+        --exclude="storage/logs/*"
+        --exclude="storage/framework/cache/*"
+        --exclude="storage/framework/sessions/*"
+        --exclude="storage/framework/views/*"
+        --exclude="docker-compose.yml"
+        --exclude=".editorconfig"
+        .
+    - scp deploy.tar.gz ${STAGING_USER}@${STAGING_HOST}:/tmp/bcmp-api-deploy.tar.gz
+    - |
+      ssh ${STAGING_USER}@${STAGING_HOST} << 'DEPLOY'
+        set -e
+
+        # Back up .env (not in repo, must survive deploy)
+        cp /var/www/bcmp-api/.env /tmp/bcmp-api-env-backup
+
+        # Clean and extract new code
+        rm -rf /var/www/bcmp-api/*
+        cd /var/www/bcmp-api
+        tar -xzf /tmp/bcmp-api-deploy.tar.gz
+
+        # Restore .env
+        cp /tmp/bcmp-api-env-backup .env
+
+        # Ensure storage directories exist
+        mkdir -p storage/logs storage/framework/{cache,sessions,views} bootstrap/cache
+
+        # Install production dependencies
+        composer install --no-dev --no-interaction --optimize-autoloader --no-progress 2>&1
+
+        # Laravel post-deploy
+        php artisan migrate --force
+        php artisan config:cache
+        php artisan route:cache
+        php artisan view:cache
+        php artisan storage:link 2>/dev/null || true
+
+        # Fix permissions
+        chown -R www-data:www-data /var/www/bcmp-api
+        chmod -R 775 /var/www/bcmp-api/storage /var/www/bcmp-api/bootstrap/cache
+
+        # Restart PHP-FPM
+        systemctl restart php8.4-fpm
+
+        # Cleanup
+        rm -f /tmp/bcmp-api-deploy.tar.gz /tmp/bcmp-api-env-backup
+
+        echo "Deployed bcmp-api at $(date)"
+      DEPLOY
+  environment:
+    name: staging
+    url: https://staging-api-bcmp.primex.ventures
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
+# ---------------------
+# Deploy to Production (when ready)
+# ---------------------
+deploy_production:
+  stage: deploy
+  image: alpine:latest
+  needs:
+    - lint
+    - test
+  before_script:
+    - apk add --no-cache openssh-client tar
+    - eval $(ssh-agent -s)
+    - chmod 600 "$SSH_PRIVATE_KEY"
+    - ssh-add "$SSH_PRIVATE_KEY"
+    - mkdir -p ~/.ssh
+    - echo "$SSH_KNOWN_HOSTS" >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+  script:
+    - tar -czf deploy.tar.gz
+        --exclude=".git"
+        --exclude=".env"
+        --exclude="vendor"
+        --exclude="node_modules"
+        --exclude="tests"
+        --exclude="storage/logs/*"
+        --exclude="storage/framework/cache/*"
+        --exclude="storage/framework/sessions/*"
+        --exclude="storage/framework/views/*"
+        --exclude="docker-compose.yml"
+        --exclude=".editorconfig"
+        .
+    - scp deploy.tar.gz ${PRODUCTION_USER}@${PRODUCTION_HOST}:/tmp/bcmp-api-deploy.tar.gz
+    - |
+      ssh ${PRODUCTION_USER}@${PRODUCTION_HOST} << 'DEPLOY'
+        set -e
+
+        cp /var/www/bcmp-api/.env /tmp/bcmp-api-env-backup
+
+        rm -rf /var/www/bcmp-api/*
+        cd /var/www/bcmp-api
+        tar -xzf /tmp/bcmp-api-deploy.tar.gz
+
+        cp /tmp/bcmp-api-env-backup .env
+
+        mkdir -p storage/logs storage/framework/{cache,sessions,views} bootstrap/cache
+
+        composer install --no-dev --no-interaction --optimize-autoloader --no-progress 2>&1
+
+        php artisan migrate --force
+        php artisan config:cache
+        php artisan route:cache
+        php artisan view:cache
+        php artisan storage:link 2>/dev/null || true
+
+        chown -R www-data:www-data /var/www/bcmp-api
+        chmod -R 775 /var/www/bcmp-api/storage /var/www/bcmp-api/bootstrap/cache
+
+        systemctl restart php8.4-fpm
+
+        rm -f /tmp/bcmp-api-deploy.tar.gz /tmp/bcmp-api-env-backup
+
+        echo "Deployed bcmp-api at $(date)"
+      DEPLOY
+  environment:
+    name: production
+    url: https://api.kapitan.ph
+  rules:
+    - if: $CI_COMMIT_BRANCH == "production"
+      when: manual
