@@ -523,7 +523,7 @@ export default function LoginPage() {
           )}
 
           {/* Copyright */}
-          <div className="mt-8 pt-5 border-t border-border">
+          <div className="mt-8 pt-5 border-t border-border space-y-1">
             <p className="text-center text-[11px] text-muted-foreground/50">
               Developed and Maintained by{" "}
               <a
@@ -534,6 +534,9 @@ export default function LoginPage() {
               >
                 PrimeX Ventures Inc.
               </a>
+            </p>
+            <p className="text-center text-[10px] text-muted-foreground/40">
+              Copyright &copy; 2015-2026 All Rights Reserved
             </p>
           </div>
         </div>
