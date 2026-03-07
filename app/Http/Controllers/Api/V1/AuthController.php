@@ -188,7 +188,7 @@ class AuthController extends Controller
         // Mask the phone number for display
         $phoneMasked = null;
         if ($user->phone) {
-            $phoneMasked = substr($user->phone, 0, 4) . '****' . substr($user->phone, -2);
+            $phoneMasked = substr($user->phone, 0, 4).'****'.substr($user->phone, -2);
         }
 
         return response()->json([
