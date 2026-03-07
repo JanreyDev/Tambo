@@ -114,10 +114,10 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
     <div
       className={`
         relative overflow-hidden w-[380px] max-w-[calc(100vw-2rem)]
-        rounded-xl border ${styles.border} ${styles.bg}
-        backdrop-blur-xl shadow-2xl shadow-black/10
+        rounded-xl border ${styles.border} bg-white dark:bg-slate-900
+        shadow-2xl shadow-black/10
         transform transition-all duration-300 ease-out
-        ${isVisible && !isLeaving ? "translate-x-0 opacity-100" : "-translate-x-8 opacity-0"}
+        ${isVisible && !isLeaving ? "translate-x-0 opacity-100" : "translate-x-8 opacity-0"}
       `}
     >
       <div className="flex items-start gap-3 p-4">
@@ -167,8 +167,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     <ToastContext.Provider value={{ toast, dismiss }}>
       {children}
 
-      {/* Toast container — bottom left */}
-      <div className="fixed bottom-6 left-6 z-[9999] flex flex-col-reverse gap-3 pointer-events-none">
+      {/* Toast container — bottom right */}
+      <div className="fixed bottom-6 right-6 z-[9999] flex flex-col-reverse gap-3 pointer-events-none">
         {toasts.map((t) => (
           <div key={t.id} className="pointer-events-auto">
             <ToastItem toast={t} onDismiss={dismiss} />
