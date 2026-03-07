@@ -4,17 +4,32 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Models\Admin\Barangay;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class SmsService
 {
+    private const COST_PER_SMS = 0.50;
+
     /**
      * Send an SMS via TxtBox API.
+     * Deducts SMS credit (0.50 per message) from barangay balance on success.
      */
-    public function send(string $phone, string $message): bool
+    public function send(string $phone, string $message, ?Barangay $barangay = null): bool
     {
+        // Check SMS credits if barangay provided
+        if ($barangay && ! $barangay->hasSmsCredits(self::COST_PER_SMS)) {
+            Log::warning('SMS not sent: insufficient SMS credits', [
+                'barangay_id' => $barangay->id,
+                'balance' => $barangay->sms_credit_balance,
+                'required' => self::COST_PER_SMS,
+            ]);
+
+            return false;
+        }
+
         $apiKey = config('services.txtbox.api_key');
 
         if (! $apiKey) {
@@ -34,8 +49,16 @@ class SmsService
             ]);
 
             if ($response->successful()) {
+                // Deduct SMS credit on successful send
+                if ($barangay) {
+                    $barangay->deductSmsCredit(self::COST_PER_SMS);
+                }
+
                 Log::info('SMS sent successfully', [
                     'phone' => substr($phone, 0, 4).'****',
+                    'barangay_id' => $barangay?->id,
+                    'cost' => self::COST_PER_SMS,
+                    'remaining_balance' => $barangay?->fresh()?->sms_credit_balance,
                 ]);
 
                 return true;
@@ -60,16 +83,13 @@ class SmsService
 
     /**
      * Generate and send an OTP code.
+     * Deducts SMS credit from barangay if provided.
      *
-     * @return string The generated OTP code
+     * @return string|null The generated OTP code, or null if send failed
      */
-    public function sendOtp(string $phone, string $purpose = 'verification'): string
+    public function sendOtp(string $phone, string $purpose = 'verification', ?Barangay $barangay = null): ?string
     {
         $otp = (string) random_int(100000, 999999);
-
-        // Store OTP in cache with 5-minute TTL
-        $cacheKey = "otp:{$purpose}:{$this->normalizePhone($phone)}";
-        Cache::put($cacheKey, $otp, now()->addMinutes(5));
 
         $message = match ($purpose) {
             'phone_verification' => "Your kapitan.ph phone verification code is {$otp}. Valid for 5 minutes.",
@@ -77,7 +97,15 @@ class SmsService
             default => "Your kapitan.ph verification code is {$otp}. Valid for 5 minutes.",
         };
 
-        $this->send($phone, $message);
+        $sent = $this->send($phone, $message, $barangay);
+
+        if (! $sent) {
+            return null;
+        }
+
+        // Store OTP in cache with 5-minute TTL (only after successful send)
+        $cacheKey = "otp:{$purpose}:{$this->normalizePhone($phone)}";
+        Cache::put($cacheKey, $otp, now()->addMinutes(5));
 
         return $otp;
     }
@@ -98,6 +126,14 @@ class SmsService
         Cache::forget($cacheKey);
 
         return true;
+    }
+
+    /**
+     * Get the cost per SMS.
+     */
+    public static function costPerSms(): float
+    {
+        return self::COST_PER_SMS;
     }
 
     /**

@@ -307,7 +307,23 @@ class AccountController extends Controller
             'phone' => ['required', 'string', 'max:20', 'regex:/^(\+63|0)9\d{9}$/'],
         ]);
 
-        $this->smsService->sendOtp($validated['phone'], 'phone_verification');
+        $user = $request->user();
+        $barangay = $user->barangay;
+
+        // Check SMS credits before sending
+        if ($barangay && ! $barangay->hasSmsCredits()) {
+            return response()->json([
+                'message' => 'Insufficient SMS credits. Contact your administrator.',
+            ], 422);
+        }
+
+        $otp = $this->smsService->sendOtp($validated['phone'], 'phone_verification', $barangay);
+
+        if (! $otp) {
+            return response()->json([
+                'message' => 'Failed to send verification code. Check SMS credits or try again.',
+            ], 500);
+        }
 
         return response()->json([
             'message' => 'Verification code sent.',

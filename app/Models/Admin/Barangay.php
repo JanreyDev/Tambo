@@ -85,12 +85,12 @@ class Barangay extends Model
             && $this->subscription_expires_at->isFuture();
     }
 
-    public function hasSmsCredits(float $amount = 0.40): bool
+    public function hasSmsCredits(float $amount = 0.50): bool
     {
         return $this->sms_credit_balance >= $amount;
     }
 
-    public function deductSmsCredit(float $amount = 0.40): void
+    public function deductSmsCredit(float $amount = 0.50): void
     {
         $this->decrement('sms_credit_balance', $amount);
     }
