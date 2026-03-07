@@ -84,6 +84,7 @@ deploy_staging:
         --exclude="storage/framework/views/*"
         --exclude="docker-compose.yml"
         --exclude=".editorconfig"
+        --exclude="deploy.tar.gz"
         .
     - scp deploy.tar.gz ${STAGING_USER}@${STAGING_HOST}:/tmp/bcmp-api-deploy.tar.gz
     - |
@@ -162,6 +163,7 @@ deploy_production:
         --exclude="storage/framework/views/*"
         --exclude="docker-compose.yml"
         --exclude=".editorconfig"
+        --exclude="deploy.tar.gz"
         .
     - scp deploy.tar.gz ${PRODUCTION_USER}@${PRODUCTION_HOST}:/tmp/bcmp-api-deploy.tar.gz
     - |
