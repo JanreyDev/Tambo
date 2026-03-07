@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'txtbox' => [
+        'api_key' => env('TXTBOX_API_KEY'),
+        'url' => env('TXTBOX_URL', 'https://ws-v2.txtbox.com/messaging/v1/sms/push'),
+    ],
+
 ];

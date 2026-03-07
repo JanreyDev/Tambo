@@ -94,6 +94,11 @@ Route::prefix('v1')->group(function () {
             Route::delete('sessions/{tokenId}', [AccountController::class, 'revokeSession']);
             Route::get('activity', [AccountController::class, 'activity']);
             Route::patch('preferences', [AccountController::class, 'updatePreferences']);
+            Route::post('phone/send-otp', [AccountController::class, 'sendPhoneOtp'])
+                ->middleware('throttle:3,1');
+            Route::post('phone/verify', [AccountController::class, 'verifyPhone'])
+                ->middleware('throttle:5,1');
+            Route::post('data-export', [AccountController::class, 'requestDataExport']);
         });
 
         // Platform updates (no tenant context needed)

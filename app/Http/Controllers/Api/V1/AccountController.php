@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\Platform\LoginLog;
 use App\Services\FileUploadService;
+use App\Services\SmsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,6 +18,7 @@ class AccountController extends Controller
 {
     public function __construct(
         private readonly FileUploadService $fileUploadService,
+        private readonly SmsService $smsService,
     ) {}
 
     // ════════════════════════════════════════════
@@ -115,6 +117,9 @@ class AccountController extends Controller
 
         $user = $request->user();
 
+        // Set tenant context for RLS (files table is tenant-scoped)
+        $this->setTenantContext($user);
+
         // Delete old avatar file from storage if it exists
         $this->deleteOldAvatar($user);
 
@@ -142,6 +147,9 @@ class AccountController extends Controller
     public function deleteAvatar(Request $request): JsonResponse
     {
         $user = $request->user();
+
+        // Set tenant context for RLS
+        $this->setTenantContext($user);
 
         $this->deleteOldAvatar($user);
 
@@ -264,9 +272,7 @@ class AccountController extends Controller
         $user = $request->user();
 
         // Set tenant context for RLS
-        if ($user->barangay_id && DB::getDriverName() === 'pgsql') {
-            DB::statement("SET app.current_barangay_id = '{$user->barangay_id}'");
-        }
+        $this->setTenantContext($user);
 
         $logs = LoginLog::where('user_id', $user->id)
             ->orderByDesc('created_at')
@@ -283,6 +289,118 @@ class AccountController extends Controller
 
         return response()->json([
             'activity' => $logs,
+        ]);
+    }
+
+    // ════════════════════════════════════════════
+    // PHONE VERIFICATION (SMS OTP via TxtBox)
+    // ════════════════════════════════════════════
+
+    /**
+     * Send OTP to user's phone number for verification.
+     *
+     * POST /api/v1/account/phone/send-otp
+     */
+    public function sendPhoneOtp(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'phone' => ['required', 'string', 'max:20', 'regex:/^(\+63|0)9\d{9}$/'],
+        ]);
+
+        $this->smsService->sendOtp($validated['phone'], 'phone_verification');
+
+        return response()->json([
+            'message' => 'Verification code sent.',
+        ]);
+    }
+
+    /**
+     * Verify phone number with OTP code.
+     *
+     * POST /api/v1/account/phone/verify
+     */
+    public function verifyPhone(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'phone' => ['required', 'string', 'max:20'],
+            'code' => ['required', 'string', 'size:6'],
+        ]);
+
+        if (! $this->smsService->verifyOtp($validated['phone'], $validated['code'], 'phone_verification')) {
+            return response()->json([
+                'message' => 'Invalid or expired verification code.',
+            ], 422);
+        }
+
+        $user = $request->user();
+        $preferences = $user->preferences ?? [];
+        $preferences['phone_verified'] = true;
+        $preferences['phone_verified_at'] = now()->toIso8601String();
+
+        $user->update([
+            'phone' => $validated['phone'],
+            'preferences' => $preferences,
+        ]);
+
+        return response()->json([
+            'message' => 'Phone number verified.',
+        ]);
+    }
+
+    // ════════════════════════════════════════════
+    // DATA EXPORT
+    // ════════════════════════════════════════════
+
+    /**
+     * Request data export (RA 10173 Section 18 right of access).
+     *
+     * POST /api/v1/account/data-export
+     */
+    public function requestDataExport(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        // Set tenant context for RLS
+        $this->setTenantContext($user);
+
+        $data = [
+            'personal_information' => [
+                'username' => $user->username,
+                'email' => $user->email,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+                'middle_name' => $user->middle_name,
+                'extension_name' => $user->extension_name,
+                'phone' => $user->phone,
+                'status' => $user->status,
+                'created_at' => $user->created_at?->toIso8601String(),
+            ],
+            'preferences' => $user->preferences,
+            'roles' => $user->getRoleNames(),
+            'login_history' => LoginLog::where('user_id', $user->id)
+                ->orderByDesc('created_at')
+                ->limit(100)
+                ->get()
+                ->map(fn ($log) => [
+                    'action' => $log->action,
+                    'ip_address' => $log->ip_address,
+                    'device_info' => $log->device_info,
+                    'created_at' => $log->created_at?->toIso8601String(),
+                ]),
+            'active_sessions' => $user->tokens()
+                ->get()
+                ->map(fn ($token) => [
+                    'name' => $token->name,
+                    'created_at' => $token->created_at?->toIso8601String(),
+                    'last_used_at' => $token->last_used_at?->toIso8601String(),
+                    'expires_at' => $token->expires_at?->toIso8601String(),
+                ]),
+            'exported_at' => now()->toIso8601String(),
+        ];
+
+        return response()->json([
+            'message' => 'Data export generated.',
+            'data' => $data,
         ]);
     }
 
@@ -326,6 +444,13 @@ class AccountController extends Controller
     // ════════════════════════════════════════════
     // PRIVATE HELPERS
     // ════════════════════════════════════════════
+
+    private function setTenantContext($user): void
+    {
+        if ($user->barangay_id && DB::getDriverName() === 'pgsql') {
+            DB::statement("SET app.current_barangay_id = '{$user->barangay_id}'");
+        }
+    }
 
     private function deleteOldAvatar($user): void
     {
