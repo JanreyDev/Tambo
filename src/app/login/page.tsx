@@ -308,10 +308,10 @@ export default function LoginPage() {
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 lg:gap-2">
             {[
               { value: "10+", label: "Years Running", accent: "text-blue-400" },
-              { value: "3,000+", label: "Barangays Onboarded", accent: "text-cyan-400" },
+              { value: "700+", label: "Barangays Onboarded", accent: "text-cyan-400" },
               { value: "5M+", label: "Residents Managed", accent: "text-emerald-400" },
-              { value: "120K+", label: "Documents Issued", accent: "text-violet-400" },
-              { value: "3", label: "Provinces Active", accent: "text-amber-400" },
+              { value: "7M+", label: "Documents Issued", accent: "text-violet-400" },
+              { value: "7", label: "Provinces Active", accent: "text-amber-400" },
               { value: "99.9%", label: "System Uptime", accent: "text-rose-400" },
             ].map((stat) => (
               <div
