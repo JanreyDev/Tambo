@@ -173,10 +173,12 @@ export default function LoginPage() {
 
       {/* Right Panel — Login Form */}
       <div className="flex-1 flex items-center justify-center px-6 py-12 bg-background relative">
-        {/* V5 Badge */}
-        <div className="absolute top-4 right-4 px-3 py-1 bg-red-500 text-white text-[11px] font-bold rounded tracking-wide">
-          V5 MOCKUP
-        </div>
+        {/* Staging indicator — only shows in non-production */}
+        {process.env.NODE_ENV !== "production" && (
+          <div className="absolute top-4 right-4 px-3 py-1 bg-amber-500 text-white text-[11px] font-bold rounded tracking-wide">
+            STAGING
+          </div>
+        )}
 
         <div className="w-full max-w-[400px]">
           {/* Mobile logo */}

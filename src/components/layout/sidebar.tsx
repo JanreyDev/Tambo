@@ -108,22 +108,22 @@ export function Sidebar() {
     pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
 
   return (
-    <aside className="flex flex-col w-[240px] border-r border-sidebar-border bg-sidebar-bg h-screen sticky top-0 shrink-0">
+    <aside className="hidden lg:flex flex-col w-[240px] border-r border-sidebar-border bg-sidebar-bg h-screen sticky top-0 shrink-0">
       {/* Logo */}
       <div className="px-5 pt-5 pb-3">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm" style={{ background: "var(--accent-primary)" }}>
             K
           </div>
           <span className="text-base font-semibold text-foreground">
-            kapitan<span className="text-blue-600">.ph</span>
+            kapitan<span style={{ color: "var(--accent-primary)" }}>.ph</span>
           </span>
         </div>
       </div>
 
       {/* Barangay Info */}
       <div className="mx-4 mb-3 flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-muted/50">
-        <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-[10px] font-bold shrink-0">
+        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0" style={{ background: "var(--accent-primary)" }}>
           BT
         </div>
         <div className="min-w-0">
@@ -152,9 +152,10 @@ export function Sidebar() {
                     className={cn(
                       "flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition-colors",
                       active
-                        ? "text-blue-600 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-400 font-medium"
+                        ? "font-medium"
                         : "text-muted-foreground hover:text-foreground hover:bg-sidebar-hover"
                     )}
+                    style={active ? { color: "var(--accent-primary)", background: "var(--accent-bg)" } : undefined}
                   >
                     <Icon className="w-[18px] h-[18px] shrink-0" />
                     <span className="flex-1 truncate">{item.label}</span>
@@ -163,9 +164,10 @@ export function Sidebar() {
                         className={cn(
                           "min-w-[20px] h-5 flex items-center justify-center rounded-full text-[11px] font-semibold px-1.5",
                           active
-                            ? "bg-blue-600 text-white"
-                            : "bg-red-500 text-white"
+                            ? "text-white"
+                            : "bg-muted-foreground/20 text-muted-foreground"
                         )}
+                        style={active ? { background: "var(--accent-primary)" } : undefined}
                       >
                         {item.badge}
                       </span>
