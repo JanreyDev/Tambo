@@ -163,6 +163,13 @@ const api = {
 
     logoutAll: () => api.post<void>("/auth/logout-all"),
 
+    checkUsername: (username: string) =>
+      api.post<{ exists: boolean; has_phone?: boolean; phone_masked?: string | null; message?: string }>(
+        "/auth/check-username",
+        { username },
+        { skipAuth: true }
+      ),
+
     forgotPassword: (username: string) =>
       api.post<{ message: string }>("/auth/forgot-password", { username }, { skipAuth: true }),
 
