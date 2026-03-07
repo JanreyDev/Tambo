@@ -111,6 +111,15 @@ export default function AccountPage() {
   const [otpSent, setOtpSent] = useState(false);
   const [otpCooldown, setOtpCooldown] = useState(0);
 
+  // ── Email verification ──
+  const [showEmailVerify, setShowEmailVerify] = useState(false);
+  const [emailToVerify, setEmailToVerify] = useState("");
+  const [emailOtp, setEmailOtp] = useState("");
+  const [emailVerifyStatus, setEmailVerifyStatus] = useState<Status>("idle");
+  const [emailVerifyMessage, setEmailVerifyMessage] = useState("");
+  const [emailOtpSent, setEmailOtpSent] = useState(false);
+  const [emailOtpCooldown, setEmailOtpCooldown] = useState(0);
+
   // ── Data export ──
   const [exportStatus, setExportStatus] = useState<Status>("idle");
 
@@ -144,12 +153,18 @@ export default function AccountPage() {
     }
   }, [activeTab]);
 
-  // OTP cooldown timer
+  // OTP cooldown timers
   useEffect(() => {
     if (otpCooldown <= 0) return;
     const timer = setInterval(() => setOtpCooldown((c) => c - 1), 1000);
     return () => clearInterval(timer);
   }, [otpCooldown]);
+
+  useEffect(() => {
+    if (emailOtpCooldown <= 0) return;
+    const timer = setInterval(() => setEmailOtpCooldown((c) => c - 1), 1000);
+    return () => clearInterval(timer);
+  }, [emailOtpCooldown]);
 
   const loadSessions = async () => {
     setSessionsLoading(true);
@@ -355,6 +370,48 @@ export default function AccountPage() {
     }
   };
 
+  // ── Email verification ──
+
+  const handleSendEmailOtp = async () => {
+    const emailAddr = emailToVerify || email;
+    if (!emailAddr) return;
+    setEmailVerifyStatus("loading");
+    try {
+      await api.account.sendEmailOtp(emailAddr);
+      setEmailOtpSent(true);
+      setEmailVerifyStatus("idle");
+      setEmailVerifyMessage("Verification code sent to your email.");
+      setEmailOtpCooldown(60);
+    } catch (e: unknown) {
+      setEmailVerifyStatus("error");
+      setEmailVerifyMessage(isApiError(e) ? e.message : "Failed to send code.");
+      setTimeout(() => { setEmailVerifyStatus("idle"); setEmailVerifyMessage(""); }, 3000);
+    }
+  };
+
+  const handleVerifyEmail = async () => {
+    const emailAddr = emailToVerify || email;
+    if (!emailAddr || !emailOtp) return;
+    setEmailVerifyStatus("loading");
+    try {
+      await api.account.verifyEmail(emailAddr, emailOtp);
+      setEmailVerifyStatus("success");
+      setEmailVerifyMessage("Email address verified.");
+      refreshUser();
+      setTimeout(() => {
+        setShowEmailVerify(false);
+        setEmailOtp("");
+        setEmailOtpSent(false);
+        setEmailVerifyStatus("idle");
+        setEmailVerifyMessage("");
+      }, 2000);
+    } catch (e: unknown) {
+      setEmailVerifyStatus("error");
+      setEmailVerifyMessage(isApiError(e) ? e.message : "Invalid code.");
+      setTimeout(() => { setEmailVerifyStatus("idle"); setEmailVerifyMessage(""); }, 3000);
+    }
+  };
+
   // ── Data export ──
 
   const handleDataExport = async () => {
@@ -405,6 +462,7 @@ export default function AccountPage() {
   };
 
   const isPhoneVerified = !!(user?.preferences as Record<string, unknown>)?.phone_verified;
+  const isEmailVerified = !!(user?.preferences as Record<string, unknown>)?.email_verified;
 
   const accentOptions: { name: string; value: AccentColor }[] = [
     { name: "Blue", value: "blue" },
@@ -563,7 +621,26 @@ export default function AccountPage() {
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5">
                   <span className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" /> Email Address</span>
                 </label>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="your@email.com" className="w-full px-3 py-2 rounded-lg border border-input-border bg-input-bg text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
+                <div className="flex gap-2">
+                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="your@email.com" className="flex-1 px-3 py-2 rounded-lg border border-input-border bg-input-bg text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
+                  {email && (
+                    <button
+                      onClick={() => { setEmailToVerify(email); setShowEmailVerify(true); }}
+                      className={cn(
+                        "px-3 py-2 text-xs font-medium rounded-lg transition-colors whitespace-nowrap",
+                        isEmailVerified && email === user?.email
+                          ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 cursor-default"
+                          : "text-white"
+                      )}
+                      style={!(isEmailVerified && email === user?.email) ? { background: "var(--accent-primary)" } : undefined}
+                      disabled={isEmailVerified && email === user?.email}
+                    >
+                      {isEmailVerified && email === user?.email ? (
+                        <span className="flex items-center gap-1"><Check className="w-3 h-3" /> Verified</span>
+                      ) : "Verify"}
+                    </button>
+                  )}
+                </div>
                 <p className="text-[11px] text-muted-foreground/70 mt-1">Used for password recovery and notifications.</p>
               </div>
               <div>
@@ -1218,6 +1295,77 @@ export default function AccountPage() {
 
             <button
               onClick={() => { setShowPhoneVerify(false); setOtpSent(false); setPhoneOtp(""); setPhoneVerifyMessage(""); }}
+              className="mt-4 w-full text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════ */}
+      {/* EMAIL VERIFICATION MODAL                    */}
+      {/* ═══════════════════════════════════════════ */}
+      {showEmailVerify && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowEmailVerify(false)}>
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-sm mx-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-card-foreground mb-1">Verify Email Address</h3>
+            <p className="text-xs text-muted-foreground mb-4">
+              We will send a 6-digit verification code to <span className="font-medium text-foreground">{emailToVerify}</span>
+            </p>
+
+            {!emailOtpSent ? (
+              <button
+                onClick={handleSendEmailOtp}
+                disabled={emailVerifyStatus === "loading"}
+                className="w-full px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                style={{ background: "var(--accent-primary)" }}
+              >
+                {emailVerifyStatus === "loading" && <Loader2 className="w-4 h-4 animate-spin" />}
+                Send Verification Code
+              </button>
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Enter 6-digit code</label>
+                  <input
+                    type="text"
+                    value={emailOtp}
+                    onChange={(e) => setEmailOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    placeholder="000000"
+                    maxLength={6}
+                    className="w-full px-3 py-2 rounded-lg border border-input-border bg-input-bg text-sm text-foreground text-center tracking-[0.5em] font-mono focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent"
+                    autoFocus
+                  />
+                </div>
+                <button
+                  onClick={handleVerifyEmail}
+                  disabled={emailVerifyStatus === "loading" || emailOtp.length !== 6}
+                  className="w-full px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  style={{ background: emailVerifyStatus === "success" ? "#059669" : "var(--accent-primary)" }}
+                >
+                  {emailVerifyStatus === "loading" && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {emailVerifyStatus === "success" && <Check className="w-4 h-4" />}
+                  {emailVerifyStatus === "success" ? "Verified" : "Verify"}
+                </button>
+                <button
+                  onClick={handleSendEmailOtp}
+                  disabled={emailOtpCooldown > 0}
+                  className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                >
+                  {emailOtpCooldown > 0 ? `Resend code in ${emailOtpCooldown}s` : "Resend code"}
+                </button>
+              </div>
+            )}
+
+            {emailVerifyMessage && (
+              <p className={`text-xs mt-3 ${emailVerifyStatus === "error" ? "text-red-500" : emailVerifyStatus === "success" ? "text-emerald-500" : "text-muted-foreground"}`}>
+                {emailVerifyMessage}
+              </p>
+            )}
+
+            <button
+              onClick={() => { setShowEmailVerify(false); setEmailOtpSent(false); setEmailOtp(""); setEmailVerifyMessage(""); }}
               className="mt-4 w-full text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               Cancel

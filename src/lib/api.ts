@@ -231,6 +231,12 @@ const api = {
     verifyPhone: (phone: string, code: string) =>
       api.post<{ message: string }>("/account/phone/verify", { phone, code }),
 
+    sendEmailOtp: (email: string) =>
+      api.post<{ message: string }>("/account/email/send-otp", { email }),
+
+    verifyEmail: (email: string, code: string) =>
+      api.post<{ message: string }>("/account/email/verify", { email, code }),
+
     requestDataExport: () =>
       api.post<{ message: string; data: Record<string, unknown> }>("/account/data-export"),
   },
