@@ -2,10 +2,12 @@
 
 declare(strict_types=1);
 
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -30,7 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
         );
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        // Return JSON 404 for API routes instead of HTML
+        // Return JSON 404 for API routes
         $exceptions->render(function (NotFoundHttpException $e, Request $request) {
             if ($request->is('api/*') || $request->wantsJson()) {
                 return response()->json([
@@ -41,25 +43,22 @@ return Application::configure(basePath: dirname(__DIR__))
             return null;
         });
 
-        // Catch all HTTP exceptions on API routes — prevent stack trace leaks
-        $exceptions->render(function (HttpExceptionInterface $e, Request $request) {
-            if ($request->is('api/*') || $request->wantsJson()) {
-                return response()->json([
-                    'message' => $e->getMessage() ?: 'An error occurred.',
-                ], $e->getStatusCode());
-            }
-
-            return null;
-        });
-
-        // Catch unhandled exceptions on API routes — never leak internals
+        // Catch truly unhandled exceptions on API routes — never leak internals.
+        // Let Laravel handle ValidationException, AuthenticationException, and
+        // HttpExceptionInterface normally (they produce proper JSON responses).
         $exceptions->render(function (\Throwable $e, Request $request) {
-            if ($request->is('api/*') || $request->wantsJson()) {
-                return response()->json([
-                    'message' => 'Internal server error.',
-                ], 500);
+            if (! ($request->is('api/*') || $request->wantsJson())) {
+                return null;
             }
 
-            return null;
+            if ($e instanceof ValidationException
+                || $e instanceof AuthenticationException
+                || $e instanceof HttpExceptionInterface) {
+                return null;
+            }
+
+            return response()->json([
+                'message' => 'Internal server error.',
+            ], 500);
         });
     })->create();
