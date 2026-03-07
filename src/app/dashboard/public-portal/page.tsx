@@ -16,10 +16,18 @@ import {
   Calendar,
   Users,
   MapPin,
+  Plus,
+  MoreHorizontal,
+  Edit,
+  Trash2,
+  Send,
+  Save,
+  X,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/stat-card";
+import { Modal, ModalButton } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
 
 interface PortalModule {
@@ -59,9 +67,24 @@ const mockAnnouncements: Announcement[] = [
   { id: "4", title: "Water Service Interruption Notice", content: "Water supply will be interrupted on March 10 from 8:00 AM to 5:00 PM due to pipe repairs.", published: false, published_at: "", category: "Advisory" },
 ];
 
+const categoryOptions = ["Meeting", "Health", "Community", "Advisory", "Event", "Notice", "Emergency"];
+
 export default function PublicPortalPage() {
   const [activeTab, setActiveTab] = useState<"modules" | "announcements" | "preview">("modules");
   const [modules, setModules] = useState(portalModules);
+
+  // Announcement form
+  const [showCreateAnnouncement, setShowCreateAnnouncement] = useState(false);
+  const [showEditAnnouncement, setShowEditAnnouncement] = useState(false);
+  const [showDeleteAnnouncement, setShowDeleteAnnouncement] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Announcement | null>(null);
+  const [formTab, setFormTab] = useState(0);
+  const [announcementForm, setAnnouncementForm] = useState({ title: "", content: "", category: "Notice", published: false });
+  const [actionMenu, setActionMenu] = useState<string | null>(null);
+
+  // View announcement
+  const [showViewAnnouncement, setShowViewAnnouncement] = useState(false);
+  const [viewTarget, setViewTarget] = useState<Announcement | null>(null);
 
   const toggleModule = (id: string) => {
     setModules((prev) => prev.map((m) => m.id === id ? { ...m, enabled: !m.enabled } : m));
@@ -75,6 +98,56 @@ export default function PublicPortalPage() {
     { id: "announcements" as const, label: "Announcements", count: mockAnnouncements.length },
     { id: "preview" as const, label: "Preview" },
   ];
+
+  const formTabs = ["Content", "Publishing"];
+
+  const openCreate = () => {
+    setAnnouncementForm({ title: "", content: "", category: "Notice", published: false });
+    setFormTab(0);
+    setShowCreateAnnouncement(true);
+  };
+
+  const openEdit = (a: Announcement) => {
+    setAnnouncementForm({ title: a.title, content: a.content, category: a.category, published: a.published });
+    setFormTab(0);
+    setActionMenu(null);
+    setShowEditAnnouncement(true);
+  };
+
+  const openDelete = (a: Announcement) => {
+    setDeleteTarget(a);
+    setActionMenu(null);
+    setShowDeleteAnnouncement(true);
+  };
+
+  const openView = (a: Announcement) => {
+    setViewTarget(a);
+    setActionMenu(null);
+    setShowViewAnnouncement(true);
+  };
+
+  const closeForm = () => {
+    setShowCreateAnnouncement(false);
+    setShowEditAnnouncement(false);
+  };
+
+  const Input = ({ label, value, name, placeholder, required }: { label: string; value: string; name: string; placeholder?: string; required?: boolean }) => (
+    <div>
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <input type="text" value={value} onChange={(e) => setAnnouncementForm((f) => ({ ...f, [name]: e.target.value }))} placeholder={placeholder}
+        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2" style={{ "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties} />
+    </div>
+  );
+
+  const Select = ({ label, value, name, options, required }: { label: string; value: string; name: string; options: string[]; required?: boolean }) => (
+    <div>
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <select value={value} onChange={(e) => setAnnouncementForm((f) => ({ ...f, [name]: e.target.value }))}
+        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2" style={{ "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties}>
+        {options.map((o) => <option key={o} value={o}>{o}</option>)}
+      </select>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -147,10 +220,16 @@ export default function PublicPortalPage() {
 
       {activeTab === "announcements" && (
         <div className="space-y-3">
+          <div className="flex justify-end">
+            <button onClick={openCreate}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}>
+              <Plus className="h-4 w-4" /> New Announcement
+            </button>
+          </div>
           {mockAnnouncements.map((a) => (
             <div key={a.id} className="p-4 rounded-xl border border-border bg-card">
               <div className="flex items-start justify-between">
-                <div>
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <h3 className="text-sm font-semibold text-foreground">{a.title}</h3>
                     {a.published ? <Badge variant="success">Published</Badge> : <Badge variant="muted">Draft</Badge>}
@@ -158,9 +237,46 @@ export default function PublicPortalPage() {
                   </div>
                   <p className="text-xs text-muted-foreground line-clamp-2">{a.content}</p>
                 </div>
-                {a.published_at && (
-                  <span className="text-[11px] text-muted-foreground shrink-0 ml-4">{a.published_at}</span>
-                )}
+                <div className="flex items-center gap-2 shrink-0 ml-4">
+                  {a.published_at && (
+                    <span className="text-[11px] text-muted-foreground">{a.published_at}</span>
+                  )}
+                  <div className="relative">
+                    <button onClick={() => setActionMenu(actionMenu === a.id ? null : a.id)}
+                      className="p-1.5 rounded-lg hover:bg-muted transition-colors">
+                      <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                    </button>
+                    {actionMenu === a.id && (
+                      <div className="absolute right-0 top-full mt-1 w-44 bg-card border border-border rounded-lg shadow-lg z-20 py-1">
+                        <button onClick={() => openView(a)}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors text-left">
+                          <Eye className="h-4 w-4 text-muted-foreground" /> View Details
+                        </button>
+                        <button onClick={() => openEdit(a)}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors text-left">
+                          <Edit className="h-4 w-4 text-muted-foreground" /> Edit
+                        </button>
+                        {!a.published && (
+                          <button onClick={() => setActionMenu(null)}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors text-left">
+                            <Send className="h-4 w-4 text-muted-foreground" /> Publish
+                          </button>
+                        )}
+                        {a.published && (
+                          <button onClick={() => setActionMenu(null)}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors text-left">
+                            <X className="h-4 w-4 text-muted-foreground" /> Unpublish
+                          </button>
+                        )}
+                        <div className="border-t border-border my-1" />
+                        <button onClick={() => openDelete(a)}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors text-left text-red-500">
+                          <Trash2 className="h-4 w-4" /> Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           ))}
@@ -184,6 +300,135 @@ export default function PublicPortalPage() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Create/Edit Announcement Modal */}
+        <Modal open={showCreateAnnouncement || showEditAnnouncement} title={showEditAnnouncement ? "Edit Announcement" : "New Announcement"} onClose={closeForm} size="lg"
+          footer={<>
+            <ModalButton variant="secondary" onClick={closeForm}>Cancel</ModalButton>
+            {formTab > 0 && <ModalButton variant="secondary" onClick={() => setFormTab(t => t - 1)}>Previous</ModalButton>}
+            {formTab < formTabs.length - 1
+              ? <ModalButton variant="primary" onClick={() => setFormTab(t => t + 1)}>Next</ModalButton>
+              : <ModalButton variant="primary" onClick={closeForm}>{showEditAnnouncement ? "Update" : announcementForm.published ? "Publish" : "Save as Draft"}</ModalButton>}
+          </>}>
+          {/* Tabs */}
+          <div className="flex border-b border-border mb-6">
+            {formTabs.map((tab, i) => (
+              <button key={tab} onClick={() => setFormTab(i)}
+                className={cn("px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors",
+                  formTab === i ? "border-accent-primary text-accent-text" : "border-transparent text-muted-foreground hover:text-foreground")}>
+                {tab}
+              </button>
+            ))}
+          </div>
+
+          {formTab === 0 && (
+            <div className="space-y-4">
+              <Input label="Title" name="title" value={announcementForm.title} placeholder="e.g., Barangay Assembly Meeting" required />
+              <Select label="Category" name="category" value={announcementForm.category} options={categoryOptions} required />
+              <div>
+                <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Content <span className="text-red-500 ml-0.5">*</span></label>
+                <textarea value={announcementForm.content}
+                  onChange={(e) => setAnnouncementForm((f) => ({ ...f, content: e.target.value }))}
+                  placeholder="Write the announcement content here..."
+                  rows={6}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 resize-none"
+                  style={{ "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties} />
+                <p className="text-[11px] text-muted-foreground mt-1">{announcementForm.content.length} characters</p>
+              </div>
+            </div>
+          )}
+
+          {formTab === 1 && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 rounded-lg border border-border">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Publish Immediately</p>
+                  <p className="text-[11px] text-muted-foreground">Make this announcement visible on the public portal right away</p>
+                </div>
+                <button onClick={() => setAnnouncementForm((f) => ({ ...f, published: !f.published }))} className="shrink-0">
+                  {announcementForm.published
+                    ? <div className="w-10 h-6 rounded-full flex items-center justify-end px-0.5" style={{ background: "var(--accent-primary)" }}>
+                        <div className="w-5 h-5 rounded-full bg-white" />
+                      </div>
+                    : <div className="w-10 h-6 rounded-full bg-muted flex items-center px-0.5">
+                        <div className="w-5 h-5 rounded-full bg-white shadow" />
+                      </div>
+                  }
+                </button>
+              </div>
+
+              {/* Preview */}
+              <div>
+                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Preview</p>
+                <div className="p-4 rounded-lg border border-border bg-muted/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <h4 className="text-sm font-semibold text-foreground">{announcementForm.title || "Untitled Announcement"}</h4>
+                    {announcementForm.published ? <Badge variant="success">Published</Badge> : <Badge variant="muted">Draft</Badge>}
+                    <Badge variant="muted">{announcementForm.category}</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{announcementForm.content || "No content yet..."}</p>
+                </div>
+              </div>
+
+              {!announcementForm.published && (
+                <div className="p-3 rounded-lg bg-muted/30 border border-border">
+                  <p className="text-xs text-muted-foreground">
+                    This announcement will be saved as a draft. You can publish it later from the announcements list using the action menu.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </Modal>
+
+      {/* View Announcement Modal */}
+      {viewTarget && (
+        <Modal open={showViewAnnouncement} title="Announcement Details" onClose={() => setShowViewAnnouncement(false)} size="md"
+          footer={<>
+            <ModalButton variant="secondary" onClick={() => setShowViewAnnouncement(false)}>Close</ModalButton>
+            <ModalButton variant="primary" onClick={() => { setShowViewAnnouncement(false); openEdit(viewTarget); }}>Edit</ModalButton>
+          </>}>
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-foreground">{viewTarget.title}</h3>
+            </div>
+            <div className="flex items-center gap-2">
+              {viewTarget.published ? <Badge variant="success">Published</Badge> : <Badge variant="muted">Draft</Badge>}
+              <Badge variant="muted">{viewTarget.category}</Badge>
+              {viewTarget.published_at && <span className="text-[11px] text-muted-foreground">{viewTarget.published_at}</span>}
+            </div>
+            <div className="p-4 rounded-lg bg-muted/20 border border-border">
+              <p className="text-sm text-foreground whitespace-pre-wrap">{viewTarget.content}</p>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteTarget && (
+        <Modal open={showDeleteAnnouncement} title="Delete Announcement" onClose={() => setShowDeleteAnnouncement(false)} size="sm"
+          footer={<>
+            <ModalButton variant="secondary" onClick={() => setShowDeleteAnnouncement(false)}>Cancel</ModalButton>
+            <ModalButton variant="danger" onClick={() => setShowDeleteAnnouncement(false)}>Delete</ModalButton>
+          </>}>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Are you sure you want to delete this announcement?
+            </p>
+            <div className="p-3 rounded-lg bg-muted/30 border border-border">
+              <p className="text-sm font-medium text-foreground">{deleteTarget.title}</p>
+              <p className="text-xs text-muted-foreground mt-1">{deleteTarget.category}</p>
+            </div>
+            {deleteTarget.published && (
+              <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+                <p className="text-xs text-red-600 font-medium">
+                  This announcement is currently published and visible on the public portal. Deleting it will immediately remove it from public view.
+                </p>
+              </div>
+            )}
+          </div>
+        </Modal>
       )}
     </div>
   );

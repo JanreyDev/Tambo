@@ -15,8 +15,15 @@ import {
   File,
   FileSpreadsheet,
   ChevronRight,
+  Download,
+  Trash2,
+  Eye,
+  Edit,
+  X,
+  Check,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
+import { Modal, ModalButton } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
 
 interface DriveItem {
@@ -46,6 +53,15 @@ const mockFiles: DriveItem[] = [
 export default function DrivePage() {
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
+  const [showUpload, setShowUpload] = useState(false);
+  const [showNewFolder, setShowNewFolder] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+  const [showRename, setShowRename] = useState(false);
+  const [viewItem, setViewItem] = useState<DriveItem | null>(null);
+  const [actionMenu, setActionMenu] = useState<string | null>(null);
+  const [folderName, setFolderName] = useState("");
+  const [renameName, setRenameName] = useState("");
+  const [uploadForm, setUploadForm] = useState({ folder: "/", description: "" });
 
   const filtered = mockFiles.filter((f) => {
     if (search) return f.name.toLowerCase().includes(search.toLowerCase());
@@ -77,8 +93,8 @@ export default function DrivePage() {
         breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "Tools" }, { label: "Drive" }]}
         actions={
           <div className="flex items-center gap-2">
-            <button className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors"><FolderPlus className="h-4 w-4" /> New Folder</button>
-            <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}><Upload className="h-4 w-4" /> Upload</button>
+            <button onClick={() => { setFolderName(""); setShowNewFolder(true); }} className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors"><FolderPlus className="h-4 w-4" /> New Folder</button>
+            <button onClick={() => { setUploadForm({ folder: "/", description: "" }); setShowUpload(true); }} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}><Upload className="h-4 w-4" /> Upload</button>
           </div>
         }
       />
@@ -116,7 +132,6 @@ export default function DrivePage() {
 
       {viewMode === "list" ? (
         <>
-          {/* Folders */}
           {folders.length > 0 && (
             <div>
               <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Folders</p>
@@ -130,8 +145,17 @@ export default function DrivePage() {
                         <p className="text-[11px] text-muted-foreground">{f.items_count} items</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
                       <span className="text-xs text-muted-foreground">{f.modified_at}</span>
+                      <div className="relative" onClick={(e) => e.stopPropagation()}>
+                        <button onClick={() => setActionMenu(actionMenu === f.id ? null : f.id)} className="p-1.5 rounded hover:bg-muted"><MoreHorizontal className="h-4 w-4 text-muted-foreground" /></button>
+                        {actionMenu === f.id && (
+                          <div className="absolute right-0 top-8 z-20 w-44 bg-card border border-border rounded-lg shadow-lg py-1">
+                            <button onClick={() => { setRenameName(f.name); setViewItem(f); setShowRename(true); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Edit className="h-3.5 w-3.5" /> Rename</button>
+                            <button onClick={() => { setViewItem(f); setShowDelete(true); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-muted flex items-center gap-2"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
+                          </div>
+                        )}
+                      </div>
                       <ChevronRight className="h-4 w-4 text-muted-foreground" />
                     </div>
                   </div>
@@ -140,7 +164,6 @@ export default function DrivePage() {
             </div>
           )}
 
-          {/* Files */}
           {files.length > 0 && (
             <div>
               <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Files</p>
@@ -157,7 +180,7 @@ export default function DrivePage() {
                   </thead>
                   <tbody>
                     {files.map((f) => (
-                      <tr key={f.id} className="border-b border-border last:border-0 hover:bg-muted/30 cursor-pointer transition-colors">
+                      <tr key={f.id} className="border-b border-border last:border-0 hover:bg-muted/30 cursor-pointer transition-colors" onClick={() => setViewItem(f)}>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2.5">
                             {fileIcon(f.type)}
@@ -167,8 +190,19 @@ export default function DrivePage() {
                         <td className="px-4 py-3 text-sm text-muted-foreground">{f.size}</td>
                         <td className="px-4 py-3 text-sm text-muted-foreground">{f.modified_at}</td>
                         <td className="px-4 py-3 text-sm text-muted-foreground">{f.modified_by}</td>
-                        <td className="px-4 py-3">
-                          <button className="p-1 rounded hover:bg-muted"><MoreHorizontal className="h-4 w-4 text-muted-foreground" /></button>
+                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                          <div className="relative">
+                            <button onClick={() => setActionMenu(actionMenu === f.id ? null : f.id)} className="p-1 rounded hover:bg-muted"><MoreHorizontal className="h-4 w-4 text-muted-foreground" /></button>
+                            {actionMenu === f.id && (
+                              <div className="absolute right-0 top-8 z-20 w-44 bg-card border border-border rounded-lg shadow-lg py-1">
+                                <button onClick={() => { setViewItem(f); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Eye className="h-3.5 w-3.5" /> View Details</button>
+                                <button onClick={() => setActionMenu(null)} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Download className="h-3.5 w-3.5" /> Download</button>
+                                <button onClick={() => { setRenameName(f.name); setViewItem(f); setShowRename(true); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Edit className="h-3.5 w-3.5" /> Rename</button>
+                                <div className="border-t border-border my-1" />
+                                <button onClick={() => { setViewItem(f); setShowDelete(true); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-muted flex items-center gap-2"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
+                              </div>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -179,10 +213,20 @@ export default function DrivePage() {
           )}
         </>
       ) : (
-        /* Grid View */
         <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-3">
           {filtered.map((f) => (
-            <div key={f.id} className="p-4 rounded-xl border border-border bg-card hover:shadow-md transition-all cursor-pointer text-center group">
+            <div key={f.id} className="p-4 rounded-xl border border-border bg-card hover:shadow-md transition-all cursor-pointer text-center group relative"
+              onClick={() => f.type !== "folder" && setViewItem(f)}>
+              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                <button onClick={() => setActionMenu(actionMenu === f.id ? null : f.id)} className="p-1 rounded hover:bg-muted"><MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" /></button>
+                {actionMenu === f.id && (
+                  <div className="absolute right-0 top-6 z-20 w-40 bg-card border border-border rounded-lg shadow-lg py-1">
+                    <button onClick={() => { setRenameName(f.name); setViewItem(f); setShowRename(true); setActionMenu(null); }} className="w-full px-3 py-1.5 text-left text-xs hover:bg-muted flex items-center gap-2"><Edit className="h-3 w-3" /> Rename</button>
+                    {f.type !== "folder" && <button onClick={() => setActionMenu(null)} className="w-full px-3 py-1.5 text-left text-xs hover:bg-muted flex items-center gap-2"><Download className="h-3 w-3" /> Download</button>}
+                    <button onClick={() => { setViewItem(f); setShowDelete(true); setActionMenu(null); }} className="w-full px-3 py-1.5 text-left text-xs text-red-600 hover:bg-muted flex items-center gap-2"><Trash2 className="h-3 w-3" /> Delete</button>
+                  </div>
+                )}
+              </div>
               <div className="w-12 h-12 mx-auto mb-2 rounded-lg flex items-center justify-center bg-muted/50">
                 {fileIcon(f.type)}
               </div>
@@ -196,6 +240,86 @@ export default function DrivePage() {
       {filtered.length === 0 && (
         <div className="p-12 text-center text-muted-foreground rounded-xl border border-border bg-card">No files or folders found.</div>
       )}
+
+      {/* Upload Modal */}
+      <Modal open={showUpload} onClose={() => setShowUpload(false)} title="Upload Files" size="md"
+        footer={<><ModalButton variant="secondary" onClick={() => setShowUpload(false)}>Cancel</ModalButton><ModalButton variant="primary">Upload</ModalButton></>}>
+        <div className="space-y-4">
+          <div className="border-2 border-dashed border-border rounded-xl p-8 text-center hover:border-muted-foreground/30 transition-colors cursor-pointer">
+            <Upload className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
+            <p className="text-sm font-medium text-foreground mb-1">Drop files here or click to browse</p>
+            <p className="text-xs text-muted-foreground">Supports PDF, DOCX, XLSX, JPG, PNG up to 25MB each</p>
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Upload to Folder</label>
+            <select value={uploadForm.folder} onChange={(e) => setUploadForm({ ...uploadForm, folder: e.target.value })}
+              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+              <option value="/">My Drive (Root)</option>
+              <option value="/Barangay Ordinances">Barangay Ordinances</option>
+              <option value="/Council Resolutions">Council Resolutions</option>
+              <option value="/DILG Submissions">DILG Submissions</option>
+              <option value="/Photos & Media">Photos & Media</option>
+              <option value="/Templates">Templates</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Description (Optional)</label>
+            <input type="text" value={uploadForm.description} onChange={(e) => setUploadForm({ ...uploadForm, description: e.target.value })}
+              placeholder="Brief description of uploaded files"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+          </div>
+        </div>
+      </Modal>
+
+      {/* New Folder Modal */}
+      <Modal open={showNewFolder} onClose={() => setShowNewFolder(false)} title="Create New Folder" size="sm"
+        footer={<><ModalButton variant="secondary" onClick={() => setShowNewFolder(false)}>Cancel</ModalButton><ModalButton variant="primary" onClick={() => setShowNewFolder(false)}>Create Folder</ModalButton></>}>
+        <div>
+          <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Folder Name<span className="text-red-500 ml-0.5">*</span></label>
+          <input type="text" value={folderName} onChange={(e) => setFolderName(e.target.value)}
+            placeholder="Enter folder name"
+            className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" autoFocus />
+        </div>
+      </Modal>
+
+      {/* Rename Modal */}
+      <Modal open={showRename} onClose={() => setShowRename(false)} title="Rename" size="sm"
+        footer={<><ModalButton variant="secondary" onClick={() => setShowRename(false)}>Cancel</ModalButton><ModalButton variant="primary" onClick={() => { setShowRename(false); setViewItem(null); }}><Check className="h-4 w-4 mr-1" />Rename</ModalButton></>}>
+        <div>
+          <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">New Name</label>
+          <input type="text" value={renameName} onChange={(e) => setRenameName(e.target.value)}
+            className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" autoFocus />
+        </div>
+      </Modal>
+
+      {/* File Details Modal */}
+      <Modal open={!!viewItem && !showDelete && !showRename} onClose={() => setViewItem(null)} title={viewItem?.name || ""} size="md"
+        footer={<><ModalButton variant="secondary" onClick={() => setViewItem(null)}>Close</ModalButton>{viewItem?.type !== "folder" && <ModalButton variant="primary"><Download className="h-4 w-4 mr-1" />Download</ModalButton>}</>}>
+        {viewItem && viewItem.type !== "folder" && (
+          <div className="space-y-4">
+            <div className="p-4 rounded-lg bg-muted/50 border border-border flex items-center gap-4">
+              <div className="w-12 h-12 rounded-lg flex items-center justify-center bg-background">{fileIcon(viewItem.type)}</div>
+              <div>
+                <p className="text-sm font-medium text-foreground">{viewItem.name}</p>
+                <p className="text-xs text-muted-foreground">{viewItem.type.toUpperCase()} File</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><p className="text-[11px] text-muted-foreground uppercase">Size</p><p className="text-sm font-medium">{viewItem.size}</p></div>
+              <div><p className="text-[11px] text-muted-foreground uppercase">Type</p><p className="text-sm font-medium capitalize">{viewItem.type}</p></div>
+              <div><p className="text-[11px] text-muted-foreground uppercase">Modified</p><p className="text-sm font-medium">{viewItem.modified_at}</p></div>
+              <div><p className="text-[11px] text-muted-foreground uppercase">Modified By</p><p className="text-sm font-medium">{viewItem.modified_by}</p></div>
+              <div><p className="text-[11px] text-muted-foreground uppercase">Location</p><p className="text-sm font-medium">{viewItem.folder_path === "/" ? "My Drive" : viewItem.folder_path}</p></div>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Delete Confirmation */}
+      <Modal open={showDelete} onClose={() => setShowDelete(false)} title="Confirm Delete" description="This action cannot be undone." size="sm"
+        footer={<><ModalButton variant="secondary" onClick={() => { setShowDelete(false); setViewItem(null); }}>Cancel</ModalButton><ModalButton variant="danger" onClick={() => { setShowDelete(false); setViewItem(null); }}>Delete</ModalButton></>}>
+        <p className="text-sm text-muted-foreground">Are you sure you want to delete <span className="font-medium text-foreground">{viewItem?.name}</span>?{viewItem?.type === "folder" && " All files inside this folder will also be deleted."}</p>
+      </Modal>
     </div>
   );
 }

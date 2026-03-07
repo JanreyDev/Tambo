@@ -17,6 +17,13 @@ import {
   Users,
   Lock,
   EyeOff,
+  MoreHorizontal,
+  Eye,
+  Edit,
+  Trash2,
+  Save,
+  MapPin,
+  Clock,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge, StatusBadge } from "@/components/ui/badge";
@@ -39,18 +46,48 @@ interface VawcCase {
   referred_to: string;
   case_officer: string;
   is_confidential: boolean;
+  // Extended fields for form
+  victim_age: string;
+  victim_sex: string;
+  victim_civil_status: string;
+  victim_contact: string;
+  victim_address: string;
+  perpetrator_age: string;
+  perpetrator_sex: string;
+  incident_location: string;
+  narrative: string;
+  protection_order_type: string;
+  referral: string;
+  action_taken: string;
 }
 
 const mockCases: VawcCase[] = [
-  { id: "1", case_number: "VAWC-2026-001", case_type: "Physical Abuse", complainant_name: "Complainant A", complainant_relationship: "Spouse", respondent_name: "Respondent A", incident_date: "2026-03-01", report_date: "2026-03-02", status: "active", risk_level: "high", protection_order: true, referred_to: "PNP Women's Desk", case_officer: "Kag. Reyes", is_confidential: true },
-  { id: "2", case_number: "VAWC-2026-002", case_type: "Economic Abuse", complainant_name: "Complainant B", complainant_relationship: "Common-law partner", respondent_name: "Respondent B", incident_date: "2026-02-15", report_date: "2026-02-16", status: "active", risk_level: "medium", protection_order: false, referred_to: "DSWD", case_officer: "Kag. Lopez", is_confidential: true },
-  { id: "3", case_number: "VAWC-2025-008", case_type: "Psychological Abuse", complainant_name: "Complainant C", complainant_relationship: "Spouse", respondent_name: "Respondent C", incident_date: "2025-11-20", report_date: "2025-11-22", status: "resolved", risk_level: "medium", protection_order: true, referred_to: "PAO", case_officer: "Kag. Reyes", is_confidential: true },
-  { id: "4", case_number: "VAWC-2025-005", case_type: "Physical Abuse", complainant_name: "Complainant D", complainant_relationship: "Daughter", respondent_name: "Respondent D", incident_date: "2025-09-10", report_date: "2025-09-10", status: "closed", risk_level: "high", protection_order: true, referred_to: "PNP Women's Desk, DSWD", case_officer: "Kag. Lopez", is_confidential: true },
-  { id: "5", case_number: "VAWC-2026-003", case_type: "Sexual Harassment", complainant_name: "Complainant E", complainant_relationship: "Not related", respondent_name: "Respondent E", incident_date: "2026-03-04", report_date: "2026-03-05", status: "under_investigation", risk_level: "high", protection_order: false, referred_to: "PNP", case_officer: "Kag. Reyes", is_confidential: true },
+  { id: "1", case_number: "VAWC-2026-001", case_type: "Physical Violence", complainant_name: "Complainant A", complainant_relationship: "Spouse", respondent_name: "Respondent A", incident_date: "2026-03-01", report_date: "2026-03-02", status: "active", risk_level: "high", protection_order: true, referred_to: "PNP Women's Desk", case_officer: "Kag. Reyes", is_confidential: true, victim_age: "32", victim_sex: "Female", victim_civil_status: "Married", victim_contact: "0917-XXX-XXXX", victim_address: "Purok Sampaguita", perpetrator_age: "35", perpetrator_sex: "Male", incident_location: "Residence - Purok Sampaguita", narrative: "Victim reported being physically assaulted by spouse after a verbal argument. Visible bruising on arms and face.", protection_order_type: "BPO Issued", referral: "PNP", action_taken: "BPO issued. Victim referred to PNP Women's Desk for formal complaint." },
+  { id: "2", case_number: "VAWC-2026-002", case_type: "Economic Abuse", complainant_name: "Complainant B", complainant_relationship: "Live-in Partner", respondent_name: "Respondent B", incident_date: "2026-02-15", report_date: "2026-02-16", status: "active", risk_level: "medium", protection_order: false, referred_to: "DSWD", case_officer: "Kag. Lopez", is_confidential: true, victim_age: "28", victim_sex: "Female", victim_civil_status: "Cohabiting", victim_contact: "0918-XXX-XXXX", victim_address: "Purok Rosal", perpetrator_age: "31", perpetrator_sex: "Male", incident_location: "Shared residence - Purok Rosal", narrative: "Victim reported being denied access to household finances and prevented from seeking employment by live-in partner.", protection_order_type: "None", referral: "DSWD", action_taken: "Referred to DSWD for social welfare assistance and counseling." },
+  { id: "3", case_number: "VAWC-2025-008", case_type: "Psychological Violence", complainant_name: "Complainant C", complainant_relationship: "Spouse", respondent_name: "Respondent C", incident_date: "2025-11-20", report_date: "2025-11-22", status: "resolved", risk_level: "medium", protection_order: true, referred_to: "Legal Aid", case_officer: "Kag. Reyes", is_confidential: true, victim_age: "40", victim_sex: "Female", victim_civil_status: "Married", victim_contact: "0919-XXX-XXXX", victim_address: "Purok Dahlia", perpetrator_age: "43", perpetrator_sex: "Male", incident_location: "Family home - Purok Dahlia", narrative: "Victim reported ongoing verbal threats, intimidation, and controlling behavior by spouse over several months.", protection_order_type: "TPO Filed", referral: "Legal Aid", action_taken: "TPO filed. Victim received legal aid counseling. Perpetrator attended mandatory counseling." },
+  { id: "4", case_number: "VAWC-2025-005", case_type: "Physical Violence", complainant_name: "Complainant D", complainant_relationship: "Parent", respondent_name: "Respondent D", incident_date: "2025-09-10", report_date: "2025-09-10", status: "closed", risk_level: "high", protection_order: true, referred_to: "PNP Women's Desk, DSWD", case_officer: "Kag. Lopez", is_confidential: true, victim_age: "16", victim_sex: "Female", victim_civil_status: "Single", victim_contact: "", victim_address: "Purok Ilang-Ilang", perpetrator_age: "45", perpetrator_sex: "Male", incident_location: "Victim's home - Purok Ilang-Ilang", narrative: "Minor victim reported physical abuse by parent. Visible injuries documented. Child was placed under protective custody.", protection_order_type: "PPO Filed", referral: "DSWD", action_taken: "PPO filed. Minor placed under DSWD protective custody. Criminal complaint filed with PNP." },
+  { id: "5", case_number: "VAWC-2026-003", case_type: "Sexual Violence", complainant_name: "Complainant E", complainant_relationship: "Former Partner", respondent_name: "Respondent E", incident_date: "2026-03-04", report_date: "2026-03-05", status: "under_investigation", risk_level: "high", protection_order: false, referred_to: "PNP", case_officer: "Kag. Reyes", is_confidential: true, victim_age: "25", victim_sex: "Female", victim_civil_status: "Single", victim_contact: "0920-XXX-XXXX", victim_address: "Purok Orchid", perpetrator_age: "29", perpetrator_sex: "Male", incident_location: "Respondent's residence", narrative: "Victim reported sexual assault by former partner. Case under investigation by PNP.", protection_order_type: "None", referral: "PNP", action_taken: "Case forwarded to PNP for criminal investigation. Victim referred to hospital for medical examination." },
 ];
 
-const caseTypes = ["All Types", "Physical Abuse", "Economic Abuse", "Psychological Abuse", "Sexual Harassment"];
+const caseTypes = ["All Types", "Physical Violence", "Sexual Violence", "Psychological Violence", "Economic Abuse"];
 const riskLevels = ["All Risk", "High", "Medium", "Low"];
+const statusOptions = ["All Status", "Active", "Under Investigation", "Referred", "Resolved", "Closed"];
+
+const incidentTypeOptions = ["Physical Violence", "Sexual Violence", "Psychological Violence", "Economic Abuse"];
+const victimSexOptions = ["Female", "Male"];
+const civilStatusOptions = ["Single", "Married", "Cohabiting", "Separated", "Widowed"];
+const perpetratorSexOptions = ["Male", "Female"];
+const relationshipOptions = ["Spouse", "Live-in Partner", "Former Partner", "Parent", "Sibling", "Other Relative", "Others"];
+const protectionOrderOptions = ["None", "BPO Issued", "TPO Filed", "PPO Filed"];
+const referralOptions = ["None", "PNP", "DSWD", "Hospital", "Legal Aid", "Women's Desk"];
+const caseStatusOptions = ["Active", "Under Investigation", "Referred", "Resolved", "Closed"];
+
+const emptyForm: Record<string, string> = {
+  victim_name: "", victim_age: "", victim_sex: "", victim_civil_status: "", victim_contact: "", victim_address: "",
+  perpetrator_name: "", perpetrator_age: "", perpetrator_sex: "", relationship_to_victim: "",
+  incident_type: "", incident_date: "", incident_location: "", narrative: "",
+  protection_order: "", referral: "", action_taken: "", status: "",
+};
 
 export default function VawcPage() {
   const [search, setSearch] = useState("");
@@ -60,6 +97,19 @@ export default function VawcPage() {
   const [page, setPage] = useState(1);
   const [viewCase, setViewCase] = useState<VawcCase | null>(null);
   const pageSize = 10;
+
+  // Create / Edit form
+  const [showCreate, setShowCreate] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [formTab, setFormTab] = useState(0);
+  const [form, setForm] = useState<Record<string, string>>({ ...emptyForm });
+
+  // Delete confirmation
+  const [showDelete, setShowDelete] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<VawcCase | null>(null);
+
+  // Action menu
+  const [actionMenu, setActionMenu] = useState<string | null>(null);
 
   const filtered = mockCases.filter((c) => {
     if (search) {
@@ -84,25 +134,160 @@ export default function VawcPage() {
     switch (level) { case "high": return "danger"; case "medium": return "warning"; default: return "muted"; }
   };
 
+  const riskBorderColor = (level: string) => {
+    switch (level) { case "high": return "#ef4444"; case "medium": return "#f59e0b"; default: return "#64748b"; }
+  };
+
+  // -- Form helpers --
+  const updateForm = (key: string, value: string) => setForm((prev) => ({ ...prev, [key]: value }));
+
+  const openCreateCase = () => {
+    setForm({ ...emptyForm });
+    setFormTab(0);
+    setShowCreate(true);
+  };
+
+  const openEditCase = (c: VawcCase) => {
+    setForm({
+      victim_name: c.complainant_name,
+      victim_age: c.victim_age,
+      victim_sex: c.victim_sex,
+      victim_civil_status: c.victim_civil_status,
+      victim_contact: c.victim_contact,
+      victim_address: c.victim_address,
+      perpetrator_name: c.respondent_name,
+      perpetrator_age: c.perpetrator_age,
+      perpetrator_sex: c.perpetrator_sex,
+      relationship_to_victim: c.complainant_relationship,
+      incident_type: c.case_type,
+      incident_date: c.incident_date,
+      incident_location: c.incident_location,
+      narrative: c.narrative,
+      protection_order: c.protection_order_type,
+      referral: c.referral,
+      action_taken: c.action_taken,
+      status: c.status.charAt(0).toUpperCase() + c.status.slice(1).replace("_", " "),
+    });
+    setFormTab(0);
+    setShowEdit(true);
+    setActionMenu(null);
+  };
+
+  const openDeleteCase = (c: VawcCase) => {
+    setDeleteTarget(c);
+    setShowDelete(true);
+    setActionMenu(null);
+  };
+
+  const openViewFromAction = (c: VawcCase) => {
+    setViewCase(c);
+    setActionMenu(null);
+  };
+
+  const openEditFromView = () => {
+    if (!viewCase) return;
+    const c = viewCase;
+    setViewCase(null);
+    openEditCase(c);
+  };
+
+  const closeFormModal = () => { setShowCreate(false); setShowEdit(false); };
+
+  const formTabs = ["Victim Information", "Perpetrator", "Incident", "Action"];
+
+  // -- Form Field Components --
+  const Input = ({ label, field, required, type = "text", placeholder = "" }: { label: string; field: string; required?: boolean; type?: string; placeholder?: string }) => (
+    <div>
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <input type={type} value={form[field] || ""} onChange={(e) => updateForm(field, e.target.value)} placeholder={placeholder}
+        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+    </div>
+  );
+
+  const Select = ({ label, field, options, required }: { label: string; field: string; options: string[]; required?: boolean }) => (
+    <div>
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <select value={form[field] || ""} onChange={(e) => updateForm(field, e.target.value)}
+        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+        <option value="">-- Select --</option>
+        {options.map((o) => <option key={o} value={o}>{o}</option>)}
+      </select>
+    </div>
+  );
+
+  const Textarea = ({ label, field, required, rows = 3, placeholder = "" }: { label: string; field: string; required?: boolean; rows?: number; placeholder?: string }) => (
+    <div className="col-span-2">
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <textarea value={form[field] || ""} onChange={(e) => updateForm(field, e.target.value)} rows={rows} placeholder={placeholder}
+        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
+    </div>
+  );
+
+  // -- Render Form Tab Content --
+  const renderFormTab = () => {
+    switch (formTab) {
+      case 0: return (
+        <div className="grid grid-cols-2 gap-4">
+          <Input label="Victim Name" field="victim_name" required placeholder="Full name (anonymized in records)" />
+          <Input label="Age" field="victim_age" type="number" required placeholder="e.g. 28" />
+          <Select label="Sex" field="victim_sex" options={victimSexOptions} required />
+          <Select label="Civil Status" field="victim_civil_status" options={civilStatusOptions} required />
+          <Input label="Contact Number" field="victim_contact" placeholder="e.g. 0917-XXX-XXXX" />
+          <Input label="Address" field="victim_address" placeholder="Purok / Street" />
+        </div>
+      );
+      case 1: return (
+        <div className="grid grid-cols-2 gap-4">
+          <Input label="Perpetrator Name" field="perpetrator_name" required placeholder="Full name" />
+          <Input label="Age" field="perpetrator_age" type="number" placeholder="e.g. 35" />
+          <Select label="Sex" field="perpetrator_sex" options={perpetratorSexOptions} required />
+          <Select label="Relationship to Victim" field="relationship_to_victim" options={relationshipOptions} required />
+        </div>
+      );
+      case 2: return (
+        <div className="grid grid-cols-2 gap-4">
+          <Select label="Type of Violence" field="incident_type" options={incidentTypeOptions} required />
+          <Input label="Date of Incident" field="incident_date" type="date" required />
+          <div className="col-span-2">
+            <Input label="Location of Incident" field="incident_location" placeholder="e.g. Residence - Purok Sampaguita" />
+          </div>
+          <Textarea label="Incident Narrative" field="narrative" required rows={5} placeholder="Describe the incident in detail. Include what happened, injuries observed, and circumstances." />
+        </div>
+      );
+      case 3: return (
+        <div className="grid grid-cols-2 gap-4">
+          <Select label="Protection Order" field="protection_order" options={protectionOrderOptions} required />
+          <Select label="Referral" field="referral" options={referralOptions} required />
+          <Textarea label="Action Taken" field="action_taken" rows={3} placeholder="e.g. BPO issued, referred to PNP Women's Desk, victim placed in shelter..." />
+          <div className="col-span-2">
+            <Select label="Case Status" field="status" options={caseStatusOptions} required />
+          </div>
+        </div>
+      );
+      default: return null;
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="VAWC Records"
         description="Violence Against Women and Children case management"
-        breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "Judicial" }, { label: "VAWC Records" }]}
+        breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "VAWC Records" }]}
         actions={
           <div className="flex items-center gap-2">
             <button className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors"><Download className="h-4 w-4" /> Export</button>
-            <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}><Plus className="h-4 w-4" /> New Case</button>
+            <button onClick={openCreateCase} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}><Plus className="h-4 w-4" /> Record VAWC Case</button>
           </div>
         }
       />
 
-      <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 flex items-start gap-3">
-        <Lock className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+      {/* RA 9262 Confidential Banner */}
+      <div className="p-4 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 flex items-start gap-3">
+        <Shield className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
         <div>
-          <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Confidential Records</p>
-          <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">VAWC cases are protected under RA 9262 and RA 10173. Names are anonymized. Access is restricted to authorized personnel only.</p>
+          <p className="text-sm font-bold text-red-800 dark:text-red-200">CONFIDENTIAL - RA 9262 Protected Information</p>
+          <p className="text-xs text-red-700 dark:text-red-300 mt-0.5">All VAWC case records are protected under Republic Act No. 9262 (Anti-Violence Against Women and Their Children Act) and RA 10173 (Data Privacy Act). Unauthorized disclosure is punishable by law. Access is restricted to authorized case officers only.</p>
         </div>
       </div>
 
@@ -149,11 +334,10 @@ export default function VawcPage() {
           <div className="p-12 text-center text-muted-foreground rounded-xl border border-border bg-card">No VAWC cases found.</div>
         ) : (
           paged.map((c) => (
-            <div key={c.id} className="p-5 rounded-xl border bg-card hover:shadow-md transition-all cursor-pointer"
-              style={{ borderLeftWidth: "4px", borderLeftColor: c.risk_level === "high" ? "#ef4444" : c.risk_level === "medium" ? "#f59e0b" : "#64748b" }}
-              onClick={() => setViewCase(c)}>
+            <div key={c.id} className="p-5 rounded-xl border bg-card hover:shadow-md transition-all"
+              style={{ borderLeftWidth: "4px", borderLeftColor: riskBorderColor(c.risk_level) }}>
               <div className="flex items-start justify-between">
-                <div>
+                <div className="flex-1 cursor-pointer" onClick={() => setViewCase(c)}>
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-sm font-bold text-foreground">{c.case_number}</span>
                     <StatusBadge status={c.status} />
@@ -167,9 +351,38 @@ export default function VawcPage() {
                     <span>Referred: {c.referred_to}</span>
                   </div>
                 </div>
-                <div className="text-right shrink-0 ml-4">
-                  <p className="text-[11px] text-muted-foreground flex items-center gap-1 justify-end"><Calendar className="h-3 w-3" /> {c.incident_date}</p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">Officer: {c.case_officer}</p>
+                <div className="flex items-start gap-3 shrink-0 ml-4">
+                  <div className="text-right">
+                    <p className="text-[11px] text-muted-foreground flex items-center gap-1 justify-end"><Calendar className="h-3 w-3" /> {c.incident_date}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">Officer: {c.case_officer}</p>
+                  </div>
+                  {/* Action Menu */}
+                  <div className="relative" onClick={(e) => e.stopPropagation()}>
+                    <button onClick={() => setActionMenu(actionMenu === c.id ? null : c.id)}
+                      className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </button>
+                    {actionMenu === c.id && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setActionMenu(null)} />
+                        <div className="absolute right-0 top-8 z-50 w-48 py-1 rounded-lg border border-border bg-card shadow-lg">
+                          <button onClick={() => openViewFromAction(c)}
+                            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors">
+                            <Eye className="h-4 w-4" /> View Details
+                          </button>
+                          <button onClick={() => openEditCase(c)}
+                            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors">
+                            <Edit className="h-4 w-4" /> Edit
+                          </button>
+                          <div className="border-t border-border my-1" />
+                          <button onClick={() => openDeleteCase(c)}
+                            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 hover:bg-muted transition-colors">
+                            <Trash2 className="h-4 w-4" /> Delete
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -190,9 +403,80 @@ export default function VawcPage() {
         </div>
       )}
 
+      {/* Record / Edit VAWC Case Form Modal */}
+      <Modal open={showCreate || showEdit} onClose={closeFormModal} title={showEdit ? "Edit VAWC Case" : "Record VAWC Case"} description={showEdit ? "Update an existing VAWC case record" : "File a new VAWC case report"} size="lg"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center gap-2">
+              {formTab > 0 && (
+                <ModalButton variant="secondary" onClick={() => setFormTab((t) => t - 1)}>
+                  <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+                </ModalButton>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <ModalButton variant="secondary" onClick={closeFormModal}>Cancel</ModalButton>
+              {formTab < formTabs.length - 1 ? (
+                <ModalButton variant="primary" onClick={() => setFormTab((t) => t + 1)}>
+                  Next <ChevronRight className="w-4 h-4 ml-1" />
+                </ModalButton>
+              ) : (
+                <ModalButton variant="primary" onClick={closeFormModal}>
+                  <Save className="w-4 h-4 mr-1" /> {showEdit ? "Update" : "Save"}
+                </ModalButton>
+              )}
+            </div>
+          </div>
+        }>
+        {/* RA 9262 Notice inside form */}
+        <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 mb-4 flex items-center gap-2">
+          <Lock className="h-4 w-4 text-red-600 dark:text-red-400 shrink-0" />
+          <p className="text-xs text-red-700 dark:text-red-300">This record is protected under RA 9262. All information is strictly confidential.</p>
+        </div>
+        {/* Tab Navigation */}
+        <div className="flex gap-1 mb-6 overflow-x-auto pb-1">
+          {formTabs.map((tab, i) => (
+            <button key={tab} onClick={() => setFormTab(i)}
+              className={cn("px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap transition-colors",
+                formTab === i ? "bg-accent-bg text-accent-text" : "text-muted-foreground hover:text-foreground hover:bg-muted")}>
+              <span className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold mr-1.5"
+                style={formTab === i ? { background: "var(--accent-primary)", color: "#fff" } : { background: "var(--muted)", color: "var(--muted-foreground)" }}>
+                {i + 1}
+              </span>
+              {tab}
+            </button>
+          ))}
+        </div>
+        {renderFormTab()}
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal open={showDelete} onClose={() => { setShowDelete(false); setDeleteTarget(null); }} title="Delete VAWC Case" size="sm"
+        footer={
+          <>
+            <ModalButton variant="secondary" onClick={() => { setShowDelete(false); setDeleteTarget(null); }}>Cancel</ModalButton>
+            <ModalButton variant="danger" onClick={() => { setShowDelete(false); setDeleteTarget(null); }}>Delete Case</ModalButton>
+          </>
+        }>
+        {deleteTarget && (
+          <div className="space-y-3">
+            <p className="text-sm text-foreground">Are you sure you want to delete case <span className="font-bold">{deleteTarget.case_number}</span>?</p>
+            <p className="text-sm text-muted-foreground">This will permanently remove this VAWC case record. This action cannot be undone and may affect ongoing investigations or protection orders.</p>
+            <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900">
+              <p className="text-xs text-amber-700 dark:text-amber-300">Note: Deletion of VAWC records may be subject to RA 9262 and RA 10173 data retention requirements.</p>
+            </div>
+          </div>
+        )}
+      </Modal>
+
       {/* View Case Modal */}
       <Modal open={!!viewCase} onClose={() => setViewCase(null)} title={viewCase?.case_number || ""} description={viewCase?.case_type || ""} size="lg"
-        footer={<><ModalButton variant="secondary" onClick={() => setViewCase(null)}>Close</ModalButton><ModalButton variant="primary">Update Case</ModalButton></>}>
+        footer={
+          <>
+            <ModalButton variant="secondary" onClick={() => setViewCase(null)}>Close</ModalButton>
+            <ModalButton variant="primary" onClick={openEditFromView}>Update Case</ModalButton>
+          </>
+        }>
         {viewCase && (
           <div className="space-y-5">
             <div className="flex items-center gap-2">
@@ -204,15 +488,41 @@ export default function VawcPage() {
               <p className="text-xs font-medium text-red-700 dark:text-red-400 uppercase mb-1">Confidential Notice</p>
               <p className="text-sm text-red-800 dark:text-red-300">Party names are anonymized per RA 9262. Full details accessible to authorized case officers only.</p>
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 rounded-lg border border-border">
+                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Victim</p>
+                <p className="text-sm text-foreground font-medium">{viewCase.complainant_name}</p>
+                <p className="text-xs text-muted-foreground mt-1">Age: {viewCase.victim_age} | Sex: {viewCase.victim_sex}</p>
+                <p className="text-xs text-muted-foreground">Status: {viewCase.victim_civil_status}</p>
+                {viewCase.victim_address && <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1"><MapPin className="h-3 w-3" /> {viewCase.victim_address}</p>}
+              </div>
+              <div className="p-4 rounded-lg border border-border">
+                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Perpetrator</p>
+                <p className="text-sm text-foreground font-medium">{viewCase.respondent_name}</p>
+                <p className="text-xs text-muted-foreground mt-1">Age: {viewCase.perpetrator_age} | Sex: {viewCase.perpetrator_sex}</p>
+                <p className="text-xs text-muted-foreground">Relationship: {viewCase.complainant_relationship}</p>
+              </div>
+            </div>
+            {viewCase.narrative && (
+              <div className="p-4 rounded-lg bg-muted/50 border border-border">
+                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Incident Narrative</p>
+                <p className="text-sm text-foreground leading-relaxed">{viewCase.narrative}</p>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-x-8 gap-y-3">
-              <div><p className="text-[11px] text-muted-foreground uppercase">Complainant</p><p className="text-sm">{viewCase.complainant_name}</p></div>
-              <div><p className="text-[11px] text-muted-foreground uppercase">Relationship</p><p className="text-sm">{viewCase.complainant_relationship}</p></div>
-              <div><p className="text-[11px] text-muted-foreground uppercase">Respondent</p><p className="text-sm">{viewCase.respondent_name}</p></div>
               <div><p className="text-[11px] text-muted-foreground uppercase">Incident Date</p><p className="text-sm">{viewCase.incident_date}</p></div>
               <div><p className="text-[11px] text-muted-foreground uppercase">Report Date</p><p className="text-sm">{viewCase.report_date}</p></div>
+              <div><p className="text-[11px] text-muted-foreground uppercase">Location</p><p className="text-sm">{viewCase.incident_location}</p></div>
               <div><p className="text-[11px] text-muted-foreground uppercase">Case Officer</p><p className="text-sm">{viewCase.case_officer}</p></div>
-              <div className="col-span-2"><p className="text-[11px] text-muted-foreground uppercase">Referred To</p><p className="text-sm">{viewCase.referred_to}</p></div>
+              <div><p className="text-[11px] text-muted-foreground uppercase">Protection Order</p><p className="text-sm">{viewCase.protection_order_type}</p></div>
+              <div><p className="text-[11px] text-muted-foreground uppercase">Referred To</p><p className="text-sm">{viewCase.referred_to}</p></div>
             </div>
+            {viewCase.action_taken && (
+              <div className="p-4 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900">
+                <p className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400 uppercase tracking-wider mb-1">Action Taken</p>
+                <p className="text-sm text-emerald-800 dark:text-emerald-300">{viewCase.action_taken}</p>
+              </div>
+            )}
           </div>
         )}
       </Modal>

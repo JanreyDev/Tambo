@@ -9,10 +9,15 @@ import {
   Calendar,
   FileText,
   TrendingUp,
+  MoreHorizontal,
+  Eye,
+  Edit,
+  Trash2,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/stat-card";
+import { Modal, ModalButton } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
 
 interface GadProgram {
@@ -36,8 +41,17 @@ const mockPrograms: GadProgram[] = [
   { id: "6", name: "PWD Inclusive Access Program", category: "Social Protection", target_beneficiaries: "PWDs", budget: 25000, spent: 10000, beneficiaries_count: 15, status: "ongoing", period: "Q1 2026" },
 ];
 
+const formTabs = ["Program Info", "Budget & Status"];
+
 export default function GadPage() {
   const [statusFilter, setStatusFilter] = useState("all");
+  const [viewProgram, setViewProgram] = useState<GadProgram | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+  const [formTab, setFormTab] = useState(0);
+  const [form, setForm] = useState<Record<string, string>>({});
+  const [actionMenu, setActionMenu] = useState<string | null>(null);
 
   const filtered = mockPrograms.filter((p) => {
     if (statusFilter !== "all" && p.status !== statusFilter) return false;
@@ -48,6 +62,49 @@ export default function GadPage() {
   const totalSpent = mockPrograms.reduce((sum, p) => sum + p.spent, 0);
   const totalBeneficiaries = mockPrograms.reduce((sum, p) => sum + p.beneficiaries_count, 0);
 
+  const openCreate = () => {
+    setForm({});
+    setFormTab(0);
+    setShowCreate(true);
+  };
+
+  const openEdit = (p: GadProgram) => {
+    setForm({
+      program_name: p.name,
+      category: p.category === "Economic Empowerment" ? "Livelihood" : p.category === "Protection" ? "Violence Prevention" : p.category,
+      target_beneficiaries: p.target_beneficiaries,
+      budget: String(p.budget),
+      amount_spent: String(p.spent),
+      status: p.status === "ongoing" ? "Active" : p.status === "completed" ? "Completed" : "Planning",
+    });
+    setFormTab(0);
+    setShowEdit(true);
+    setActionMenu(null);
+  };
+
+  const Input = ({ label, name, value, placeholder, required, type }: { label: string; name: string; value: string; placeholder?: string; required?: boolean; type?: string }) => (
+    <div>
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <input type={type || "text"} value={value} onChange={(e) => setForm((f) => ({ ...f, [name]: e.target.value }))} placeholder={placeholder} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+    </div>
+  );
+
+  const Select = ({ label, name, value, options, required }: { label: string; name: string; value: string; options: string[]; required?: boolean }) => (
+    <div>
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <select value={value} onChange={(e) => setForm((f) => ({ ...f, [name]: e.target.value }))} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+        {options.map((o) => <option key={o} value={o}>{o || "\u2014 Select \u2014"}</option>)}
+      </select>
+    </div>
+  );
+
+  const Textarea = ({ label, name, value, placeholder, rows, required }: { label: string; name: string; value: string; placeholder?: string; rows?: number; required?: boolean }) => (
+    <div className="col-span-2">
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <textarea value={value} onChange={(e) => setForm((f) => ({ ...f, [name]: e.target.value }))} placeholder={placeholder} rows={rows || 3} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -57,14 +114,14 @@ export default function GadPage() {
         actions={
           <div className="flex items-center gap-2">
             <button className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors"><Download className="h-4 w-4" /> GAD Report</button>
-            <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}><Plus className="h-4 w-4" /> Add Program</button>
+            <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}><Plus className="h-4 w-4" /> Add Program</button>
           </div>
         }
       />
 
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatCard label="Total GAD Budget" value={`₱${totalBudget.toLocaleString()}`} icon={<Heart className="h-5 w-5" />} />
-        <StatCard label="Budget Utilized" value={`₱${totalSpent.toLocaleString()}`} icon={<TrendingUp className="h-5 w-5" />} trend={{ value: Math.round((totalSpent / totalBudget) * 100), label: "utilization" }} />
+        <StatCard label="Total GAD Budget" value={`\u20B1${totalBudget.toLocaleString()}`} icon={<Heart className="h-5 w-5" />} />
+        <StatCard label="Budget Utilized" value={`\u20B1${totalSpent.toLocaleString()}`} icon={<TrendingUp className="h-5 w-5" />} trend={{ value: Math.round((totalSpent / totalBudget) * 100), label: "utilization" }} />
         <StatCard label="Programs" value={mockPrograms.length} icon={<FileText className="h-5 w-5" />} />
         <StatCard label="Beneficiaries" value={totalBeneficiaries} icon={<Users className="h-5 w-5" />} />
       </div>
@@ -78,7 +135,7 @@ export default function GadPage() {
         <div className="w-full h-3 rounded-full bg-muted">
           <div className="h-full rounded-full" style={{ width: `${Math.round((totalSpent / totalBudget) * 100)}%`, background: "var(--accent-primary)" }} />
         </div>
-        <p className="text-[11px] text-muted-foreground mt-1">₱{totalSpent.toLocaleString()} spent of ₱{totalBudget.toLocaleString()} allocated</p>
+        <p className="text-[11px] text-muted-foreground mt-1">{"\u20B1"}{totalSpent.toLocaleString()} spent of {"\u20B1"}{totalBudget.toLocaleString()} allocated</p>
       </div>
 
       <div className="flex items-center gap-1 p-1 rounded-lg bg-muted/50 border border-border w-fit">
@@ -95,13 +152,25 @@ export default function GadPage() {
         {filtered.map((p) => {
           const pct = p.budget > 0 ? Math.round((p.spent / p.budget) * 100) : 0;
           return (
-            <div key={p.id} className="p-5 rounded-xl border border-border bg-card hover:shadow-md transition-all cursor-pointer">
+            <div key={p.id} className="p-5 rounded-xl border border-border bg-card hover:shadow-md transition-all cursor-pointer" onClick={() => setViewProgram(p)}>
               <div className="flex items-start justify-between mb-2">
                 <div>
                   <h3 className="text-sm font-semibold text-foreground">{p.name}</h3>
                   <p className="text-xs text-muted-foreground">{p.category}</p>
                 </div>
-                <Badge variant={p.status === "ongoing" ? "info" : p.status === "completed" ? "success" : "muted"}>{p.status}</Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant={p.status === "ongoing" ? "info" : p.status === "completed" ? "success" : "muted"}>{p.status}</Badge>
+                  <div className="relative" onClick={(e) => e.stopPropagation()}>
+                    <button onClick={() => setActionMenu(actionMenu === p.id ? null : p.id)} className="p-1.5 rounded hover:bg-muted"><MoreHorizontal className="h-4 w-4 text-muted-foreground" /></button>
+                    {actionMenu === p.id && (
+                      <div className="absolute right-0 top-8 z-20 w-44 bg-card border border-border rounded-lg shadow-lg py-1">
+                        <button onClick={() => { setViewProgram(p); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Eye className="h-3.5 w-3.5" /> View</button>
+                        <button onClick={() => openEdit(p)} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Edit className="h-3.5 w-3.5" /> Edit</button>
+                        <button onClick={() => { setShowDelete(true); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-muted flex items-center gap-2"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
               <div className="flex items-center gap-3 text-[12px] text-muted-foreground mb-3">
                 <span className="flex items-center gap-1"><Users className="h-3 w-3" /> {p.target_beneficiaries}</span>
@@ -109,7 +178,7 @@ export default function GadPage() {
               </div>
               <div className="mb-2">
                 <div className="flex justify-between text-[11px] text-muted-foreground mb-1">
-                  <span>₱{p.spent.toLocaleString()} / ₱{p.budget.toLocaleString()}</span>
+                  <span>{"\u20B1"}{p.spent.toLocaleString()} / {"\u20B1"}{p.budget.toLocaleString()}</span>
                   <span>{pct}%</span>
                 </div>
                 <div className="w-full h-1.5 rounded-full bg-muted">
@@ -121,6 +190,66 @@ export default function GadPage() {
           );
         })}
       </div>
+
+      {/* View Program Modal */}
+      <Modal open={!!viewProgram} onClose={() => setViewProgram(null)} title={viewProgram?.name || ""} description={viewProgram?.category || ""} size="md"
+        footer={<><ModalButton variant="secondary" onClick={() => setViewProgram(null)}>Close</ModalButton><ModalButton variant="primary" onClick={() => { if (viewProgram) { openEdit(viewProgram); setViewProgram(null); } }}>Edit Program</ModalButton></>}>
+        {viewProgram && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Badge variant={viewProgram.status === "ongoing" ? "info" : viewProgram.status === "completed" ? "success" : "muted"}>{viewProgram.status}</Badge>
+            </div>
+            <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+              <div><p className="text-[11px] text-muted-foreground uppercase">Target Beneficiaries</p><p className="text-sm">{viewProgram.target_beneficiaries}</p></div>
+              <div><p className="text-[11px] text-muted-foreground uppercase">Period</p><p className="text-sm">{viewProgram.period}</p></div>
+              <div><p className="text-[11px] text-muted-foreground uppercase">Budget</p><p className="text-sm">{"\u20B1"}{viewProgram.budget.toLocaleString()}</p></div>
+              <div><p className="text-[11px] text-muted-foreground uppercase">Spent</p><p className="text-sm">{"\u20B1"}{viewProgram.spent.toLocaleString()}</p></div>
+              <div><p className="text-[11px] text-muted-foreground uppercase">Utilization</p><p className="text-sm">{viewProgram.budget > 0 ? Math.round((viewProgram.spent / viewProgram.budget) * 100) : 0}%</p></div>
+              <div><p className="text-[11px] text-muted-foreground uppercase">Beneficiaries Served</p><p className="text-sm">{viewProgram.beneficiaries_count}</p></div>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Create/Edit GAD Program Form Modal */}
+      <Modal open={showCreate || showEdit} onClose={() => { setShowCreate(false); setShowEdit(false); }} title={showEdit ? "Edit GAD Program" : "Add New GAD Program"} size="lg"
+        footer={<>
+          <ModalButton variant="secondary" onClick={() => { setShowCreate(false); setShowEdit(false); }}>Cancel</ModalButton>
+          {formTab > 0 && <ModalButton variant="secondary" onClick={() => setFormTab((t) => t - 1)}>Previous</ModalButton>}
+          {formTab < formTabs.length - 1 ? <ModalButton variant="primary" onClick={() => setFormTab((t) => t + 1)}>Next</ModalButton> : <ModalButton variant="primary">{showEdit ? "Update" : "Save"}</ModalButton>}
+        </>}>
+        <div className="flex border-b border-border mb-6">
+          {formTabs.map((tab, i) => (
+            <button key={tab} onClick={() => setFormTab(i)} className={cn("px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors", formTab === i ? "border-accent-primary text-accent-text" : "border-transparent text-muted-foreground hover:text-foreground")}>{tab}</button>
+          ))}
+        </div>
+        {formTab === 0 && (
+          <div className="grid grid-cols-2 gap-4">
+            <Input label="Program Name" name="program_name" value={form.program_name || ""} placeholder="e.g. Women's Livelihood Training" required />
+            <Select label="Category" name="category" value={form.category || ""} options={["", "Health", "Education", "Livelihood", "Violence Prevention", "Leadership", "Youth Development"]} />
+            <Textarea label="Description" name="description" value={form.description || ""} placeholder="Brief description of the program..." />
+            <Input label="Target Beneficiaries" name="target_beneficiaries" value={form.target_beneficiaries || ""} placeholder="e.g. Women (18-60)" />
+            <Input label="Start Date" name="start_date" value={form.start_date || ""} type="date" />
+            <Input label="End Date" name="end_date" value={form.end_date || ""} type="date" />
+          </div>
+        )}
+        {formTab === 1 && (
+          <div className="grid grid-cols-2 gap-4">
+            <Input label="Budget" name="budget" value={form.budget || ""} placeholder="e.g. 50000" type="number" required />
+            <Input label="Amount Spent" name="amount_spent" value={form.amount_spent || ""} placeholder="e.g. 35000" type="number" />
+            <Select label="Funding Source" name="funding_source" value={form.funding_source || ""} options={["", "GAD Fund", "General Fund", "External Grant", "Donation"]} />
+            <Select label="Status" name="status" value={form.status || ""} options={["", "Planning", "Active", "Completed", "Cancelled"]} />
+            <Input label="Responsible Person" name="responsible_person" value={form.responsible_person || ""} placeholder="e.g. Elena Santos" />
+            <Textarea label="Remarks" name="remarks" value={form.remarks || ""} placeholder="Additional remarks..." />
+          </div>
+        )}
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal open={showDelete} onClose={() => setShowDelete(false)} title="Confirm Delete" description="This action cannot be undone." size="sm"
+        footer={<><ModalButton variant="secondary" onClick={() => setShowDelete(false)}>Cancel</ModalButton><ModalButton variant="danger" onClick={() => setShowDelete(false)}>Delete</ModalButton></>}>
+        <p className="text-sm text-muted-foreground">Are you sure you want to delete this GAD program?</p>
+      </Modal>
     </div>
   );
 }

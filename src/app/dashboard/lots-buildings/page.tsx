@@ -23,6 +23,9 @@ import {
   Hash,
   FileText,
   Compass,
+  Eye,
+  Edit,
+  Trash2,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge, StatusBadge } from "@/components/ui/badge";
@@ -71,6 +74,17 @@ const mockRecords: LotBuilding[] = [
 const recordTypes = ["All Types", "Lot", "Building", "Both"];
 const classifications = ["All", "Residential", "Commercial", "Agricultural", "Institutional", "Industrial"];
 
+const formTabs = ["Property Info", "Location", "Details"];
+const purokOptions = ["", "Sampaguita", "Rosal", "Ilang-Ilang", "Dahlia", "Sunflower", "Orchid", "Jasmine"];
+const propertyTypes = ["", "Residential Lot", "Commercial Lot", "Agricultural", "Government", "Residential Building", "Commercial Building", "Mixed-Use", "Vacant Lot"];
+const classificationOptions = ["", "Residential", "Commercial", "Agricultural", "Industrial", "Government"];
+
+const emptyForm: Record<string, string> = {
+  property_type: "", lot_number: "", block_number: "", area_sqm: "", owner_name: "",
+  address: "", purok: "", boundaries_north: "", boundaries_south: "", boundaries_east: "", boundaries_west: "",
+  tax_declaration_number: "", assessed_value: "", market_value: "", classification: "", zoning: "", remarks: "",
+};
+
 export default function LotsBuildingsPage() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("All Types");
@@ -80,7 +94,45 @@ export default function LotsBuildingsPage() {
   const [viewRecord, setViewRecord] = useState<LotBuilding | null>(null);
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [showCreate, setShowCreate] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+  const [formTab, setFormTab] = useState(0);
+  const [form, setForm] = useState<Record<string, string>>(emptyForm);
+  const [actionMenu, setActionMenu] = useState<string | null>(null);
   const pageSize = 10;
+
+  const Input = ({ label, name, value, placeholder, required, type }: { label: string; name: string; value: string; placeholder?: string; required?: boolean; type?: string }) => (
+    <div>
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <input type={type || "text"} value={value} onChange={(e) => setForm((f) => ({ ...f, [name]: e.target.value }))} placeholder={placeholder} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+    </div>
+  );
+  const Select = ({ label, name, value, options, required }: { label: string; name: string; value: string; options: string[]; required?: boolean }) => (
+    <div>
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <select value={value} onChange={(e) => setForm((f) => ({ ...f, [name]: e.target.value }))} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+        {options.map((o) => <option key={o} value={o}>{o || "\u2014 Select \u2014"}</option>)}
+      </select>
+    </div>
+  );
+  const Textarea = ({ label, name, value, placeholder, rows, required }: { label: string; name: string; value: string; placeholder?: string; rows?: number; required?: boolean }) => (
+    <div className="col-span-2">
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <textarea value={value} onChange={(e) => setForm((f) => ({ ...f, [name]: e.target.value }))} placeholder={placeholder} rows={rows || 3} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
+    </div>
+  );
+
+  const openCreate = () => { setForm(emptyForm); setFormTab(0); setShowCreate(true); };
+  const openEdit = (r: LotBuilding) => {
+    setForm({
+      property_type: r.classification.charAt(0).toUpperCase() + r.classification.slice(1), lot_number: r.lot_number, block_number: r.block_number, area_sqm: String(r.land_area_sqm), owner_name: r.owner_name,
+      address: r.address, purok: r.purok, boundaries_north: r.landmark_north, boundaries_south: r.landmark_south, boundaries_east: r.landmark_east, boundaries_west: r.landmark_west,
+      tax_declaration_number: r.tax_declaration_number, assessed_value: String(r.assessed_value), market_value: "", classification: r.classification.charAt(0).toUpperCase() + r.classification.slice(1), zoning: "", remarks: "",
+    });
+    setFormTab(0);
+    setShowEdit(true);
+  };
 
   const filtered = mockRecords.filter((r) => {
     if (search) {
@@ -135,7 +187,7 @@ export default function LotsBuildingsPage() {
         actions={
           <div className="flex items-center gap-2">
             <button className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors"><Download className="h-4 w-4" /> Export</button>
-            <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}><Plus className="h-4 w-4" /> New Record</button>
+            <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}><Plus className="h-4 w-4" /> New Record</button>
           </div>
         }
       />
@@ -223,8 +275,19 @@ export default function LotsBuildingsPage() {
                     </td>
                     <td className="px-4 py-3 text-sm text-foreground">{r.land_area_sqm.toLocaleString()}</td>
                     <td className="px-4 py-3 text-sm text-foreground">₱{r.assessed_value.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-right" onClick={(ev) => ev.stopPropagation()}>
-                      <button className="p-1.5 rounded hover:bg-muted"><MoreHorizontal className="h-4 w-4 text-muted-foreground" /></button>
+                    <td className="px-4 py-3 text-right">
+                      <div className="relative" onClick={(ev) => ev.stopPropagation()}>
+                        <button onClick={() => setActionMenu(actionMenu === r.id ? null : r.id)} className="p-1.5 rounded hover:bg-muted">
+                          <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                        </button>
+                        {actionMenu === r.id && (
+                          <div className="absolute right-0 top-8 z-20 w-44 bg-card border border-border rounded-lg shadow-lg py-1">
+                            <button onClick={() => { setViewRecord(r); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Eye className="h-3.5 w-3.5" /> View</button>
+                            <button onClick={() => { openEdit(r); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Edit className="h-3.5 w-3.5" /> Edit</button>
+                            <button onClick={() => { setViewRecord(r); setShowDelete(true); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-muted flex items-center gap-2"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
+                          </div>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -247,8 +310,8 @@ export default function LotsBuildingsPage() {
       </div>
 
       {/* View Modal */}
-      <Modal open={!!viewRecord} onClose={() => setViewRecord(null)} title={viewRecord?.record_number || ""} description={viewRecord ? `${viewRecord.owner_name} — ${viewRecord.classification}` : ""} size="lg"
-        footer={<><ModalButton variant="secondary" onClick={() => setViewRecord(null)}>Close</ModalButton><ModalButton variant="primary">Edit</ModalButton></>}>
+      <Modal open={!!viewRecord && !showDelete} onClose={() => setViewRecord(null)} title={viewRecord?.record_number || ""} description={viewRecord ? `${viewRecord.owner_name} \u2014 ${viewRecord.classification}` : ""} size="lg"
+        footer={<><ModalButton variant="secondary" onClick={() => setViewRecord(null)}>Close</ModalButton><ModalButton variant="primary" onClick={() => { if (viewRecord) { openEdit(viewRecord); setViewRecord(null); } }}>Edit</ModalButton></>}>
         {viewRecord && (
           <div className="space-y-6">
             <div className="flex items-center gap-3">
@@ -257,12 +320,12 @@ export default function LotsBuildingsPage() {
               <StatusBadge status={viewRecord.status} />
             </div>
             <div className="grid grid-cols-2 gap-x-8 gap-y-4">
-              <InfoItem icon={<Hash className="h-4 w-4" />} label="Lot Number" value={viewRecord.lot_number || "—"} />
-              <InfoItem icon={<Hash className="h-4 w-4" />} label="Block Number" value={viewRecord.block_number || "—"} />
+              <InfoItem icon={<Hash className="h-4 w-4" />} label="Lot Number" value={viewRecord.lot_number || "\u2014"} />
+              <InfoItem icon={<Hash className="h-4 w-4" />} label="Block Number" value={viewRecord.block_number || "\u2014"} />
               <InfoItem icon={<MapPin className="h-4 w-4" />} label="Address" value={`${viewRecord.address}, ${viewRecord.purok}`} />
               <InfoItem icon={<Ruler className="h-4 w-4" />} label="Land Area" value={`${viewRecord.land_area_sqm.toLocaleString()} sqm`} />
-              <InfoItem icon={<FileText className="h-4 w-4" />} label="TCT/OCT Number" value={viewRecord.tct_oct_number || "—"} />
-              <InfoItem icon={<FileText className="h-4 w-4" />} label="Tax Declaration" value={viewRecord.tax_declaration_number || "—"} />
+              <InfoItem icon={<FileText className="h-4 w-4" />} label="TCT/OCT Number" value={viewRecord.tct_oct_number || "\u2014"} />
+              <InfoItem icon={<FileText className="h-4 w-4" />} label="Tax Declaration" value={viewRecord.tax_declaration_number || "\u2014"} />
               <InfoItem icon={<FileText className="h-4 w-4" />} label="Assessed Value" value={`₱${viewRecord.assessed_value.toLocaleString()}`} />
               {viewRecord.year_constructed && <InfoItem icon={<Building className="h-4 w-4" />} label="Year Constructed" value={String(viewRecord.year_constructed)} />}
             </div>
@@ -271,21 +334,70 @@ export default function LotsBuildingsPage() {
               <div className="grid grid-cols-2 gap-x-8 gap-y-3">
                 <InfoItem icon={<User className="h-4 w-4" />} label="Owner Name" value={viewRecord.owner_name} />
                 <InfoItem icon={<Phone className="h-4 w-4" />} label="Contact" value={viewRecord.owner_contact_number} />
-                <InfoItem icon={<Mail className="h-4 w-4" />} label="Email" value={viewRecord.owner_email || "—"} />
+                <InfoItem icon={<Mail className="h-4 w-4" />} label="Email" value={viewRecord.owner_email || "\u2014"} />
                 <InfoItem icon={<MapPin className="h-4 w-4" />} label="Owner Address" value={viewRecord.owner_address} />
               </div>
             </div>
             <div className="pt-2 border-t border-border">
               <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-3">Boundaries / Landmarks</p>
               <div className="grid grid-cols-2 gap-x-8 gap-y-3">
-                <InfoItem icon={<Compass className="h-4 w-4" />} label="North" value={viewRecord.landmark_north || "—"} />
-                <InfoItem icon={<Compass className="h-4 w-4" />} label="South" value={viewRecord.landmark_south || "—"} />
-                <InfoItem icon={<Compass className="h-4 w-4" />} label="East" value={viewRecord.landmark_east || "—"} />
-                <InfoItem icon={<Compass className="h-4 w-4" />} label="West" value={viewRecord.landmark_west || "—"} />
+                <InfoItem icon={<Compass className="h-4 w-4" />} label="North" value={viewRecord.landmark_north || "\u2014"} />
+                <InfoItem icon={<Compass className="h-4 w-4" />} label="South" value={viewRecord.landmark_south || "\u2014"} />
+                <InfoItem icon={<Compass className="h-4 w-4" />} label="East" value={viewRecord.landmark_east || "\u2014"} />
+                <InfoItem icon={<Compass className="h-4 w-4" />} label="West" value={viewRecord.landmark_west || "\u2014"} />
               </div>
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Create / Edit Form Modal */}
+      <Modal open={showCreate || showEdit} onClose={() => { setShowCreate(false); setShowEdit(false); }} title={showEdit ? "Edit Property Record" : "Add Property Record"} size="lg"
+        footer={<>
+          <ModalButton variant="secondary" onClick={() => { setShowCreate(false); setShowEdit(false); }}>Cancel</ModalButton>
+          {formTab > 0 && <ModalButton variant="secondary" onClick={() => setFormTab((t) => t - 1)}>Previous</ModalButton>}
+          {formTab < formTabs.length - 1 ? <ModalButton variant="primary" onClick={() => setFormTab((t) => t + 1)}>Next</ModalButton> : <ModalButton variant="primary" onClick={() => { setShowCreate(false); setShowEdit(false); }}>{showEdit ? "Update" : "Save"}</ModalButton>}
+        </>}>
+        <div className="flex border-b border-border mb-6">
+          {formTabs.map((tab, i) => (
+            <button key={tab} onClick={() => setFormTab(i)} className={cn("px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors", formTab === i ? "border-accent-primary text-accent-text" : "border-transparent text-muted-foreground hover:text-foreground")}>{tab}</button>
+          ))}
+        </div>
+        {formTab === 0 && (
+          <div className="grid grid-cols-2 gap-4">
+            <Select label="Property Type" name="property_type" value={form.property_type} options={propertyTypes} />
+            <Input label="Lot Number" name="lot_number" value={form.lot_number} placeholder="L-XXX" />
+            <Input label="Block Number" name="block_number" value={form.block_number} placeholder="B-XX" />
+            <Input label="Area (sqm)" name="area_sqm" value={form.area_sqm} placeholder="0" type="number" />
+            <Input label="Owner Name" name="owner_name" value={form.owner_name} placeholder="Full name of owner" required />
+          </div>
+        )}
+        {formTab === 1 && (
+          <div className="grid grid-cols-2 gap-4">
+            <Input label="Address" name="address" value={form.address} placeholder="Street address" />
+            <Select label="Purok" name="purok" value={form.purok} options={purokOptions} />
+            <Input label="Boundary - North" name="boundaries_north" value={form.boundaries_north} placeholder="North boundary/landmark" />
+            <Input label="Boundary - South" name="boundaries_south" value={form.boundaries_south} placeholder="South boundary/landmark" />
+            <Input label="Boundary - East" name="boundaries_east" value={form.boundaries_east} placeholder="East boundary/landmark" />
+            <Input label="Boundary - West" name="boundaries_west" value={form.boundaries_west} placeholder="West boundary/landmark" />
+          </div>
+        )}
+        {formTab === 2 && (
+          <div className="grid grid-cols-2 gap-4">
+            <Input label="Tax Declaration Number" name="tax_declaration_number" value={form.tax_declaration_number} placeholder="TD-XXXX-XXX" />
+            <Input label="Assessed Value" name="assessed_value" value={form.assessed_value} placeholder="0" type="number" />
+            <Input label="Market Value" name="market_value" value={form.market_value} placeholder="0" type="number" />
+            <Select label="Classification" name="classification" value={form.classification} options={classificationOptions} />
+            <Input label="Zoning" name="zoning" value={form.zoning} placeholder="Zone classification" />
+            <Textarea label="Remarks" name="remarks" value={form.remarks} placeholder="Additional remarks..." />
+          </div>
+        )}
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal open={showDelete} onClose={() => setShowDelete(false)} title="Confirm Delete" description="This action cannot be undone." size="sm"
+        footer={<><ModalButton variant="secondary" onClick={() => { setShowDelete(false); setViewRecord(null); }}>Cancel</ModalButton><ModalButton variant="danger" onClick={() => { setShowDelete(false); setViewRecord(null); }}>Delete</ModalButton></>}>
+        <p className="text-sm text-muted-foreground">Are you sure you want to delete <span className="font-medium text-foreground">{viewRecord?.record_number}</span>? This will permanently remove this property record.</p>
       </Modal>
     </div>
   );

@@ -28,6 +28,9 @@ import {
   Droplets,
   Scissors,
   Hammer,
+  Eye,
+  Edit,
+  Trash2,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge, StatusBadge } from "@/components/ui/badge";
@@ -80,6 +83,18 @@ const typeIcons: Record<string, React.ElementType> = {
   Salon: Scissors, Bakery: Store,
 };
 
+const formTabs = ["Business Info", "Location & Permit", "Details"];
+const purokOptions = ["", "Sampaguita", "Rosal", "Ilang-Ilang", "Dahlia", "Sunflower", "Orchid", "Jasmine"];
+const formBusinessTypes = ["", "Sari-sari Store", "Restaurant/Eatery", "Pharmacy", "Hardware", "Grocery", "Salon/Barbershop", "Internet Cafe", "Repair Shop", "Manufacturing", "Services", "Others"];
+const incomeRanges = ["", "Below ₱100K", "₱100K-₱500K", "₱500K-₱1M", "₱1M-₱5M", "Above ₱5M"];
+const formStatusOptions = ["", "Active", "Inactive", "Closed", "Suspended"];
+
+const emptyForm: Record<string, string> = {
+  business_name: "", business_type: "", owner_name: "", owner_contact: "",
+  address: "", purok: "", business_permit_number: "", permit_expiry: "", dti_registration: "",
+  number_of_employees: "", business_area_sqm: "", annual_income_range: "", status: "", notes: "",
+};
+
 export default function EstablishmentsPage() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("All Types");
@@ -89,7 +104,45 @@ export default function EstablishmentsPage() {
   const [viewEstablishment, setViewEstablishment] = useState<Establishment | null>(null);
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [showCreate, setShowCreate] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+  const [formTab, setFormTab] = useState(0);
+  const [form, setForm] = useState<Record<string, string>>(emptyForm);
+  const [actionMenu, setActionMenu] = useState<string | null>(null);
   const pageSize = 10;
+
+  const Input = ({ label, name, value, placeholder, required, type }: { label: string; name: string; value: string; placeholder?: string; required?: boolean; type?: string }) => (
+    <div>
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <input type={type || "text"} value={value} onChange={(e) => setForm((f) => ({ ...f, [name]: e.target.value }))} placeholder={placeholder} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+    </div>
+  );
+  const Select = ({ label, name, value, options, required }: { label: string; name: string; value: string; options: string[]; required?: boolean }) => (
+    <div>
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <select value={value} onChange={(e) => setForm((f) => ({ ...f, [name]: e.target.value }))} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+        {options.map((o) => <option key={o} value={o}>{o || "\u2014 Select \u2014"}</option>)}
+      </select>
+    </div>
+  );
+  const Textarea = ({ label, name, value, placeholder, rows, required }: { label: string; name: string; value: string; placeholder?: string; rows?: number; required?: boolean }) => (
+    <div className="col-span-2">
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <textarea value={value} onChange={(e) => setForm((f) => ({ ...f, [name]: e.target.value }))} placeholder={placeholder} rows={rows || 3} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
+    </div>
+  );
+
+  const openCreate = () => { setForm(emptyForm); setFormTab(0); setShowCreate(true); };
+  const openEdit = (e: Establishment) => {
+    setForm({
+      business_name: e.name, business_type: e.business_type, owner_name: e.owner_name, owner_contact: e.owner_contact_number,
+      address: e.address, purok: e.purok, business_permit_number: e.business_permit_number, permit_expiry: e.permit_expiry_date, dti_registration: e.dti_sec_registration_number,
+      number_of_employees: String(e.employee_count), business_area_sqm: "", annual_income_range: "", status: e.status.charAt(0).toUpperCase() + e.status.slice(1), notes: "",
+    });
+    setFormTab(0);
+    setShowEdit(true);
+  };
 
   const filtered = mockEstablishments.filter((e) => {
     if (search) {
@@ -140,7 +193,7 @@ export default function EstablishmentsPage() {
             <button className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors">
               <Download className="h-4 w-4" /> Export
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}>
+            <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}>
               <Plus className="h-4 w-4" /> New Establishment
             </button>
           </div>
@@ -245,8 +298,19 @@ export default function EstablishmentsPage() {
                       </td>
                       <td className="px-4 py-3 text-sm text-foreground text-center">{e.employee_count}</td>
                       <td className="px-4 py-3"><StatusBadge status={e.status} /></td>
-                      <td className="px-4 py-3 text-right" onClick={(ev) => ev.stopPropagation()}>
-                        <button className="p-1.5 rounded hover:bg-muted"><MoreHorizontal className="h-4 w-4 text-muted-foreground" /></button>
+                      <td className="px-4 py-3 text-right">
+                        <div className="relative" onClick={(ev) => ev.stopPropagation()}>
+                          <button onClick={() => setActionMenu(actionMenu === e.id ? null : e.id)} className="p-1.5 rounded hover:bg-muted">
+                            <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                          </button>
+                          {actionMenu === e.id && (
+                            <div className="absolute right-0 top-8 z-20 w-44 bg-card border border-border rounded-lg shadow-lg py-1">
+                              <button onClick={() => { setViewEstablishment(e); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Eye className="h-3.5 w-3.5" /> View</button>
+                              <button onClick={() => { openEdit(e); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Edit className="h-3.5 w-3.5" /> Edit</button>
+                              <button onClick={() => { setViewEstablishment(e); setShowDelete(true); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-muted flex items-center gap-2"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
+                            </div>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -270,21 +334,21 @@ export default function EstablishmentsPage() {
       </div>
 
       {/* View Modal */}
-      <Modal open={!!viewEstablishment} onClose={() => setViewEstablishment(null)}
+      <Modal open={!!viewEstablishment && !showDelete} onClose={() => setViewEstablishment(null)}
         title={viewEstablishment?.name || ""} description={viewEstablishment?.establishment_number} size="lg"
-        footer={<><ModalButton variant="secondary" onClick={() => setViewEstablishment(null)}>Close</ModalButton><ModalButton variant="primary">Edit</ModalButton></>}>
+        footer={<><ModalButton variant="secondary" onClick={() => setViewEstablishment(null)}>Close</ModalButton><ModalButton variant="primary" onClick={() => { if (viewEstablishment) { openEdit(viewEstablishment); setViewEstablishment(null); } }}>Edit</ModalButton></>}>
         {viewEstablishment && (
           <div className="space-y-6">
             <div className="grid grid-cols-2 gap-x-8 gap-y-4">
               <InfoItem icon={<Building2 className="h-4 w-4" />} label="Business Type" value={viewEstablishment.business_type} />
               <InfoItem icon={<MapPin className="h-4 w-4" />} label="Address" value={viewEstablishment.address} />
-              <InfoItem icon={<Phone className="h-4 w-4" />} label="Contact" value={viewEstablishment.contact_number || "—"} />
-              <InfoItem icon={<Mail className="h-4 w-4" />} label="Email" value={viewEstablishment.email || "—"} />
+              <InfoItem icon={<Phone className="h-4 w-4" />} label="Contact" value={viewEstablishment.contact_number || "\u2014"} />
+              <InfoItem icon={<Mail className="h-4 w-4" />} label="Email" value={viewEstablishment.email || "\u2014"} />
               <InfoItem icon={<User className="h-4 w-4" />} label="Owner" value={viewEstablishment.owner_name} />
               <InfoItem icon={<Phone className="h-4 w-4" />} label="Owner Contact" value={viewEstablishment.owner_contact_number} />
-              <InfoItem icon={<FileText className="h-4 w-4" />} label="DTI/SEC No." value={viewEstablishment.dti_sec_registration_number || "—"} />
-              <InfoItem icon={<FileText className="h-4 w-4" />} label="Business Permit" value={viewEstablishment.business_permit_number || "—"} />
-              <InfoItem icon={<Clock className="h-4 w-4" />} label="Operating Hours" value={viewEstablishment.operating_hours || "—"} />
+              <InfoItem icon={<FileText className="h-4 w-4" />} label="DTI/SEC No." value={viewEstablishment.dti_sec_registration_number || "\u2014"} />
+              <InfoItem icon={<FileText className="h-4 w-4" />} label="Business Permit" value={viewEstablishment.business_permit_number || "\u2014"} />
+              <InfoItem icon={<Clock className="h-4 w-4" />} label="Operating Hours" value={viewEstablishment.operating_hours || "\u2014"} />
               <InfoItem icon={<User className="h-4 w-4" />} label="Employees" value={String(viewEstablishment.employee_count)} />
             </div>
             <div className="flex items-center gap-3 pt-2 border-t border-border">
@@ -297,6 +361,52 @@ export default function EstablishmentsPage() {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Create / Edit Form Modal */}
+      <Modal open={showCreate || showEdit} onClose={() => { setShowCreate(false); setShowEdit(false); }} title={showEdit ? "Edit Establishment" : "Register Establishment"} size="lg"
+        footer={<>
+          <ModalButton variant="secondary" onClick={() => { setShowCreate(false); setShowEdit(false); }}>Cancel</ModalButton>
+          {formTab > 0 && <ModalButton variant="secondary" onClick={() => setFormTab((t) => t - 1)}>Previous</ModalButton>}
+          {formTab < formTabs.length - 1 ? <ModalButton variant="primary" onClick={() => setFormTab((t) => t + 1)}>Next</ModalButton> : <ModalButton variant="primary" onClick={() => { setShowCreate(false); setShowEdit(false); }}>{showEdit ? "Update" : "Save"}</ModalButton>}
+        </>}>
+        <div className="flex border-b border-border mb-6">
+          {formTabs.map((tab, i) => (
+            <button key={tab} onClick={() => setFormTab(i)} className={cn("px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors", formTab === i ? "border-accent-primary text-accent-text" : "border-transparent text-muted-foreground hover:text-foreground")}>{tab}</button>
+          ))}
+        </div>
+        {formTab === 0 && (
+          <div className="grid grid-cols-2 gap-4">
+            <Input label="Business Name" name="business_name" value={form.business_name} placeholder="Enter business name" required />
+            <Select label="Business Type" name="business_type" value={form.business_type} options={formBusinessTypes} required />
+            <Input label="Owner Name" name="owner_name" value={form.owner_name} placeholder="Full name of owner" required />
+            <Input label="Owner Contact" name="owner_contact" value={form.owner_contact} placeholder="09XX XXX XXXX" />
+          </div>
+        )}
+        {formTab === 1 && (
+          <div className="grid grid-cols-2 gap-4">
+            <Input label="Address" name="address" value={form.address} placeholder="Street address" />
+            <Select label="Purok" name="purok" value={form.purok} options={purokOptions} />
+            <Input label="Business Permit Number" name="business_permit_number" value={form.business_permit_number} placeholder="BP-XXXX-XXX" />
+            <Input label="Permit Expiry" name="permit_expiry" value={form.permit_expiry} type="date" />
+            <Input label="DTI/SEC Registration" name="dti_registration" value={form.dti_registration} placeholder="DTI-XXX-XXXX" />
+          </div>
+        )}
+        {formTab === 2 && (
+          <div className="grid grid-cols-2 gap-4">
+            <Input label="Number of Employees" name="number_of_employees" value={form.number_of_employees} placeholder="0" type="number" />
+            <Input label="Business Area (sqm)" name="business_area_sqm" value={form.business_area_sqm} placeholder="0" type="number" />
+            <Select label="Annual Income Range" name="annual_income_range" value={form.annual_income_range} options={incomeRanges} />
+            <Select label="Status" name="status" value={form.status} options={formStatusOptions} />
+            <Textarea label="Notes" name="notes" value={form.notes} placeholder="Additional notes..." />
+          </div>
+        )}
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal open={showDelete} onClose={() => setShowDelete(false)} title="Confirm Delete" description="This action cannot be undone." size="sm"
+        footer={<><ModalButton variant="secondary" onClick={() => { setShowDelete(false); setViewEstablishment(null); }}>Cancel</ModalButton><ModalButton variant="danger" onClick={() => { setShowDelete(false); setViewEstablishment(null); }}>Delete</ModalButton></>}>
+        <p className="text-sm text-muted-foreground">Are you sure you want to delete <span className="font-medium text-foreground">{viewEstablishment?.name}</span>? This will permanently remove this establishment record.</p>
       </Modal>
     </div>
   );

@@ -17,6 +17,10 @@ import {
   CheckCircle2,
   XCircle,
   Upload,
+  MoreHorizontal,
+  Eye,
+  Edit,
+  Trash2,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -57,6 +61,20 @@ const mockVoters: VoterRecord[] = [
 const precincts = ["All Precincts", "0045A", "0045B", "0046A", "0046B", "0047A"];
 const registrationStatuses = ["All Status", "Registered", "Not Registered"];
 
+const formTabs = ["Personal", "Voter Info"];
+const suffixOptions = ["", "Jr.", "Sr.", "II", "III"];
+const sexOptions = ["", "Male", "Female"];
+const civilStatusOptions = ["", "Single", "Married", "Widowed", "Separated"];
+const purokOptions = ["", "Sampaguita", "Rosal", "Ilang-Ilang", "Dahlia", "Sunflower", "Orchid", "Jasmine"];
+const regStatusOptions = ["", "Active", "Deactivated", "Transferred"];
+const yesNoOptions = ["", "Yes", "No"];
+const voterTypeOptions = ["", "Regular", "SK"];
+
+const emptyForm: Record<string, string> = {
+  first_name: "", middle_name: "", last_name: "", extension: "", sex: "", date_of_birth: "", civil_status: "",
+  precinct_number: "", voter_id: "", purok: "", registration_status: "", is_sk_voter: "", voter_type: "",
+};
+
 export default function VotersPage() {
   const [search, setSearch] = useState("");
   const [precinctFilter, setPrecinctFilter] = useState("All Precincts");
@@ -64,7 +82,38 @@ export default function VotersPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
   const [viewVoter, setViewVoter] = useState<VoterRecord | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+  const [formTab, setFormTab] = useState(0);
+  const [form, setForm] = useState<Record<string, string>>(emptyForm);
+  const [actionMenu, setActionMenu] = useState<string | null>(null);
   const pageSize = 10;
+
+  const Input = ({ label, name, value, placeholder, required, type }: { label: string; name: string; value: string; placeholder?: string; required?: boolean; type?: string }) => (
+    <div>
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <input type={type || "text"} value={value} onChange={(e) => setForm((f) => ({ ...f, [name]: e.target.value }))} placeholder={placeholder} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+    </div>
+  );
+  const Select = ({ label, name, value, options, required }: { label: string; name: string; value: string; options: string[]; required?: boolean }) => (
+    <div>
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <select value={value} onChange={(e) => setForm((f) => ({ ...f, [name]: e.target.value }))} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+        {options.map((o) => <option key={o} value={o}>{o || "\u2014 Select \u2014"}</option>)}
+      </select>
+    </div>
+  );
+
+  const openCreate = () => { setForm(emptyForm); setFormTab(0); setShowCreate(true); };
+  const openEdit = (v: VoterRecord) => {
+    setForm({
+      first_name: v.first_name, middle_name: v.middle_name, last_name: v.last_name, extension: v.suffix, sex: v.sex, date_of_birth: v.birth_date, civil_status: "",
+      precinct_number: v.precinct_number, voter_id: v.voter_id_number, purok: v.purok, registration_status: v.is_registered ? "Active" : "Deactivated", is_sk_voter: v.is_sk_voter ? "Yes" : "No", voter_type: v.is_sk_voter ? "SK" : "Regular",
+    });
+    setFormTab(0);
+    setShowEdit(true);
+  };
 
   const filtered = mockVoters.filter((v) => {
     if (search) {
@@ -98,7 +147,7 @@ export default function VotersPage() {
           <div className="flex items-center gap-2">
             <button className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors"><Upload className="h-4 w-4" /> Import BIMS</button>
             <button className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors"><Download className="h-4 w-4" /> Export</button>
-            <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}><Plus className="h-4 w-4" /> Add Voter</button>
+            <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}><Plus className="h-4 w-4" /> Add Voter</button>
           </div>
         }
       />
@@ -152,11 +201,12 @@ export default function VotersPage() {
                 <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
                 <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Last Voted</th>
                 <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">SK</th>
+                <th className="px-4 py-3 w-12" />
               </tr>
             </thead>
             <tbody>
               {paged.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">No voter records found.</td></tr>
+                <tr><td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">No voter records found.</td></tr>
               ) : (
                 paged.map((v) => {
                   const fullName = `${v.last_name}, ${v.first_name}${v.middle_name ? ` ${v.middle_name.charAt(0)}.` : ""}${v.suffix ? ` ${v.suffix}` : ""}`;
@@ -173,9 +223,23 @@ export default function VotersPage() {
                           ? <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400"><CheckCircle2 className="h-3.5 w-3.5" /> Registered</span>
                           : <span className="inline-flex items-center gap-1 text-xs font-medium text-red-500"><XCircle className="h-3.5 w-3.5" /> Not Registered</span>}
                       </td>
-                      <td className="px-4 py-3 text-sm text-muted-foreground">{v.last_voted || "—"}</td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">{v.last_voted || "\u2014"}</td>
                       <td className="px-4 py-3">
                         {v.is_sk_voter && <Badge variant="info">SK</Badge>}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="relative" onClick={(ev) => ev.stopPropagation()}>
+                          <button onClick={() => setActionMenu(actionMenu === v.id ? null : v.id)} className="p-1.5 rounded hover:bg-muted">
+                            <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                          </button>
+                          {actionMenu === v.id && (
+                            <div className="absolute right-0 top-8 z-20 w-44 bg-card border border-border rounded-lg shadow-lg py-1">
+                              <button onClick={() => { setViewVoter(v); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Eye className="h-3.5 w-3.5" /> View</button>
+                              <button onClick={() => { openEdit(v); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Edit className="h-3.5 w-3.5" /> Edit</button>
+                              <button onClick={() => { setViewVoter(v); setShowDelete(true); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-muted flex items-center gap-2"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
+                            </div>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -200,8 +264,8 @@ export default function VotersPage() {
       )}
 
       {/* View Voter Modal */}
-      <Modal open={!!viewVoter} onClose={() => setViewVoter(null)} title={viewVoter ? `${viewVoter.first_name} ${viewVoter.last_name}` : ""} description="Voter Details" size="lg"
-        footer={<><ModalButton variant="secondary" onClick={() => setViewVoter(null)}>Close</ModalButton><ModalButton variant="primary">Edit Record</ModalButton></>}>
+      <Modal open={!!viewVoter && !showDelete} onClose={() => setViewVoter(null)} title={viewVoter ? `${viewVoter.first_name} ${viewVoter.last_name}` : ""} description="Voter Details" size="lg"
+        footer={<><ModalButton variant="secondary" onClick={() => setViewVoter(null)}>Close</ModalButton><ModalButton variant="primary" onClick={() => { if (viewVoter) { openEdit(viewVoter); setViewVoter(null); } }}>Edit Record</ModalButton></>}>
         {viewVoter && (
           <div className="space-y-5">
             <div className="flex items-center gap-2">
@@ -212,17 +276,58 @@ export default function VotersPage() {
             </div>
             <div className="grid grid-cols-2 gap-x-8 gap-y-3">
               <div><p className="text-[11px] text-muted-foreground uppercase">Resident Number</p><p className="text-sm">{viewVoter.resident_number}</p></div>
-              <div><p className="text-[11px] text-muted-foreground uppercase">Voter ID Number</p><p className="text-sm">{viewVoter.voter_id_number || "—"}</p></div>
+              <div><p className="text-[11px] text-muted-foreground uppercase">Voter ID Number</p><p className="text-sm">{viewVoter.voter_id_number || "\u2014"}</p></div>
               <div><p className="text-[11px] text-muted-foreground uppercase">Full Name</p><p className="text-sm">{viewVoter.first_name} {viewVoter.middle_name} {viewVoter.last_name}{viewVoter.suffix ? ` ${viewVoter.suffix}` : ""}</p></div>
               <div><p className="text-[11px] text-muted-foreground uppercase">Sex</p><p className="text-sm">{viewVoter.sex}</p></div>
               <div><p className="text-[11px] text-muted-foreground uppercase">Birth Date</p><p className="text-sm">{viewVoter.birth_date}</p></div>
               <div><p className="text-[11px] text-muted-foreground uppercase">Precinct Number</p><p className="text-sm">{viewVoter.precinct_number}</p></div>
               <div><p className="text-[11px] text-muted-foreground uppercase">Purok</p><p className="text-sm">{viewVoter.purok}</p></div>
-              <div><p className="text-[11px] text-muted-foreground uppercase">Registration Date</p><p className="text-sm">{viewVoter.registration_date || "—"}</p></div>
+              <div><p className="text-[11px] text-muted-foreground uppercase">Registration Date</p><p className="text-sm">{viewVoter.registration_date || "\u2014"}</p></div>
               <div><p className="text-[11px] text-muted-foreground uppercase">Last Election Voted</p><p className="text-sm">{viewVoter.last_voted || "Never voted"}</p></div>
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Create / Edit Voter Form Modal */}
+      <Modal open={showCreate || showEdit} onClose={() => { setShowCreate(false); setShowEdit(false); }} title={showEdit ? "Edit Voter" : "Add Voter"} size="lg"
+        footer={<>
+          <ModalButton variant="secondary" onClick={() => { setShowCreate(false); setShowEdit(false); }}>Cancel</ModalButton>
+          {formTab > 0 && <ModalButton variant="secondary" onClick={() => setFormTab((t) => t - 1)}>Previous</ModalButton>}
+          {formTab < formTabs.length - 1 ? <ModalButton variant="primary" onClick={() => setFormTab((t) => t + 1)}>Next</ModalButton> : <ModalButton variant="primary" onClick={() => { setShowCreate(false); setShowEdit(false); }}>{showEdit ? "Update" : "Save"}</ModalButton>}
+        </>}>
+        <div className="flex border-b border-border mb-6">
+          {formTabs.map((tab, i) => (
+            <button key={tab} onClick={() => setFormTab(i)} className={cn("px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors", formTab === i ? "border-accent-primary text-accent-text" : "border-transparent text-muted-foreground hover:text-foreground")}>{tab}</button>
+          ))}
+        </div>
+        {formTab === 0 && (
+          <div className="grid grid-cols-2 gap-4">
+            <Input label="First Name" name="first_name" value={form.first_name} placeholder="First name" required />
+            <Input label="Middle Name" name="middle_name" value={form.middle_name} placeholder="Middle name" />
+            <Input label="Last Name" name="last_name" value={form.last_name} placeholder="Last name" required />
+            <Select label="Extension" name="extension" value={form.extension} options={suffixOptions} />
+            <Select label="Sex" name="sex" value={form.sex} options={sexOptions} />
+            <Input label="Date of Birth" name="date_of_birth" value={form.date_of_birth} type="date" />
+            <Select label="Civil Status" name="civil_status" value={form.civil_status} options={civilStatusOptions} />
+          </div>
+        )}
+        {formTab === 1 && (
+          <div className="grid grid-cols-2 gap-4">
+            <Input label="Precinct Number" name="precinct_number" value={form.precinct_number} placeholder="0000X" required />
+            <Input label="Voter ID" name="voter_id" value={form.voter_id} placeholder="VRN-XXXX-XXXXX" />
+            <Select label="Purok" name="purok" value={form.purok} options={purokOptions} />
+            <Select label="Registration Status" name="registration_status" value={form.registration_status} options={regStatusOptions} />
+            <Select label="SK Voter" name="is_sk_voter" value={form.is_sk_voter} options={yesNoOptions} />
+            <Select label="Voter Type" name="voter_type" value={form.voter_type} options={voterTypeOptions} />
+          </div>
+        )}
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal open={showDelete} onClose={() => setShowDelete(false)} title="Confirm Delete" description="This action cannot be undone." size="sm"
+        footer={<><ModalButton variant="secondary" onClick={() => { setShowDelete(false); setViewVoter(null); }}>Cancel</ModalButton><ModalButton variant="danger" onClick={() => { setShowDelete(false); setViewVoter(null); }}>Delete</ModalButton></>}>
+        <p className="text-sm text-muted-foreground">Are you sure you want to delete the voter record for <span className="font-medium text-foreground">{viewVoter ? `${viewVoter.first_name} ${viewVoter.last_name}` : ""}</span>? This will permanently remove this record.</p>
       </Modal>
     </div>
   );
