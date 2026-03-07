@@ -14,8 +14,6 @@ import {
   CheckCircle2,
   XCircle,
   FileText,
-  Calendar,
-  User,
   Printer,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";

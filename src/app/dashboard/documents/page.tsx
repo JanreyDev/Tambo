@@ -8,24 +8,21 @@ import {
   Filter,
   Download,
   Printer,
-  Eye,
   MoreHorizontal,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  ChevronDown,
-  ChevronUp,
   X,
   Clock,
   CheckCircle2,
   FileCheck2,
   QrCode,
-  User,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
-import { Badge, StatusBadge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/stat-card";
+import { SortableHeader } from "@/components/ui/sortable-header";
 import { cn } from "@/lib/utils";
 
 interface IssuedDocument {
@@ -108,12 +105,6 @@ export default function DocumentsPage() {
     return "#64748b";
   };
 
-  const SortHeader = ({ label, field }: { label: string; field: string }) => (
-    <th className="px-4 py-3 text-left font-medium text-muted-foreground cursor-pointer select-none hover:text-foreground" onClick={() => toggleSort(field)}>
-      <div className="flex items-center gap-1">{label}{sortKey === field && (sortDir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}</div>
-    </th>
-  );
-
   return (
     <div className="space-y-6">
       <PageHeader
@@ -170,7 +161,7 @@ export default function DocumentsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-muted/50 border-b border-border">
-                <SortHeader label="Document" field="document_number" />
+                <SortableHeader sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} label="Document" field="document_number" />
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Resident</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Type</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Purpose</th>

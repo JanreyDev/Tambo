@@ -8,20 +8,15 @@ import {
   Search,
   Grid3X3,
   List,
-  Download,
-  Trash2,
   MoreHorizontal,
   Folder,
   FileText,
-  Image,
+  ImageIcon,
   File,
   FileSpreadsheet,
-  Clock,
-  User,
   ChevronRight,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 interface DriveItem {
@@ -67,7 +62,7 @@ export default function DrivePage() {
     switch (type) {
       case "folder": return <Folder className="h-5 w-5 text-amber-500" />;
       case "document": return <FileText className="h-5 w-5 text-blue-500" />;
-      case "image": return <Image className="h-5 w-5 text-purple-500" />;
+      case "image": return <ImageIcon className="h-5 w-5 text-purple-500" />;
       case "spreadsheet": return <FileSpreadsheet className="h-5 w-5 text-emerald-500" />;
       case "pdf": return <File className="h-5 w-5 text-red-500" />;
       default: return <File className="h-5 w-5 text-gray-500" />;

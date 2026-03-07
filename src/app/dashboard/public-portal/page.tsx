@@ -9,10 +9,7 @@ import {
   FileText,
   Image,
   MessageSquare,
-  Bell,
   ExternalLink,
-  CheckCircle2,
-  XCircle,
   ToggleLeft,
   ToggleRight,
   Megaphone,
@@ -21,7 +18,7 @@ import {
   MapPin,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
-import { Badge, StatusBadge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/stat-card";
 import { cn } from "@/lib/utils";
 

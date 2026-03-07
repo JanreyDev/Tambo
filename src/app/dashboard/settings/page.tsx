@@ -1,7 +1,7 @@
 "use client";
 
 import { useTheme } from "next-themes";
-import { useState, useEffect } from "react";
+import { useSyncExternalStore } from "react";
 import { Sun, Moon, Monitor, Check } from "lucide-react";
 import {
   useAccentColor,
@@ -21,12 +21,12 @@ const accentOptions: { name: string; value: AccentColor }[] = [
   { name: "Indigo", value: "indigo" },
 ];
 
+const emptySubscribe = () => () => {};
+
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
   const { accent, setAccent } = useAccentColor();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => setMounted(true), []);
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
 
   if (!mounted) return null;
 

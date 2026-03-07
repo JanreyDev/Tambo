@@ -11,7 +11,6 @@ import {
   Shield,
   Building2,
   Map,
-  ChevronUp,
   Gavel,
   BarChart3,
   Settings,

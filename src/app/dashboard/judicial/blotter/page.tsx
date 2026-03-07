@@ -7,7 +7,6 @@ import {
   Search,
   Filter,
   Download,
-  MoreHorizontal,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
@@ -18,7 +17,6 @@ import {
   MapPin,
   Calendar,
   Users,
-  FileText,
   Shield,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";

@@ -6,7 +6,6 @@ import {
   FileText,
   Home,
   AlertTriangle,
-  ArrowRight,
   MessageSquare,
   FileCheck2,
   Bot,
@@ -26,9 +25,7 @@ import {
   Link2,
   MapPin,
   Calendar,
-  HardDrive,
   Send,
-  Mic,
   TrendingUp,
   Activity,
   Clock,
@@ -67,27 +64,6 @@ function MiniLineChart({ data, color, height = 40, width = 120 }: { data: number
       <polyline points={points} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
       <circle cx={width} cy={Number(points.split(" ").pop()?.split(",")[1])} r="3" fill={color} />
     </svg>
-  );
-}
-
-function BarChartWidget({ data, labels, color }: { data: number[]; labels: string[]; color: string }) {
-  const max = Math.max(...data);
-  return (
-    <div className="flex items-end gap-1.5 h-[100px]">
-      {data.map((v, i) => (
-        <div key={i} className="flex flex-col items-center gap-1 flex-1">
-          <div
-            className="w-full rounded-t-sm min-h-[4px] transition-all duration-500"
-            style={{
-              height: `${(v / max) * 80}px`,
-              background: `linear-gradient(to top, ${color}, ${color}90)`,
-              opacity: 0.7 + (v / max) * 0.3,
-            }}
-          />
-          <span className="text-[9px] text-muted-foreground">{labels[i]}</span>
-        </div>
-      ))}
-    </div>
   );
 }
 

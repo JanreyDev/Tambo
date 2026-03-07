@@ -18,8 +18,6 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  ChevronDown,
-  ChevronUp,
   X,
   Store,
   Wrench,
@@ -35,6 +33,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Badge, StatusBadge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/stat-card";
 import { Modal, ModalButton } from "@/components/ui/modal";
+import { SortableHeader } from "@/components/ui/sortable-header";
 import { cn } from "@/lib/utils";
 
 interface Establishment {
@@ -130,15 +129,6 @@ export default function EstablishmentsPage() {
     return diff <= 90 && diff > 0;
   }).length;
 
-  const SortHeader = ({ label, field }: { label: string; field: string }) => (
-    <th className="px-4 py-3 text-left font-medium text-muted-foreground cursor-pointer select-none hover:text-foreground" onClick={() => toggleSort(field)}>
-      <div className="flex items-center gap-1">
-        {label}
-        {sortKey === field && (sortDir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
-      </div>
-    </th>
-  );
-
   return (
     <div className="space-y-6">
       <PageHeader
@@ -202,12 +192,12 @@ export default function EstablishmentsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-muted/50 border-b border-border">
-                <SortHeader label="Establishment" field="name" />
-                <SortHeader label="Type" field="business_type" />
+                <SortableHeader sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} label="Establishment" field="name" />
+                <SortableHeader sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} label="Type" field="business_type" />
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Location</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Owner</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Permit</th>
-                <SortHeader label="Employees" field="employee_count" />
+                <SortableHeader sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} label="Employees" field="employee_count" />
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
                 <th className="px-4 py-3 w-12" />
               </tr>

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import {
-  Settings,
   Globe,
   Bell,
   Shield,
@@ -12,17 +11,8 @@ import {
   Server,
   Key,
   Eye,
-  EyeOff,
-  Save,
   RefreshCw,
-  AlertTriangle,
-  CheckCircle2,
-  Info,
-  ExternalLink,
-  Palette,
-  Lock,
   FileText,
-  Clock,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 

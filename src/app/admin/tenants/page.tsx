@@ -18,7 +18,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
-  Eye,
   Edit3,
   Trash2,
   Power,

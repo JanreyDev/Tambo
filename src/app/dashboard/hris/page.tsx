@@ -7,9 +7,6 @@ import {
   Search,
   Download,
   Phone,
-  Mail,
-  Calendar,
-  Clock,
   Users,
   Briefcase,
   Award,
@@ -18,7 +15,6 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Badge, StatusBadge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/stat-card";
 import { Modal, ModalButton } from "@/components/ui/modal";
-import { cn } from "@/lib/utils";
 
 interface Personnel {
   id: string;

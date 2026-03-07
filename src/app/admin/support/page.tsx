@@ -4,19 +4,14 @@ import { useState } from "react";
 import {
   MessageCircle,
   Search,
-  Filter,
-  Plus,
   Clock,
   CheckCircle2,
   AlertCircle,
   XCircle,
   User,
   Building2,
-  ChevronRight,
   Send,
   Paperclip,
-  MoreHorizontal,
-  Tag,
   ArrowUpRight,
 } from "lucide-react";
 

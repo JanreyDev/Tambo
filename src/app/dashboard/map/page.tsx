@@ -8,14 +8,12 @@ import {
   Building2,
   MapPin,
   AlertTriangle,
-  Filter,
   ZoomIn,
   ZoomOut,
   Maximize2,
   Navigation,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 interface MapLayer {

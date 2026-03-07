@@ -12,12 +12,10 @@ import {
   ChevronsLeft,
   ChevronsRight,
   X,
-  Clock,
   AlertTriangle,
   Calendar,
   Users,
   Lock,
-  Eye,
   EyeOff,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";

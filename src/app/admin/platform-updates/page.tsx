@@ -9,32 +9,15 @@ import {
   Shield,
   Zap,
   Search,
-  Filter,
   ChevronRight,
   CheckCircle2,
   Clock,
-  AlertTriangle,
   GitBranch,
-  Tag,
   User,
   Calendar,
   ArrowUpRight,
-  Eye,
   Code2,
   Server,
-  Globe,
-  Palette,
-  Link2,
-  Flag,
-  HardDrive,
-  MessageCircle,
-  LayoutDashboard,
-  Users,
-  FileText,
-  Map,
-  Bot,
-  BarChart3,
-  Database,
 } from "lucide-react";
 
 type UpdateType = "Feature" | "Bugfix" | "Enhancement" | "Milestone" | "Security" | "Infrastructure";
@@ -115,10 +98,8 @@ export default function PlatformUpdatesPage() {
 
   // Group by date
   const grouped = filtered.reduce((acc, u) => {
-    const dateLabel = u.date === new Date().toISOString().split("T")[0] ? "Today" :
-      u.date === new Date(Date.now() - 86400000).toISOString().split("T")[0] ? "Yesterday" : u.date;
-    if (!acc[dateLabel]) acc[dateLabel] = [];
-    acc[dateLabel].push(u);
+    if (!acc[u.date]) acc[u.date] = [];
+    acc[u.date].push(u);
     return acc;
   }, {} as Record<string, PlatformUpdate[]>);
 

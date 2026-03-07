@@ -2,18 +2,13 @@
 
 import { useState } from "react";
 import {
-  Receipt,
   Download,
   Plus,
   Search,
-  Filter,
-  X,
   TrendingUp,
   TrendingDown,
   ArrowUpRight,
   ArrowDownRight,
-  Calendar,
-  FileText,
   Wallet,
   PiggyBank,
 } from "lucide-react";

@@ -6,16 +6,11 @@ import {
   Plus,
   Search,
   Filter,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
   X,
   Clock,
   CheckCircle2,
   AlertCircle,
   Send,
-  Paperclip,
   User,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";

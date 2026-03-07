@@ -9,10 +9,8 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  Filter,
   Download,
   Plus,
-  MoreHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 

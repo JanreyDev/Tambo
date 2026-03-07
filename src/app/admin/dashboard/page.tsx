@@ -9,43 +9,14 @@ import {
   ArrowDownRight,
   Activity,
   Server,
-  Globe,
-  Shield,
-  Clock,
-  CheckCircle2,
-  AlertTriangle,
-  XCircle,
   ChevronRight,
   Bell,
   Zap,
-  HardDrive,
-  Cpu,
-  MemoryStick,
-  Wifi,
   MapPin,
-  Eye,
-  BarChart3,
   FileText,
 } from "lucide-react";
 
 // ── Charts ────────────────────────────────────────────────────────
-
-function MiniLineChart({ data, color, height = 32, width = 80 }: { data: number[]; color: string; height?: number; width?: number }) {
-  const max = Math.max(...data);
-  const min = Math.min(...data);
-  const range = max - min || 1;
-  const points = data.map((v, i) => {
-    const x = (i / (data.length - 1)) * width;
-    const y = height - ((v - min) / range) * (height - 6) - 3;
-    return `${x},${y}`;
-  }).join(" ");
-  return (
-    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="overflow-visible">
-      <polyline points={points} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={width} cy={Number(points.split(" ").pop()?.split(",")[1])} r="2.5" fill={color} />
-    </svg>
-  );
-}
 
 function DonutChart({ value, max, color, size = 70 }: { value: number; max: number; color: string; size?: number }) {
   const pct = (value / max) * 100;

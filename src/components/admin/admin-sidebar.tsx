@@ -14,7 +14,6 @@ import {
   MessageCircle,
   Shield,
   Server,
-  ChevronRight,
   LogOut,
 } from "lucide-react";
 

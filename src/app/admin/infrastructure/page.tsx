@@ -6,17 +6,9 @@ import {
   Database,
   Globe,
   Shield,
-  Activity,
-  Cpu,
-  Clock,
   CheckCircle2,
   AlertTriangle,
   XCircle,
-  ExternalLink,
-  RefreshCw,
-  Wifi,
-  ChevronRight,
-  MapPin,
   Lock,
 } from "lucide-react";
 

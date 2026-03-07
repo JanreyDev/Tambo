@@ -2,14 +2,14 @@
 
 import { Bell, Search, Moon, Sun, Bot, Menu, LogOut, ChevronDown } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useState, useEffect } from "react";
+import { useState, useSyncExternalStore } from "react";
+
+const emptySubscribe = () => () => {};
 
 export function Header() {
   const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-
-  useEffect(() => setMounted(true), []);
 
   const today = new Date().toLocaleDateString("en-PH", {
     weekday: "long",

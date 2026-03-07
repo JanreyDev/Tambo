@@ -7,20 +7,12 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Building2,
-  Calendar,
   CheckCircle2,
-  Clock,
-  XCircle,
   AlertTriangle,
-  ChevronRight,
   Download,
   Filter,
   Search,
-  Receipt,
-  RefreshCw,
   Plus,
-  Percent,
-  DollarSign,
 } from "lucide-react";
 
 interface Plan {

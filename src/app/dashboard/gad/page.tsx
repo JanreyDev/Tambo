@@ -5,13 +5,10 @@ import {
   Heart,
   Plus,
   Download,
-  Search,
   Users,
-  BarChart3,
   Calendar,
   FileText,
   TrendingUp,
-  PieChart,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";

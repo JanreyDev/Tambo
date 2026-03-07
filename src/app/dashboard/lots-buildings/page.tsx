@@ -15,8 +15,6 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  ChevronDown,
-  ChevronUp,
   X,
   Home,
   Building,
@@ -30,6 +28,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Badge, StatusBadge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/stat-card";
 import { Modal, ModalButton } from "@/components/ui/modal";
+import { SortableHeader } from "@/components/ui/sortable-header";
 import { cn } from "@/lib/utils";
 
 interface LotBuilding {
@@ -113,7 +112,6 @@ export default function LotsBuildingsPage() {
 
   const lotCount = mockRecords.filter((r) => r.record_type === "lot" || r.record_type === "both").length;
   const buildingCount = mockRecords.filter((r) => r.record_type === "building" || r.record_type === "both").length;
-  const totalArea = mockRecords.reduce((sum, r) => sum + r.land_area_sqm, 0);
   const totalAssessed = mockRecords.reduce((sum, r) => sum + r.assessed_value, 0);
 
   const typeIcon = (type: string) => {
@@ -127,12 +125,6 @@ export default function LotsBuildingsPage() {
       default: return <Badge variant="accent">Lot + Building</Badge>;
     }
   };
-
-  const SortHeader = ({ label, field }: { label: string; field: string }) => (
-    <th className="px-4 py-3 text-left font-medium text-muted-foreground cursor-pointer select-none hover:text-foreground" onClick={() => toggleSort(field)}>
-      <div className="flex items-center gap-1">{label}{sortKey === field && (sortDir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}</div>
-    </th>
-  );
 
   return (
     <div className="space-y-6">
@@ -192,12 +184,12 @@ export default function LotsBuildingsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-muted/50 border-b border-border">
-                <SortHeader label="Record" field="record_number" />
+                <SortableHeader sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} label="Record" field="record_number" />
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Type</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Classification</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Location</th>
-                <SortHeader label="Owner" field="owner_name" />
-                <SortHeader label="Area (sqm)" field="land_area_sqm" />
+                <SortableHeader sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} label="Owner" field="owner_name" />
+                <SortableHeader sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} label="Area (sqm)" field="land_area_sqm" />
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Assessed Value</th>
                 <th className="px-4 py-3 w-12" />
               </tr>

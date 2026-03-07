@@ -1,22 +1,17 @@
 "use client";
 
 import {
-  BarChart3,
   TrendingUp,
   Users,
   FileText,
   Building2,
   ArrowUpRight,
-  ArrowDownRight,
   Calendar,
   Download,
-  Filter,
   ChevronRight,
-  MapPin,
   Globe,
   Activity,
   Clock,
-  Percent,
   Target,
   Eye,
 } from "lucide-react";

@@ -9,17 +9,12 @@ import {
   Filter,
   Download,
   Upload,
-  Eye,
-  Pencil,
-  Trash2,
   MoreHorizontal,
   Search,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  ChevronDown,
-  ChevronUp,
   X,
   Flag,
   AlertTriangle,
@@ -28,13 +23,13 @@ import {
   Calendar,
   User,
   Heart,
-  Fingerprint,
   FileText,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge, StatusBadge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/stat-card";
 import { Modal, ModalButton } from "@/components/ui/modal";
+import { SortableHeader } from "@/components/ui/sortable-header";
 import { cn } from "@/lib/utils";
 
 // ── Types ──
@@ -131,22 +126,9 @@ export default function ResidentsPage() {
     else { setSortKey(key); setSortDir("asc"); }
   };
 
-  const activeCount = mockResidents.filter((r) => r.status === "active").length;
   const householdCount = mockResidents.filter((r) => r.is_head_of_household).length;
   const voterCount = mockResidents.filter((r) => r.is_voter).length;
   const maleCount = mockResidents.filter((r) => r.sex === "male").length;
-
-  const SortHeader = ({ label, field }: { label: string; field: string }) => (
-    <th
-      className="px-4 py-3 text-left font-medium text-muted-foreground cursor-pointer select-none hover:text-foreground transition-colors"
-      onClick={() => toggleSort(field)}
-    >
-      <div className="flex items-center gap-1">
-        {label}
-        {sortKey === field && (sortDir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
-      </div>
-    </th>
-  );
 
   return (
     <div className="space-y-6">
@@ -257,10 +239,10 @@ export default function ResidentsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-muted/50 border-b border-border">
-                <SortHeader label="Resident" field="last_name" />
-                <SortHeader label="Purok" field="purok" />
+                <SortableHeader sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} label="Resident" field="last_name" />
+                <SortableHeader sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} label="Purok" field="purok" />
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Contact</th>
-                <SortHeader label="Age" field="age" />
+                <SortableHeader sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} label="Age" field="age" />
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Sex</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Voter</th>

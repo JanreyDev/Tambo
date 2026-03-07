@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
 
 export type AccentColor =
   | "blue"
@@ -25,23 +25,30 @@ const ACCENT_COLORS: Record<AccentColor, { primary: string; hover: string; ring:
 
 const STORAGE_KEY = "bcmp-accent-color";
 
+let listeners: Array<() => void> = [];
+function subscribe(listener: () => void) {
+  listeners = [...listeners, listener];
+  return () => { listeners = listeners.filter((l) => l !== listener); };
+}
+function getAccentSnapshot(): AccentColor {
+  const stored = localStorage.getItem(STORAGE_KEY) as AccentColor | null;
+  return stored && ACCENT_COLORS[stored] ? stored : "blue";
+}
+function getAccentServerSnapshot(): AccentColor {
+  return "blue";
+}
+
 export function useAccentColor() {
-  const [accent, setAccentState] = useState<AccentColor>("blue");
+  const accent = useSyncExternalStore(subscribe, getAccentSnapshot, getAccentServerSnapshot);
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY) as AccentColor | null;
-    if (stored && ACCENT_COLORS[stored]) {
-      setAccentState(stored);
-      applyAccent(stored);
-    } else {
-      applyAccent("blue");
-    }
-  }, []);
+    applyAccent(accent);
+  }, [accent]);
 
   const setAccent = useCallback((color: AccentColor) => {
-    setAccentState(color);
     localStorage.setItem(STORAGE_KEY, color);
     applyAccent(color);
+    listeners.forEach((l) => l());
   }, []);
 
   return { accent, setAccent, colors: ACCENT_COLORS };

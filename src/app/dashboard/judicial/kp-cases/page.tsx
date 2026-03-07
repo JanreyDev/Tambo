@@ -7,7 +7,6 @@ import {
   Search,
   Filter,
   Download,
-  MoreHorizontal,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
