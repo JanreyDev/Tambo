@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, useSyncExternalStore } from "react";
+import { useState, useEffect, useRef, useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
-import { useAuth } from "@/contexts/auth-context";
+import { useAuth, isApiError } from "@/contexts/auth-context";
 import { api } from "@/lib/api";
 import {
   useAccentColor,
@@ -19,7 +19,6 @@ import {
   Shield,
   Smartphone,
   Monitor,
-  Globe,
   Key,
   AlertTriangle,
   Check,
@@ -33,17 +32,13 @@ import {
   BellOff,
   MessageSquare,
   FileText,
-  Users,
   Activity,
   Download,
   Trash2,
   ShieldCheck,
-  ScrollText,
   Clock,
-  Filter,
   LogIn,
   LogOut,
-  X,
   Loader2,
 } from "lucide-react";
 
@@ -89,7 +84,6 @@ export default function AccountPage() {
   const [contactStatus, setContactStatus] = useState<Status>("idle");
   const [usernameStatus, setUsernameStatus] = useState<Status>("idle");
   const [avatarStatus, setAvatarStatus] = useState<Status>("idle");
-  const [statusMessage, setStatusMessage] = useState("");
 
   // ── Security form state ──
   const [currentPassword, setCurrentPassword] = useState("");
@@ -169,9 +163,8 @@ export default function AccountPage() {
       setProfileStatus("success");
       refreshUser();
       setTimeout(() => setProfileStatus("idle"), 2000);
-    } catch (e: any) {
+    } catch {
       setProfileStatus("error");
-      setStatusMessage(e.message || "Failed to update profile");
       setTimeout(() => setProfileStatus("idle"), 3000);
     }
   };
@@ -183,9 +176,8 @@ export default function AccountPage() {
       setContactStatus("success");
       refreshUser();
       setTimeout(() => setContactStatus("idle"), 2000);
-    } catch (e: any) {
+    } catch {
       setContactStatus("error");
-      setStatusMessage(e.message || "Failed to update contact info");
       setTimeout(() => setContactStatus("idle"), 3000);
     }
   };
@@ -197,9 +189,8 @@ export default function AccountPage() {
       setUsernameStatus("success");
       refreshUser();
       setTimeout(() => setUsernameStatus("idle"), 2000);
-    } catch (e: any) {
+    } catch {
       setUsernameStatus("error");
-      setStatusMessage(e.message || "Failed to update username");
       setTimeout(() => setUsernameStatus("idle"), 3000);
     }
   };
@@ -213,9 +204,8 @@ export default function AccountPage() {
       setAvatarStatus("success");
       refreshUser();
       setTimeout(() => setAvatarStatus("idle"), 2000);
-    } catch (e: any) {
+    } catch {
       setAvatarStatus("error");
-      setStatusMessage(e.message || "Failed to upload photo");
       setTimeout(() => setAvatarStatus("idle"), 3000);
     }
     // Reset file input
@@ -251,9 +241,11 @@ export default function AccountPage() {
       setNewPassword("");
       setConfirmPassword("");
       setTimeout(() => setPasswordStatus("idle"), 3000);
-    } catch (e: any) {
+    } catch (e: unknown) {
       setPasswordStatus("error");
-      setPasswordMessage(e.errors?.current_password?.[0] || e.message || "Failed to change password");
+      setPasswordMessage(
+        isApiError(e) ? (e.errors?.current_password?.[0] || e.message) : "Failed to change password"
+      );
       setTimeout(() => setPasswordStatus("idle"), 3000);
     }
   };
@@ -382,6 +374,7 @@ export default function AccountPage() {
             <div className="flex items-center gap-6">
               <div className="relative group">
                 {user?.photo_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={user.photo_url}
                     alt="Profile photo"
