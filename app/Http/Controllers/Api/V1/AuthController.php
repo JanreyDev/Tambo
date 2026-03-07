@@ -165,6 +165,40 @@ class AuthController extends Controller
     }
 
     /**
+     * Check if a username exists in the system.
+     * Used by forgot-password flow to validate before enabling OTP send.
+     *
+     * POST /api/v1/auth/check-username
+     */
+    public function checkUsername(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'username' => ['required', 'string'],
+        ]);
+
+        $user = User::where('username', $validated['username'])->first();
+
+        if (! $user) {
+            return response()->json([
+                'exists' => false,
+                'message' => 'Username not found.',
+            ]);
+        }
+
+        // Mask the phone number for display
+        $phoneMasked = null;
+        if ($user->phone) {
+            $phoneMasked = substr($user->phone, 0, 4) . '****' . substr($user->phone, -2);
+        }
+
+        return response()->json([
+            'exists' => true,
+            'has_phone' => (bool) $user->phone,
+            'phone_masked' => $phoneMasked,
+        ]);
+    }
+
+    /**
      * Send password reset OTP via SMS.
      * Looks up user by username, sends OTP to their registered phone.
      *
