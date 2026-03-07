@@ -88,8 +88,10 @@ class AuthController extends Controller
             'action' => 'login',
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
-            'device_type' => $this->detectDeviceType($request->userAgent()),
-            'browser' => $this->detectBrowser($request->userAgent()),
+            'device_info' => [
+                'device_type' => $this->detectDeviceType($request->userAgent()),
+                'browser' => $this->detectBrowser($request->userAgent()),
+            ],
         ]);
 
         return response()->json([
@@ -132,8 +134,10 @@ class AuthController extends Controller
             'action' => 'logout',
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
-            'device_type' => $this->detectDeviceType($request->userAgent()),
-            'browser' => $this->detectBrowser($request->userAgent()),
+            'device_info' => [
+                'device_type' => $this->detectDeviceType($request->userAgent()),
+                'browser' => $this->detectBrowser($request->userAgent()),
+            ],
         ]);
 
         $request->user()->currentAccessToken()->delete();

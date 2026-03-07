@@ -84,6 +84,15 @@ Route::prefix('v1')->group(function () {
 
         // Account
         Route::prefix('account')->group(function () {
+            Route::get('profile', [AccountController::class, 'profile']);
+            Route::patch('profile', [AccountController::class, 'updateProfile']);
+            Route::patch('username', [AccountController::class, 'updateUsername']);
+            Route::post('avatar', [AccountController::class, 'uploadAvatar']);
+            Route::delete('avatar', [AccountController::class, 'deleteAvatar']);
+            Route::patch('password', [AccountController::class, 'updatePassword']);
+            Route::get('sessions', [AccountController::class, 'sessions']);
+            Route::delete('sessions/{tokenId}', [AccountController::class, 'revokeSession']);
+            Route::get('activity', [AccountController::class, 'activity']);
             Route::patch('preferences', [AccountController::class, 'updatePreferences']);
         });
 
