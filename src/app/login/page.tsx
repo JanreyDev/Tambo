@@ -29,6 +29,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { APP_VERSION_LABEL } from "@/lib/version";
+import { useToast } from "@/components/ui/toast";
 
 // ── Security Detection ──────────────────────────────────────────
 
@@ -150,11 +151,11 @@ export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
   const router = useRouter();
   const { login, isAuthenticated, isLoading } = useAuth();
+  const { toast } = useToast();
 
   const [securityInfo, setSecurityInfo] = useState<SecurityInfo | null>(null);
   const [connectionSecure, setConnectionSecure] = useState(true);
@@ -220,17 +221,29 @@ export default function LoginPage() {
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     if (!isFormValid) return;
-    setError(null);
     setIsSubmitting(true);
 
     try {
       await login(username, password, rememberMe);
+      toast("success", "Login successful", "Redirecting to your dashboard...", 3000);
       router.push("/dashboard");
     } catch (err) {
       if (isApiError(err)) {
-        setError(err.message);
+        // API returned a structured error response
+        const msg = err.message.toLowerCase();
+        if (msg.includes("credentials") || msg.includes("invalid") || msg.includes("unauthorized") || msg.includes("incorrect")) {
+          toast("error", "Invalid credentials", "The username or password you entered is incorrect. Please try again.");
+        } else if (msg.includes("throttle") || msg.includes("too many") || msg.includes("rate")) {
+          toast("warning", "Too many attempts", "You have exceeded the login limit. Please wait a moment before trying again.");
+        } else if (msg.includes("deactivated") || msg.includes("disabled") || msg.includes("locked")) {
+          toast("error", "Account locked", "Your account has been deactivated. Contact your barangay administrator.");
+        } else {
+          toast("error", "Login failed", err.message);
+        }
+      } else if (err instanceof TypeError && (err as TypeError).message === "Failed to fetch") {
+        toast("error", "Server unreachable", "Unable to connect to the server. Check your internet connection or try again later.");
       } else {
-        setError("Unable to connect to the server. Please try again.");
+        toast("error", "Something went wrong", "An unexpected error occurred. Please try again.");
       }
     } finally {
       setIsSubmitting(false);
@@ -476,13 +489,6 @@ export default function LoginPage() {
                   </button>
                 </div>
 
-                {/* Error message */}
-                {error && (
-                  <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-sm text-red-600 dark:text-red-400">
-                    {error}
-                  </div>
-                )}
-
                 {/* Submit — disabled until both fields are filled */}
                 <button
                   type="submit"
@@ -585,7 +591,6 @@ export default function LoginPage() {
                   {[
                     { label: "RA 10173 Compliant", active: true },
                     { label: "NPC Registered", active: true },
-                    { label: "2FA Ready", active: true },
                     { label: "Cookies", active: securityInfo.cookiesEnabled },
                     { label: "Encrypted", active: securityInfo.protocol === "HTTPS" },
                   ].map((f) => (

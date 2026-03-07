@@ -11,12 +11,6 @@ type RequestOptions = {
   skipAuth?: boolean;
 };
 
-function getStorage(): Storage | null {
-  if (typeof window === "undefined") return null;
-  const remember = localStorage.getItem(REMEMBER_KEY);
-  return remember === "true" ? localStorage : sessionStorage;
-}
-
 function getToken(): string | null {
   if (typeof window === "undefined") return null;
   // Check both storages — token could be in either
