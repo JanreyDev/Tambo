@@ -111,7 +111,7 @@ deploy_staging:
         pm2 delete bcmp-web 2>/dev/null || true
         PORT=3000 HOSTNAME=0.0.0.0 NODE_ENV=production pm2 start server.js --name bcmp-web
         pm2 save
-        rm /tmp/deploy.tar.gz
+        rm -f /tmp/deploy.tar.gz
         echo "Deployed at $(date)"
       DEPLOY
   environment:
@@ -149,7 +149,7 @@ deploy_production:
         pm2 delete bcmp-web 2>/dev/null || true
         PORT=3000 HOSTNAME=0.0.0.0 NODE_ENV=production pm2 start server.js --name bcmp-web
         pm2 save
-        rm /tmp/deploy.tar.gz
+        rm -f /tmp/deploy.tar.gz
         echo "Deployed at $(date)"
       DEPLOY
   environment:
