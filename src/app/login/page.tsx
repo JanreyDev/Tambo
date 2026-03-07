@@ -225,7 +225,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
       {/* ── Left Panel ── */}
-      <div className="relative overflow-hidden flex flex-col lg:w-[55%] p-6 sm:p-8 lg:p-10 xl:p-12">
+      <div className="relative overflow-hidden flex flex-col lg:w-[55%] p-5 sm:p-7 lg:p-10 xl:p-12">
         {/* Background */}
         <div className="absolute inset-0 bg-gradient-to-br from-[#060a16] via-[#0c1230] to-[#0a0e20]" />
         <div
@@ -239,57 +239,73 @@ export default function LoginPage() {
         <div className="absolute bottom-[-10%] left-[-5%] w-[400px] h-[400px] bg-violet-600/8 rounded-full blur-[120px]" />
 
         {/* Logo */}
-        <div className="relative z-10 flex items-center gap-3 mb-8 lg:mb-auto">
+        <div className="relative z-10 flex items-center gap-3 mb-5 lg:mb-auto">
           <Image
             src="/kapitanph_logo.png"
             alt="kapitan.ph"
             width={160}
             height={44}
-            className="h-10 w-auto"
+            className="h-8 lg:h-10 w-auto"
             priority
           />
         </div>
 
         {/* Hero Text */}
-        <div className="relative z-10 mb-8 lg:mb-10">
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-[2.75rem] font-bold leading-tight text-white mb-4">
+        <div className="relative z-10 mb-5 lg:mb-8">
+          <h1 className="text-xl sm:text-2xl lg:text-4xl xl:text-[2.75rem] font-bold leading-tight text-white mb-2 lg:mb-4">
             Digitize. Streamline.{" "}
             <br className="hidden sm:block" />
             <span className="bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-500 bg-clip-text text-transparent">
               Serve your community.
             </span>
           </h1>
-          <p className="text-gray-400 text-sm sm:text-base lg:text-lg leading-relaxed max-w-[520px]">
+          <p className="text-gray-400 text-xs sm:text-sm lg:text-base leading-relaxed max-w-[520px]">
             A unified platform integrating all barangay offices for efficient
             service delivery — from resident management to judicial records,
             finances, and community services.
           </p>
         </div>
 
-        {/* Feature Grid — responsive, no absolute positioning */}
-        <div className="relative z-10 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 gap-2 mb-8 lg:mb-10">
+        {/* Feature Grid — hidden on mobile, compact on tablet, full on desktop */}
+        <div className="relative z-10 hidden sm:grid sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4 gap-1.5 lg:gap-2 mb-5 lg:mb-8">
           {features.map((f) => {
             const c = colorMap[f.color];
             return (
               <div
                 key={f.label}
-                className="p-3 rounded-xl bg-white/[0.04] border border-white/[0.07] hover:bg-white/[0.07] transition-colors"
+                className="p-2 lg:p-3 rounded-lg lg:rounded-xl bg-white/[0.04] border border-white/[0.07] hover:bg-white/[0.07] transition-colors"
               >
-                <div className="flex items-center gap-2 mb-1.5">
-                  <div className={`w-6 h-6 rounded-lg ${c.bg} flex items-center justify-center shrink-0`}>
-                    <f.icon className={`w-3 h-3 ${c.text}`} />
+                <div className="flex items-center gap-1.5 lg:gap-2 mb-0 lg:mb-1.5">
+                  <div className={`w-5 h-5 lg:w-6 lg:h-6 rounded-md lg:rounded-lg ${c.bg} flex items-center justify-center shrink-0`}>
+                    <f.icon className={`w-2.5 h-2.5 lg:w-3 lg:h-3 ${c.text}`} />
                   </div>
-                  <span className="text-white/90 text-[11px] font-semibold leading-tight">{f.label}</span>
+                  <span className="text-white/90 text-[10px] lg:text-[11px] font-semibold leading-tight">{f.label}</span>
                 </div>
-                <p className="text-white/30 text-[10px] leading-snug">{f.desc}</p>
+                <p className="text-white/30 text-[9px] lg:text-[10px] leading-snug hidden lg:block">{f.desc}</p>
               </div>
             );
           })}
         </div>
 
-        {/* Stats + Footer */}
+        {/* Mobile-only: compact feature pills instead of full cards */}
+        <div className="relative z-10 flex flex-wrap gap-1.5 mb-5 sm:hidden">
+          {features.map((f) => {
+            const c = colorMap[f.color];
+            return (
+              <span
+                key={f.label}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/[0.08]"
+              >
+                <f.icon className={`w-2.5 h-2.5 ${c.text}`} />
+                <span className="text-white/70 text-[10px] font-medium">{f.label}</span>
+              </span>
+            );
+          })}
+        </div>
+
+        {/* Stats */}
         <div className="relative z-10 mt-auto">
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-6">
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 lg:gap-2">
             {[
               { value: "10+", label: "Years Running", accent: "text-blue-400" },
               { value: "3,000+", label: "Barangays Onboarded", accent: "text-cyan-400" },
@@ -300,30 +316,12 @@ export default function LoginPage() {
             ].map((stat) => (
               <div
                 key={stat.label}
-                className="text-center p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.06]"
+                className="text-center py-2 px-1 lg:p-2.5 rounded-lg lg:rounded-xl bg-white/[0.03] border border-white/[0.06]"
               >
-                <p className={`text-lg sm:text-xl font-bold ${stat.accent}`}>{stat.value}</p>
-                <p className="text-gray-500 text-[10px] sm:text-[11px] mt-0.5 leading-tight">{stat.label}</p>
+                <p className={`text-sm sm:text-base lg:text-xl font-bold ${stat.accent}`}>{stat.value}</p>
+                <p className="text-gray-500 text-[9px] lg:text-[11px] mt-0.5 leading-tight">{stat.label}</p>
               </div>
             ))}
-          </div>
-
-          <div className="flex items-center justify-between text-[11px] sm:text-xs text-gray-600">
-            <span>
-              Copyright @ 2015-2026 All Rights Reserved |{" "}
-              <a
-                href="https://primex.ventures/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-gray-500 hover:text-blue-400 transition-colors"
-              >
-                PrimeX Ventures Inc.
-              </a>
-            </span>
-            <span className="hidden sm:flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50" />
-              All systems operational
-            </span>
           </div>
         </div>
       </div>
