@@ -176,10 +176,10 @@ class SmsService
         $otp = (string) random_int(100000, 999999);
 
         $message = match ($purpose) {
-            'phone_verification' => "Your kapitan.ph phone verification code is {$otp}. Valid for 5 minutes.",
-            'password_reset' => "Your kapitan.ph password reset code is {$otp}. Valid for 5 minutes. Do not share this code.",
-            'login_2fa' => "Your kapitan.ph login code is {$otp}. Valid for 5 minutes. Do not share this code.",
-            default => "Your kapitan.ph verification code is {$otp}. Valid for 5 minutes.",
+            'phone_verification' => "Your Kapitan verification code is {$otp}. Valid for 5 minutes.",
+            'password_reset' => "Your Kapitan password reset code is {$otp}. Valid for 5 minutes. Do not share this code.",
+            'login_2fa' => "Your Kapitan login code is {$otp}. Valid for 5 minutes. Do not share this code.",
+            default => "Your Kapitan verification code is {$otp}. Valid for 5 minutes.",
         };
 
         $sent = $this->send($phone, $message, $barangay, $purpose);

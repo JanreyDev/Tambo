@@ -210,29 +210,39 @@ class AuthController extends Controller
             'username' => ['required', 'string'],
         ]);
 
-        // Always return generic success — no user enumeration
+        // Username already validated via check-username endpoint on frontend
         $user = User::where('username', $validated['username'])->first();
 
-        if ($user && $user->phone) {
-            $barangay = $user->barangay;
-
-            // Set tenant context for RLS (SMS transaction logging)
-            if ($barangay && DB::getDriverName() === 'pgsql') {
-                DB::statement("SET app.current_barangay_id = '{$barangay->id}'");
-            }
-
-            $otp = $this->smsService->sendOtp($user->phone, 'password_reset', $barangay);
-
-            if ($otp) {
-                \Log::info('Password reset OTP sent', [
-                    'user_id' => $user->id,
-                    'phone' => substr($user->phone, 0, 4).'****',
-                ]);
-            }
+        if (! $user || ! $user->phone) {
+            return response()->json([
+                'message' => 'No phone number registered for this account.',
+            ], 422);
         }
 
+        $barangay = $user->barangay;
+
+        // Set tenant context for RLS (SMS transaction logging)
+        if ($barangay && DB::getDriverName() === 'pgsql') {
+            DB::statement("SET app.current_barangay_id = '{$barangay->id}'");
+        }
+
+        $otp = $this->smsService->sendOtp($user->phone, 'password_reset', $barangay);
+
+        if (! $otp) {
+            return response()->json([
+                'message' => 'Failed to send verification code. Please try again.',
+            ], 500);
+        }
+
+        \Log::info('Password reset OTP sent', [
+            'user_id' => $user->id,
+            'phone' => substr($user->phone, 0, 4).'****',
+        ]);
+
+        $phoneMasked = substr($user->phone, 0, 4).'****'.substr($user->phone, -2);
+
         return response()->json([
-            'message' => 'If an account with that username exists and has a registered phone number, a verification code has been sent.',
+            'message' => "Verification code sent to {$phoneMasked}.",
         ]);
     }
 
