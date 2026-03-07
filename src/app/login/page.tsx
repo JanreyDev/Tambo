@@ -25,7 +25,10 @@ import {
   Loader2,
   BarChart3,
   Gavel,
+  AlertTriangle,
+  XCircle,
 } from "lucide-react";
+import { APP_VERSION_LABEL } from "@/lib/version";
 
 // ── Security Detection ──────────────────────────────────────────
 
@@ -146,6 +149,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
@@ -153,12 +157,30 @@ export default function LoginPage() {
   const { login, isAuthenticated, isLoading } = useAuth();
 
   const [securityInfo, setSecurityInfo] = useState<SecurityInfo | null>(null);
+  const [connectionSecure, setConnectionSecure] = useState(true);
+
+  // Check if the form has both fields filled
+  const isFormValid = username.trim().length > 0 && password.trim().length > 0;
 
   useEffect(() => {
     const ua = navigator.userAgent;
     const browser = detectBrowser(ua);
     const os = detectOS(ua);
     const isSecure = window.location.protocol === "https:";
+
+    // In production, block insecure connections from entering credentials
+    const isProduction = process.env.NODE_ENV === "production";
+    if (isProduction && !isSecure) {
+      setConnectionSecure(false);
+    }
+
+    // Restore remember me preference
+    if (typeof window !== "undefined") {
+      const savedRemember = localStorage.getItem("bcmp_remember");
+      if (savedRemember === "true") {
+        setRememberMe(true);
+      }
+    }
 
     const baseInfo: Omit<SecurityInfo, "ip"> = {
       browser: browser.name,
@@ -197,11 +219,12 @@ export default function LoginPage() {
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
+    if (!isFormValid) return;
     setError(null);
     setIsSubmitting(true);
 
     try {
-      await login(username, password);
+      await login(username, password, rememberMe);
       router.push("/dashboard");
     } catch (err) {
       if (isApiError(err)) {
@@ -336,82 +359,142 @@ export default function LoginPage() {
         )}
 
         <div className="w-full max-w-[420px]">
-          {/* Header */}
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-foreground">Welcome back</h2>
-            <p className="text-muted-foreground text-sm mt-1.5">Sign in to your barangay dashboard</p>
-          </div>
+          {/* ── Insecure Connection Warning ── */}
+          {!connectionSecure ? (
+            <div className="space-y-6">
+              <div className="flex flex-col items-center text-center">
+                <div className="w-16 h-16 rounded-full bg-red-500/10 border-2 border-red-500/30 flex items-center justify-center mb-4">
+                  <XCircle className="w-8 h-8 text-red-500" />
+                </div>
+                <h2 className="text-xl font-bold text-foreground">Connection Not Secure</h2>
+                <p className="text-muted-foreground text-sm mt-2 max-w-[340px]">
+                  Your connection to this server is not encrypted. Credential input has been
+                  disabled to protect your account from interception.
+                </p>
+              </div>
 
-          {/* Login Form */}
-          <form onSubmit={handleLogin} className="space-y-4">
-            {/* Username */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">
-                Username
-              </label>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter your username"
-                className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-              />
-            </div>
+              <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4 space-y-3">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Why am I seeing this?</p>
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                      This page was loaded over an unencrypted HTTP connection. Any credentials
+                      entered could be intercepted by third parties. This is a security
+                      requirement under RA 10173 (Data Privacy Act of 2012).
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Shield className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">What should I do?</p>
+                    <ul className="text-xs text-muted-foreground mt-1 space-y-1 list-disc list-inside">
+                      <li>Make sure the URL starts with <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400">https://</span></li>
+                      <li>Contact your IT administrator if the issue persists</li>
+                      <li>Do not enter your credentials on this page</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
 
-            {/* Password */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">
-                Password
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  className="w-full px-4 pr-10 py-2.5 rounded-xl border border-border bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-                />
+              <div className="text-center">
                 <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={() => {
+                    window.location.href = window.location.href.replace("http://", "https://");
+                  }}
+                  className="px-6 py-2.5 rounded-xl bg-emerald-600 text-white font-medium text-sm hover:bg-emerald-700 transition-all"
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  Switch to Secure Connection
                 </button>
               </div>
             </div>
-
-            {/* Remember + Forgot */}
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 rounded border-border text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-sm text-muted-foreground">Remember me</span>
-              </label>
-              <button type="button" className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors">
-                Forgot password?
-              </button>
-            </div>
-
-            {/* Error message */}
-            {error && (
-              <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-sm text-red-600 dark:text-red-400">
-                {error}
+          ) : (
+            <>
+              {/* Header */}
+              <div className="mb-8">
+                <h2 className="text-2xl font-bold text-foreground">Welcome back</h2>
+                <p className="text-muted-foreground text-sm mt-1.5">Sign in to your barangay dashboard</p>
               </div>
-            )}
 
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium text-sm hover:from-blue-700 hover:to-blue-800 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 shadow-lg shadow-blue-600/20 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100 flex items-center justify-center gap-2"
-            >
-              {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
-              {isSubmitting ? "Signing in..." : "Sign in"}
-            </button>
-          </form>
+              {/* Login Form */}
+              <form onSubmit={handleLogin} className="space-y-4">
+                {/* Username */}
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">
+                    Username
+                  </label>
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Enter your username"
+                    required
+                    autoComplete="username"
+                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                  />
+                </div>
+
+                {/* Password */}
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter your password"
+                      required
+                      autoComplete="current-password"
+                      className="w-full px-4 pr-10 py-2.5 rounded-xl border border-border bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Remember + Forgot */}
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="w-4 h-4 rounded border-border text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-muted-foreground">Remember me</span>
+                  </label>
+                  <button type="button" className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors opacity-50 cursor-not-allowed" disabled title="Coming soon">
+                    Forgot password?
+                  </button>
+                </div>
+
+                {/* Error message */}
+                {error && (
+                  <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-sm text-red-600 dark:text-red-400">
+                    {error}
+                  </div>
+                )}
+
+                {/* Submit — disabled until both fields are filled */}
+                <button
+                  type="submit"
+                  disabled={isSubmitting || !isFormValid}
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium text-sm hover:from-blue-700 hover:to-blue-800 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 shadow-lg shadow-blue-600/20 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100 flex items-center justify-center gap-2"
+                >
+                  {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {isSubmitting ? "Signing in..." : "Sign in"}
+                </button>
+              </form>
+            </>
+          )}
 
           {/* ── Security Intelligence Panel ── */}
           {mounted && securityInfo && (
@@ -501,6 +584,7 @@ export default function LoginPage() {
                 <div className="flex items-center gap-1.5 pt-2 flex-wrap">
                   {[
                     { label: "RA 10173 Compliant", active: true },
+                    { label: "NPC Registered", active: true },
                     { label: "2FA Ready", active: true },
                     { label: "Cookies", active: securityInfo.cookiesEnabled },
                     { label: "Encrypted", active: securityInfo.protocol === "HTTPS" },
@@ -537,6 +621,9 @@ export default function LoginPage() {
             </p>
             <p className="text-center text-[10px] text-muted-foreground/40">
               Copyright &copy; 2015-2026 All Rights Reserved
+            </p>
+            <p className="text-center text-[10px] text-muted-foreground/30">
+              {APP_VERSION_LABEL}
             </p>
           </div>
         </div>

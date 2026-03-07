@@ -7,6 +7,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { useAccentColor } from "@/hooks/use-theme-store";
 import { useAuth } from "@/contexts/auth-context";
+import { APP_VERSION_LABEL } from "@/lib/version";
 
 export default function DashboardLayout({
   children,
@@ -47,7 +48,7 @@ export default function DashboardLayout({
           <span>Copyright @ 2015-2026 All Rights Reserved | Developed and Maintained by PrimeX Ventures Inc.</span>
           <span className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            v5.0.0-alpha
+            {APP_VERSION_LABEL}
           </span>
         </footer>
       </div>
