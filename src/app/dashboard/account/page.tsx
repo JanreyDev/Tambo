@@ -110,6 +110,7 @@ export default function AccountPage() {
   const [phoneVerifyMessage, setPhoneVerifyMessage] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [otpCooldown, setOtpCooldown] = useState(0);
+  const [phoneOtpExpiry, setPhoneOtpExpiry] = useState(0);
 
   // ── Email verification ──
   const [showEmailVerify, setShowEmailVerify] = useState(false);
@@ -119,6 +120,7 @@ export default function AccountPage() {
   const [emailVerifyMessage, setEmailVerifyMessage] = useState("");
   const [emailOtpSent, setEmailOtpSent] = useState(false);
   const [emailOtpCooldown, setEmailOtpCooldown] = useState(0);
+  const [emailOtpExpiry, setEmailOtpExpiry] = useState(0);
 
   // ── Data export ──
   const [exportStatus, setExportStatus] = useState<Status>("idle");
@@ -165,6 +167,19 @@ export default function AccountPage() {
     const timer = setInterval(() => setEmailOtpCooldown((c) => c - 1), 1000);
     return () => clearInterval(timer);
   }, [emailOtpCooldown]);
+
+  // OTP expiry countdown timers (5 minutes)
+  useEffect(() => {
+    if (phoneOtpExpiry <= 0) return;
+    const timer = setInterval(() => setPhoneOtpExpiry((c) => c - 1), 1000);
+    return () => clearInterval(timer);
+  }, [phoneOtpExpiry]);
+
+  useEffect(() => {
+    if (emailOtpExpiry <= 0) return;
+    const timer = setInterval(() => setEmailOtpExpiry((c) => c - 1), 1000);
+    return () => clearInterval(timer);
+  }, [emailOtpExpiry]);
 
   const loadSessions = async () => {
     setSessionsLoading(true);
@@ -337,9 +352,11 @@ export default function AccountPage() {
     try {
       await api.account.sendPhoneOtp(phoneNum);
       setOtpSent(true);
+      setPhoneOtp("");
       setPhoneVerifyStatus("idle");
       setPhoneVerifyMessage("Verification code sent to your phone.");
       setOtpCooldown(60);
+      setPhoneOtpExpiry(300);
     } catch (e: unknown) {
       setPhoneVerifyStatus("error");
       setPhoneVerifyMessage(isApiError(e) ? e.message : "Failed to send code.");
@@ -379,9 +396,11 @@ export default function AccountPage() {
     try {
       await api.account.sendEmailOtp(emailAddr);
       setEmailOtpSent(true);
+      setEmailOtp("");
       setEmailVerifyStatus("idle");
       setEmailVerifyMessage("Verification code sent to your email.");
       setEmailOtpCooldown(60);
+      setEmailOtpExpiry(300);
     } catch (e: unknown) {
       setEmailVerifyStatus("error");
       setEmailVerifyMessage(isApiError(e) ? e.message : "Failed to send code.");
@@ -459,6 +478,12 @@ export default function AccountPage() {
     const diffDay = Math.floor(diffHr / 24);
     if (diffDay < 7) return `${diffDay}d ago`;
     return d.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" });
+  };
+
+  const formatCountdown = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, "0")}`;
   };
 
   const isPhoneVerified = !!(user?.preferences as Record<string, unknown>)?.phone_verified;
@@ -1255,6 +1280,21 @@ export default function AccountPage() {
               </button>
             ) : (
               <div className="space-y-3">
+                {/* Expiry timer */}
+                {phoneOtpExpiry > 0 ? (
+                  <div className="flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg bg-muted/50 border border-border">
+                    <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span className={`text-xs font-mono font-medium ${phoneOtpExpiry <= 60 ? "text-red-500" : "text-muted-foreground"}`}>
+                      Code expires in {formatCountdown(phoneOtpExpiry)}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900">
+                    <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
+                    <span className="text-xs font-medium text-red-500">Code expired. Please resend.</span>
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground mb-1.5">Enter 6-digit code</label>
                   <input
@@ -1269,7 +1309,7 @@ export default function AccountPage() {
                 </div>
                 <button
                   onClick={handleVerifyPhone}
-                  disabled={phoneVerifyStatus === "loading" || phoneOtp.length !== 6}
+                  disabled={phoneVerifyStatus === "loading" || phoneOtp.length !== 6 || phoneOtpExpiry <= 0}
                   className="w-full px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                   style={{ background: phoneVerifyStatus === "success" ? "#059669" : "var(--accent-primary)" }}
                 >
@@ -1279,7 +1319,7 @@ export default function AccountPage() {
                 </button>
                 <button
                   onClick={handleSendPhoneOtp}
-                  disabled={otpCooldown > 0}
+                  disabled={otpCooldown > 0 || phoneVerifyStatus === "loading"}
                   className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
                 >
                   {otpCooldown > 0 ? `Resend code in ${otpCooldown}s` : "Resend code"}
@@ -1294,7 +1334,7 @@ export default function AccountPage() {
             )}
 
             <button
-              onClick={() => { setShowPhoneVerify(false); setOtpSent(false); setPhoneOtp(""); setPhoneVerifyMessage(""); }}
+              onClick={() => { setShowPhoneVerify(false); setOtpSent(false); setPhoneOtp(""); setPhoneVerifyMessage(""); setPhoneOtpExpiry(0); }}
               className="mt-4 w-full text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               Cancel
@@ -1326,6 +1366,21 @@ export default function AccountPage() {
               </button>
             ) : (
               <div className="space-y-3">
+                {/* Expiry timer */}
+                {emailOtpExpiry > 0 ? (
+                  <div className="flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg bg-muted/50 border border-border">
+                    <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span className={`text-xs font-mono font-medium ${emailOtpExpiry <= 60 ? "text-red-500" : "text-muted-foreground"}`}>
+                      Code expires in {formatCountdown(emailOtpExpiry)}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900">
+                    <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
+                    <span className="text-xs font-medium text-red-500">Code expired. Please resend.</span>
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground mb-1.5">Enter 6-digit code</label>
                   <input
@@ -1340,7 +1395,7 @@ export default function AccountPage() {
                 </div>
                 <button
                   onClick={handleVerifyEmail}
-                  disabled={emailVerifyStatus === "loading" || emailOtp.length !== 6}
+                  disabled={emailVerifyStatus === "loading" || emailOtp.length !== 6 || emailOtpExpiry <= 0}
                   className="w-full px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                   style={{ background: emailVerifyStatus === "success" ? "#059669" : "var(--accent-primary)" }}
                 >
@@ -1350,7 +1405,7 @@ export default function AccountPage() {
                 </button>
                 <button
                   onClick={handleSendEmailOtp}
-                  disabled={emailOtpCooldown > 0}
+                  disabled={emailOtpCooldown > 0 || emailVerifyStatus === "loading"}
                   className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
                 >
                   {emailOtpCooldown > 0 ? `Resend code in ${emailOtpCooldown}s` : "Resend code"}
@@ -1365,7 +1420,7 @@ export default function AccountPage() {
             )}
 
             <button
-              onClick={() => { setShowEmailVerify(false); setEmailOtpSent(false); setEmailOtp(""); setEmailVerifyMessage(""); }}
+              onClick={() => { setShowEmailVerify(false); setEmailOtpSent(false); setEmailOtp(""); setEmailVerifyMessage(""); setEmailOtpExpiry(0); }}
               className="mt-4 w-full text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               Cancel
