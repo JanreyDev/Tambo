@@ -378,7 +378,7 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>
                     Database
                 </span>
-                <span class="status-value">PostgreSQL 17</span>
+                <span class="status-value">PostgreSQL {{ DB::selectOne("SELECT split_part(version(), ' ', 2) AS ver")->ver }}</span>
             </div>
         </div>
 
