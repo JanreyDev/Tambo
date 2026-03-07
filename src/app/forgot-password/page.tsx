@@ -109,11 +109,9 @@ export default function ForgotPasswordPage() {
     } catch (err) {
       if (isApiError(err)) {
         // Extract validation errors
-        const errors = (err as Record<string, unknown>).errors as
-          | Record<string, string[]>
-          | undefined;
-        if (errors?.password) {
-          setError(errors.password[0]);
+        const errObj = err as unknown as { errors?: Record<string, string[]> };
+        if (errObj.errors?.password) {
+          setError(errObj.errors.password[0]);
         } else {
           setError(err.message || "Failed to reset password.");
         }
