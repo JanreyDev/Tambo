@@ -226,7 +226,7 @@ class AuthController extends Controller
             DB::statement("SET app.current_barangay_id = '{$barangay->id}'");
         }
 
-        $otp = $this->smsService->sendOtp($user->phone, 'password_reset', $barangay);
+        $otp = $this->smsService->sendOtp($user->phone, 'password_reset', $barangay, $user->id);
 
         if (! $otp) {
             return response()->json([

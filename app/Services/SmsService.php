@@ -171,7 +171,7 @@ class SmsService
      *
      * @return string|null The generated OTP code, or null if send failed
      */
-    public function sendOtp(string $phone, string $purpose = 'verification', ?Barangay $barangay = null): ?string
+    public function sendOtp(string $phone, string $purpose = 'verification', ?Barangay $barangay = null, ?string $sourceId = null): ?string
     {
         $otp = (string) random_int(100000, 999999);
 
@@ -182,7 +182,7 @@ class SmsService
             default => "[Kapitan] Your verification code is {$otp}. Valid for 5 minutes. Do not share this code with anyone.",
         };
 
-        $sent = $this->send($phone, $message, $barangay, $purpose);
+        $sent = $this->send($phone, $message, $barangay, $purpose, $sourceId);
 
         if (! $sent) {
             return null;

@@ -320,7 +320,7 @@ class AccountController extends Controller
             ], 422);
         }
 
-        $otp = $this->smsService->sendOtp($validated['phone'], 'phone_verification', $barangay);
+        $otp = $this->smsService->sendOtp($validated['phone'], 'phone_verification', $barangay, $request->user()->id);
 
         if (! $otp) {
             return response()->json([

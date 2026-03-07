@@ -39,6 +39,7 @@ use App\Http\Controllers\Api\V1\Tenant\PublicComplaintController;
 use App\Http\Controllers\Api\V1\Tenant\PublicDocumentRequestController;
 use App\Http\Controllers\Api\V1\Tenant\PurokController;
 use App\Http\Controllers\Api\V1\Tenant\ResidentController;
+use App\Http\Controllers\Api\V1\Tenant\SmsTransactionController;
 use App\Http\Controllers\Api\V1\Tenant\SupplierController;
 use App\Http\Controllers\Api\V1\Tenant\TanodController;
 use App\Http\Controllers\Api\V1\Tenant\TanodDutyScheduleController;
@@ -118,6 +119,12 @@ Route::prefix('v1')->group(function () {
                 Route::get('activity', [DashboardController::class, 'activity']);
                 Route::get('sign-ins', [DashboardController::class, 'signIns']);
                 Route::get('credits', [DashboardController::class, 'credits']);
+            });
+
+            // ── SMS Transactions ──
+            Route::prefix('sms-transactions')->group(function () {
+                Route::get('/', [SmsTransactionController::class, 'index']);
+                Route::get('summary', [SmsTransactionController::class, 'summary']);
             });
 
             // ── Records ──
