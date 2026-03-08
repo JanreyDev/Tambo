@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   Package,
   Plus,
@@ -13,6 +14,7 @@ import {
   Eye,
   Edit,
   Trash2,
+  Bot,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -51,22 +53,24 @@ const categoriesFilter = ["All", "Furniture", "IT Equipment", "Office Supplies",
 
 const formTabs = ["Item Info", "Details"];
 
-function FormInput({ label, name, value, placeholder, required, type, onChange }: { label: string; name: string; value: string; placeholder?: string; required?: boolean; type?: string; onChange: (name: string, value: string) => void }) {
+function FormInput({ label, name, value, placeholder, required, type, error, onChange }: { label: string; name: string; value: string; placeholder?: string; required?: boolean; type?: string; error?: string; onChange: (name: string, value: string) => void }) {
   return (
     <div>
       <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <input type={type || "text"} value={value} onChange={(e) => onChange(name, e.target.value)} placeholder={placeholder} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+      <input type={type || "text"} value={value} onChange={(e) => onChange(name, e.target.value)} placeholder={placeholder} className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", error ? "border-red-500" : "border-border")} />
+      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
     </div>
   );
 }
 
-function FormSelect({ label, name, value, options, required, onChange }: { label: string; name: string; value: string; options: string[]; required?: boolean; onChange: (name: string, value: string) => void }) {
+function FormSelect({ label, name, value, options, required, error, onChange }: { label: string; name: string; value: string; options: string[]; required?: boolean; error?: string; onChange: (name: string, value: string) => void }) {
   return (
     <div>
       <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <select value={value} onChange={(e) => onChange(name, e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+      <select value={value} onChange={(e) => onChange(name, e.target.value)} className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", error ? "border-red-500" : "border-border")}>
         {options.map((o) => <option key={o} value={o}>{o || "\u2014 Select \u2014"}</option>)}
       </select>
+      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
     </div>
   );
 }
@@ -81,6 +85,7 @@ function FormTextarea({ label, name, value, placeholder, rows, required, onChang
 }
 
 export default function InventoryPage() {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [showLowStock, setShowLowStock] = useState(false);
@@ -88,9 +93,41 @@ export default function InventoryPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+  const [deleteItem, setDeleteItem] = useState<InventoryItem | null>(null);
   const [formTab, setFormTab] = useState(0);
   const [form, setForm] = useState<Record<string, string>>({});
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [actionMenu, setActionMenu] = useState<string | null>(null);
+  const [toasts, setToasts] = useState<{id: string; type: "success"|"error"|"warning"|"info"; title: string; message?: string}[]>([]);
+
+  const addToast = useCallback((type: "success"|"error"|"warning"|"info", title: string, message?: string) => {
+    const id = Date.now().toString();
+    setToasts((prev) => [...prev, { id, type, title, message }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
+  }, []);
+
+  const dismissToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+    if (!form.item_name?.trim()) errors.item_name = "Item name is required";
+    if (!form.category) errors.category = "Category is required";
+    if (!form.quantity?.trim()) {
+      errors.quantity = "Quantity is required";
+    } else if (!Number.isInteger(Number(form.quantity)) || Number(form.quantity) < 0) {
+      errors.quantity = "Must be a non-negative whole number";
+    }
+    if (!form.unit_cost?.trim()) {
+      errors.unit_cost = "Unit cost is required";
+    } else if (isNaN(Number(form.unit_cost)) || Number(form.unit_cost) <= 0) {
+      errors.unit_cost = "Must be a positive number";
+    }
+    if (!form.condition) errors.condition = "Condition is required";
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const filtered = mockItems.filter((i) => {
     if (search && !i.item_name.toLowerCase().includes(search.toLowerCase())) return false;
@@ -104,6 +141,7 @@ export default function InventoryPage() {
 
   const openCreate = () => {
     setForm({});
+    setFormErrors({});
     setFormTab(0);
     setShowCreate(true);
   };
@@ -120,12 +158,16 @@ export default function InventoryPage() {
       date_acquired: item.acquired_date,
       reorder_level: String(item.min_stock),
     });
+    setFormErrors({});
     setFormTab(0);
     setShowEdit(true);
     setActionMenu(null);
   };
 
-  const handleFieldChange = (name: string, value: string) => setForm((f) => ({ ...f, [name]: value }));
+  const handleFieldChange = (name: string, value: string) => {
+    setForm((f) => ({ ...f, [name]: value }));
+    setFormErrors((e) => { const next = { ...e }; delete next[name]; return next; });
+  };
 
   return (
     <div className="space-y-6">
@@ -135,11 +177,27 @@ export default function InventoryPage() {
         breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "Operations" }, { label: "Inventory" }]}
         actions={
           <div className="flex items-center gap-2">
-            <button className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors"><Download className="h-4 w-4" /> Export</button>
-            <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}><Plus className="h-4 w-4" /> Add Item</button>
+            <button onClick={() => addToast("info", "Export Started", "Inventory report is being generated...")} className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors"><Download className="h-4 w-4" /> Export</button>
+            <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}><Plus className="h-4 w-4" /> Add Item</button>
           </div>
         }
       />
+
+      {/* Mabini AI Insight */}
+      <div className="flex items-start gap-3 px-4 py-3 rounded-xl border border-accent-primary/20 bg-accent-bg/30">
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: "var(--accent-primary)", opacity: 0.15 }}>
+          <Bot className="w-4 h-4" style={{ color: "var(--accent-primary)" }} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-foreground">Mabini AI Inventory Alert</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+            3 items below minimum stock level — reorder recommended. Office supplies category accounts for 45% of inventory value. 1 item marked &quot;poor&quot; condition needs replacement.
+          </p>
+        </div>
+        <button onClick={() => router.push("/dashboard/ai")} className="shrink-0 px-3 py-1.5 text-[10px] font-semibold rounded-lg transition-colors hover:opacity-80" style={{ background: "var(--accent-primary)", color: "#fff" }}>
+          Ask Mabini
+        </button>
+      </div>
 
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard label="Total Items" value={mockItems.length} icon={<Package className="h-5 w-5" />} />
@@ -181,7 +239,20 @@ export default function InventoryPage() {
           </thead>
           <tbody>
             {filtered.length === 0 ? (
-              <tr><td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">No items found.</td></tr>
+              <tr><td colSpan={7} className="px-4 py-12">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                    <Package className="w-6 h-6 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">No inventory items found</p>
+                    <p className="text-xs text-muted-foreground mt-1">Add barangay property and supplies to track inventory levels and condition.</p>
+                  </div>
+                  <button onClick={() => openCreate()} className="mt-1 px-4 py-2 text-xs font-semibold rounded-lg text-white" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>
+                    + Add Item
+                  </button>
+                </div>
+              </td></tr>
             ) : (
               filtered.map((item) => {
                 const isLow = item.quantity <= item.min_stock;
@@ -209,7 +280,7 @@ export default function InventoryPage() {
                           <div className="absolute right-0 top-8 z-20 w-44 bg-card border border-border rounded-lg shadow-lg py-1">
                             <button onClick={() => { setViewItem(item); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Eye className="h-3.5 w-3.5" /> View</button>
                             <button onClick={() => openEdit(item)} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Edit className="h-3.5 w-3.5" /> Edit</button>
-                            <button onClick={() => { setShowDelete(true); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-muted flex items-center gap-2"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
+                            <button onClick={() => { setDeleteItem(item); setShowDelete(true); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-muted flex items-center gap-2"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
                           </div>
                         )}
                       </div>
@@ -248,7 +319,7 @@ export default function InventoryPage() {
         footer={<>
           <ModalButton variant="secondary" onClick={() => { setShowCreate(false); setShowEdit(false); }}>Cancel</ModalButton>
           {formTab > 0 && <ModalButton variant="secondary" onClick={() => setFormTab((t) => t - 1)}>Previous</ModalButton>}
-          {formTab < formTabs.length - 1 ? <ModalButton variant="primary" onClick={() => setFormTab((t) => t + 1)}>Next</ModalButton> : <ModalButton variant="primary">{showEdit ? "Update" : "Save"}</ModalButton>}
+          {formTab < formTabs.length - 1 ? <ModalButton variant="primary" onClick={() => setFormTab((t) => t + 1)}>Next</ModalButton> : <ModalButton variant="primary" onClick={() => { if (validateForm()) { addToast("success", showEdit ? "Item Updated" : "Item Added", showEdit ? `${form.item_name || "Item"} has been updated successfully.` : `${form.item_name || "Item"} has been added to inventory.`); setShowCreate(false); setShowEdit(false); } }}>{showEdit ? "Update" : "Save"}</ModalButton>}
         </>}>
         <div className="flex border-b border-border mb-6">
           {formTabs.map((tab, i) => (
@@ -257,20 +328,26 @@ export default function InventoryPage() {
         </div>
         {formTab === 0 && (
           <div className="grid grid-cols-2 gap-4">
-            <FormInput onChange={handleFieldChange} label="Item Name" name="item_name" value={form.item_name || ""} placeholder="e.g. Office Chair" required />
-            <FormSelect onChange={handleFieldChange} label="Category" name="category" value={form.category || ""} options={["", "Office Supplies", "Furniture", "Equipment", "Cleaning", "Medical", "Disaster Preparedness", "Others"]} />
-            <FormInput onChange={handleFieldChange} label="Quantity" name="quantity" value={form.quantity || ""} placeholder="e.g. 10" type="number" required />
+            <FormInput onChange={handleFieldChange} label="Item Name" name="item_name" value={form.item_name || ""} placeholder="e.g. Office Chair" required error={formErrors.item_name} />
+            <FormSelect onChange={handleFieldChange} label="Category" name="category" value={form.category || ""} options={["", "Office Supplies", "Furniture", "Equipment", "Cleaning", "Medical", "Disaster Preparedness", "Others"]} required error={formErrors.category} />
+            <FormInput onChange={handleFieldChange} label="Quantity" name="quantity" value={form.quantity || ""} placeholder="e.g. 10" type="number" required error={formErrors.quantity} />
             <FormSelect onChange={handleFieldChange} label="Unit" name="unit" value={form.unit || ""} options={["", "pcs", "box", "ream", "pack", "bottle", "gallon", "set"]} />
-            <FormInput onChange={handleFieldChange} label="Unit Cost" name="unit_cost" value={form.unit_cost || ""} placeholder="e.g. 3500" type="number" required />
+            <FormInput onChange={handleFieldChange} label="Unit Cost" name="unit_cost" value={form.unit_cost || ""} placeholder="e.g. 3500" type="number" required error={formErrors.unit_cost} />
           </div>
         )}
         {formTab === 1 && (
           <div className="grid grid-cols-2 gap-4">
-            <FormSelect onChange={handleFieldChange} label="Condition" name="condition" value={form.condition || ""} options={["", "New", "Good", "Fair", "Poor", "For Disposal"]} />
+            <div>
+              <FormSelect onChange={handleFieldChange} label="Condition" name="condition" value={form.condition || ""} options={["", "New", "Good", "Fair", "Poor", "For Disposal"]} required error={formErrors.condition} />
+              <p className="text-[10px] text-muted-foreground mt-1">Rate based on last physical inspection. Update after each inventory check.</p>
+            </div>
             <FormInput onChange={handleFieldChange} label="Location" name="location" value={form.location || ""} placeholder="e.g. Storage Room" />
             <FormInput onChange={handleFieldChange} label="Date Acquired" name="date_acquired" value={form.date_acquired || ""} type="date" />
             <FormInput onChange={handleFieldChange} label="Supplier" name="supplier" value={form.supplier || ""} placeholder="e.g. Office Warehouse" />
-            <FormInput onChange={handleFieldChange} label="Serial Number" name="serial_number" value={form.serial_number || ""} placeholder="e.g. SN-12345" />
+            <div>
+              <FormInput onChange={handleFieldChange} label="Serial Number" name="serial_number" value={form.serial_number || ""} placeholder="e.g. SN-12345" />
+              <p className="text-[10px] text-muted-foreground mt-1">Barangay property number from the inventory logbook.</p>
+            </div>
             <FormInput onChange={handleFieldChange} label="Reorder Level" name="reorder_level" value={form.reorder_level || ""} placeholder="e.g. 5" type="number" />
             <FormTextarea onChange={handleFieldChange} label="Notes" name="notes" value={form.notes || ""} placeholder="Additional notes about this item..." />
           </div>
@@ -278,10 +355,56 @@ export default function InventoryPage() {
       </Modal>
 
       {/* Delete Confirmation Modal */}
-      <Modal open={showDelete} onClose={() => setShowDelete(false)} title="Confirm Delete" description="This action cannot be undone." size="sm"
-        footer={<><ModalButton variant="secondary" onClick={() => setShowDelete(false)}>Cancel</ModalButton><ModalButton variant="danger" onClick={() => setShowDelete(false)}>Delete</ModalButton></>}>
-        <p className="text-sm text-muted-foreground">Are you sure you want to delete this inventory item?</p>
+      <Modal open={showDelete} onClose={() => { setShowDelete(false); setDeleteItem(null); }} title="Confirm Delete" description="This action cannot be undone." size="sm"
+        footer={<><ModalButton variant="secondary" onClick={() => { setShowDelete(false); setDeleteItem(null); }}>Cancel</ModalButton><ModalButton variant="danger" onClick={() => { addToast("success", "Item Deleted", `${deleteItem?.item_name || "Item"} has been removed from inventory.`); setShowDelete(false); setDeleteItem(null); }}>Delete</ModalButton></>}>
+        <p className="text-sm text-muted-foreground">
+          Are you sure you want to delete <span className="font-semibold text-foreground">{deleteItem?.item_name}</span> ({deleteItem?.quantity} {deleteItem?.unit})? This item will be permanently removed from the inventory.
+        </p>
       </Modal>
+
+      {/* Toast Notifications */}
+      {toasts.length > 0 && (
+        <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2" style={{ maxWidth: 360 }}>
+          {toasts.map((toast) => (
+            <div key={toast.id} className={cn(
+              "flex items-start gap-3 px-4 py-3 rounded-xl border shadow-lg backdrop-blur-sm animate-in slide-in-from-right-5 fade-in duration-300",
+              toast.type === "success" && "bg-green-50 dark:bg-green-950/80 border-green-200 dark:border-green-800",
+              toast.type === "error" && "bg-red-50 dark:bg-red-950/80 border-red-200 dark:border-red-800",
+              toast.type === "warning" && "bg-amber-50 dark:bg-amber-950/80 border-amber-200 dark:border-amber-800",
+              toast.type === "info" && "bg-blue-50 dark:bg-blue-950/80 border-blue-200 dark:border-blue-800",
+            )}>
+              <div className={cn(
+                "w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-[10px] font-bold text-white",
+                toast.type === "success" && "bg-green-500",
+                toast.type === "error" && "bg-red-500",
+                toast.type === "warning" && "bg-amber-500",
+                toast.type === "info" && "bg-blue-500",
+              )}>
+                {toast.type === "success" ? "\u2713" : toast.type === "error" ? "\u2715" : toast.type === "warning" ? "!" : "i"}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className={cn(
+                  "text-sm font-semibold",
+                  toast.type === "success" && "text-green-800 dark:text-green-200",
+                  toast.type === "error" && "text-red-800 dark:text-red-200",
+                  toast.type === "warning" && "text-amber-800 dark:text-amber-200",
+                  toast.type === "info" && "text-blue-800 dark:text-blue-200",
+                )}>{toast.title}</p>
+                {toast.message && <p className={cn(
+                  "text-xs mt-0.5",
+                  toast.type === "success" && "text-green-600 dark:text-green-300",
+                  toast.type === "error" && "text-red-600 dark:text-red-300",
+                  toast.type === "warning" && "text-amber-600 dark:text-amber-300",
+                  toast.type === "info" && "text-blue-600 dark:text-blue-300",
+                )}>{toast.message}</p>}
+              </div>
+              <button onClick={() => dismissToast(toast.id)} className="shrink-0 p-0.5 rounded hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
+                <span className="text-xs text-muted-foreground">{"\u2715"}</span>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

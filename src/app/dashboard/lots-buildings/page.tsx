@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   MapPin,
   Plus,
@@ -26,6 +26,9 @@ import {
   Eye,
   Edit,
   Trash2,
+  Bot,
+  CheckCircle2,
+  AlertTriangle,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge, StatusBadge } from "@/components/ui/badge";
@@ -80,27 +83,37 @@ const propertyTypes = ["", "Residential Lot", "Commercial Lot", "Agricultural", 
 const classificationOptions = ["", "Residential", "Commercial", "Agricultural", "Industrial", "Government"];
 
 const emptyForm: Record<string, string> = {
-  property_type: "", lot_number: "", block_number: "", area_sqm: "", owner_name: "",
+  record_name: "", property_type: "", lot_number: "", block_number: "", area_sqm: "", owner_name: "",
   address: "", purok: "", boundaries_north: "", boundaries_south: "", boundaries_east: "", boundaries_west: "",
   tax_declaration_number: "", assessed_value: "", market_value: "", classification: "", zoning: "", remarks: "",
 };
 
-function FormInput({ label, name, value, placeholder, required, type, onChange }: { label: string; name: string; value: string; placeholder?: string; required?: boolean; type?: string; onChange: (name: string, value: string) => void }) {
+const requiredFields: Record<string, string> = {
+  record_name: "Record name is required",
+  property_type: "Type is required",
+  classification: "Classification is required",
+  address: "Location is required",
+  owner_name: "Owner name is required",
+};
+
+function FormInput({ label, name, value, placeholder, required, type, error, onChange }: { label: string; name: string; value: string; placeholder?: string; required?: boolean; type?: string; error?: string; onChange: (name: string, value: string) => void }) {
   return (
     <div>
       <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <input type={type || "text"} value={value} onChange={(e) => onChange(name, e.target.value)} placeholder={placeholder} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+      <input type={type || "text"} value={value} onChange={(e) => onChange(name, e.target.value)} placeholder={placeholder} className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", error ? "border-red-500" : "border-border")} />
+      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
     </div>
   );
 }
 
-function FormSelect({ label, name, value, options, required, onChange }: { label: string; name: string; value: string; options: string[]; required?: boolean; onChange: (name: string, value: string) => void }) {
+function FormSelect({ label, name, value, options, required, error, onChange }: { label: string; name: string; value: string; options: string[]; required?: boolean; error?: string; onChange: (name: string, value: string) => void }) {
   return (
     <div>
       <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <select value={value} onChange={(e) => onChange(name, e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+      <select value={value} onChange={(e) => onChange(name, e.target.value)} className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", error ? "border-red-500" : "border-border")}>
         {options.map((o) => <option key={o} value={o}>{o || "\u2014 Select \u2014"}</option>)}
       </select>
+      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
     </div>
   );
 }
@@ -129,17 +142,52 @@ export default function LotsBuildingsPage() {
   const [formTab, setFormTab] = useState(0);
   const [form, setForm] = useState<Record<string, string>>(emptyForm);
   const [actionMenu, setActionMenu] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [toasts, setToasts] = useState<{id: string; type: "success" | "error" | "warning" | "info"; title: string; message?: string}[]>([]);
+  const addToast = useCallback((t: Omit<(typeof toasts)[0], "id">) => { setToasts(p => [...p, { ...t, id: Date.now().toString() }]); }, []);
+  const dismissToast = useCallback((id: string) => setToasts(p => p.filter(t => t.id !== id)), []);
   const pageSize = 10;
 
-  const handleFieldChange = (name: string, value: string) => setForm((f) => ({ ...f, [name]: value }));
+  useEffect(() => {
+    if (toasts.length === 0) return;
+    const timer = setTimeout(() => { setToasts(p => p.slice(1)); }, 5000);
+    return () => clearTimeout(timer);
+  }, [toasts]);
 
-  const openCreate = () => { setForm(emptyForm); setFormTab(0); setShowCreate(true); };
+  const handleFieldChange = (name: string, value: string) => {
+    setForm((f) => ({ ...f, [name]: value }));
+    setFormErrors((e) => { const next = { ...e }; delete next[name]; return next; });
+  };
+
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+    for (const [field, message] of Object.entries(requiredFields)) {
+      if (!form[field]?.trim()) errors[field] = message;
+    }
+    if (form.area_sqm && (isNaN(Number(form.area_sqm)) || Number(form.area_sqm) <= 0)) {
+      errors.area_sqm = "Area must be a positive number";
+    }
+    if (form.assessed_value && (isNaN(Number(form.assessed_value)) || Number(form.assessed_value) <= 0)) {
+      errors.assessed_value = "Assessed value must be a positive number";
+    }
+    setFormErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      const errorFields = Object.keys(errors);
+      if (errorFields.some((f) => ["record_name", "property_type", "area_sqm", "owner_name"].includes(f))) setFormTab(0);
+      else if (errorFields.some((f) => ["address"].includes(f))) setFormTab(1);
+      else if (errorFields.some((f) => ["classification", "assessed_value"].includes(f))) setFormTab(2);
+    }
+    return Object.keys(errors).length === 0;
+  };
+
+  const openCreate = () => { setForm(emptyForm); setFormErrors({}); setFormTab(0); setShowCreate(true); };
   const openEdit = (r: LotBuilding) => {
     setForm({
-      property_type: r.classification.charAt(0).toUpperCase() + r.classification.slice(1), lot_number: r.lot_number, block_number: r.block_number, area_sqm: String(r.land_area_sqm), owner_name: r.owner_name,
+      record_name: r.record_number, property_type: r.classification.charAt(0).toUpperCase() + r.classification.slice(1), lot_number: r.lot_number, block_number: r.block_number, area_sqm: String(r.land_area_sqm), owner_name: r.owner_name,
       address: r.address, purok: r.purok, boundaries_north: r.landmark_north, boundaries_south: r.landmark_south, boundaries_east: r.landmark_east, boundaries_west: r.landmark_west,
       tax_declaration_number: r.tax_declaration_number, assessed_value: String(r.assessed_value), market_value: "", classification: r.classification.charAt(0).toUpperCase() + r.classification.slice(1), zoning: "", remarks: "",
     });
+    setFormErrors({});
     setFormTab(0);
     setShowEdit(true);
   };
@@ -197,16 +245,22 @@ export default function LotsBuildingsPage() {
         actions={
           <div className="flex items-center gap-2">
             <button className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors"><Download className="h-4 w-4" /> Export</button>
-            <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}><Plus className="h-4 w-4" /> New Record</button>
+            <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}><Plus className="h-4 w-4" /> New Record</button>
           </div>
         }
       />
 
+      {/* Mabini AI Insight */}
+      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-accent-bg/30 border border-accent-primary/20">
+        <Bot className="h-4 w-4 shrink-0" style={{ color: "var(--accent-primary)" }} />
+        <p className="text-[11px] text-muted-foreground"><span className="font-semibold text-foreground">Mabini:</span> Total assessed value is ₱7.35M across 5 properties. 1 property has no tax declaration number on file.</p>
+      </div>
+
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatCard label="Total Records" value={mockRecords.length} icon={<MapPin className="h-5 w-5" />} />
-        <StatCard label="Lots Registered" value={lotCount} icon={<LandPlot className="h-5 w-5" />} />
-        <StatCard label="Buildings Registered" value={buildingCount} icon={<Building className="h-5 w-5" />} />
-        <StatCard label="Total Assessed Value" value={`₱${(totalAssessed / 1000000).toFixed(1)}M`} icon={<FileText className="h-5 w-5" />} />
+        <StatCard label="Total Records" value={mockRecords.length} icon={<MapPin className="h-5 w-5" />} trend={{ value: 8, label: "this month" }} />
+        <StatCard label="Lots Registered" value={lotCount} icon={<LandPlot className="h-5 w-5" />} trend={{ value: 5, label: "this quarter" }} />
+        <StatCard label="Buildings Registered" value={buildingCount} icon={<Building className="h-5 w-5" />} trend={{ value: 12, label: "this quarter" }} />
+        <StatCard label="Total Assessed Value" value={`₱${(totalAssessed / 1000000).toFixed(1)}M`} icon={<FileText className="h-5 w-5" />} trend={{ value: 4, label: "vs last quarter" }} />
       </div>
 
       {/* Toolbar */}
@@ -258,7 +312,16 @@ export default function LotsBuildingsPage() {
             </thead>
             <tbody>
               {paged.length === 0 ? (
-                <tr><td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">No records found.</td></tr>
+                <tr><td colSpan={8} className="px-4 py-16 text-center">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center"><MapPin className="w-6 h-6 text-muted-foreground" /></div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">No property records found</p>
+                      <p className="text-xs text-muted-foreground mt-1">Start by adding lots, buildings, or land records for your barangay.</p>
+                    </div>
+                    <button onClick={() => openCreate()} className="mt-1 px-4 py-2 text-xs font-semibold rounded-lg text-white transition-all hover:opacity-90" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>+ New Record</button>
+                  </div>
+                </td></tr>
               ) : (
                 paged.map((r) => (
                   <tr key={r.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => setViewRecord(r)}>
@@ -364,9 +427,9 @@ export default function LotsBuildingsPage() {
       {/* Create / Edit Form Modal */}
       <Modal open={showCreate || showEdit} onClose={() => { setShowCreate(false); setShowEdit(false); }} title={showEdit ? "Edit Property Record" : "Add Property Record"} size="lg"
         footer={<>
-          <ModalButton variant="secondary" onClick={() => { setShowCreate(false); setShowEdit(false); }}>Cancel</ModalButton>
+          <ModalButton variant="secondary" onClick={() => { setShowCreate(false); setShowEdit(false); setFormErrors({}); }}>Cancel</ModalButton>
           {formTab > 0 && <ModalButton variant="secondary" onClick={() => setFormTab((t) => t - 1)}>Previous</ModalButton>}
-          {formTab < formTabs.length - 1 ? <ModalButton variant="primary" onClick={() => setFormTab((t) => t + 1)}>Next</ModalButton> : <ModalButton variant="primary" onClick={() => { setShowCreate(false); setShowEdit(false); }}>{showEdit ? "Update" : "Save"}</ModalButton>}
+          {formTab < formTabs.length - 1 ? <ModalButton variant="primary" onClick={() => setFormTab((t) => t + 1)}>Next</ModalButton> : <ModalButton variant="primary" onClick={() => { if (validateForm()) { addToast({ type: "success", title: showEdit ? "Record updated" : "Record created", message: showEdit ? "Property record has been updated successfully." : "New property record has been added." }); setShowCreate(false); setShowEdit(false); setFormErrors({}); } }}>{showEdit ? "Update" : "Save"}</ModalButton>}
         </>}>
         <div className="flex border-b border-border mb-6">
           {formTabs.map((tab, i) => (
@@ -375,29 +438,36 @@ export default function LotsBuildingsPage() {
         </div>
         {formTab === 0 && (
           <div className="grid grid-cols-2 gap-4">
-            <FormSelect onChange={handleFieldChange} label="Property Type" name="property_type" value={form.property_type} options={propertyTypes} />
+            <FormInput onChange={handleFieldChange} label="Record Name" name="record_name" value={form.record_name} placeholder="Property record name" required error={formErrors.record_name} />
+            <FormSelect onChange={handleFieldChange} label="Property Type" name="property_type" value={form.property_type} options={propertyTypes} required error={formErrors.property_type} />
             <FormInput onChange={handleFieldChange} label="Lot Number" name="lot_number" value={form.lot_number} placeholder="L-XXX" />
             <FormInput onChange={handleFieldChange} label="Block Number" name="block_number" value={form.block_number} placeholder="B-XX" />
-            <FormInput onChange={handleFieldChange} label="Area (sqm)" name="area_sqm" value={form.area_sqm} placeholder="0" type="number" />
-            <FormInput onChange={handleFieldChange} label="Owner Name" name="owner_name" value={form.owner_name} placeholder="Full name of owner" required />
+            <FormInput onChange={handleFieldChange} label="Area (sqm)" name="area_sqm" value={form.area_sqm} placeholder="0" type="number" error={formErrors.area_sqm} />
+            <FormInput onChange={handleFieldChange} label="Owner Name" name="owner_name" value={form.owner_name} placeholder="Full name of owner" required error={formErrors.owner_name} />
           </div>
         )}
         {formTab === 1 && (
           <div className="grid grid-cols-2 gap-4">
-            <FormInput onChange={handleFieldChange} label="Address" name="address" value={form.address} placeholder="Street address" />
+            <FormInput onChange={handleFieldChange} label="Address" name="address" value={form.address} placeholder="Street address" required error={formErrors.address} />
             <FormSelect onChange={handleFieldChange} label="Purok" name="purok" value={form.purok} options={purokOptions} />
             <FormInput onChange={handleFieldChange} label="Boundary - North" name="boundaries_north" value={form.boundaries_north} placeholder="North boundary/landmark" />
             <FormInput onChange={handleFieldChange} label="Boundary - South" name="boundaries_south" value={form.boundaries_south} placeholder="South boundary/landmark" />
             <FormInput onChange={handleFieldChange} label="Boundary - East" name="boundaries_east" value={form.boundaries_east} placeholder="East boundary/landmark" />
             <FormInput onChange={handleFieldChange} label="Boundary - West" name="boundaries_west" value={form.boundaries_west} placeholder="West boundary/landmark" />
+            <div className="col-span-2">
+              <p className="text-[10px] text-muted-foreground mt-1">Describe nearby landmarks. E.g., &quot;Corner of Rizal St. and Garcia Store&quot;</p>
+            </div>
           </div>
         )}
         {formTab === 2 && (
           <div className="grid grid-cols-2 gap-4">
             <FormInput onChange={handleFieldChange} label="Tax Declaration Number" name="tax_declaration_number" value={form.tax_declaration_number} placeholder="TD-XXXX-XXX" />
-            <FormInput onChange={handleFieldChange} label="Assessed Value" name="assessed_value" value={form.assessed_value} placeholder="0" type="number" />
+            <div>
+              <FormInput onChange={handleFieldChange} label="Assessed Value" name="assessed_value" value={form.assessed_value} placeholder="0" type="number" error={formErrors.assessed_value} />
+              <p className="text-[10px] text-muted-foreground mt-1">Enter the value from the latest tax declaration or property assessment.</p>
+            </div>
             <FormInput onChange={handleFieldChange} label="Market Value" name="market_value" value={form.market_value} placeholder="0" type="number" />
-            <FormSelect onChange={handleFieldChange} label="Classification" name="classification" value={form.classification} options={classificationOptions} />
+            <FormSelect onChange={handleFieldChange} label="Classification" name="classification" value={form.classification} options={classificationOptions} required error={formErrors.classification} />
             <FormInput onChange={handleFieldChange} label="Zoning" name="zoning" value={form.zoning} placeholder="Zone classification" />
             <FormTextarea onChange={handleFieldChange} label="Remarks" name="remarks" value={form.remarks} placeholder="Additional remarks..." />
           </div>
@@ -406,9 +476,25 @@ export default function LotsBuildingsPage() {
 
       {/* Delete Confirmation Modal */}
       <Modal open={showDelete} onClose={() => setShowDelete(false)} title="Confirm Delete" description="This action cannot be undone." size="sm"
-        footer={<><ModalButton variant="secondary" onClick={() => { setShowDelete(false); setViewRecord(null); }}>Cancel</ModalButton><ModalButton variant="danger" onClick={() => { setShowDelete(false); setViewRecord(null); }}>Delete</ModalButton></>}>
-        <p className="text-sm text-muted-foreground">Are you sure you want to delete <span className="font-medium text-foreground">{viewRecord?.record_number}</span>? This will permanently remove this property record.</p>
+        footer={<><ModalButton variant="secondary" onClick={() => { setShowDelete(false); setViewRecord(null); }}>Cancel</ModalButton><ModalButton variant="danger" onClick={() => { addToast({ type: "success", title: "Record deleted", message: `${viewRecord?.record_number} has been removed.` }); setShowDelete(false); setViewRecord(null); }}>Delete</ModalButton></>}>
+        <p className="text-sm text-muted-foreground">Are you sure you want to delete <span className="font-medium text-foreground">{viewRecord?.record_number}</span> owned by <span className="font-medium text-foreground">{viewRecord?.owner_name}</span>? This will permanently remove this property record.</p>
       </Modal>
+
+      {/* Toast Notifications */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
+        {toasts.map(t => (
+          <div key={t.id} className={cn("flex items-start gap-3 px-4 py-3 rounded-xl shadow-lg border min-w-[320px] max-w-[420px] animate-in slide-in-from-right-5",
+            t.type === "success" ? "bg-emerald-500/10 border-emerald-500/30" : t.type === "error" ? "bg-red-500/10 border-red-500/30" : t.type === "warning" ? "bg-amber-500/10 border-amber-500/30" : "bg-blue-500/10 border-blue-500/30"
+          )}>
+            {t.type === "success" ? <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" /> : t.type === "error" ? <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" /> : <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />}
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-foreground">{t.title}</p>
+              {t.message && <p className="text-xs text-muted-foreground mt-0.5">{t.message}</p>}
+            </div>
+            <button onClick={() => dismissToast(t.id)} className="text-muted-foreground hover:text-foreground shrink-0"><X className="w-3.5 h-3.5" /></button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

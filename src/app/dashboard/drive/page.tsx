@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   HardDrive,
   Upload,
   FolderPlus,
+  FolderOpen,
   Search,
   Grid3X3,
   List,
@@ -20,6 +22,8 @@ import {
   Eye,
   Edit,
   Check,
+  Bot,
+  CheckCircle2,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Modal, ModalButton } from "@/components/ui/modal";
@@ -50,6 +54,7 @@ const mockFiles: DriveItem[] = [
 ];
 
 export default function DrivePage() {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [showUpload, setShowUpload] = useState(false);
@@ -61,6 +66,16 @@ export default function DrivePage() {
   const [folderName, setFolderName] = useState("");
   const [renameName, setRenameName] = useState("");
   const [uploadForm, setUploadForm] = useState({ folder: "/", description: "" });
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  // Toast system
+  const [toasts, setToasts] = useState<{ id: number; message: string }[]>([]);
+  const showToast = useCallback((message: string) => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3500);
+  }, []);
 
   const filtered = mockFiles.filter((f) => {
     if (search) return f.name.toLowerCase().includes(search.toLowerCase());
@@ -92,11 +107,27 @@ export default function DrivePage() {
         breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "Tools" }, { label: "Drive" }]}
         actions={
           <div className="flex items-center gap-2">
-            <button onClick={() => { setFolderName(""); setShowNewFolder(true); }} className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors"><FolderPlus className="h-4 w-4" /> New Folder</button>
-            <button onClick={() => { setUploadForm({ folder: "/", description: "" }); setShowUpload(true); }} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}><Upload className="h-4 w-4" /> Upload</button>
+            <button onClick={() => { setFolderName(""); setFormErrors({}); setShowNewFolder(true); }} className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors"><FolderPlus className="h-4 w-4" /> New Folder</button>
+            <button onClick={() => { setUploadForm({ folder: "/", description: "" }); setUploadFile(null); setFormErrors({}); setShowUpload(true); }} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}><Upload className="h-4 w-4" /> Upload</button>
           </div>
         }
       />
+
+      {/* Mabini AI Insight */}
+      <div className="flex items-start gap-3 px-4 py-3 rounded-xl border border-accent-primary/20 bg-accent-bg/30">
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: "var(--accent-primary)", opacity: 0.15 }}>
+          <Bot className="w-4 h-4" style={{ color: "var(--accent-primary)" }} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-foreground">Mabini AI Storage Summary</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+            Storage at 25% capacity. 3 files haven&apos;t been accessed in over 90 days. Consider archiving old reports to free up space. No duplicate files detected.
+          </p>
+        </div>
+        <button onClick={() => router.push("/dashboard/ai")} className="shrink-0 px-3 py-1.5 text-[10px] font-semibold rounded-lg transition-colors hover:opacity-80" style={{ background: "var(--accent-primary)", color: "#fff" }}>
+          Ask Mabini
+        </button>
+      </div>
 
       {/* Storage Bar */}
       <div className="p-4 rounded-xl border border-border bg-card">
@@ -150,7 +181,7 @@ export default function DrivePage() {
                         <button onClick={() => setActionMenu(actionMenu === f.id ? null : f.id)} className="p-1.5 rounded hover:bg-muted"><MoreHorizontal className="h-4 w-4 text-muted-foreground" /></button>
                         {actionMenu === f.id && (
                           <div className="absolute right-0 top-8 z-20 w-44 bg-card border border-border rounded-lg shadow-lg py-1">
-                            <button onClick={() => { setRenameName(f.name); setViewItem(f); setShowRename(true); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Edit className="h-3.5 w-3.5" /> Rename</button>
+                            <button onClick={() => { setRenameName(f.name); setViewItem(f); setFormErrors({}); setShowRename(true); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Edit className="h-3.5 w-3.5" /> Rename</button>
                             <button onClick={() => { setViewItem(f); setShowDelete(true); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-muted flex items-center gap-2"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
                           </div>
                         )}
@@ -196,7 +227,7 @@ export default function DrivePage() {
                               <div className="absolute right-0 top-8 z-20 w-44 bg-card border border-border rounded-lg shadow-lg py-1">
                                 <button onClick={() => { setViewItem(f); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Eye className="h-3.5 w-3.5" /> View Details</button>
                                 <button onClick={() => setActionMenu(null)} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Download className="h-3.5 w-3.5" /> Download</button>
-                                <button onClick={() => { setRenameName(f.name); setViewItem(f); setShowRename(true); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Edit className="h-3.5 w-3.5" /> Rename</button>
+                                <button onClick={() => { setRenameName(f.name); setViewItem(f); setFormErrors({}); setShowRename(true); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Edit className="h-3.5 w-3.5" /> Rename</button>
                                 <div className="border-t border-border my-1" />
                                 <button onClick={() => { setViewItem(f); setShowDelete(true); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-muted flex items-center gap-2"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
                               </div>
@@ -220,7 +251,7 @@ export default function DrivePage() {
                 <button onClick={() => setActionMenu(actionMenu === f.id ? null : f.id)} className="p-1 rounded hover:bg-muted"><MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" /></button>
                 {actionMenu === f.id && (
                   <div className="absolute right-0 top-6 z-20 w-40 bg-card border border-border rounded-lg shadow-lg py-1">
-                    <button onClick={() => { setRenameName(f.name); setViewItem(f); setShowRename(true); setActionMenu(null); }} className="w-full px-3 py-1.5 text-left text-xs hover:bg-muted flex items-center gap-2"><Edit className="h-3 w-3" /> Rename</button>
+                    <button onClick={() => { setRenameName(f.name); setViewItem(f); setFormErrors({}); setShowRename(true); setActionMenu(null); }} className="w-full px-3 py-1.5 text-left text-xs hover:bg-muted flex items-center gap-2"><Edit className="h-3 w-3" /> Rename</button>
                     {f.type !== "folder" && <button onClick={() => setActionMenu(null)} className="w-full px-3 py-1.5 text-left text-xs hover:bg-muted flex items-center gap-2"><Download className="h-3 w-3" /> Download</button>}
                     <button onClick={() => { setViewItem(f); setShowDelete(true); setActionMenu(null); }} className="w-full px-3 py-1.5 text-left text-xs text-red-600 hover:bg-muted flex items-center gap-2"><Trash2 className="h-3 w-3" /> Delete</button>
                   </div>
@@ -237,18 +268,30 @@ export default function DrivePage() {
       )}
 
       {filtered.length === 0 && (
-        <div className="p-12 text-center text-muted-foreground rounded-xl border border-border bg-card">No files or folders found.</div>
+        <div className="p-12 text-center rounded-xl border border-border bg-card flex flex-col items-center gap-3">
+          <FolderOpen className="h-10 w-10 text-muted-foreground/50" />
+          <div>
+            <p className="text-sm font-medium text-foreground">This folder is empty</p>
+            <p className="text-xs text-muted-foreground mt-1">Upload files or create folders to organize your barangay documents.</p>
+          </div>
+        </div>
       )}
 
       {/* Upload Modal */}
       <Modal open={showUpload} onClose={() => setShowUpload(false)} title="Upload Files" size="md"
-        footer={<><ModalButton variant="secondary" onClick={() => setShowUpload(false)}>Cancel</ModalButton><ModalButton variant="primary">Upload</ModalButton></>}>
+        footer={<><ModalButton variant="secondary" onClick={() => setShowUpload(false)}>Cancel</ModalButton><ModalButton variant="primary" onClick={() => { if (!uploadFile) { setFormErrors({ upload: "Please select a file to upload." }); return; } showToast("File Uploaded"); setShowUpload(false); }}>Upload</ModalButton></>}>
         <div className="space-y-4">
-          <div className="border-2 border-dashed border-border rounded-xl p-8 text-center hover:border-muted-foreground/30 transition-colors cursor-pointer">
+          <label className={cn("border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer block", formErrors.upload ? "border-red-500" : "border-border hover:border-muted-foreground/30")}>
+            <input type="file" className="hidden" onChange={(e) => { const file = e.target.files?.[0] || null; setUploadFile(file); if (file) setFormErrors((prev) => { const { upload, ...rest } = prev; return rest; }); }} />
             <Upload className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
-            <p className="text-sm font-medium text-foreground mb-1">Drop files here or click to browse</p>
+            {uploadFile ? (
+              <p className="text-sm font-medium text-foreground mb-1">{uploadFile.name}</p>
+            ) : (
+              <p className="text-sm font-medium text-foreground mb-1">Drop files here or click to browse</p>
+            )}
             <p className="text-xs text-muted-foreground">Supports PDF, DOCX, XLSX, JPG, PNG up to 25MB each</p>
-          </div>
+          </label>
+          {formErrors.upload && <p className="text-xs text-red-500">{formErrors.upload}</p>}
           <div>
             <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Upload to Folder</label>
             <select value={uploadForm.folder} onChange={(e) => setUploadForm({ ...uploadForm, folder: e.target.value })}
@@ -272,22 +315,24 @@ export default function DrivePage() {
 
       {/* New Folder Modal */}
       <Modal open={showNewFolder} onClose={() => setShowNewFolder(false)} title="Create New Folder" size="sm"
-        footer={<><ModalButton variant="secondary" onClick={() => setShowNewFolder(false)}>Cancel</ModalButton><ModalButton variant="primary" onClick={() => setShowNewFolder(false)}>Create Folder</ModalButton></>}>
+        footer={<><ModalButton variant="secondary" onClick={() => setShowNewFolder(false)}>Cancel</ModalButton><ModalButton variant="primary" onClick={() => { if (!folderName.trim()) { setFormErrors({ folderName: "Folder name is required." }); return; } showToast("Folder Created"); setShowNewFolder(false); }}>Create Folder</ModalButton></>}>
         <div>
           <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Folder Name<span className="text-red-500 ml-0.5">*</span></label>
-          <input type="text" value={folderName} onChange={(e) => setFolderName(e.target.value)}
+          <input type="text" value={folderName} onChange={(e) => { setFolderName(e.target.value); if (e.target.value.trim()) setFormErrors((prev) => { const { folderName, ...rest } = prev; return rest; }); }}
             placeholder="Enter folder name"
-            className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" autoFocus />
+            className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", formErrors.folderName ? "border-red-500" : "border-border")} autoFocus />
+          {formErrors.folderName && <p className="text-xs text-red-500 mt-1">{formErrors.folderName}</p>}
         </div>
       </Modal>
 
       {/* Rename Modal */}
       <Modal open={showRename} onClose={() => setShowRename(false)} title="Rename" size="sm"
-        footer={<><ModalButton variant="secondary" onClick={() => setShowRename(false)}>Cancel</ModalButton><ModalButton variant="primary" onClick={() => { setShowRename(false); setViewItem(null); }}><Check className="h-4 w-4 mr-1" />Rename</ModalButton></>}>
+        footer={<><ModalButton variant="secondary" onClick={() => setShowRename(false)}>Cancel</ModalButton><ModalButton variant="primary" onClick={() => { if (!renameName.trim()) { setFormErrors({ renameName: "New name is required." }); return; } showToast("Item Renamed"); setShowRename(false); setViewItem(null); }}><Check className="h-4 w-4 mr-1" />Rename</ModalButton></>}>
         <div>
-          <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">New Name</label>
-          <input type="text" value={renameName} onChange={(e) => setRenameName(e.target.value)}
-            className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" autoFocus />
+          <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">New Name<span className="text-red-500 ml-0.5">*</span></label>
+          <input type="text" value={renameName} onChange={(e) => { setRenameName(e.target.value); if (e.target.value.trim()) setFormErrors((prev) => { const { renameName, ...rest } = prev; return rest; }); }}
+            className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", formErrors.renameName ? "border-red-500" : "border-border")} autoFocus />
+          {formErrors.renameName && <p className="text-xs text-red-500 mt-1">{formErrors.renameName}</p>}
         </div>
       </Modal>
 
@@ -315,10 +360,20 @@ export default function DrivePage() {
       </Modal>
 
       {/* Delete Confirmation */}
-      <Modal open={showDelete} onClose={() => setShowDelete(false)} title="Confirm Delete" description="This action cannot be undone." size="sm"
-        footer={<><ModalButton variant="secondary" onClick={() => { setShowDelete(false); setViewItem(null); }}>Cancel</ModalButton><ModalButton variant="danger" onClick={() => { setShowDelete(false); setViewItem(null); }}>Delete</ModalButton></>}>
-        <p className="text-sm text-muted-foreground">Are you sure you want to delete <span className="font-medium text-foreground">{viewItem?.name}</span>?{viewItem?.type === "folder" && " All files inside this folder will also be deleted."}</p>
+      <Modal open={showDelete} onClose={() => setShowDelete(false)} title={`Delete ${viewItem?.type === "folder" ? "Folder" : "File"}`} description="This action cannot be undone." size="sm"
+        footer={<><ModalButton variant="secondary" onClick={() => { setShowDelete(false); setViewItem(null); }}>Cancel</ModalButton><ModalButton variant="danger" onClick={() => { showToast("Item Deleted"); setShowDelete(false); setViewItem(null); }}>Delete &quot;{viewItem?.name}&quot;</ModalButton></>}>
+        <p className="text-sm text-muted-foreground">Are you sure you want to delete <span className="font-medium text-foreground">&quot;{viewItem?.name}&quot;</span>?{viewItem?.type === "folder" && ` This folder contains ${viewItem?.items_count || 0} items that will also be permanently deleted.`}</p>
       </Modal>
+
+      {/* Toast Notifications */}
+      <div className="fixed bottom-6 right-6 z-[100] flex flex-col gap-2">
+        {toasts.map((t) => (
+          <div key={t.id} className="flex items-center gap-2 px-4 py-3 rounded-lg bg-foreground text-background text-sm font-medium shadow-lg animate-in slide-in-from-bottom-2 fade-in duration-300">
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
+            {t.message}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

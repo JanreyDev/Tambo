@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   Globe,
   Settings,
@@ -22,6 +23,7 @@ import {
   Trash2,
   Send,
   X,
+  Bot,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -91,6 +93,7 @@ function FormSelect({ label, value, name, options, required, onChange }: { label
 }
 
 export default function PublicPortalPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"modules" | "announcements" | "preview">("modules");
   const [modules, setModules] = useState(portalModules);
 
@@ -102,13 +105,30 @@ export default function PublicPortalPage() {
   const [formTab, setFormTab] = useState(0);
   const [announcementForm, setAnnouncementForm] = useState({ title: "", content: "", category: "Notice", published: false });
   const [actionMenu, setActionMenu] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<{ title?: string; content?: string; category?: string }>({});
+
+  // Toast notifications
+  const [toasts, setToasts] = useState<{ id: number; message: string; type: "success" | "error" }[]>([]);
+  const addToast = useCallback((message: string, type: "success" | "error" = "success") => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
+  }, []);
+  const dismissToast = useCallback((id: number) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
 
   // View announcement
   const [showViewAnnouncement, setShowViewAnnouncement] = useState(false);
   const [viewTarget, setViewTarget] = useState<Announcement | null>(null);
 
   const toggleModule = (id: string) => {
-    setModules((prev) => prev.map((m) => m.id === id ? { ...m, enabled: !m.enabled } : m));
+    setModules((prev) => {
+      const updated = prev.map((m) => m.id === id ? { ...m, enabled: !m.enabled } : m);
+      const target = updated.find((m) => m.id === id);
+      if (target) addToast(`${target.name} ${target.enabled ? "enabled" : "disabled"}`, "success");
+      return updated;
+    });
   };
 
   const enabledCount = modules.filter((m) => m.enabled).length;
@@ -125,14 +145,26 @@ export default function PublicPortalPage() {
   const openCreate = () => {
     setAnnouncementForm({ title: "", content: "", category: "Notice", published: false });
     setFormTab(0);
+    setFormErrors({});
     setShowCreateAnnouncement(true);
   };
 
   const openEdit = (a: Announcement) => {
     setAnnouncementForm({ title: a.title, content: a.content, category: a.category, published: a.published });
     setFormTab(0);
+    setFormErrors({});
     setActionMenu(null);
     setShowEditAnnouncement(true);
+  };
+
+  const validateAnnouncementForm = (): boolean => {
+    const errors: { title?: string; content?: string; category?: string } = {};
+    if (!announcementForm.title.trim()) errors.title = "Title is required";
+    if (!announcementForm.content.trim()) errors.content = "Content is required";
+    else if (announcementForm.content.trim().length < 20) errors.content = "Content must be at least 20 characters";
+    if (!announcementForm.category) errors.category = "Category is required";
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const openDelete = (a: Announcement) => {
@@ -152,7 +184,10 @@ export default function PublicPortalPage() {
     setShowEditAnnouncement(false);
   };
 
-  const handleAnnouncementFieldChange = (name: string, value: string) => setAnnouncementForm((f) => ({ ...f, [name]: value }));
+  const handleAnnouncementFieldChange = (name: string, value: string) => {
+    setAnnouncementForm((f) => ({ ...f, [name]: value }));
+    setFormErrors((prev) => ({ ...prev, [name]: undefined }));
+  };
 
   return (
     <div className="space-y-6">
@@ -167,6 +202,22 @@ export default function PublicPortalPage() {
           </div>
         }
       />
+
+      {/* Mabini AI Insight */}
+      <div className="flex items-start gap-3 px-4 py-3 rounded-xl border border-accent-primary/20 bg-accent-bg/30">
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: "var(--accent-primary)", opacity: 0.15 }}>
+          <Bot className="w-4 h-4" style={{ color: "var(--accent-primary)" }} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-foreground">Mabini AI Portal Insights</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+            Portal traffic up 15% this week. 2 announcements are still in draft — consider publishing. Events Calendar module has lowest engagement; Gallery has the highest.
+          </p>
+        </div>
+        <button onClick={() => router.push("/dashboard/ai")} className="shrink-0 px-3 py-1.5 text-[10px] font-semibold rounded-lg transition-colors hover:opacity-80" style={{ background: "var(--accent-primary)", color: "#fff" }}>
+          Ask Mabini
+        </button>
+      </div>
 
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard label="Portal Status" value="Live" icon={<Globe className="h-5 w-5" />} />
@@ -227,7 +278,7 @@ export default function PublicPortalPage() {
         <div className="space-y-3">
           <div className="flex justify-end">
             <button onClick={openCreate}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}>
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>
               <Plus className="h-4 w-4" /> New Announcement
             </button>
           </div>
@@ -262,13 +313,13 @@ export default function PublicPortalPage() {
                           <Edit className="h-4 w-4 text-muted-foreground" /> Edit
                         </button>
                         {!a.published && (
-                          <button onClick={() => setActionMenu(null)}
+                          <button onClick={() => { setActionMenu(null); addToast("Announcement published", "success"); }}
                             className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors text-left">
                             <Send className="h-4 w-4 text-muted-foreground" /> Publish
                           </button>
                         )}
                         {a.published && (
-                          <button onClick={() => setActionMenu(null)}
+                          <button onClick={() => { setActionMenu(null); addToast("Announcement unpublished", "success"); }}
                             className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors text-left">
                             <X className="h-4 w-4 text-muted-foreground" /> Unpublish
                           </button>
@@ -313,8 +364,8 @@ export default function PublicPortalPage() {
             <ModalButton variant="secondary" onClick={closeForm}>Cancel</ModalButton>
             {formTab > 0 && <ModalButton variant="secondary" onClick={() => setFormTab(t => t - 1)}>Previous</ModalButton>}
             {formTab < formTabs.length - 1
-              ? <ModalButton variant="primary" onClick={() => setFormTab(t => t + 1)}>Next</ModalButton>
-              : <ModalButton variant="primary" onClick={closeForm}>{showEditAnnouncement ? "Update" : announcementForm.published ? "Publish" : "Save as Draft"}</ModalButton>}
+              ? <ModalButton variant="primary" onClick={() => { if (validateAnnouncementForm()) setFormTab(t => t + 1); }}>Next</ModalButton>
+              : <ModalButton variant="primary" onClick={() => { if (validateAnnouncementForm()) { closeForm(); addToast(showEditAnnouncement ? "Announcement updated successfully" : announcementForm.published ? "Announcement published" : "Announcement saved as draft", "success"); } }}>{showEditAnnouncement ? "Update" : announcementForm.published ? "Publish" : "Save as Draft"}</ModalButton>}
           </>}>
           {/* Tabs */}
           <div className="flex border-b border-border mb-6">
@@ -329,17 +380,26 @@ export default function PublicPortalPage() {
 
           {formTab === 0 && (
             <div className="space-y-4">
-              <FormInput label="Title" name="title" value={announcementForm.title} placeholder="e.g., Barangay Assembly Meeting" required onChange={handleAnnouncementFieldChange} />
-              <FormSelect label="Category" name="category" value={announcementForm.category} options={categoryOptions} required onChange={handleAnnouncementFieldChange} />
+              <div>
+                <FormInput label="Title" name="title" value={announcementForm.title} placeholder="e.g., Barangay Assembly Meeting" required onChange={handleAnnouncementFieldChange} />
+                {formErrors.title && <p className="text-[11px] text-red-500 mt-1">{formErrors.title}</p>}
+              </div>
+              <div>
+                <FormSelect label="Category" name="category" value={announcementForm.category} options={categoryOptions} required onChange={handleAnnouncementFieldChange} />
+                {formErrors.category && <p className="text-[11px] text-red-500 mt-1">{formErrors.category}</p>}
+              </div>
               <div>
                 <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Content <span className="text-red-500 ml-0.5">*</span></label>
                 <textarea value={announcementForm.content}
-                  onChange={(e) => setAnnouncementForm((f) => ({ ...f, content: e.target.value }))}
+                  onChange={(e) => { setAnnouncementForm((f) => ({ ...f, content: e.target.value })); setFormErrors((prev) => ({ ...prev, content: undefined })); }}
                   placeholder="Write the announcement content here..."
                   rows={6}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 resize-none"
+                  className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 resize-none", formErrors.content ? "border-red-500" : "border-border")}
                   style={{ "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties} />
-                <p className="text-[11px] text-muted-foreground mt-1">{announcementForm.content.length} characters</p>
+                {formErrors.content
+                  ? <p className="text-[11px] text-red-500 mt-1">{formErrors.content}</p>
+                  : <p className="text-[11px] text-muted-foreground mt-1">{announcementForm.content.length} characters</p>}
+                <p className="text-[11px] text-muted-foreground/70 mt-0.5">This will be visible to all residents on your barangay&apos;s public portal.</p>
               </div>
             </div>
           )}
@@ -415,11 +475,11 @@ export default function PublicPortalPage() {
         <Modal open={showDeleteAnnouncement} title="Delete Announcement" onClose={() => setShowDeleteAnnouncement(false)} size="sm"
           footer={<>
             <ModalButton variant="secondary" onClick={() => setShowDeleteAnnouncement(false)}>Cancel</ModalButton>
-            <ModalButton variant="danger" onClick={() => setShowDeleteAnnouncement(false)}>Delete</ModalButton>
+            <ModalButton variant="danger" onClick={() => { setShowDeleteAnnouncement(false); addToast("Announcement deleted", "success"); }}>Delete</ModalButton>
           </>}>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Are you sure you want to delete this announcement?
+              Are you sure you want to delete <span className="font-semibold text-foreground">&ldquo;{deleteTarget.title}&rdquo;</span>? This action cannot be undone.
             </p>
             <div className="p-3 rounded-lg bg-muted/30 border border-border">
               <p className="text-sm font-medium text-foreground">{deleteTarget.title}</p>
@@ -434,6 +494,22 @@ export default function PublicPortalPage() {
             )}
           </div>
         </Modal>
+      )}
+
+      {/* Toast Notifications */}
+      {toasts.length > 0 && (
+        <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
+          {toasts.map((toast) => (
+            <div key={toast.id}
+              className={cn("flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg text-sm font-medium text-white animate-in slide-in-from-right-5 fade-in duration-300",
+                toast.type === "success" ? "bg-emerald-600" : "bg-red-600")}>
+              <span>{toast.message}</span>
+              <button onClick={() => dismissToast(toast.id)} className="ml-1 hover:opacity-80">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

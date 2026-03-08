@@ -12,7 +12,9 @@ import {
   ZoomOut,
   Maximize2,
   Navigation,
+  Bot,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { cn } from "@/lib/utils";
 
@@ -45,6 +47,7 @@ const purokStats = [
 ];
 
 export default function MapPage() {
+  const router = useRouter();
   const [layers, setLayers] = useState(mapLayers);
   const [selectedPurok, setSelectedPurok] = useState<string | null>(null);
 
@@ -59,6 +62,22 @@ export default function MapPage() {
         description="Interactive map with purok boundaries, household locations, and facilities"
         breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "Map" }]}
       />
+
+      {/* Mabini AI Insight */}
+      <div className="flex items-start gap-3 px-4 py-3 rounded-xl border border-accent-primary/20 bg-accent-bg/30">
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: "var(--accent-primary)", opacity: 0.15 }}>
+          <Bot className="w-4 h-4" style={{ color: "var(--accent-primary)" }} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-foreground">Mabini AI Spatial Analysis</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+            Purok Sampaguita has the highest population density (1,820 residents). 2 hazard zones overlap with residential areas. 3 establishments are outside mapped purok boundaries.
+          </p>
+        </div>
+        <button onClick={() => router.push("/dashboard/ai")} className="shrink-0 px-3 py-1.5 text-[10px] font-semibold rounded-lg transition-colors hover:opacity-80" style={{ background: "var(--accent-primary)", color: "#fff" }}>
+          Ask Mabini
+        </button>
+      </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
         {/* Map Area */}
@@ -76,7 +95,7 @@ export default function MapPage() {
 
               {/* Placeholder content */}
               <div className="text-center">
-                <Map className="h-16 w-16 mx-auto mb-4 text-muted-foreground/30" />
+                <Map className="h-16 w-16 mx-auto mb-4" style={{ color: "var(--accent-primary)", opacity: 0.3 }} />
                 <p className="text-sm text-muted-foreground mb-1">Leaflet + OpenStreetMap</p>
                 <p className="text-xs text-muted-foreground">Interactive map will load here with purok boundaries,<br />household pins, establishment markers, and facility locations.</p>
                 <p className="text-xs text-muted-foreground mt-4 font-mono">Center: 14.8385° N, 120.2840° E (Olongapo, Zambales)</p>

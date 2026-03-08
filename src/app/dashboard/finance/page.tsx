@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
+  Bot,
   Download,
   Plus,
   Search,
@@ -56,22 +58,24 @@ const emptyForm: Record<string, string> = {
   description: "", payee_payor: "", reference_number: "", remarks: "",
 };
 
-function FormInput({ label, name, value, placeholder, required, type, onChange }: { label: string; name: string; value: string; placeholder?: string; required?: boolean; type?: string; onChange: (name: string, value: string) => void }) {
+function FormInput({ label, name, value, placeholder, required, type, error, onChange }: { label: string; name: string; value: string; placeholder?: string; required?: boolean; type?: string; error?: string; onChange: (name: string, value: string) => void }) {
   return (
     <div>
       <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <input type={type || "text"} value={value} onChange={(e) => onChange(name, e.target.value)} placeholder={placeholder} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+      <input type={type || "text"} value={value} onChange={(e) => onChange(name, e.target.value)} placeholder={placeholder} className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", error ? "border-red-500" : "border-border")} />
+      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
     </div>
   );
 }
 
-function FormSelect({ label, name, value, options, required, onChange }: { label: string; name: string; value: string; options: string[]; required?: boolean; onChange: (name: string, value: string) => void }) {
+function FormSelect({ label, name, value, options, required, error, onChange }: { label: string; name: string; value: string; options: string[]; required?: boolean; error?: string; onChange: (name: string, value: string) => void }) {
   return (
     <div>
       <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <select value={value} onChange={(e) => onChange(name, e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+      <select value={value} onChange={(e) => onChange(name, e.target.value)} className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", error ? "border-red-500" : "border-border")}>
         {options.map((o) => <option key={o} value={o}>{o || "\u2014 Select \u2014"}</option>)}
       </select>
+      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
     </div>
   );
 }
@@ -86,6 +90,7 @@ function FormTextarea({ label, name, value, placeholder, rows, required, onChang
 }
 
 export default function FinancePage() {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [typeFilter, setTypeFilter] = useState<"all" | "income" | "expense">("all");
@@ -95,11 +100,38 @@ export default function FinancePage() {
   const [viewItem, setViewItem] = useState<Transaction | null>(null);
   const [formTab, setFormTab] = useState(0);
   const [form, setForm] = useState<Record<string, string>>(emptyForm);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [actionMenu, setActionMenu] = useState<string | null>(null);
+  const [toasts, setToasts] = useState<{id: string; type: "success"|"error"|"warning"|"info"; title: string; message?: string}[]>([]);
 
-  const handleFieldChange = (name: string, value: string) => setForm((f) => ({ ...f, [name]: value }));
+  const addToast = useCallback((type: "success"|"error"|"warning"|"info", title: string, message?: string) => {
+    const id = crypto.randomUUID();
+    setToasts((prev) => [...prev, { id, type, title, message }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
+  }, []);
 
-  const openCreate = () => { setForm(emptyForm); setFormTab(0); setShowCreate(true); };
+  const dismissToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  const handleFieldChange = (name: string, value: string) => {
+    setForm((f) => ({ ...f, [name]: value }));
+    setFormErrors((e) => { const next = { ...e }; delete next[name]; return next; });
+  };
+
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+    if (!form.description.trim()) errors.description = "Description is required";
+    if (!form.transaction_type) errors.transaction_type = "Transaction type is required";
+    if (!form.category) errors.category = "Category is required";
+    if (!form.amount.trim()) errors.amount = "Amount is required";
+    else if (isNaN(Number(form.amount)) || Number(form.amount) <= 0) errors.amount = "Amount must be a positive number";
+    if (!form.date) errors.date = "Date is required";
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const openCreate = () => { setForm(emptyForm); setFormTab(0); setFormErrors({}); setShowCreate(true); };
   const openEdit = (t: Transaction) => {
     setForm({
       transaction_type: t.type === "income" ? "Income" : "Expense",
@@ -113,6 +145,7 @@ export default function FinancePage() {
       remarks: "",
     });
     setFormTab(0);
+    setFormErrors({});
     setShowEdit(true);
   };
 
@@ -138,10 +171,26 @@ export default function FinancePage() {
         actions={
           <div className="flex items-center gap-2">
             <button className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors"><Download className="h-4 w-4" /> Export</button>
-            <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}><Plus className="h-4 w-4" /> Record Transaction</button>
+            <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}><Plus className="h-4 w-4" /> Record Transaction</button>
           </div>
         }
       />
+
+      {/* Mabini AI Insight */}
+      <div className="flex items-start gap-3 px-4 py-3 rounded-xl border border-accent-primary/20 bg-accent-bg/30">
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: "var(--accent-primary)", opacity: 0.15 }}>
+          <Bot className="w-4 h-4" style={{ color: "var(--accent-primary)" }} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-foreground">Mabini AI Financial Summary</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+            Net balance positive at P53,400. Utility expenses trending 12% higher than last quarter. IRA allocation on track. 2 uncategorized transactions need classification.
+          </p>
+        </div>
+        <button onClick={() => router.push("/dashboard/ai")} className="shrink-0 px-3 py-1.5 text-[10px] font-semibold rounded-lg transition-colors hover:opacity-80" style={{ background: "var(--accent-primary)", color: "#fff" }}>
+          Ask Mabini
+        </button>
+      </div>
 
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard label="Total Income" value={`₱${totalIncome.toLocaleString()}`} icon={<TrendingUp className="h-5 w-5" />} />
@@ -188,7 +237,20 @@ export default function FinancePage() {
           </thead>
           <tbody>
             {filtered.length === 0 ? (
-              <tr><td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">No transactions found.</td></tr>
+              <tr><td colSpan={6} className="px-4 py-12">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                    <Wallet className="w-6 h-6 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">No transactions found</p>
+                    <p className="text-xs text-muted-foreground mt-1">Record your first income or expense to start tracking barangay finances.</p>
+                  </div>
+                  <button onClick={() => openCreate()} className="mt-1 px-4 py-2 text-xs font-semibold rounded-lg text-white" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>
+                    + New Transaction
+                  </button>
+                </div>
+              </td></tr>
             ) : (
               filtered.map((t) => (
                 <tr key={t.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => setViewItem(t)}>
@@ -282,7 +344,7 @@ export default function FinancePage() {
         footer={<>
           <ModalButton variant="secondary" onClick={() => { setShowCreate(false); setShowEdit(false); }}>Cancel</ModalButton>
           {formTab > 0 && <ModalButton variant="secondary" onClick={() => setFormTab((t) => t - 1)}>Previous</ModalButton>}
-          {formTab < formTabs.length - 1 ? <ModalButton variant="primary" onClick={() => setFormTab((t) => t + 1)}>Next</ModalButton> : <ModalButton variant="primary" onClick={() => { setShowCreate(false); setShowEdit(false); }}>{showEdit ? "Update" : "Save"}</ModalButton>}
+          {formTab < formTabs.length - 1 ? <ModalButton variant="primary" onClick={() => setFormTab((t) => t + 1)}>Next</ModalButton> : <ModalButton variant="primary" onClick={() => { if (validateForm()) { if (showEdit) { addToast("success", "Transaction Updated", "The transaction record has been updated successfully."); } else { addToast("success", "Transaction Recorded", "New transaction has been recorded successfully."); } setShowCreate(false); setShowEdit(false); } }}>{showEdit ? "Update" : "Save"}</ModalButton>}
         </>}>
         <div className="flex border-b border-border mb-6">
           {formTabs.map((tab, i) => (
@@ -291,16 +353,22 @@ export default function FinancePage() {
         </div>
         {formTab === 0 && (
           <div className="grid grid-cols-2 gap-4">
-            <FormSelect label="Transaction Type" name="transaction_type" value={form.transaction_type} options={transactionTypes} onChange={handleFieldChange} />
-            <FormSelect label="Category" name="category" value={form.category} options={categoryOptions} onChange={handleFieldChange} />
-            <FormInput label="Amount" name="amount" value={form.amount} placeholder="0.00" type="number" required onChange={handleFieldChange} />
-            <FormInput label="OR/CV Number" name="or_number" value={form.or_number} placeholder="OR-XXXX-XXXX" onChange={handleFieldChange} />
-            <FormInput label="Date" name="date" value={form.date} type="date" onChange={handleFieldChange} />
+            <FormSelect label="Transaction Type" name="transaction_type" value={form.transaction_type} options={transactionTypes} required error={formErrors.transaction_type} onChange={handleFieldChange} />
+            <FormSelect label="Category" name="category" value={form.category} options={categoryOptions} required error={formErrors.category} onChange={handleFieldChange} />
+            <div>
+              <FormInput label="Amount" name="amount" value={form.amount} placeholder="0.00" type="number" required error={formErrors.amount} onChange={handleFieldChange} />
+              <p className="text-[10px] text-muted-foreground mt-1">Enter the exact amount in Philippine Pesos (PHP).</p>
+            </div>
+            <div>
+              <FormInput label="OR/CV Number" name="or_number" value={form.or_number} placeholder="OR-XXXX-XXXX" onChange={handleFieldChange} />
+              <p className="text-[10px] text-muted-foreground mt-1">Official Receipt number from the barangay receipt booklet.</p>
+            </div>
+            <FormInput label="Date" name="date" value={form.date} type="date" required error={formErrors.date} onChange={handleFieldChange} />
           </div>
         )}
         {formTab === 1 && (
           <div className="grid grid-cols-2 gap-4">
-            <FormInput label="Description" name="description" value={form.description} placeholder="Transaction description" required onChange={handleFieldChange} />
+            <FormInput label="Description" name="description" value={form.description} placeholder="Transaction description" required error={formErrors.description} onChange={handleFieldChange} />
             <FormInput label="Payee / Payor" name="payee_payor" value={form.payee_payor} placeholder="Name of payee or payor" onChange={handleFieldChange} />
             <FormInput label="Reference Number" name="reference_number" value={form.reference_number} placeholder="Reference number" onChange={handleFieldChange} />
             <FormTextarea label="Remarks" name="remarks" value={form.remarks} placeholder="Additional remarks..." onChange={handleFieldChange} />
@@ -310,9 +378,53 @@ export default function FinancePage() {
 
       {/* Delete Confirmation Modal */}
       <Modal open={showDelete} onClose={() => setShowDelete(false)} title="Confirm Delete" description="This action cannot be undone." size="sm"
-        footer={<><ModalButton variant="secondary" onClick={() => { setShowDelete(false); setViewItem(null); }}>Cancel</ModalButton><ModalButton variant="danger" onClick={() => { setShowDelete(false); setViewItem(null); }}>Delete</ModalButton></>}>
-        <p className="text-sm text-muted-foreground">Are you sure you want to delete this transaction (<span className="font-medium text-foreground">{viewItem?.reference}</span>)? This will permanently remove this financial record.</p>
+        footer={<><ModalButton variant="secondary" onClick={() => { setShowDelete(false); setViewItem(null); }}>Cancel</ModalButton><ModalButton variant="danger" onClick={() => { addToast("success", "Transaction Deleted", `"${viewItem?.description}" has been permanently removed.`); setShowDelete(false); setViewItem(null); }}>Delete</ModalButton></>}>
+        <p className="text-sm text-muted-foreground">Are you sure you want to delete <span className="font-medium text-foreground">{viewItem?.description}</span> ({viewItem?.type === "income" ? "+" : "-"}P{viewItem?.amount.toLocaleString()}, ref: {viewItem?.reference})? This will permanently remove this financial record.</p>
       </Modal>
+
+      {/* Toast Notifications */}
+      {toasts.length > 0 && (
+        <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
+          {toasts.map((toast) => (
+            <div key={toast.id} className={cn(
+              "flex items-start gap-3 px-4 py-3 rounded-xl shadow-lg border min-w-[320px] max-w-[420px] animate-in slide-in-from-right-5 fade-in duration-300",
+              toast.type === "success" && "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/80 dark:border-emerald-800",
+              toast.type === "error" && "bg-red-50 border-red-200 dark:bg-red-950/80 dark:border-red-800",
+              toast.type === "warning" && "bg-amber-50 border-amber-200 dark:bg-amber-950/80 dark:border-amber-800",
+              toast.type === "info" && "bg-blue-50 border-blue-200 dark:bg-blue-950/80 dark:border-blue-800",
+            )}>
+              <div className={cn(
+                "w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-[10px] font-bold text-white",
+                toast.type === "success" && "bg-emerald-500",
+                toast.type === "error" && "bg-red-500",
+                toast.type === "warning" && "bg-amber-500",
+                toast.type === "info" && "bg-blue-500",
+              )}>
+                {toast.type === "success" ? "\u2713" : toast.type === "error" ? "\u2715" : toast.type === "warning" ? "!" : "i"}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className={cn(
+                  "text-sm font-semibold",
+                  toast.type === "success" && "text-emerald-800 dark:text-emerald-200",
+                  toast.type === "error" && "text-red-800 dark:text-red-200",
+                  toast.type === "warning" && "text-amber-800 dark:text-amber-200",
+                  toast.type === "info" && "text-blue-800 dark:text-blue-200",
+                )}>{toast.title}</p>
+                {toast.message && <p className={cn(
+                  "text-xs mt-0.5",
+                  toast.type === "success" && "text-emerald-600 dark:text-emerald-400",
+                  toast.type === "error" && "text-red-600 dark:text-red-400",
+                  toast.type === "warning" && "text-amber-600 dark:text-amber-400",
+                  toast.type === "info" && "text-blue-600 dark:text-blue-400",
+                )}>{toast.message}</p>}
+              </div>
+              <button onClick={() => dismissToast(toast.id)} className="shrink-0 p-0.5 rounded hover:bg-black/5 dark:hover:bg-white/10 text-muted-foreground">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M4 4l6 6M10 4l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import {
   Building2,
   Plus,
@@ -31,6 +31,9 @@ import {
   Eye,
   Edit,
   Trash2,
+  Bot,
+  CheckCircle2,
+  AlertTriangle,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge, StatusBadge } from "@/components/ui/badge";
@@ -95,22 +98,24 @@ const emptyForm: Record<string, string> = {
   number_of_employees: "", business_area_sqm: "", annual_income_range: "", status: "", notes: "",
 };
 
-function FormInput({ label, name, value, placeholder, required, type, onChange }: { label: string; name: string; value: string; placeholder?: string; required?: boolean; type?: string; onChange: (name: string, value: string) => void }) {
+function FormInput({ label, name, value, placeholder, required, type, error, onChange }: { label: string; name: string; value: string; placeholder?: string; required?: boolean; type?: string; error?: string; onChange: (name: string, value: string) => void }) {
   return (
     <div>
       <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <input type={type || "text"} value={value} onChange={(e) => onChange(name, e.target.value)} placeholder={placeholder} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+      <input type={type || "text"} value={value} onChange={(e) => onChange(name, e.target.value)} placeholder={placeholder} className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", error ? "border-red-500" : "border-border")} />
+      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
     </div>
   );
 }
 
-function FormSelect({ label, name, value, options, required, onChange }: { label: string; name: string; value: string; options: string[]; required?: boolean; onChange: (name: string, value: string) => void }) {
+function FormSelect({ label, name, value, options, required, error, onChange }: { label: string; name: string; value: string; options: string[]; required?: boolean; error?: string; onChange: (name: string, value: string) => void }) {
   return (
     <div>
       <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <select value={value} onChange={(e) => onChange(name, e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+      <select value={value} onChange={(e) => onChange(name, e.target.value)} className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", error ? "border-red-500" : "border-border")}>
         {options.map((o) => <option key={o} value={o}>{o || "\u2014 Select \u2014"}</option>)}
       </select>
+      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
     </div>
   );
 }
@@ -139,11 +144,46 @@ export default function EstablishmentsPage() {
   const [formTab, setFormTab] = useState(0);
   const [form, setForm] = useState<Record<string, string>>(emptyForm);
   const [actionMenu, setActionMenu] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const pageSize = 10;
 
-  const handleFieldChange = (name: string, value: string) => setForm((f) => ({ ...f, [name]: value }));
+  // Toast system
+  interface Toast { id: string; type: "success" | "error" | "warning" | "info"; title: string; message?: string; duration?: number; }
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const addToast = useCallback((toast: Omit<Toast, "id">) => {
+    const id = Date.now().toString();
+    setToasts((prev) => [...prev, { ...toast, id }]);
+  }, []);
+  const dismissToast = useCallback((id: string) => setToasts((prev) => prev.filter((t) => t.id !== id)), []);
 
-  const openCreate = () => { setForm(emptyForm); setFormTab(0); setShowCreate(true); };
+  const handleFieldChange = (name: string, value: string) => {
+    setForm((f) => ({ ...f, [name]: value }));
+    if (formErrors[name]) setFormErrors((prev) => { const next = { ...prev }; delete next[name]; return next; });
+  };
+
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+    if (!form.business_name.trim()) errors.business_name = "Business name is required.";
+    if (!form.business_type.trim()) errors.business_type = "Business type is required.";
+    if (!form.owner_name.trim()) errors.owner_name = "Owner name is required.";
+    if (!form.address.trim()) errors.address = "Address is required.";
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleFormSubmit = () => {
+    if (!validateForm()) return;
+    if (showEdit) {
+      addToast({ type: "success", title: "Establishment Updated", message: "Changes have been saved." });
+    } else {
+      addToast({ type: "success", title: "Establishment Registered", message: "New establishment has been added successfully." });
+    }
+    setShowCreate(false);
+    setShowEdit(false);
+    setFormErrors({});
+  };
+
+  const openCreate = () => { setForm(emptyForm); setFormTab(0); setFormErrors({}); setShowCreate(true); };
   const openEdit = (e: Establishment) => {
     setForm({
       business_name: e.name, business_type: e.business_type, owner_name: e.owner_name, owner_contact: e.owner_contact_number,
@@ -151,6 +191,7 @@ export default function EstablishmentsPage() {
       number_of_employees: String(e.employee_count), business_area_sqm: "", annual_income_range: "", status: e.status.charAt(0).toUpperCase() + e.status.slice(1), notes: "",
     });
     setFormTab(0);
+    setFormErrors({});
     setShowEdit(true);
   };
 
@@ -203,12 +244,18 @@ export default function EstablishmentsPage() {
             <button className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors">
               <Download className="h-4 w-4" /> Export
             </button>
-            <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}>
+            <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>
               <Plus className="h-4 w-4" /> New Establishment
             </button>
           </div>
         }
       />
+
+      {/* Mabini AI Insight */}
+      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-accent-bg/30 border border-accent-primary/20">
+        <Bot className="h-4 w-4 shrink-0" style={{ color: "var(--accent-primary)" }} />
+        <p className="text-[11px] text-muted-foreground"><span className="font-semibold text-foreground">Mabini:</span> 2 business permits expiring within 30 days. 3 establishments missing updated contact info.</p>
+      </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
@@ -267,7 +314,20 @@ export default function EstablishmentsPage() {
             </thead>
             <tbody>
               {paged.length === 0 ? (
-                <tr><td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">No establishments found.</td></tr>
+                <tr><td colSpan={8} className="px-4 py-16 text-center">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                      <Building2 className="w-6 h-6 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">No establishments found</p>
+                      <p className="text-xs text-muted-foreground mt-1">Get started by registering your first business establishment.</p>
+                    </div>
+                    <button onClick={() => openCreate()} className="mt-1 px-4 py-2 text-xs font-semibold rounded-lg text-white transition-all hover:opacity-90" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>
+                      + New Establishment
+                    </button>
+                  </div>
+                </td></tr>
               ) : (
                 paged.map((e) => {
                   const TypeIcon = typeIcons[e.business_type] || Building2;
@@ -378,7 +438,7 @@ export default function EstablishmentsPage() {
         footer={<>
           <ModalButton variant="secondary" onClick={() => { setShowCreate(false); setShowEdit(false); }}>Cancel</ModalButton>
           {formTab > 0 && <ModalButton variant="secondary" onClick={() => setFormTab((t) => t - 1)}>Previous</ModalButton>}
-          {formTab < formTabs.length - 1 ? <ModalButton variant="primary" onClick={() => setFormTab((t) => t + 1)}>Next</ModalButton> : <ModalButton variant="primary" onClick={() => { setShowCreate(false); setShowEdit(false); }}>{showEdit ? "Update" : "Save"}</ModalButton>}
+          {formTab < formTabs.length - 1 ? <ModalButton variant="primary" onClick={() => setFormTab((t) => t + 1)}>Next</ModalButton> : <ModalButton variant="primary" onClick={handleFormSubmit}>{showEdit ? "Update" : "Save"}</ModalButton>}
         </>}>
         <div className="flex border-b border-border mb-6">
           {formTabs.map((tab, i) => (
@@ -387,18 +447,21 @@ export default function EstablishmentsPage() {
         </div>
         {formTab === 0 && (
           <div className="grid grid-cols-2 gap-4">
-            <FormInput label="Business Name" name="business_name" value={form.business_name} placeholder="Enter business name" required onChange={handleFieldChange} />
-            <FormSelect label="Business Type" name="business_type" value={form.business_type} options={formBusinessTypes} required onChange={handleFieldChange} />
-            <FormInput label="Owner Name" name="owner_name" value={form.owner_name} placeholder="Full name of owner" required onChange={handleFieldChange} />
+            <FormInput label="Business Name" name="business_name" value={form.business_name} placeholder="Enter business name" required error={formErrors.business_name} onChange={handleFieldChange} />
+            <FormSelect label="Business Type" name="business_type" value={form.business_type} options={formBusinessTypes} required error={formErrors.business_type} onChange={handleFieldChange} />
+            <FormInput label="Owner Name" name="owner_name" value={form.owner_name} placeholder="Full name of owner" required error={formErrors.owner_name} onChange={handleFieldChange} />
             <FormInput label="Owner Contact" name="owner_contact" value={form.owner_contact} placeholder="09XX XXX XXXX" onChange={handleFieldChange} />
           </div>
         )}
         {formTab === 1 && (
           <div className="grid grid-cols-2 gap-4">
-            <FormInput label="Address" name="address" value={form.address} placeholder="Street address" onChange={handleFieldChange} />
+            <FormInput label="Address" name="address" value={form.address} placeholder="Street address" required error={formErrors.address} onChange={handleFieldChange} />
             <FormSelect label="Purok" name="purok" value={form.purok} options={purokOptions} onChange={handleFieldChange} />
             <FormInput label="Business Permit Number" name="business_permit_number" value={form.business_permit_number} placeholder="BP-XXXX-XXX" onChange={handleFieldChange} />
-            <FormInput label="Permit Expiry" name="permit_expiry" value={form.permit_expiry} type="date" onChange={handleFieldChange} />
+            <div>
+              <FormInput label="Permit Expiry" name="permit_expiry" value={form.permit_expiry} type="date" onChange={handleFieldChange} />
+              <p className="text-[10px] text-muted-foreground mt-1">Business permit must be renewed annually. Set this to the expiration date on the current permit.</p>
+            </div>
             <FormInput label="DTI/SEC Registration" name="dti_registration" value={form.dti_registration} placeholder="DTI-XXX-XXXX" onChange={handleFieldChange} />
           </div>
         )}
@@ -414,10 +477,33 @@ export default function EstablishmentsPage() {
       </Modal>
 
       {/* Delete Confirmation Modal */}
-      <Modal open={showDelete} onClose={() => setShowDelete(false)} title="Confirm Delete" description="This action cannot be undone." size="sm"
-        footer={<><ModalButton variant="secondary" onClick={() => { setShowDelete(false); setViewEstablishment(null); }}>Cancel</ModalButton><ModalButton variant="danger" onClick={() => { setShowDelete(false); setViewEstablishment(null); }}>Delete</ModalButton></>}>
-        <p className="text-sm text-muted-foreground">Are you sure you want to delete <span className="font-medium text-foreground">{viewEstablishment?.name}</span>? This will permanently remove this establishment record.</p>
+      <Modal open={showDelete} onClose={() => setShowDelete(false)} title="Delete Establishment" description="This action cannot be undone." size="sm"
+        footer={<><ModalButton variant="secondary" onClick={() => { setShowDelete(false); setViewEstablishment(null); }}>Cancel</ModalButton><ModalButton variant="danger" onClick={() => { addToast({ type: "success", title: "Establishment Deleted", message: "The record has been permanently removed." }); setShowDelete(false); setViewEstablishment(null); }}>Yes, Delete &quot;{viewEstablishment?.name}&quot;</ModalButton></>}>
+        <p className="text-sm text-muted-foreground">Are you sure you want to permanently delete <span className="font-semibold text-foreground">&quot;{viewEstablishment?.name}&quot;</span> ({viewEstablishment?.establishment_number})? This will remove all associated records including permit history and employee data.</p>
       </Modal>
+
+      {/* Toast Notifications */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
+        {toasts.map((toast) => (
+          <div key={toast.id} className={cn("flex items-start gap-3 px-4 py-3 rounded-xl shadow-lg border min-w-[320px] max-w-[420px] animate-in slide-in-from-right",
+            toast.type === "success" ? "bg-emerald-500/10 border-emerald-500/30" :
+            toast.type === "error" ? "bg-red-500/10 border-red-500/30" :
+            toast.type === "warning" ? "bg-amber-500/10 border-amber-500/30" :
+            "bg-blue-500/10 border-blue-500/30"
+          )}>
+            <div className={cn("w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5",
+              toast.type === "success" ? "text-emerald-500" : toast.type === "error" ? "text-red-500" : toast.type === "warning" ? "text-amber-500" : "text-blue-500"
+            )}>
+              {toast.type === "success" ? <CheckCircle2 className="w-4 h-4" /> : toast.type === "error" ? <X className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-foreground">{toast.title}</p>
+              {toast.message && <p className="text-xs text-muted-foreground mt-0.5">{toast.message}</p>}
+            </div>
+            <button onClick={() => dismissToast(toast.id)} className="text-muted-foreground hover:text-foreground shrink-0"><X className="w-3.5 h-3.5" /></button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

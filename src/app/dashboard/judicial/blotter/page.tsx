@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   Gavel,
   Plus,
@@ -25,12 +26,14 @@ import {
   Trash2,
   Printer,
   RefreshCw,
+  Bot,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge, StatusBadge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/stat-card";
 import { Modal, ModalButton } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
+import { CheckCircle } from "lucide-react";
 
 // ── Types ──
 interface BlotterRecord {
@@ -78,25 +81,27 @@ const emptyForm: Record<string, string> = {
 };
 
 // ── Form Field Components (module-level) ──
-function FormInput({ label, value, onChange, required, type = "text", placeholder = "", disabled = false }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; type?: string; placeholder?: string; disabled?: boolean }) {
+function FormInput({ label, value, onChange, required, type = "text", placeholder = "", disabled = false, error }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; type?: string; placeholder?: string; disabled?: boolean; error?: string }) {
   return (
     <div>
       <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
       <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} disabled={disabled}
-        className={cn("w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", disabled && "opacity-50 cursor-not-allowed")} />
+        className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2", error ? "border-red-500 focus:ring-red-300" : "border-border focus:ring-accent-ring", disabled && "opacity-50 cursor-not-allowed")} />
+      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
     </div>
   );
 }
 
-function FormSelect({ label, value, onChange, options, required }: { label: string; value: string; onChange: (value: string) => void; options: string[]; required?: boolean }) {
+function FormSelect({ label, value, onChange, options, required, error }: { label: string; value: string; onChange: (value: string) => void; options: string[]; required?: boolean; error?: string }) {
   return (
     <div>
       <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
       <select value={value} onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+        className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2", error ? "border-red-500 focus:ring-red-300" : "border-border focus:ring-accent-ring")}>
         <option value="">Select {label}</option>
         {options.map((o) => <option key={o} value={o}>{o}</option>)}
       </select>
+      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
     </div>
   );
 }
@@ -112,6 +117,7 @@ function FormTextarea({ label, value, onChange, required, rows = 3, placeholder 
 }
 
 export default function BlotterPage() {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("All Types");
   const [statusFilter, setStatusFilter] = useState("All Status");
@@ -127,6 +133,7 @@ export default function BlotterPage() {
   const [showEdit, setShowEdit] = useState(false);
   const [formTab, setFormTab] = useState(0);
   const [form, setForm] = useState<Record<string, string>>({ ...emptyForm });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   // Delete confirmation
   const [showDelete, setShowDelete] = useState(false);
@@ -139,6 +146,21 @@ export default function BlotterPage() {
 
   // Action menu
   const [actionMenuOpen, setActionMenuOpen] = useState<string | null>(null);
+
+  // Toast system
+  const [toasts, setToasts] = useState<{ id: number; message: string }[]>([]);
+  const addToast = useCallback((message: string) => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message }]);
+  }, []);
+  const removeToast = useCallback((id: number) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+  useEffect(() => {
+    if (toasts.length === 0) return;
+    const timer = setTimeout(() => { setToasts((prev) => prev.slice(1)); }, 3000);
+    return () => clearTimeout(timer);
+  }, [toasts]);
 
   const filtered = mockBlotters.filter((b) => {
     if (search) {
@@ -164,10 +186,36 @@ export default function BlotterPage() {
   };
 
   // ── Form helpers ──
-  const updateForm = (key: string, value: string) => setForm((prev) => ({ ...prev, [key]: value }));
+  const updateForm = (key: string, value: string) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+    setFormErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+    if (!form.incident_type) errors.incident_type = "Incident type is required";
+    if (!form.incident_date) errors.incident_date = "Incident date is required";
+    if (!form.incident_location) errors.incident_location = "Location is required";
+    if (!form.complainant_name) errors.complainant_name = "Complainant name is required";
+    if (!form.incident_purok) errors.incident_purok = "Purok / Zone is required";
+    setFormErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      // Jump to the tab that contains the first error
+      if (errors.incident_type || errors.incident_date || errors.incident_location || errors.incident_purok) setFormTab(0);
+      else if (errors.complainant_name) setFormTab(1);
+      return false;
+    }
+    return true;
+  };
 
   const openRecordModal = () => {
     setForm({ ...emptyForm });
+    setFormErrors({});
     setFormTab(0);
     setShowCreate(true);
   };
@@ -193,6 +241,7 @@ export default function BlotterPage() {
       witness_names: b.witness_names,
       evidence_notes: b.evidence_notes,
     });
+    setFormErrors({});
     setFormTab(0);
     setShowEdit(true);
     setActionMenuOpen(null);
@@ -232,16 +281,16 @@ export default function BlotterPage() {
       case 0: return (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <FormSelect label="Incident Type" value={form["incident_type"] || ""} onChange={(v) => updateForm("incident_type", v)} options={incidentTypeOptions} required />
+            <FormSelect label="Incident Type" value={form["incident_type"] || ""} onChange={(v) => updateForm("incident_type", v)} options={incidentTypeOptions} required error={formErrors.incident_type} />
             <FormSelect label="Severity" value={form["severity"] || ""} onChange={(v) => updateForm("severity", v)} options={severityOptions} required />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <FormInput label="Date of Incident" value={form["incident_date"] || ""} onChange={(v) => updateForm("incident_date", v)} type="date" required />
+            <FormInput label="Date of Incident" value={form["incident_date"] || ""} onChange={(v) => updateForm("incident_date", v)} type="date" required error={formErrors.incident_date} />
             <FormInput label="Time of Incident" value={form["incident_time"] || ""} onChange={(v) => updateForm("incident_time", v)} type="time" required />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <FormSelect label="Purok / Zone" value={form["incident_purok"] || ""} onChange={(v) => updateForm("incident_purok", v)} options={purokOptions} required />
-            <FormInput label="Street / Address" value={form["incident_location"] || ""} onChange={(v) => updateForm("incident_location", v)} placeholder="e.g. Rizal St. near sari-sari store" required />
+            <FormSelect label="Purok / Zone" value={form["incident_purok"] || ""} onChange={(v) => updateForm("incident_purok", v)} options={purokOptions} required error={formErrors.incident_purok} />
+            <FormInput label="Street / Address" value={form["incident_location"] || ""} onChange={(v) => updateForm("incident_location", v)} placeholder="e.g. Rizal St. near sari-sari store" required error={formErrors.incident_location} />
           </div>
         </div>
       );
@@ -249,7 +298,7 @@ export default function BlotterPage() {
         <div className="space-y-4">
           <h4 className="text-sm font-semibold text-foreground">Complainant Information</h4>
           <div className="grid grid-cols-2 gap-4">
-            <FormInput label="Full Name" value={form["complainant_name"] || ""} onChange={(v) => updateForm("complainant_name", v)} required placeholder="e.g. Maria Dela Cruz" />
+            <FormInput label="Full Name" value={form["complainant_name"] || ""} onChange={(v) => updateForm("complainant_name", v)} required placeholder="e.g. Maria Dela Cruz" error={formErrors.complainant_name} />
             <FormInput label="Contact Number" value={form["complainant_contact"] || ""} onChange={(v) => updateForm("complainant_contact", v)} placeholder="e.g. 0917-123-4567" />
           </div>
           <FormInput label="Address" value={form["complainant_address"] || ""} onChange={(v) => updateForm("complainant_address", v)} placeholder="e.g. Purok Sampaguita, Rizal St." />
@@ -277,7 +326,10 @@ export default function BlotterPage() {
       );
       case 2: return (
         <div className="space-y-4">
-          <FormTextarea label="Incident Narrative" value={form["narrative"] || ""} onChange={(v) => updateForm("narrative", v)} required rows={4} placeholder="Describe the incident in detail. Include what happened, when, where, and how it was reported." />
+          <div>
+            <FormTextarea label="Incident Narrative" value={form["narrative"] || ""} onChange={(v) => updateForm("narrative", v)} required rows={4} placeholder="Describe the incident in detail. Include what happened, when, where, and how it was reported." />
+            <p className="text-[10px] text-muted-foreground mt-1">Include: what happened, when, where, who was involved, and any witnesses.</p>
+          </div>
           <FormTextarea label="Action Taken" value={form["action_taken"] || ""} onChange={(v) => updateForm("action_taken", v)} rows={3} placeholder="e.g. Forwarded to PNP, mediation conducted, parties summoned..." />
           <div className="grid grid-cols-2 gap-4">
             <FormInput label="Recorded By" value={form["recorded_by"] || ""} onChange={(v) => updateForm("recorded_by", v)} required placeholder="e.g. Secretary Santos" />
@@ -301,10 +353,26 @@ export default function BlotterPage() {
         actions={
           <div className="flex items-center gap-2">
             <button className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors"><Download className="h-4 w-4" /> Export</button>
-            <button onClick={openRecordModal} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}><Plus className="h-4 w-4" /> Record Blotter</button>
+            <button onClick={openRecordModal} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}><Plus className="h-4 w-4" /> Record Blotter</button>
           </div>
         }
       />
+
+      {/* Mabini AI Insight */}
+      <div className="flex items-start gap-3 px-4 py-3 rounded-xl border border-accent-primary/20 bg-accent-bg/30">
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: "var(--accent-primary)", opacity: 0.15 }}>
+          <Bot className="w-4 h-4" style={{ color: "var(--accent-primary)" }} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-foreground">Mabini AI Blotter Analysis</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+            2 open cases pending resolution for over 7 days. Theft incidents increased 25% this month compared to last. Purok 3 has the highest incident density.
+          </p>
+        </div>
+        <button onClick={() => router.push("/dashboard/ai")} className="shrink-0 px-3 py-1.5 text-[10px] font-semibold rounded-lg transition-colors hover:opacity-80" style={{ background: "var(--accent-primary)", color: "#fff" }}>
+          Ask Mabini
+        </button>
+      </div>
 
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard label="Total Records" value={mockBlotters.length} icon={<Gavel className="h-5 w-5" />} />
@@ -346,7 +414,16 @@ export default function BlotterPage() {
       {/* Blotter Cards */}
       <div className="space-y-3">
         {paged.length === 0 ? (
-          <div className="p-12 text-center text-muted-foreground rounded-xl border border-border bg-card">No blotter records found.</div>
+          <div className="p-16 text-center rounded-xl border border-border bg-card">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center"><Shield className="w-6 h-6 text-muted-foreground" /></div>
+              <div>
+                <p className="text-sm font-medium text-foreground">No blotter records found</p>
+                <p className="text-xs text-muted-foreground mt-1">All clear! Record new incidents as they are reported to the barangay.</p>
+              </div>
+              <button onClick={() => openRecordModal()} className="mt-1 px-4 py-2 text-xs font-semibold rounded-lg text-white hover:opacity-90" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>+ Record Blotter</button>
+            </div>
+          </div>
         ) : (
           paged.map((b) => (
             <div key={b.id} className="p-5 rounded-xl border bg-card hover:shadow-md transition-all"
@@ -449,7 +526,7 @@ export default function BlotterPage() {
                   Next <ChevronRight className="w-4 h-4 ml-1" />
                 </ModalButton>
               ) : (
-                <ModalButton variant="primary" onClick={closeFormModal}>
+                <ModalButton variant="primary" onClick={() => { if (validateForm()) { addToast(showEdit ? "Blotter Updated" : "Blotter Recorded"); closeFormModal(); } }}>
                   <Save className="w-4 h-4 mr-1" /> {showEdit ? "Update" : "Record Blotter"}
                 </ModalButton>
               )}
@@ -478,7 +555,7 @@ export default function BlotterPage() {
         footer={
           <>
             <ModalButton variant="secondary" onClick={() => { setShowDelete(false); setDeleteTarget(null); }}>Cancel</ModalButton>
-            <ModalButton variant="danger" onClick={() => { setShowDelete(false); setDeleteTarget(null); }}>Delete Record</ModalButton>
+            <ModalButton variant="danger" onClick={() => { addToast("Record Deleted"); setShowDelete(false); setDeleteTarget(null); }}>Delete Record</ModalButton>
           </>
         }>
         {deleteTarget && (
@@ -542,12 +619,23 @@ export default function BlotterPage() {
         )}
       </Modal>
 
+      {/* Toast Notifications */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
+        {toasts.map((t) => (
+          <div key={t.id} className="flex items-center gap-2 px-4 py-3 rounded-lg border border-border bg-card shadow-lg animate-in slide-in-from-bottom-2 fade-in duration-200">
+            <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
+            <span className="text-sm font-medium text-foreground">{t.message}</span>
+            <button onClick={() => removeToast(t.id)} className="ml-2 text-muted-foreground hover:text-foreground"><X className="w-3.5 h-3.5" /></button>
+          </div>
+        ))}
+      </div>
+
       {/* Update Status Modal */}
       <Modal open={showUpdateStatus} onClose={() => { setShowUpdateStatus(false); setUpdateTarget(null); }} title="Update Blotter Status" description={updateTarget?.blotter_number || ""} size="sm"
         footer={
           <>
             <ModalButton variant="secondary" onClick={() => { setShowUpdateStatus(false); setUpdateTarget(null); }}>Cancel</ModalButton>
-            <ModalButton variant="primary" onClick={() => { setShowUpdateStatus(false); setUpdateTarget(null); }}>
+            <ModalButton variant="primary" onClick={() => { addToast("Status Updated"); setShowUpdateStatus(false); setUpdateTarget(null); }}>
               <Save className="w-4 h-4 mr-1" /> Update Status
             </ModalButton>
           </>

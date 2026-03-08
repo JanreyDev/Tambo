@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   Plus,
@@ -17,6 +18,11 @@ import {
   MoreHorizontal,
   Edit,
   Trash2,
+  Bot,
+  CloudRain,
+  X,
+  CheckCircle2,
+  Info,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge, StatusBadge } from "@/components/ui/badge";
@@ -62,22 +68,24 @@ const mockCenters: EvacuationCenter[] = [
 
 const formTabs = ["Event", "Impact", "Response"];
 
-function FormInput({ label, name, value, placeholder, required, type, onChange }: { label: string; name: string; value: string; placeholder?: string; required?: boolean; type?: string; onChange: (name: string, value: string) => void }) {
+function FormInput({ label, name, value, placeholder, required, type, error, onChange }: { label: string; name: string; value: string; placeholder?: string; required?: boolean; type?: string; error?: string; onChange: (name: string, value: string) => void }) {
   return (
     <div>
       <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <input type={type || "text"} value={value} onChange={(e) => onChange(name, e.target.value)} placeholder={placeholder} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+      <input type={type || "text"} value={value} onChange={(e) => onChange(name, e.target.value)} placeholder={placeholder} className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", error ? "border-red-500" : "border-border")} />
+      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
     </div>
   );
 }
 
-function FormSelect({ label, name, value, options, required, onChange }: { label: string; name: string; value: string; options: string[]; required?: boolean; onChange: (name: string, value: string) => void }) {
+function FormSelect({ label, name, value, options, required, error, onChange }: { label: string; name: string; value: string; options: string[]; required?: boolean; error?: string; onChange: (name: string, value: string) => void }) {
   return (
     <div>
       <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <select value={value} onChange={(e) => onChange(name, e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+      <select value={value} onChange={(e) => onChange(name, e.target.value)} className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", error ? "border-red-500" : "border-border")}>
         {options.map((o) => <option key={o} value={o}>{o || "\u2014 Select \u2014"}</option>)}
       </select>
+      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
     </div>
   );
 }
@@ -92,15 +100,56 @@ function FormTextarea({ label, name, value, placeholder, rows, required, onChang
 }
 
 export default function DisasterPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"events" | "centers" | "preparedness">("events");
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [formTab, setFormTab] = useState(0);
   const [form, setForm] = useState<Record<string, string>>({});
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [actionMenu, setActionMenu] = useState<string | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<DisasterEvent | null>(null);
+  const [toasts, setToasts] = useState<{id: string; type: "success"|"error"|"warning"|"info"; title: string; message?: string}[]>([]);
 
-  const handleFieldChange = (name: string, value: string) => setForm((f) => ({ ...f, [name]: value }));
+  const addToast = useCallback((type: "success"|"error"|"warning"|"info", title: string, message?: string) => {
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    setToasts((prev) => [...prev, { id, type, title, message }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
+  }, []);
+
+  const dismissToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  const handleFieldChange = (name: string, value: string) => {
+    setForm((f) => ({ ...f, [name]: value }));
+    setFormErrors((prev) => {
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
+  };
+
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+    if (!form.event_type) errors.event_type = "Event type is required";
+    if (!form.event_name?.trim()) errors.event_name = "Event name is required";
+    if (!form.date_started) errors.date_started = "Date is required";
+    if (!form.severity) errors.severity = "Severity is required";
+    if (!form.status) errors.status = "Status is required";
+    setFormErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      // Jump to the tab containing the first error
+      const eventTabFields = ["event_type", "event_name", "date_started", "severity"];
+      const responseTabFields = ["status"];
+      const errorKeys = Object.keys(errors);
+      if (errorKeys.some((k) => eventTabFields.includes(k))) setFormTab(0);
+      else if (errorKeys.some((k) => responseTabFields.includes(k))) setFormTab(2);
+      return false;
+    }
+    return true;
+  };
 
   const eventIcon = (type: string) => {
     switch (type) {
@@ -115,6 +164,7 @@ export default function DisasterPage() {
 
   const openCreate = () => {
     setForm({});
+    setFormErrors({});
     setFormTab(0);
     setShowCreate(true);
   };
@@ -132,6 +182,7 @@ export default function DisasterPage() {
       status: e.status === "monitoring" ? "Monitoring" : e.status === "resolved" ? "Resolved" : "Active",
       remarks: e.notes,
     });
+    setFormErrors({});
     setFormTab(0);
     setShowEdit(true);
     setActionMenu(null);
@@ -145,11 +196,27 @@ export default function DisasterPage() {
         breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "Operations" }, { label: "Disaster/DRRM" }]}
         actions={
           <div className="flex items-center gap-2">
-            <button className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors"><Download className="h-4 w-4" /> Export Report</button>
-            <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}><Plus className="h-4 w-4" /> Log Event</button>
+            <button onClick={() => addToast("info", "Export started", "Disaster report is being generated.")} className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors"><Download className="h-4 w-4" /> Export Report</button>
+            <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}><Plus className="h-4 w-4" /> Log Event</button>
           </div>
         }
       />
+
+      {/* Mabini AI Insight */}
+      <div className="flex items-start gap-3 px-4 py-3 rounded-xl border border-accent-primary/20 bg-accent-bg/30">
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: "var(--accent-primary)", opacity: 0.15 }}>
+          <Bot className="w-4 h-4" style={{ color: "var(--accent-primary)" }} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-foreground">Mabini AI Disaster Readiness</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+            BDRRMC readiness at 57% (4/7 tasks complete). Typhoon season approaching — verify evacuation center capacity. 1 event still in active monitoring status.
+          </p>
+        </div>
+        <button onClick={() => router.push("/dashboard/ai")} className="shrink-0 px-3 py-1.5 text-[10px] font-semibold rounded-lg transition-colors hover:opacity-80" style={{ background: "var(--accent-primary)", color: "#fff" }}>
+          Ask Mabini
+        </button>
+      </div>
 
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard label="Events This Year" value={mockEvents.length} icon={<AlertTriangle className="h-5 w-5" />} />
@@ -180,7 +247,22 @@ export default function DisasterPage() {
 
       {activeTab === "events" && (
         <div className="space-y-3">
-          {mockEvents.map((e) => (
+          {mockEvents.length === 0 ? (
+            <div className="p-12 rounded-xl border border-border bg-card flex items-center justify-center">
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                  <CloudRain className="w-6 h-6 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground text-center">No disaster incidents recorded</p>
+                  <p className="text-xs text-muted-foreground mt-1 text-center">Record incidents and manage evacuations when disasters occur in the barangay.</p>
+                </div>
+                <button onClick={() => openCreate()} className="mt-1 px-4 py-2 text-xs font-semibold rounded-lg text-white" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>
+                  + Record Incident
+                </button>
+              </div>
+            </div>
+          ) : mockEvents.map((e) => (
             <div key={e.id} className={cn("p-5 rounded-xl border bg-card", e.status === "monitoring" && "border-amber-300 dark:border-amber-700")}>
               <div className="flex items-start gap-4">
                 <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-muted/50 shrink-0">{eventIcon(e.event_type)}</div>
@@ -203,7 +285,7 @@ export default function DisasterPage() {
                   {actionMenu === e.id && (
                     <div className="absolute right-0 top-8 z-20 w-44 bg-card border border-border rounded-lg shadow-lg py-1">
                       <button onClick={() => openEdit(e)} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Edit className="h-3.5 w-3.5" /> Edit</button>
-                      <button onClick={() => { setShowDelete(true); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-muted flex items-center gap-2"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
+                      <button onClick={() => { setSelectedEvent(e); setShowDelete(true); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-muted flex items-center gap-2"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
                     </div>
                   )}
                 </div>
@@ -293,7 +375,7 @@ export default function DisasterPage() {
         footer={<>
           <ModalButton variant="secondary" onClick={() => { setShowCreate(false); setShowEdit(false); }}>Cancel</ModalButton>
           {formTab > 0 && <ModalButton variant="secondary" onClick={() => setFormTab((t) => t - 1)}>Previous</ModalButton>}
-          {formTab < formTabs.length - 1 ? <ModalButton variant="primary" onClick={() => setFormTab((t) => t + 1)}>Next</ModalButton> : <ModalButton variant="primary">{showEdit ? "Update" : "Save"}</ModalButton>}
+          {formTab < formTabs.length - 1 ? <ModalButton variant="primary" onClick={() => setFormTab((t) => t + 1)}>Next</ModalButton> : <ModalButton variant="primary" onClick={() => { if (validateForm()) { addToast("success", showEdit ? "Event updated" : "Event recorded", showEdit ? `"${form.event_name}" has been updated.` : `"${form.event_name}" has been logged.`); setShowCreate(false); setShowEdit(false); } }}>{showEdit ? "Update" : "Save"}</ModalButton>}
         </>}>
         <div className="flex border-b border-border mb-6">
           {formTabs.map((tab, i) => (
@@ -302,16 +384,19 @@ export default function DisasterPage() {
         </div>
         {formTab === 0 && (
           <div className="grid grid-cols-2 gap-4">
-            <FormSelect label="Event Type" name="event_type" value={form.event_type || ""} options={["", "Typhoon", "Flood", "Earthquake", "Fire", "Landslide", "Volcanic Activity", "Drought", "Epidemic", "Others"]} onChange={handleFieldChange} />
-            <FormInput label="Event Name" name="event_name" value={form.event_name || ""} placeholder="e.g. Typhoon Aghon" required onChange={handleFieldChange} />
-            <FormInput label="Date Started" name="date_started" value={form.date_started || ""} type="date" onChange={handleFieldChange} />
+            <FormSelect label="Event Type" name="event_type" value={form.event_type || ""} options={["", "Typhoon", "Flood", "Earthquake", "Fire", "Landslide", "Volcanic Activity", "Drought", "Epidemic", "Others"]} required error={formErrors.event_type} onChange={handleFieldChange} />
+            <FormInput label="Event Name" name="event_name" value={form.event_name || ""} placeholder="e.g. Typhoon Aghon" required error={formErrors.event_name} onChange={handleFieldChange} />
+            <FormInput label="Date Started" name="date_started" value={form.date_started || ""} type="date" required error={formErrors.date_started} onChange={handleFieldChange} />
             <FormInput label="Date Ended" name="date_ended" value={form.date_ended || ""} type="date" onChange={handleFieldChange} />
-            <FormSelect label="Severity" name="severity" value={form.severity || ""} options={["", "Level 1 - Minor", "Level 2 - Moderate", "Level 3 - Major", "Level 4 - Catastrophic"]} onChange={handleFieldChange} />
+            <FormSelect label="Severity" name="severity" value={form.severity || ""} options={["", "Level 1 - Minor", "Level 2 - Moderate", "Level 3 - Major", "Level 4 - Catastrophic"]} required error={formErrors.severity} onChange={handleFieldChange} />
           </div>
         )}
         {formTab === 1 && (
           <div className="grid grid-cols-2 gap-4">
-            <FormInput label="Affected Families" name="affected_families" value={form.affected_families || ""} placeholder="e.g. 45" type="number" onChange={handleFieldChange} />
+            <div>
+              <FormInput label="Affected Families" name="affected_families" value={form.affected_families || ""} placeholder="e.g. 45" type="number" onChange={handleFieldChange} />
+              <p className="text-[10px] text-muted-foreground mt-1">Count each household as one family. Include displaced and partially affected.</p>
+            </div>
             <FormInput label="Affected Individuals" name="affected_individuals" value={form.affected_individuals || ""} placeholder="e.g. 180" type="number" onChange={handleFieldChange} />
             <FormInput label="Casualties" name="casualties" value={form.casualties || ""} placeholder="0" type="number" onChange={handleFieldChange} />
             <FormInput label="Injured" name="injured" value={form.injured || ""} placeholder="0" type="number" onChange={handleFieldChange} />
@@ -323,20 +408,64 @@ export default function DisasterPage() {
         )}
         {formTab === 2 && (
           <div className="grid grid-cols-2 gap-4">
-            <FormInput label="Evacuation Center" name="evacuation_center" value={form.evacuation_center || ""} placeholder="e.g. Barangay Covered Court" onChange={handleFieldChange} />
+            <div>
+              <FormInput label="Evacuation Center" name="evacuation_center" value={form.evacuation_center || ""} placeholder="e.g. Barangay Covered Court" onChange={handleFieldChange} />
+              <p className="text-[10px] text-muted-foreground mt-1">Designated BDRRMC evacuation centers: schools, covered courts, barangay hall.</p>
+            </div>
             <FormInput label="Relief Distributed" name="relief_distributed" value={form.relief_distributed || ""} placeholder="e.g. Food packs, water" onChange={handleFieldChange} />
             <FormInput label="Responding Agencies" name="responding_agencies" value={form.responding_agencies || ""} placeholder="e.g. BFP, PNP, CDRRMO" onChange={handleFieldChange} />
-            <FormSelect label="Status" name="status" value={form.status || ""} options={["", "Active", "Monitoring", "Resolved", "Post-Recovery"]} onChange={handleFieldChange} />
+            <FormSelect label="Status" name="status" value={form.status || ""} options={["", "Active", "Monitoring", "Resolved", "Post-Recovery"]} required error={formErrors.status} onChange={handleFieldChange} />
             <FormTextarea label="Remarks" name="remarks" value={form.remarks || ""} placeholder="Additional notes about the event..." onChange={handleFieldChange} />
           </div>
         )}
       </Modal>
 
       {/* Delete Confirmation Modal */}
-      <Modal open={showDelete} onClose={() => setShowDelete(false)} title="Confirm Delete" description="This action cannot be undone." size="sm"
-        footer={<><ModalButton variant="secondary" onClick={() => setShowDelete(false)}>Cancel</ModalButton><ModalButton variant="danger" onClick={() => setShowDelete(false)}>Delete</ModalButton></>}>
-        <p className="text-sm text-muted-foreground">Are you sure you want to delete this disaster event record?</p>
+      <Modal open={showDelete} onClose={() => { setShowDelete(false); setSelectedEvent(null); }} title="Confirm Delete" description="This action cannot be undone." size="sm"
+        footer={<><ModalButton variant="secondary" onClick={() => { setShowDelete(false); setSelectedEvent(null); }}>Cancel</ModalButton><ModalButton variant="danger" onClick={() => { addToast("success", "Event deleted", `"${selectedEvent?.event_name}" has been removed.`); setShowDelete(false); setSelectedEvent(null); }}>Delete</ModalButton></>}>
+        <p className="text-sm text-muted-foreground">
+          Are you sure you want to delete <span className="font-semibold text-foreground">{selectedEvent?.event_name}</span> ({selectedEvent?.event_type})? This disaster event record will be permanently removed.
+        </p>
       </Modal>
+
+      {/* Toast Notifications */}
+      {toasts.length > 0 && (
+        <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 max-w-sm">
+          {toasts.map((toast) => (
+            <div key={toast.id} className={cn(
+              "flex items-start gap-3 px-4 py-3 rounded-xl border shadow-lg animate-in slide-in-from-right-5 fade-in duration-300",
+              toast.type === "success" && "bg-emerald-50 dark:bg-emerald-950/80 border-emerald-200 dark:border-emerald-800",
+              toast.type === "error" && "bg-red-50 dark:bg-red-950/80 border-red-200 dark:border-red-800",
+              toast.type === "warning" && "bg-amber-50 dark:bg-amber-950/80 border-amber-200 dark:border-amber-800",
+              toast.type === "info" && "bg-blue-50 dark:bg-blue-950/80 border-blue-200 dark:border-blue-800",
+            )}>
+              <div className="shrink-0 mt-0.5">
+                {toast.type === "success" && <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />}
+                {toast.type === "error" && <AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400" />}
+                {toast.type === "warning" && <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400" />}
+                {toast.type === "info" && <Info className="w-4 h-4 text-blue-600 dark:text-blue-400" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className={cn("text-sm font-semibold",
+                  toast.type === "success" && "text-emerald-800 dark:text-emerald-200",
+                  toast.type === "error" && "text-red-800 dark:text-red-200",
+                  toast.type === "warning" && "text-amber-800 dark:text-amber-200",
+                  toast.type === "info" && "text-blue-800 dark:text-blue-200",
+                )}>{toast.title}</p>
+                {toast.message && <p className={cn("text-xs mt-0.5",
+                  toast.type === "success" && "text-emerald-700 dark:text-emerald-300",
+                  toast.type === "error" && "text-red-700 dark:text-red-300",
+                  toast.type === "warning" && "text-amber-700 dark:text-amber-300",
+                  toast.type === "info" && "text-blue-700 dark:text-blue-300",
+                )}>{toast.message}</p>}
+              </div>
+              <button onClick={() => dismissToast(toast.id)} className="shrink-0 p-0.5 rounded hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
+                <X className="w-3.5 h-3.5 text-muted-foreground" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

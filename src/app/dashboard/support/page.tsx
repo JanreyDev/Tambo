@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   MessageCircle,
   Plus,
@@ -15,6 +16,8 @@ import {
   MoreHorizontal,
   Eye,
   Trash2,
+  Bot,
+  Headphones,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge, StatusBadge } from "@/components/ui/badge";
@@ -69,42 +72,55 @@ const categories = ["All", "Document Issuance", "Settings", "Data Sync", "Featur
 const statusOptions = ["All Status", "Open", "Resolved", "Closed"];
 const priorityOptions = ["Normal", "High", "Low"];
 
-function SupportInput({ label, name, value, placeholder, required, onChange }: { label: string; name: string; value: string; placeholder?: string; required?: boolean; onChange: (name: string, value: string) => void }) {
+function SupportInput({ label, name, value, placeholder, required, error, onChange }: { label: string; name: string; value: string; placeholder?: string; required?: boolean; error?: string; onChange: (name: string, value: string) => void }) {
   return (
     <div>
       <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
       <input type="text" value={value} onChange={(e) => onChange(name, e.target.value)} placeholder={placeholder}
-        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+        className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2", error ? "border-red-500 focus:ring-red-300" : "border-border focus:ring-accent-ring")} />
+      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
     </div>
   );
 }
 
-function SupportSelect({ label, name, value, options, required, onChange }: { label: string; name: string; value: string; options: string[]; required?: boolean; onChange: (name: string, value: string) => void }) {
+function SupportSelect({ label, name, value, options, required, error, onChange }: { label: string; name: string; value: string; options: string[]; required?: boolean; error?: string; onChange: (name: string, value: string) => void }) {
   return (
     <div>
       <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
       <select value={value} onChange={(e) => onChange(name, e.target.value)}
-        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+        className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2", error ? "border-red-500 focus:ring-red-300" : "border-border focus:ring-accent-ring")}>
         {options.map((o) => <option key={o} value={o}>{o || "-- Select --"}</option>)}
       </select>
+      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
     </div>
   );
 }
 
 export default function SupportPage() {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All Status");
   const [showFilters, setShowFilters] = useState(false);
   const [viewTicket, setViewTicket] = useState<Ticket | null>(null);
   const [replyText, setReplyText] = useState("");
+  const [replyError, setReplyError] = useState("");
   const [page, setPage] = useState(1);
   const [showCreate, setShowCreate] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [formTab, setFormTab] = useState(0);
   const [form, setForm] = useState<Record<string, string>>({ subject: "", category: "", priority: "Normal", description: "" });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [actionMenu, setActionMenu] = useState<string | null>(null);
   const pageSize = 10;
+
+  // Toast system
+  const [toasts, setToasts] = useState<{ id: number; message: string }[]>([]);
+  const showToast = useCallback((message: string) => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3500);
+  }, []);
 
   const filtered = mockTickets.filter((t) => {
     if (search) {
@@ -129,7 +145,20 @@ export default function SupportPage() {
 
   const formTabs = ["Ticket Info", "Details"];
 
-  const handleFormFieldChange = (name: string, value: string) => setForm((f) => ({ ...f, [name]: value }));
+  const handleFormFieldChange = (name: string, value: string) => {
+    setForm((f) => ({ ...f, [name]: value }));
+    setFormErrors((prev) => { const next = { ...prev }; delete next[name]; return next; });
+  };
+
+  const validateTicketForm = (): boolean => {
+    const errors: Record<string, string> = {};
+    if (!form.subject.trim()) errors.subject = "Subject is required";
+    if (!form.category) errors.category = "Category is required";
+    if (!form.description.trim()) errors.description = "Description is required";
+    else if (form.description.trim().length < 10) errors.description = "Description must be at least 10 characters";
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   return (
     <div className="space-y-6">
@@ -138,10 +167,26 @@ export default function SupportPage() {
         description="Get help from PrimeX support team"
         breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "Tools" }, { label: "Support" }]}
         actions={
-          <button onClick={() => { setForm({ subject: "", category: "", priority: "Normal", description: "" }); setFormTab(0); setShowCreate(true); }}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}><Plus className="h-4 w-4" /> New Ticket</button>
+          <button onClick={() => { setForm({ subject: "", category: "", priority: "Normal", description: "" }); setFormErrors({}); setFormTab(0); setShowCreate(true); }}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}><Plus className="h-4 w-4" /> New Ticket</button>
         }
       />
+
+      {/* Mabini AI Insight */}
+      <div className="flex items-start gap-3 px-4 py-3 rounded-xl border border-accent-primary/20 bg-accent-bg/30">
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: "var(--accent-primary)", opacity: 0.15 }}>
+          <Bot className="w-4 h-4" style={{ color: "var(--accent-primary)" }} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-foreground">Mabini AI Support Summary</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+            2 open tickets awaiting response. Average resolution time is 4.2 hours. Most common issue this week: document issuance errors. 1 high-priority ticket unresolved for 48+ hours.
+          </p>
+        </div>
+        <button onClick={() => router.push("/dashboard/ai")} className="shrink-0 px-3 py-1.5 text-[10px] font-semibold rounded-lg transition-colors hover:opacity-80" style={{ background: "var(--accent-primary)", color: "#fff" }}>
+          Ask Mabini
+        </button>
+      </div>
 
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard label="Total Tickets" value={mockTickets.length} icon={<MessageCircle className="h-5 w-5" />} />
@@ -183,7 +228,13 @@ export default function SupportPage() {
       {/* Ticket List */}
       <div className="space-y-2">
         {paged.length === 0 ? (
-          <div className="p-12 text-center text-muted-foreground rounded-xl border border-border bg-card">No tickets found.</div>
+          <div className="p-12 text-center rounded-xl border border-border bg-card flex flex-col items-center gap-3">
+            <Headphones className="h-10 w-10 text-muted-foreground/50" />
+            <div>
+              <p className="text-sm font-medium text-foreground">No support tickets</p>
+              <p className="text-xs text-muted-foreground mt-1">Need help? Create a ticket and our team will respond within 24 hours.</p>
+            </div>
+          </div>
         ) : (
           paged.map((t) => (
             <div key={t.id} className="p-4 rounded-xl border border-border bg-card hover:shadow-md transition-all cursor-pointer" onClick={() => setViewTicket(t)}>
@@ -208,7 +259,7 @@ export default function SupportPage() {
                     {actionMenu === t.id && (
                       <div className="absolute right-0 top-8 z-20 w-44 bg-card border border-border rounded-lg shadow-lg py-1">
                         <button onClick={() => { setViewTicket(t); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Eye className="h-3.5 w-3.5" /> View</button>
-                        {t.status === "open" && <button onClick={() => setActionMenu(null)} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><CheckCircle2 className="h-3.5 w-3.5" /> Mark Resolved</button>}
+                        {t.status === "open" && <button onClick={() => { showToast("Ticket Resolved"); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><CheckCircle2 className="h-3.5 w-3.5" /> Mark Resolved</button>}
                         <button onClick={() => { setViewTicket(t); setShowDelete(true); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-muted flex items-center gap-2"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
                       </div>
                     )}
@@ -226,8 +277,14 @@ export default function SupportPage() {
           <ModalButton variant="secondary" onClick={() => setShowCreate(false)}>Cancel</ModalButton>
           {formTab > 0 && <ModalButton variant="secondary" onClick={() => setFormTab(t => t - 1)}>Previous</ModalButton>}
           {formTab < formTabs.length - 1
-            ? <ModalButton variant="primary" onClick={() => setFormTab(t => t + 1)}>Next</ModalButton>
-            : <ModalButton variant="primary" onClick={() => setShowCreate(false)}>Submit Ticket</ModalButton>}
+            ? <ModalButton variant="primary" onClick={() => {
+                const errors: Record<string, string> = {};
+                if (!form.subject.trim()) errors.subject = "Subject is required";
+                if (!form.category) errors.category = "Category is required";
+                setFormErrors(errors);
+                if (Object.keys(errors).length === 0) setFormTab(t => t + 1);
+              }}>Next</ModalButton>
+            : <ModalButton variant="primary" onClick={() => { if (validateTicketForm()) { showToast("Ticket Submitted"); setShowCreate(false); } }}>Submit Ticket</ModalButton>}
         </>}>
         <div className="flex border-b border-border mb-6">
           {formTabs.map((tab, i) => (
@@ -241,9 +298,9 @@ export default function SupportPage() {
         {formTab === 0 && (
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
-              <SupportInput label="Subject" name="subject" value={form.subject} placeholder="Brief description of your issue" required onChange={handleFormFieldChange} />
+              <SupportInput label="Subject" name="subject" value={form.subject} placeholder="Brief description of your issue" required error={formErrors.subject} onChange={handleFormFieldChange} />
             </div>
-            <SupportSelect label="Category" name="category" value={form.category} options={["", "Document Issuance", "Settings", "Data Sync", "Feature Request", "Bug Report"]} required onChange={handleFormFieldChange} />
+            <SupportSelect label="Category" name="category" value={form.category} options={["", "Document Issuance", "Settings", "Data Sync", "Feature Request", "Bug Report"]} required error={formErrors.category} onChange={handleFormFieldChange} />
             <SupportSelect label="Priority" name="priority" value={form.priority} options={priorityOptions} required onChange={handleFormFieldChange} />
           </div>
         )}
@@ -251,9 +308,10 @@ export default function SupportPage() {
           <div className="space-y-4">
             <div>
               <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Describe Your Issue<span className="text-red-500 ml-0.5">*</span></label>
-              <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              <textarea value={form.description} onChange={(e) => { setForm((f) => ({ ...f, description: e.target.value })); setFormErrors((prev) => { const next = { ...prev }; delete next.description; return next; }); }}
                 placeholder="Please describe the issue in detail. Include steps to reproduce if applicable."
-                rows={5} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
+                rows={5} className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 resize-none", formErrors.description ? "border-red-500 focus:ring-red-300" : "border-border focus:ring-accent-ring")} />
+              {formErrors.description && <p className="text-[11px] text-red-500 mt-1">{formErrors.description}</p>}
             </div>
             <div className="p-4 rounded-lg bg-muted/50 border border-border">
               <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Ticket Summary</p>
@@ -268,13 +326,16 @@ export default function SupportPage() {
       </Modal>
 
       {/* View Ticket Modal */}
-      <Modal open={!!viewTicket && !showDelete} onClose={() => { setViewTicket(null); setReplyText(""); }} title={viewTicket?.ticket_number || ""} description={viewTicket?.subject || ""} size="lg"
+      <Modal open={!!viewTicket && !showDelete} onClose={() => { setViewTicket(null); setReplyText(""); setReplyError(""); }} title={viewTicket?.ticket_number || ""} description={viewTicket?.subject || ""} size="lg"
         footer={
           viewTicket?.status === "open" ? (
-            <div className="flex items-center gap-2 w-full">
-              <input type="text" value={replyText} onChange={(e) => setReplyText(e.target.value)} placeholder="Type your reply..."
-                className="flex-1 px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
-              <ModalButton variant="primary"><Send className="h-4 w-4" /></ModalButton>
+            <div className="w-full space-y-1">
+              <div className="flex items-center gap-2 w-full">
+                <input type="text" value={replyText} onChange={(e) => { setReplyText(e.target.value); setReplyError(""); }} placeholder="Type your reply..."
+                  className={cn("flex-1 px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2", replyError ? "border-red-500 focus:ring-red-300" : "border-border focus:ring-accent-ring")} />
+                <ModalButton variant="primary" onClick={() => { if (!replyText.trim()) { setReplyError("Reply cannot be empty"); return; } showToast("Reply Sent"); setReplyText(""); setReplyError(""); }}><Send className="h-4 w-4" /></ModalButton>
+              </div>
+              {replyError && <p className="text-[11px] text-red-500">{replyError}</p>}
             </div>
           ) : (
             <ModalButton variant="secondary" onClick={() => setViewTicket(null)}>Close</ModalButton>
@@ -305,9 +366,19 @@ export default function SupportPage() {
 
       {/* Delete Confirmation */}
       <Modal open={showDelete} onClose={() => setShowDelete(false)} title="Delete Ticket" description="This action cannot be undone." size="sm"
-        footer={<><ModalButton variant="secondary" onClick={() => { setShowDelete(false); setViewTicket(null); }}>Cancel</ModalButton><ModalButton variant="danger" onClick={() => { setShowDelete(false); setViewTicket(null); }}>Delete</ModalButton></>}>
-        <p className="text-sm text-muted-foreground">Are you sure you want to delete ticket <span className="font-medium text-foreground">{viewTicket?.ticket_number}</span>?</p>
+        footer={<><ModalButton variant="secondary" onClick={() => { setShowDelete(false); setViewTicket(null); }}>Cancel</ModalButton><ModalButton variant="danger" onClick={() => { showToast("Ticket Deleted"); setShowDelete(false); setViewTicket(null); }}>Delete</ModalButton></>}>
+        <p className="text-sm text-muted-foreground">Are you sure you want to delete ticket <span className="font-medium text-foreground">{viewTicket?.ticket_number}</span> &mdash; <span className="font-medium text-foreground">{viewTicket?.subject}</span>?</p>
       </Modal>
+
+      {/* Toast Notifications */}
+      <div className="fixed bottom-6 right-6 z-[100] flex flex-col gap-2">
+        {toasts.map((t) => (
+          <div key={t.id} className="flex items-center gap-2 px-4 py-3 rounded-lg bg-foreground text-background text-sm font-medium shadow-lg animate-in slide-in-from-bottom-2 fade-in duration-300">
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
+            {t.message}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

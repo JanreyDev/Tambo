@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useSyncExternalStore } from "react";
+import { useState, useEffect, useMemo, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useAuth, isApiError } from "@/contexts/auth-context";
@@ -27,6 +27,7 @@ import {
   Gavel,
   AlertTriangle,
   XCircle,
+  Sparkles,
 } from "lucide-react";
 import { APP_VERSION_LABEL } from "@/lib/version";
 import { useToast } from "@/components/ui/toast";
@@ -163,6 +164,15 @@ export default function LoginPage() {
 
   // Check if the form has both fields filled
   const isFormValid = username.trim().length > 0 && password.trim().length > 0;
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  // Time-of-day aware greeting (Principle 4: Proactive)
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 18) return "Good afternoon";
+    return "Good evening";
+  }, []);
 
   useEffect(() => {
     const ua = navigator.userAgent;
@@ -221,7 +231,17 @@ export default function LoginPage() {
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    if (!isFormValid) return;
+
+    // Tanga Proof: field-level validation with clear error messages
+    const errors: Record<string, string> = {};
+    if (!username.trim()) errors.username = "Username is required";
+    if (!password.trim()) errors.password = "Password is required";
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      toast("warning", "Missing fields", "Please fill in all required fields before signing in.");
+      return;
+    }
+    setFormErrors({});
     setIsSubmitting(true);
 
     try {
@@ -425,44 +445,67 @@ export default function LoginPage() {
             </div>
           ) : (
             <>
-              {/* Header */}
-              <div className="mb-8">
-                <h2 className="text-2xl font-bold text-foreground">Welcome back</h2>
+              {/* Header — time-of-day greeting (Principle 4: Proactive) */}
+              <div className="mb-5">
+                <h2 className="text-2xl font-bold text-foreground">{greeting}</h2>
                 <p className="text-muted-foreground text-sm mt-1.5">Sign in to your barangay dashboard</p>
               </div>
 
+              {/* Mabini AI Tip (Principle 1: AI First) */}
+              <div className="mb-6 flex items-start gap-3 px-3.5 py-3 rounded-xl bg-accent-bg/30 border border-accent-primary/20">
+                <div className="w-7 h-7 rounded-lg bg-accent-primary/15 flex items-center justify-center shrink-0 mt-0.5">
+                  <Sparkles className="w-3.5 h-3.5 text-accent-primary" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold text-accent-primary">Mabini AI</p>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5">
+                    Your AI assistant is ready. After signing in, ask Mabini anything about your barangay data, reports, or operations.
+                  </p>
+                </div>
+              </div>
+
               {/* Login Form */}
-              <form onSubmit={handleLogin} className="space-y-4">
+              <form onSubmit={handleLogin} noValidate className="space-y-4">
                 {/* Username */}
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1.5">
-                    Username
+                    Username <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    onChange={(e) => { setUsername(e.target.value); if (formErrors.username) setFormErrors(prev => { const { username: _, ...rest } = prev; return rest; }); }}
                     placeholder="Enter your username"
-                    required
                     autoComplete="username"
-                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                    className={`w-full px-4 py-2.5 rounded-xl border bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 transition-all ${
+                      formErrors.username
+                        ? "border-red-500 focus:ring-red-500/20 focus:border-red-500"
+                        : "border-border focus:ring-blue-500/20 focus:border-blue-500"
+                    }`}
                   />
+                  {formErrors.username && (
+                    <p className="text-[11px] text-red-500 mt-1">{formErrors.username}</p>
+                  )}
+                  <p className="text-[10px] text-muted-foreground mt-1">Assigned by your barangay administrator</p>
                 </div>
 
                 {/* Password */}
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1.5">
-                    Password
+                    Password <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <input
                       type={showPassword ? "text" : "password"}
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={(e) => { setPassword(e.target.value); if (formErrors.password) setFormErrors(prev => { const { password: _, ...rest } = prev; return rest; }); }}
                       placeholder="Enter your password"
-                      required
                       autoComplete="current-password"
-                      className="w-full px-4 pr-10 py-2.5 rounded-xl border border-border bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                      className={`w-full px-4 pr-10 py-2.5 rounded-xl border bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 transition-all ${
+                        formErrors.password
+                          ? "border-red-500 focus:ring-red-500/20 focus:border-red-500"
+                          : "border-border focus:ring-blue-500/20 focus:border-blue-500"
+                      }`}
                     />
                     <button
                       type="button"
@@ -472,6 +515,10 @@ export default function LoginPage() {
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
+                  {formErrors.password && (
+                    <p className="text-[11px] text-red-500 mt-1">{formErrors.password}</p>
+                  )}
+                  <p className="text-[10px] text-muted-foreground mt-1">Case-sensitive. Contact admin if forgotten.</p>
                 </div>
 
                 {/* Remember + Forgot */}
@@ -490,11 +537,12 @@ export default function LoginPage() {
                   </a>
                 </div>
 
-                {/* Submit — disabled until both fields are filled */}
+                {/* Submit — accent gradient (Principle 3: Modern & Minimalist) */}
                 <button
                   type="submit"
-                  disabled={isSubmitting || !isFormValid}
-                  className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium text-sm hover:from-blue-700 hover:to-blue-800 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 shadow-lg shadow-blue-600/20 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100 flex items-center justify-center gap-2"
+                  disabled={isSubmitting}
+                  className="w-full py-3 rounded-xl text-white font-medium text-sm transition-all focus:outline-none focus:ring-2 focus:ring-accent-primary/50 focus:ring-offset-2 shadow-lg shadow-accent-primary/20 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100 flex items-center justify-center gap-2"
+                  style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}
                 >
                   {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
                   {isSubmitting ? "Signing in..." : "Sign in"}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Scale,
   Plus,
@@ -23,7 +23,10 @@ import {
   Trash2,
   Printer,
   Save,
+  Bot,
+  CheckCircle,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge, StatusBadge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/stat-card";
@@ -74,25 +77,27 @@ const emptyForm: Record<string, string> = {
 };
 
 // ── Form Field Components (module-level) ──
-function FormInput({ label, value, onChange, required, type = "text", placeholder = "" }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; type?: string; placeholder?: string }) {
+function FormInput({ label, value, onChange, required, type = "text", placeholder = "", error }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; type?: string; placeholder?: string; error?: string }) {
   return (
     <div>
       <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
       <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+        className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", error ? "border-red-500" : "border-border")} />
+      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
     </div>
   );
 }
 
-function FormSelect({ label, value, onChange, options, required }: { label: string; value: string; onChange: (value: string) => void; options: string[]; required?: boolean }) {
+function FormSelect({ label, value, onChange, options, required, error }: { label: string; value: string; onChange: (value: string) => void; options: string[]; required?: boolean; error?: string }) {
   return (
     <div>
       <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
       <select value={value} onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+        className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", error ? "border-red-500" : "border-border")}>
         <option value="">Select {label}</option>
         {options.map((o) => <option key={o} value={o}>{o}</option>)}
       </select>
+      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
     </div>
   );
 }
@@ -108,6 +113,7 @@ function FormTextarea({ label, value, onChange, required, rows = 3, placeholder 
 }
 
 export default function KpCasesPage() {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("All Types");
   const [statusFilter, setStatusFilter] = useState("All Status");
@@ -125,7 +131,23 @@ export default function KpCasesPage() {
   const [hearingForm, setHearingForm] = useState<Record<string, string>>({ date: "", time: "", venue: "", notes: "" });
   const [showUpdateStatus, setShowUpdateStatus] = useState(false);
   const [statusForm, setStatusForm] = useState<Record<string, string>>({ status: "", remarks: "" });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const pageSize = 10;
+
+  // Toast system
+  const [toasts, setToasts] = useState<{ id: number; message: string }[]>([]);
+  const addToast = useCallback((message: string) => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message }]);
+  }, []);
+  const removeToast = useCallback((id: number) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+  useEffect(() => {
+    if (toasts.length === 0) return;
+    const timer = setTimeout(() => { setToasts((prev) => prev.slice(1)); }, 3000);
+    return () => clearTimeout(timer);
+  }, [toasts]);
 
   const filtered = mockCases.filter((c) => {
     if (search) {
@@ -147,8 +169,27 @@ export default function KpCasesPage() {
   const settledCount = mockCases.filter((c) => c.status === "settled").length;
   const upcomingHearings = mockCases.filter((c) => c.next_hearing && new Date(c.next_hearing) >= new Date()).length;
 
-  const openFileCase = () => { setForm({ ...emptyForm }); setFormTab(0); setShowFileCase(true); };
-  const updateForm = (key: string, value: string) => setForm((prev) => ({ ...prev, [key]: value }));
+  const openFileCase = () => { setForm({ ...emptyForm }); setFormTab(0); setFormErrors({}); setShowFileCase(true); };
+  const updateForm = (key: string, value: string) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+    setFormErrors((prev) => { const next = { ...prev }; delete next[key]; return next; });
+  };
+
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+    if (!form.case_type?.trim()) errors.case_type = "Case type is required";
+    if (!form.date_filed?.trim()) errors.date_filed = "Filing date is required";
+    if (!form.complainant_names?.trim()) errors.complainant_names = "Complainant name is required";
+    if (!form.respondent_names?.trim()) errors.respondent_names = "Respondent name is required";
+    setFormErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      // Navigate to the tab that has the first error
+      if (errors.case_type || errors.date_filed) setFormTab(0);
+      else if (errors.complainant_names || errors.respondent_names) setFormTab(1);
+      return false;
+    }
+    return true;
+  };
 
   const openEditCase = (c: KpCase) => {
     setForm({
@@ -168,6 +209,7 @@ export default function KpCasesPage() {
       notes: c.remarks,
     });
     setFormTab(0);
+    setFormErrors({});
     setShowEdit(true);
     setActionMenu(null);
   };
@@ -201,8 +243,8 @@ export default function KpCasesPage() {
         <div className="space-y-4">
           <FormInput label="Case Title" value={form["title"] || ""} onChange={(v) => updateForm("title", v)} required placeholder="e.g. Boundary Dispute - Lot 45/46" />
           <div className="grid grid-cols-2 gap-4">
-            <FormSelect label="Case Type" value={form["case_type"] || ""} onChange={(v) => updateForm("case_type", v)} options={caseTypeOptions} required />
-            <FormInput label="Date Filed" value={form["date_filed"] || ""} onChange={(v) => updateForm("date_filed", v)} type="date" required />
+            <FormSelect label="Case Type" value={form["case_type"] || ""} onChange={(v) => updateForm("case_type", v)} options={caseTypeOptions} required error={formErrors.case_type} />
+            <FormInput label="Date Filed" value={form["date_filed"] || ""} onChange={(v) => updateForm("date_filed", v)} type="date" required error={formErrors.date_filed} />
           </div>
         </div>
       );
@@ -210,7 +252,7 @@ export default function KpCasesPage() {
         <div className="space-y-4">
           <h4 className="text-sm font-semibold text-foreground">Complainant</h4>
           <div className="grid grid-cols-1 gap-4">
-            <FormInput label="Complainant Name(s)" value={form["complainant_names"] || ""} onChange={(v) => updateForm("complainant_names", v)} required placeholder="e.g. Maria Dela Cruz (separate multiple with commas)" />
+            <FormInput label="Complainant Name(s)" value={form["complainant_names"] || ""} onChange={(v) => updateForm("complainant_names", v)} required placeholder="e.g. Maria Dela Cruz (separate multiple with commas)" error={formErrors.complainant_names} />
             <div className="grid grid-cols-2 gap-4">
               <FormInput label="Contact Number" value={form["complainant_contact"] || ""} onChange={(v) => updateForm("complainant_contact", v)} placeholder="09XX-XXX-XXXX" />
               <FormInput label="Address" value={form["complainant_address"] || ""} onChange={(v) => updateForm("complainant_address", v)} placeholder="e.g. Purok Sampaguita, Rizal St." />
@@ -218,7 +260,7 @@ export default function KpCasesPage() {
           </div>
           <h4 className="text-sm font-semibold text-foreground mt-6">Respondent</h4>
           <div className="grid grid-cols-1 gap-4">
-            <FormInput label="Respondent Name(s)" value={form["respondent_names"] || ""} onChange={(v) => updateForm("respondent_names", v)} required placeholder="e.g. Juan Santos (separate multiple with commas)" />
+            <FormInput label="Respondent Name(s)" value={form["respondent_names"] || ""} onChange={(v) => updateForm("respondent_names", v)} required placeholder="e.g. Juan Santos (separate multiple with commas)" error={formErrors.respondent_names} />
             <div className="grid grid-cols-2 gap-4">
               <FormInput label="Contact Number" value={form["respondent_contact"] || ""} onChange={(v) => updateForm("respondent_contact", v)} placeholder="09XX-XXX-XXXX" />
               <FormInput label="Address" value={form["respondent_address"] || ""} onChange={(v) => updateForm("respondent_address", v)} placeholder="e.g. Purok Rosal, Mabini St." />
@@ -229,7 +271,10 @@ export default function KpCasesPage() {
       case 2: return (
         <div className="space-y-4">
           <FormTextarea label="Brief Description / Facts of the Case" value={form["description"] || ""} onChange={(v) => updateForm("description", v)} required rows={4} placeholder="Describe the facts and circumstances of the complaint..." />
-          <FormInput label="Relief / Remedy Sought" value={form["relief_sought"] || ""} onChange={(v) => updateForm("relief_sought", v)} placeholder="e.g. Payment of damages, removal of structure" />
+          <div>
+            <FormInput label="Relief / Remedy Sought" value={form["relief_sought"] || ""} onChange={(v) => updateForm("relief_sought", v)} placeholder="e.g. Payment of damages, removal of structure" />
+            <p className="text-[10px] text-muted-foreground mt-1">Common relief: monetary payment, property boundary agreement, noise reduction, formal apology</p>
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <FormSelect label="Lupon Chairman" value={form["lupon_chairman"] || ""} onChange={(v) => updateForm("lupon_chairman", v)} options={luponChairmen} required />
             <FormInput label="Initial Hearing Date" value={form["initial_hearing_date"] || ""} onChange={(v) => updateForm("initial_hearing_date", v)} type="date" />
@@ -250,10 +295,26 @@ export default function KpCasesPage() {
         actions={
           <div className="flex items-center gap-2">
             <button className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors"><Download className="h-4 w-4" /> Export</button>
-            <button onClick={openFileCase} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}><Plus className="h-4 w-4" /> File New Case</button>
+            <button onClick={openFileCase} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}><Plus className="h-4 w-4" /> File New Case</button>
           </div>
         }
       />
+
+      {/* Mabini AI Insight */}
+      <div className="flex items-start gap-3 px-4 py-3 rounded-xl border border-accent-primary/20 bg-accent-bg/30">
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: "var(--accent-primary)", opacity: 0.15 }}>
+          <Bot className="w-4 h-4" style={{ color: "var(--accent-primary)" }} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-foreground">Mabini AI KP Case Insights</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+            Settlement rate at 33%. 2 cases in mediation for over 15 days — consider escalating to conciliation. 1 hearing scheduled this week.
+          </p>
+        </div>
+        <button onClick={() => router.push("/dashboard/ai")} className="shrink-0 px-3 py-1.5 text-[10px] font-semibold rounded-lg transition-colors hover:opacity-80" style={{ background: "var(--accent-primary)", color: "#fff" }}>
+          Ask Mabini
+        </button>
+      </div>
 
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard label="Total Cases" value={mockCases.length} icon={<Scale className="h-5 w-5" />} />
@@ -295,7 +356,16 @@ export default function KpCasesPage() {
       {/* Case Cards */}
       <div className="space-y-3">
         {paged.length === 0 ? (
-          <div className="p-12 text-center text-muted-foreground rounded-xl border border-border bg-card">No cases found.</div>
+          <div className="p-16 text-center rounded-xl border border-border bg-card">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center"><Scale className="w-6 h-6 text-muted-foreground" /></div>
+              <div>
+                <p className="text-sm font-medium text-foreground">No KP cases filed</p>
+                <p className="text-xs text-muted-foreground mt-1">When residents file disputes, cases will appear here for mediation and conciliation.</p>
+              </div>
+              <button onClick={() => openFileCase()} className="mt-1 px-4 py-2 text-xs font-semibold rounded-lg text-white hover:opacity-90" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>+ File New Case</button>
+            </div>
+          </div>
         ) : (
           paged.map((c) => (
             <div key={c.id} className="p-5 rounded-xl border border-border bg-card hover:shadow-md transition-all cursor-pointer" onClick={() => setViewCase(c)}>
@@ -436,7 +506,7 @@ export default function KpCasesPage() {
                   Next <ChevronRight className="w-4 h-4 ml-1" />
                 </ModalButton>
               ) : (
-                <ModalButton variant="primary" onClick={closeFormModal}>
+                <ModalButton variant="primary" onClick={() => { if (validateForm()) { addToast(showEdit ? "Case Updated" : "Case Filed"); closeFormModal(); } }}>
                   <Save className="w-4 h-4 mr-1" /> {showEdit ? "Update" : "File Case"}
                 </ModalButton>
               )}
@@ -465,12 +535,12 @@ export default function KpCasesPage() {
         footer={
           <>
             <ModalButton variant="secondary" onClick={() => { setShowDelete(false); setDeleteTarget(null); }}>Cancel</ModalButton>
-            <ModalButton variant="danger" onClick={() => { setShowDelete(false); setDeleteTarget(null); }}>Delete Case</ModalButton>
+            <ModalButton variant="danger" onClick={() => { addToast("Case Deleted"); setShowDelete(false); setDeleteTarget(null); }}>Delete Case</ModalButton>
           </>
         }>
         {deleteTarget && (
           <div className="space-y-3">
-            <p className="text-sm text-foreground">Are you sure you want to delete case <span className="font-bold">{deleteTarget.case_number}</span>?</p>
+            <p className="text-sm text-foreground">Are you sure you want to delete case <span className="font-bold">{deleteTarget.case_number}</span> ({deleteTarget.case_type})?</p>
             <p className="text-sm text-muted-foreground">This will permanently remove the KP case &ldquo;{deleteTarget.title}&rdquo; including all hearing records and settlement data. This action cannot be undone.</p>
           </div>
         )}
@@ -481,7 +551,7 @@ export default function KpCasesPage() {
         footer={
           <>
             <ModalButton variant="secondary" onClick={() => setShowScheduleHearing(false)}>Cancel</ModalButton>
-            <ModalButton variant="primary" onClick={() => setShowScheduleHearing(false)}>
+            <ModalButton variant="primary" onClick={() => { addToast("Hearing Scheduled"); setShowScheduleHearing(false); }}>
               <Save className="w-4 h-4 mr-1" /> Schedule
             </ModalButton>
           </>
@@ -512,12 +582,23 @@ export default function KpCasesPage() {
         </div>
       </Modal>
 
+      {/* Toast Notifications */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
+        {toasts.map((t) => (
+          <div key={t.id} className="flex items-center gap-2 px-4 py-3 rounded-lg border border-border bg-card shadow-lg animate-in slide-in-from-bottom-2 fade-in duration-200">
+            <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
+            <span className="text-sm font-medium text-foreground">{t.message}</span>
+            <button onClick={() => removeToast(t.id)} className="ml-2 text-muted-foreground hover:text-foreground"><X className="w-3.5 h-3.5" /></button>
+          </div>
+        ))}
+      </div>
+
       {/* Update Status Modal */}
       <Modal open={showUpdateStatus} onClose={() => { setShowUpdateStatus(false); }} title="Update Case Status" description={viewCase ? `${viewCase.case_number} — ${viewCase.title}` : ""} size="md"
         footer={
           <>
             <ModalButton variant="secondary" onClick={() => setShowUpdateStatus(false)}>Cancel</ModalButton>
-            <ModalButton variant="primary" onClick={() => setShowUpdateStatus(false)}>
+            <ModalButton variant="primary" onClick={() => { addToast("Status Updated"); setShowUpdateStatus(false); }}>
               <Save className="w-4 h-4 mr-1" /> Update
             </ModalButton>
           </>

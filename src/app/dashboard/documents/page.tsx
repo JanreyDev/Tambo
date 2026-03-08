@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import {
   FileText,
   Plus,
@@ -29,6 +29,7 @@ import {
   DollarSign,
   AlertTriangle,
   Trash2,
+  Bot,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/badge";
@@ -101,25 +102,27 @@ const validityOptions = [
 const paymentMethods = ["Cash", "Check", "Waived"];
 
 // ── Form Field Components (module-level to avoid re-creation during render) ──
-function FormInput({ label, value, onChange, required, type = "text", placeholder = "", disabled = false }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; type?: string; placeholder?: string; disabled?: boolean }) {
+function FormInput({ label, value, onChange, required, type = "text", placeholder = "", disabled = false, error }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; type?: string; placeholder?: string; disabled?: boolean; error?: string }) {
   return (
     <div>
       <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
       <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} disabled={disabled}
-        className={cn("w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", disabled && "opacity-60 cursor-not-allowed bg-muted")} />
+        className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", error ? "border-red-500" : "border-border", disabled && "opacity-60 cursor-not-allowed bg-muted")} />
+      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
     </div>
   );
 }
 
-function FormSelect({ label, value, onChange, options, required, disabled = false }: { label: string; value: string; onChange: (value: string) => void; options: { value: string; label: string }[]; required?: boolean; disabled?: boolean }) {
+function FormSelect({ label, value, onChange, options, required, disabled = false, error }: { label: string; value: string; onChange: (value: string) => void; options: { value: string; label: string }[]; required?: boolean; disabled?: boolean; error?: string }) {
   return (
     <div>
       <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
       <select value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled}
-        className={cn("w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", disabled && "opacity-60 cursor-not-allowed bg-muted")}>
+        className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", error ? "border-red-500" : "border-border", disabled && "opacity-60 cursor-not-allowed bg-muted")}>
         <option value="" disabled>Select {label}</option>
         {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
+      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
     </div>
   );
 }
@@ -165,6 +168,15 @@ export default function DocumentsPage() {
   });
   const [residentSearchResults, setResidentSearchResults] = useState<typeof mockResidentsList>([]);
   const [showResidentDropdown, setShowResidentDropdown] = useState(false);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  // Toast state
+  const [toasts, setToasts] = useState<{ id: number; title: string; description: string }[]>([]);
+  const addToast = useCallback((title: string, description: string) => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, title, description }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
+  }, []);
 
   const filtered = mockDocuments.filter((d) => {
     if (search) {
@@ -219,10 +231,43 @@ export default function DocumentsPage() {
     setIssueTab(0);
     setResidentSearchResults([]);
     setShowResidentDropdown(false);
+    setFormErrors({});
     setShowIssue(true);
   };
 
-  const updateForm = (key: string, value: string) => setForm((prev) => ({ ...prev, [key]: value }));
+  const updateForm = (key: string, value: string) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+    if (formErrors[key]) setFormErrors((prev) => { const next = { ...prev }; delete next[key]; return next; });
+  };
+
+  const validateForm = (): Record<string, string> => {
+    const errors: Record<string, string> = {};
+    if (!form.selected_resident_id) errors.resident = "Resident is required. Please search and select a resident.";
+    if (!form.document_type) errors.document_type = "Document type is required.";
+    if (!form.purpose || !form.purpose.trim()) errors.purpose = "Purpose is required.";
+    if (form.amount && (isNaN(Number(form.amount)) || Number(form.amount) < 0)) errors.amount = "Amount must be a non-negative number.";
+    setFormErrors(errors);
+    return errors;
+  };
+
+  const handleFormSubmit = () => {
+    const errors = validateForm();
+    if (Object.keys(errors).length > 0) {
+      // Jump to the first tab that has errors
+      if (errors.resident) { setIssueTab(0); return; }
+      if (errors.document_type || errors.purpose) { setIssueTab(1); return; }
+      if (errors.amount) { setIssueTab(2); return; }
+      return;
+    }
+    if (showEdit) {
+      addToast("Document Updated", "Document details have been saved successfully.");
+    } else {
+      addToast("Document Issued", `${form.document_type} has been issued for ${form.selected_resident_name}.`);
+    }
+    setShowIssue(false);
+    setShowEdit(false);
+    setFormErrors({});
+  };
 
   const handleResidentSearch = (query: string) => {
     updateForm("resident_search", query);
@@ -253,6 +298,7 @@ export default function DocumentsPage() {
     }));
     setShowResidentDropdown(false);
     setResidentSearchResults([]);
+    if (formErrors.resident) setFormErrors((prev) => { const next = { ...prev }; delete next.resident; return next; });
   };
 
   const clearSelectedResident = () => {
@@ -262,6 +308,7 @@ export default function DocumentsPage() {
       selected_resident_number: "", selected_resident_purok: "", selected_resident_age: "",
       selected_resident_sex: "", selected_resident_mobile: "",
     }));
+    if (formErrors.resident) setFormErrors((prev) => { const next = { ...prev }; delete next.resident; return next; });
   };
 
   const openRevoke = (doc: IssuedDocument) => {
@@ -289,6 +336,7 @@ export default function DocumentsPage() {
       notes: doc.notes,
     });
     setIssueTab(0);
+    setFormErrors({});
     setShowEdit(true);
     setActionMenu(null);
   };
@@ -353,6 +401,10 @@ export default function DocumentsPage() {
             )}
           </div>
 
+          {formErrors.resident && !form.selected_resident_id && (
+            <p className="text-[11px] text-red-500 -mt-2">{formErrors.resident}</p>
+          )}
+
           {/* Selected Resident Info */}
           {form.selected_resident_id && (
             <div className="p-4 rounded-lg border border-border bg-muted/30 space-y-3">
@@ -380,6 +432,7 @@ export default function DocumentsPage() {
           <p className="text-xs text-muted-foreground">Select the document type and provide the purpose of request.</p>
           <FormSelect label="Document Type" value={form["document_type"] || ""} onChange={(v) => updateForm("document_type", v)} required
             options={issueDocumentTypes.map((t) => ({ value: t, label: t }))}
+            error={formErrors.document_type}
           />
           {form.document_type && (
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs" style={{ background: `${docTypeColor(form.document_type)}15`, color: docTypeColor(form.document_type) }}>
@@ -388,7 +441,10 @@ export default function DocumentsPage() {
               <span className="text-muted-foreground ml-1">| Default fee: {documentFees[form.document_type] === 0 ? "Free" : `₱${documentFees[form.document_type]}`}</span>
             </div>
           )}
-          <FormInput label="Purpose" value={form["purpose"] || ""} onChange={(v) => updateForm("purpose", v)} required placeholder="e.g. Local Employment, School Enrollment, Medical Assistance" />
+          <div>
+            <FormInput label="Purpose" value={form["purpose"] || ""} onChange={(v) => updateForm("purpose", v)} required placeholder="e.g. Local Employment, School Enrollment, Medical Assistance" error={formErrors.purpose} />
+            <p className="text-[10px] text-muted-foreground mt-1">Common purposes: employment, travel, school enrollment, bank requirement</p>
+          </div>
           <FormSelect label="Validity Period" value={form["validity_period"] || ""} onChange={(v) => updateForm("validity_period", v)} required
             options={validityOptions}
           />
@@ -398,7 +454,7 @@ export default function DocumentsPage() {
         <div className="space-y-4">
           <p className="text-xs text-muted-foreground">Enter payment details. Amount auto-fills based on document type.</p>
           <div className="grid grid-cols-2 gap-4">
-            <FormInput label="Amount (PHP)" value={form["amount"] || ""} onChange={(v) => updateForm("amount", v)} required type="number" placeholder="0" />
+            <FormInput label="Amount (PHP)" value={form["amount"] || ""} onChange={(v) => updateForm("amount", v)} required type="number" placeholder="0" error={formErrors.amount} />
             <FormInput label="OR Number" value={form["or_number"] || ""} onChange={(v) => updateForm("or_number", v)} placeholder="e.g. OR-2026-0343" />
           </div>
           <FormSelect label="Payment Method" value={form["payment_method"] || ""} onChange={(v) => updateForm("payment_method", v)} required
@@ -462,10 +518,16 @@ export default function DocumentsPage() {
         actions={
           <div className="flex items-center gap-2">
             <button className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors"><Download className="h-4 w-4" /> Export</button>
-            <button onClick={openIssueModal} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}><Plus className="h-4 w-4" /> Issue Document</button>
+            <button onClick={openIssueModal} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}><Plus className="h-4 w-4" /> Issue Document</button>
           </div>
         }
       />
+
+      {/* Mabini AI Insight */}
+      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-accent-bg/30 border border-accent-primary/20">
+        <Bot className="h-4 w-4 shrink-0" style={{ color: "var(--accent-primary)" }} />
+        <p className="text-[11px] text-muted-foreground"><span className="font-semibold text-foreground">Mabini:</span> 2 documents pending review for over 24 hours. Barangay Clearance is the most issued document this month (45%). Revenue up 12% vs last month.</p>
+      </div>
 
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard label="Total Issued" value={mockDocuments.length} icon={<FileText className="h-5 w-5" />} trend={{ value: 12, label: "vs last month" }} />
@@ -521,7 +583,20 @@ export default function DocumentsPage() {
             </thead>
             <tbody>
               {paged.length === 0 ? (
-                <tr><td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">No documents found.</td></tr>
+                <tr><td colSpan={8} className="px-4 py-16 text-center">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center">
+                      <FileText className="h-7 w-7 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">No documents issued yet</p>
+                      <p className="text-xs text-muted-foreground mt-1">Issue your first barangay document.</p>
+                    </div>
+                    <button onClick={openIssueModal} className="flex items-center gap-1.5 px-4 py-2 mt-1 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>
+                      <Plus className="h-4 w-4" /> Issue Document
+                    </button>
+                  </div>
+                </td></tr>
               ) : (
                 paged.map((d) => {
                   const typeColor = docTypeColor(d.document_type);
@@ -645,8 +720,7 @@ export default function DocumentsPage() {
                   Next <ChevronRight className="w-4 h-4 ml-1" />
                 </ModalButton>
               ) : (
-                <ModalButton variant="primary" onClick={() => { setShowIssue(false); setShowEdit(false); }}
-                  disabled={!form.selected_resident_id || !form.document_type || !form.purpose}>
+                <ModalButton variant="primary" onClick={handleFormSubmit}>
                   <Save className="w-4 h-4 mr-1" /> {showEdit ? "Update Document" : "Issue Document"}
                 </ModalButton>
               )}
@@ -766,7 +840,7 @@ export default function DocumentsPage() {
         footer={
           <>
             <ModalButton variant="secondary" onClick={() => { setShowRevoke(false); setRevokeTarget(null); }}>Cancel</ModalButton>
-            <ModalButton variant="danger" onClick={() => { setShowRevoke(false); setRevokeTarget(null); setViewDocument(null); }}>Revoke Document</ModalButton>
+            <ModalButton variant="danger" onClick={() => { addToast("Document Revoked", `${revokeTarget?.document_number || "Document"} has been revoked.`); setShowRevoke(false); setRevokeTarget(null); setViewDocument(null); }}>Revoke Document</ModalButton>
           </>
         }>
         <div className="space-y-3">
@@ -806,6 +880,24 @@ export default function DocumentsPage() {
           <p className="text-sm text-muted-foreground">Are you sure you want to delete this document?</p>
         </div>
       </Modal>
+
+      {/* ── Toast Notifications ── */}
+      {toasts.length > 0 && (
+        <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
+          {toasts.map((toast) => (
+            <div key={toast.id} className="flex items-start gap-3 px-4 py-3 rounded-lg border border-border bg-card shadow-lg animate-in slide-in-from-bottom-2 max-w-sm">
+              <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground">{toast.title}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{toast.description}</p>
+              </div>
+              <button onClick={() => setToasts((prev) => prev.filter((t) => t.id !== toast.id))} className="p-0.5 rounded hover:bg-muted shrink-0">
+                <X className="h-3.5 w-3.5 text-muted-foreground" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

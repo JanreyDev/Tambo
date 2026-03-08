@@ -207,6 +207,22 @@ export default function DashboardPage() {
       {/* Header */}
       <PageHeader title="Dashboard" description="Barangay management overview and quick actions" />
 
+      {/* Mabini AI Insights */}
+      <div className="flex items-start gap-3 px-4 py-3 rounded-xl border border-accent-primary/20 bg-accent-bg/30">
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: "var(--accent-primary)", opacity: 0.15 }}>
+          <Bot className="w-4 h-4" style={{ color: "var(--accent-primary)" }} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-foreground">Mabini AI Daily Briefing</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+            3 document requests pending over 24 hours. 12 new residents this month (8% above average). 1 failed login attempt detected from unknown IP. 2 business permits expiring within 30 days.
+          </p>
+        </div>
+        <button onClick={() => router.push("/dashboard/ai")} className="shrink-0 px-3 py-1.5 text-[10px] font-semibold rounded-lg transition-colors hover:opacity-80" style={{ background: "var(--accent-primary)", color: "#fff" }}>
+          Ask Mabini
+        </button>
+      </div>
+
       {/* Credits Bar */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         <CreditCard icon={MessageSquare} label="SMS Credits" amount="₱700.00" color="#8b5cf6" trend={[650, 680, 720, 700, 690, 710, 700]} />

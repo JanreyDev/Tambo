@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import {
+  Bot,
   ClipboardList,
   Plus,
   Search,
@@ -21,6 +22,7 @@ import {
   Eye,
   Edit,
   Trash2,
+  UserCheck,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -75,22 +77,24 @@ const emptyForm: Record<string, string> = {
   precinct_number: "", voter_id: "", purok: "", registration_status: "", is_sk_voter: "", voter_type: "",
 };
 
-function FormInput({ label, name, value, placeholder, required, type, onChange }: { label: string; name: string; value: string; placeholder?: string; required?: boolean; type?: string; onChange: (name: string, value: string) => void }) {
+function FormInput({ label, name, value, placeholder, required, type, onChange, error, max }: { label: string; name: string; value: string; placeholder?: string; required?: boolean; type?: string; onChange: (name: string, value: string) => void; error?: string; max?: string }) {
   return (
     <div>
       <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <input type={type || "text"} value={value} onChange={(e) => onChange(name, e.target.value)} placeholder={placeholder} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+      <input type={type || "text"} value={value} onChange={(e) => onChange(name, e.target.value)} placeholder={placeholder} max={max} className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", error ? "border-red-500" : "border-border")} />
+      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
     </div>
   );
 }
 
-function FormSelect({ label, name, value, options, required, onChange }: { label: string; name: string; value: string; options: string[]; required?: boolean; onChange: (name: string, value: string) => void }) {
+function FormSelect({ label, name, value, options, required, onChange, error }: { label: string; name: string; value: string; options: string[]; required?: boolean; onChange: (name: string, value: string) => void; error?: string }) {
   return (
     <div>
       <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <select value={value} onChange={(e) => onChange(name, e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+      <select value={value} onChange={(e) => onChange(name, e.target.value)} className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", error ? "border-red-500" : "border-border")}>
         {options.map((o) => <option key={o} value={o}>{o || "\u2014 Select \u2014"}</option>)}
       </select>
+      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
     </div>
   );
 }
@@ -108,17 +112,54 @@ export default function VotersPage() {
   const [formTab, setFormTab] = useState(0);
   const [form, setForm] = useState<Record<string, string>>(emptyForm);
   const [actionMenu, setActionMenu] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [toasts, setToasts] = useState<{ id: number; message: string }[]>([]);
   const pageSize = 10;
 
-  const handleFieldChange = (name: string, value: string) => setForm((f) => ({ ...f, [name]: value }));
+  const addToast = useCallback((message: string) => {
+    const id = Date.now();
+    setToasts((t) => [...t, { id, message }]);
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3500);
+  }, []);
+  const dismissToast = useCallback((id: number) => {
+    setToasts((t) => t.filter((x) => x.id !== id));
+  }, []);
 
-  const openCreate = () => { setForm(emptyForm); setFormTab(0); setShowCreate(true); };
+  const today = new Date().toISOString().split("T")[0];
+
+  const handleFieldChange = (name: string, value: string) => {
+    setForm((f) => ({ ...f, [name]: value }));
+    setFormErrors((e) => { const next = { ...e }; delete next[name]; return next; });
+  };
+
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+    if (!form.first_name.trim()) errors.first_name = "First name is required.";
+    if (!form.last_name.trim()) errors.last_name = "Last name is required.";
+    if (!form.sex) errors.sex = "Sex is required.";
+    if (form.voter_id && !form.voter_id.trim()) errors.voter_id = "Voter ID cannot be empty whitespace.";
+    if (form.date_of_birth && form.date_of_birth > today) errors.date_of_birth = "Date of birth cannot be a future date.";
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleFormSubmit = () => {
+    if (!validateForm()) return;
+    const isEdit = showEdit;
+    setShowCreate(false);
+    setShowEdit(false);
+    setFormErrors({});
+    addToast(isEdit ? "Voter Updated" : "Voter Registered");
+  };
+
+  const openCreate = () => { setForm(emptyForm); setFormTab(0); setFormErrors({}); setShowCreate(true); };
   const openEdit = (v: VoterRecord) => {
     setForm({
       first_name: v.first_name, middle_name: v.middle_name, last_name: v.last_name, extension: v.suffix, sex: v.sex, date_of_birth: v.birth_date, civil_status: "",
       precinct_number: v.precinct_number, voter_id: v.voter_id_number, purok: v.purok, registration_status: v.is_registered ? "Active" : "Deactivated", is_sk_voter: v.is_sk_voter ? "Yes" : "No", voter_type: v.is_sk_voter ? "SK" : "Regular",
     });
     setFormTab(0);
+    setFormErrors({});
     setShowEdit(true);
   };
 
@@ -154,10 +195,16 @@ export default function VotersPage() {
           <div className="flex items-center gap-2">
             <button className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors"><Upload className="h-4 w-4" /> Import BIMS</button>
             <button className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors"><Download className="h-4 w-4" /> Export</button>
-            <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}><Plus className="h-4 w-4" /> Add Voter</button>
+            <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}><Plus className="h-4 w-4" /> Add Voter</button>
           </div>
         }
       />
+
+      {/* Mabini AI Insight */}
+      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-accent-bg/30 border border-accent-primary/20">
+        <Bot className="h-4 w-4 shrink-0" style={{ color: "var(--accent-primary)" }} />
+        <p className="text-[11px] text-muted-foreground"><span className="font-semibold text-foreground">Mabini:</span> 87.5% voter registration rate. 1 resident is unregistered. 2 SK-eligible voters identified from recent registrations.</p>
+      </div>
 
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard label="Total Voters" value={mockVoters.length} icon={<ClipboardList className="h-5 w-5" />} />
@@ -213,7 +260,16 @@ export default function VotersPage() {
             </thead>
             <tbody>
               {paged.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">No voter records found.</td></tr>
+                <tr><td colSpan={7} className="px-4 py-16 text-center">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center"><UserCheck className="w-6 h-6 text-muted-foreground" /></div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">No voter records found</p>
+                      <p className="text-xs text-muted-foreground mt-1">Add voter records manually or import from the COMELEC voter list.</p>
+                    </div>
+                    <button onClick={() => openCreate()} className="mt-1 px-4 py-2 text-xs font-semibold rounded-lg text-white hover:opacity-90" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>+ Add Voter</button>
+                  </div>
+                </td></tr>
               ) : (
                 paged.map((v) => {
                   const fullName = `${v.last_name}, ${v.first_name}${v.middle_name ? ` ${v.middle_name.charAt(0)}.` : ""}${v.suffix ? ` ${v.suffix}` : ""}`;
@@ -297,11 +353,11 @@ export default function VotersPage() {
       </Modal>
 
       {/* Create / Edit Voter Form Modal */}
-      <Modal open={showCreate || showEdit} onClose={() => { setShowCreate(false); setShowEdit(false); }} title={showEdit ? "Edit Voter" : "Add Voter"} size="lg"
+      <Modal open={showCreate || showEdit} onClose={() => { setShowCreate(false); setShowEdit(false); setFormErrors({}); }} title={showEdit ? "Edit Voter" : "Add Voter"} size="lg"
         footer={<>
-          <ModalButton variant="secondary" onClick={() => { setShowCreate(false); setShowEdit(false); }}>Cancel</ModalButton>
+          <ModalButton variant="secondary" onClick={() => { setShowCreate(false); setShowEdit(false); setFormErrors({}); }}>Cancel</ModalButton>
           {formTab > 0 && <ModalButton variant="secondary" onClick={() => setFormTab((t) => t - 1)}>Previous</ModalButton>}
-          {formTab < formTabs.length - 1 ? <ModalButton variant="primary" onClick={() => setFormTab((t) => t + 1)}>Next</ModalButton> : <ModalButton variant="primary" onClick={() => { setShowCreate(false); setShowEdit(false); }}>{showEdit ? "Update" : "Save"}</ModalButton>}
+          {formTab < formTabs.length - 1 ? <ModalButton variant="primary" onClick={() => setFormTab((t) => t + 1)}>Next</ModalButton> : <ModalButton variant="primary" onClick={handleFormSubmit}>{showEdit ? "Update" : "Save"}</ModalButton>}
         </>}>
         <div className="flex border-b border-border mb-6">
           {formTabs.map((tab, i) => (
@@ -310,19 +366,22 @@ export default function VotersPage() {
         </div>
         {formTab === 0 && (
           <div className="grid grid-cols-2 gap-4">
-            <FormInput onChange={handleFieldChange} label="First Name" name="first_name" value={form.first_name} placeholder="First name" required />
+            <FormInput onChange={handleFieldChange} label="First Name" name="first_name" value={form.first_name} placeholder="First name" required error={formErrors.first_name} />
             <FormInput onChange={handleFieldChange} label="Middle Name" name="middle_name" value={form.middle_name} placeholder="Middle name" />
-            <FormInput onChange={handleFieldChange} label="Last Name" name="last_name" value={form.last_name} placeholder="Last name" required />
+            <FormInput onChange={handleFieldChange} label="Last Name" name="last_name" value={form.last_name} placeholder="Last name" required error={formErrors.last_name} />
             <FormSelect onChange={handleFieldChange} label="Extension" name="extension" value={form.extension} options={suffixOptions} />
-            <FormSelect onChange={handleFieldChange} label="Sex" name="sex" value={form.sex} options={sexOptions} />
-            <FormInput onChange={handleFieldChange} label="Date of Birth" name="date_of_birth" value={form.date_of_birth} type="date" />
+            <FormSelect onChange={handleFieldChange} label="Sex" name="sex" value={form.sex} options={sexOptions} required error={formErrors.sex} />
+            <FormInput onChange={handleFieldChange} label="Date of Birth" name="date_of_birth" value={form.date_of_birth} type="date" max={today} error={formErrors.date_of_birth} />
             <FormSelect onChange={handleFieldChange} label="Civil Status" name="civil_status" value={form.civil_status} options={civilStatusOptions} />
           </div>
         )}
         {formTab === 1 && (
           <div className="grid grid-cols-2 gap-4">
             <FormInput onChange={handleFieldChange} label="Precinct Number" name="precinct_number" value={form.precinct_number} placeholder="0000X" required />
-            <FormInput onChange={handleFieldChange} label="Voter ID" name="voter_id" value={form.voter_id} placeholder="VRN-XXXX-XXXXX" />
+            <div>
+              <FormInput onChange={handleFieldChange} label="Voter ID" name="voter_id" value={form.voter_id} placeholder="VRN-XXXX-XXXXX" error={formErrors.voter_id} />
+              <p className="text-[10px] text-muted-foreground mt-1">VRN format: VRN-YYYY-NNNNN (from COMELEC voter registration)</p>
+            </div>
             <FormSelect onChange={handleFieldChange} label="Purok" name="purok" value={form.purok} options={purokOptions} />
             <FormSelect onChange={handleFieldChange} label="Registration Status" name="registration_status" value={form.registration_status} options={regStatusOptions} />
             <FormSelect onChange={handleFieldChange} label="SK Voter" name="is_sk_voter" value={form.is_sk_voter} options={yesNoOptions} />
@@ -333,9 +392,22 @@ export default function VotersPage() {
 
       {/* Delete Confirmation Modal */}
       <Modal open={showDelete} onClose={() => setShowDelete(false)} title="Confirm Delete" description="This action cannot be undone." size="sm"
-        footer={<><ModalButton variant="secondary" onClick={() => { setShowDelete(false); setViewVoter(null); }}>Cancel</ModalButton><ModalButton variant="danger" onClick={() => { setShowDelete(false); setViewVoter(null); }}>Delete</ModalButton></>}>
+        footer={<><ModalButton variant="secondary" onClick={() => { setShowDelete(false); setViewVoter(null); }}>Cancel</ModalButton><ModalButton variant="danger" onClick={() => { setShowDelete(false); setViewVoter(null); addToast("Voter Removed"); }}>Delete</ModalButton></>}>
         <p className="text-sm text-muted-foreground">Are you sure you want to delete the voter record for <span className="font-medium text-foreground">{viewVoter ? `${viewVoter.first_name} ${viewVoter.last_name}` : ""}</span>? This will permanently remove this record.</p>
       </Modal>
+
+      {/* Toast Notifications */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
+        {toasts.map((t) => (
+          <div key={t.id} className="flex items-center gap-2 px-4 py-3 rounded-lg border border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/50 shadow-lg animate-in slide-in-from-bottom-2">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <span className="text-sm font-medium text-emerald-800 dark:text-emerald-200">{t.message}</span>
+            <button onClick={() => dismissToast(t.id)} className="ml-2 p-0.5 rounded hover:bg-emerald-200/50 dark:hover:bg-emerald-800/50">
+              <X className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

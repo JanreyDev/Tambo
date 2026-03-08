@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import {
   Receipt,
   Search,
@@ -27,6 +27,8 @@ import {
   AlertTriangle,
   Copy,
   Trash2,
+  Bot,
+  Inbox,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge, StatusBadge } from "@/components/ui/badge";
@@ -162,6 +164,18 @@ export default function RequestsPage() {
   const [form, setForm] = useState<Record<string, string>>({ ...emptyForm });
   const [residentSearch, setResidentSearch] = useState("");
   const [selectedResident, setSelectedResident] = useState<ResidentOption | null>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [showReject, setShowReject] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [rejectionError, setRejectionError] = useState("");
+
+  // ── Toast System ──
+  const [toasts, setToasts] = useState<{ id: number; message: string; type: "success" | "error" | "info" }[]>([]);
+  const addToast = useCallback((message: string, type: "success" | "error" | "info" = "success") => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3500);
+  }, []);
 
   const pageSize = 10;
 
@@ -202,6 +216,7 @@ export default function RequestsPage() {
     setFormTab(0);
     setSelectedResident(null);
     setResidentSearch("");
+    setFormErrors({});
     setShowCreate(true);
   };
 
@@ -259,6 +274,7 @@ export default function RequestsPage() {
     });
     setFormTab(0);
     setResidentSearch("");
+    setFormErrors({});
     setShowEdit(true);
     setActionMenu(null);
   };
@@ -267,6 +283,45 @@ export default function RequestsPage() {
     setDeleteTarget(req);
     setShowDelete(true);
     setActionMenu(null);
+  };
+
+  // ── Form Validation ──
+  const handleFormSubmit = () => {
+    const errors: Record<string, string> = {};
+
+    // Requestor validation
+    if (form.requestor_mode === "resident" && !selectedResident) {
+      errors.requestor = "Please select a registered resident.";
+    }
+    if (form.requestor_mode === "manual" && !form.requestor_name.trim()) {
+      errors.requestor_name = "Full name is required.";
+    }
+
+    // Document validation
+    if (!form.document_type) {
+      errors.document_type = "Document type is required.";
+    }
+
+    // Priority validation
+    if (!form.priority) {
+      errors.priority = "Priority is required.";
+    }
+
+    setFormErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      // Jump to the first tab that has an error
+      if (errors.requestor || errors.requestor_name) {
+        setFormTab(0);
+      } else if (errors.document_type) {
+        setFormTab(1);
+      } else if (errors.priority) {
+        setFormTab(2);
+      }
+      return;
+    }
+    addToast(showEdit ? "Request updated successfully." : "Request submitted successfully.", "success");
+    closeForm();
   };
 
   // ── Render Form Tab Content ──
@@ -339,12 +394,20 @@ export default function RequestsPage() {
                   {residentSearch.length >= 2 && filteredResidents.length === 0 && (
                     <p className="mt-2 text-xs text-muted-foreground">No residents found. Try a different search or use manual entry.</p>
                   )}
+                  {formErrors.requestor && (
+                    <p className="mt-1 text-xs text-red-500">{formErrors.requestor}</p>
+                  )}
                 </div>
               )}
             </div>
           ) : (
             <div className="space-y-4">
-              <RequestInput label="Full Name" field="requestor_name" required placeholder="e.g. Juan Dela Cruz" value={form.requestor_name || ""} onChange={updateForm} />
+              <div>
+                <RequestInput label="Full Name" field="requestor_name" required placeholder="e.g. Juan Dela Cruz" value={form.requestor_name || ""} onChange={updateForm} />
+                {formErrors.requestor_name && (
+                  <p className="mt-1 text-xs text-red-500">{formErrors.requestor_name}</p>
+                )}
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <RequestInput label="Contact Number" field="requestor_contact" required placeholder="e.g. 0917-123-4567" value={form.requestor_contact || ""} onChange={updateForm} />
                 <RequestInput label="Address" field="requestor_address" required placeholder="e.g. 123 Rizal St., Purok Sampaguita" value={form.requestor_address || ""} onChange={updateForm} />
@@ -355,7 +418,12 @@ export default function RequestsPage() {
       );
       case 1: return (
         <div className="space-y-4">
-          <RequestSelect label="Document Type" field="document_type" options={documentTypes} required value={form.document_type || ""} onChange={updateForm} />
+          <div>
+            <RequestSelect label="Document Type" field="document_type" options={documentTypes} required value={form.document_type || ""} onChange={updateForm} />
+            {formErrors.document_type && (
+              <p className="mt-1 text-xs text-red-500">{formErrors.document_type}</p>
+            )}
+          </div>
           <RequestInput label="Purpose" field="purpose" required placeholder="e.g. Employment, School enrollment, NBI Clearance requirement" value={form.purpose || ""} onChange={updateForm} />
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -403,10 +471,16 @@ export default function RequestsPage() {
               {form.priority === "Rush" && (
                 <p className="mt-1.5 text-[11px] text-amber-600 dark:text-amber-400">Rush requests may incur additional processing fees.</p>
               )}
+              {formErrors.priority && (
+                <p className="mt-1 text-xs text-red-500">{formErrors.priority}</p>
+              )}
             </div>
             <RequestInput label="Estimated Pickup Date" field="estimated_pickup" type="date" value={form.estimated_pickup || ""} onChange={updateForm} />
           </div>
-          <RequestTextarea label="Notes / Special Instructions" field="special_instructions" placeholder="e.g. Please include middle name on the certificate, Pickup by authorized representative..." rows={4} value={form.special_instructions || ""} onChange={updateForm} />
+          <div>
+            <RequestTextarea label="Notes / Special Instructions" field="special_instructions" placeholder="e.g. Please include middle name on the certificate, Pickup by authorized representative..." rows={4} value={form.special_instructions || ""} onChange={updateForm} />
+            <p className="text-[10px] text-muted-foreground mt-1">Include any special requirements: rush processing, additional copies, delivery instructions.</p>
+          </div>
         </div>
       );
       default: return null;
@@ -438,7 +512,7 @@ export default function RequestsPage() {
                 Next <ChevronRight className="w-4 h-4 ml-1" />
               </ModalButton>
             ) : (
-              <ModalButton variant="primary" onClick={closeForm}>
+              <ModalButton variant="primary" onClick={handleFormSubmit}>
                 <Save className="w-4 h-4 mr-1" /> {showEdit ? "Update Request" : "Submit Request"}
               </ModalButton>
             )}
@@ -470,11 +544,17 @@ export default function RequestsPage() {
         description="Track document requests and service transactions"
         breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "Services" }, { label: "Requests" }]}
         actions={
-          <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}>
+          <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>
             <Plus className="h-4 w-4" /> New Request
           </button>
         }
       />
+
+      {/* Mabini AI Insight */}
+      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-accent-bg/30 border border-accent-primary/20">
+        <Bot className="h-4 w-4 shrink-0" style={{ color: "var(--accent-primary)" }} />
+        <p className="text-[11px] text-muted-foreground"><span className="font-semibold text-foreground">Mabini:</span> 2 requests pending over 24 hours. Average processing time is 4 hours. Barangay Clearance is the most requested document (60%).</p>
+      </div>
 
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard label="Total Requests" value={mockRequests.length} icon={<Receipt className="h-5 w-5" />} />
@@ -533,7 +613,19 @@ export default function RequestsPage() {
             </thead>
             <tbody>
               {paged.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">No requests found.</td></tr>
+                <tr>
+                  <td colSpan={7} className="px-4 py-16 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                        <Inbox className="h-6 w-6 text-muted-foreground" />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-foreground">No document requests yet</p>
+                        <p className="text-xs text-muted-foreground max-w-xs mx-auto">Requests from residents will appear here.</p>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
               ) : (
                 paged.map((r) => (
                   <tr key={r.id} className="border-b border-border last:border-0 hover:bg-muted/30 cursor-pointer transition-colors" onClick={() => setViewReq(r)}>
@@ -624,15 +716,32 @@ export default function RequestsPage() {
       )}
 
       {/* View Request Modal (Enhanced) */}
-      <Modal open={!!viewReq && !showDelete} onClose={() => setViewReq(null)} title={viewReq?.request_number || ""} description={viewReq?.document_type || ""} size="lg"
+      <Modal open={!!viewReq && !showDelete} onClose={() => { setViewReq(null); setShowReject(false); setRejectionReason(""); setRejectionError(""); }} title={viewReq?.request_number || ""} description={viewReq?.document_type || ""} size="lg"
         footer={
           <>
-            <ModalButton variant="secondary" onClick={() => setViewReq(null)}>Close</ModalButton>
-            {viewReq?.status === "pending" && (
-              <ModalButton variant="primary" onClick={() => setViewReq(null)}><Play className="h-4 w-4 mr-1" /> Process Request</ModalButton>
+            <ModalButton variant="secondary" onClick={() => { setViewReq(null); setShowReject(false); setRejectionReason(""); setRejectionError(""); }}>Close</ModalButton>
+            {(viewReq?.status === "pending" || viewReq?.status === "processing") && !showReject && (
+              <ModalButton variant="danger" onClick={() => { setShowReject(true); setRejectionReason(""); setRejectionError(""); }}>
+                <XCircle className="h-4 w-4 mr-1" /> Reject
+              </ModalButton>
             )}
-            {viewReq?.status === "processing" && (
-              <ModalButton variant="primary" onClick={() => setViewReq(null)}><CheckCircle2 className="h-4 w-4 mr-1" /> Mark Ready</ModalButton>
+            {showReject && (
+              <ModalButton variant="danger" onClick={() => {
+                if (!rejectionReason.trim()) {
+                  setRejectionError("Rejection reason is required.");
+                  return;
+                }
+                addToast("Request rejected.", "error");
+                setShowReject(false); setRejectionReason(""); setRejectionError(""); setViewReq(null);
+              }}>
+                <XCircle className="h-4 w-4 mr-1" /> Confirm Reject
+              </ModalButton>
+            )}
+            {viewReq?.status === "pending" && !showReject && (
+              <ModalButton variant="primary" onClick={() => { addToast("Request approved and now processing.", "success"); setViewReq(null); }}><Play className="h-4 w-4 mr-1" /> Process Request</ModalButton>
+            )}
+            {viewReq?.status === "processing" && !showReject && (
+              <ModalButton variant="primary" onClick={() => { addToast("Request approved and marked as ready for pickup.", "success"); setViewReq(null); }}><CheckCircle2 className="h-4 w-4 mr-1" /> Mark Ready</ModalButton>
             )}
             {viewReq?.status === "ready" && (
               <ModalButton variant="primary" onClick={() => setViewReq(null)}><Printer className="h-4 w-4 mr-1" /> Print & Release</ModalButton>
@@ -758,6 +867,26 @@ export default function RequestsPage() {
                 )}
               </div>
             )}
+
+            {/* Rejection Reason */}
+            {showReject && (
+              <div className="p-4 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 space-y-2">
+                <div className="flex items-center gap-2">
+                  <XCircle className="h-4 w-4 text-red-500 shrink-0" />
+                  <p className="text-xs font-medium text-red-700 dark:text-red-400 uppercase tracking-wider">Rejection Reason<span className="text-red-500 ml-0.5">*</span></p>
+                </div>
+                <textarea
+                  value={rejectionReason}
+                  onChange={(e) => { setRejectionReason(e.target.value); if (e.target.value.trim()) setRejectionError(""); }}
+                  placeholder="Explain why this request is being rejected..."
+                  rows={3}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-red-300 dark:border-red-800 bg-background focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
+                />
+                {rejectionError && (
+                  <p className="text-xs text-red-500">{rejectionError}</p>
+                )}
+              </div>
+            )}
           </div>
         )}
       </Modal>
@@ -770,7 +899,7 @@ export default function RequestsPage() {
         footer={
           <>
             <ModalButton variant="secondary" onClick={() => { setShowDelete(false); setDeleteTarget(null); }}>Cancel</ModalButton>
-            <ModalButton variant="danger" onClick={() => { setShowDelete(false); setDeleteTarget(null); setViewReq(null); }}>Delete Request</ModalButton>
+            <ModalButton variant="danger" onClick={() => { addToast("Request deleted.", "error"); setShowDelete(false); setDeleteTarget(null); setViewReq(null); }}>Delete Request</ModalButton>
           </>
         }>
         <div className="space-y-3">
@@ -787,6 +916,29 @@ export default function RequestsPage() {
           <p className="text-sm text-muted-foreground">Are you sure you want to delete this request?</p>
         </div>
       </Modal>
+
+      {/* Toast Notifications */}
+      {toasts.length > 0 && (
+        <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
+          {toasts.map((t) => (
+            <div key={t.id}
+              className={cn(
+                "flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg text-sm font-medium animate-in slide-in-from-bottom-2 fade-in duration-200",
+                t.type === "success" && "bg-emerald-600 text-white",
+                t.type === "error" && "bg-red-600 text-white",
+                t.type === "info" && "bg-blue-600 text-white"
+              )}>
+              {t.type === "success" && <CheckCircle2 className="h-4 w-4 shrink-0" />}
+              {t.type === "error" && <XCircle className="h-4 w-4 shrink-0" />}
+              {t.type === "info" && <Clock className="h-4 w-4 shrink-0" />}
+              {t.message}
+              <button onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))} className="ml-2 p-0.5 rounded hover:bg-white/20 transition-colors">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

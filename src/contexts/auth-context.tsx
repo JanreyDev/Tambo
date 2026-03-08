@@ -23,6 +23,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshUser = useCallback(async () => {
     const token = api.getToken();
     if (!token) {
+      // DEV ONLY: auto-authenticate for local preview without API
+      if (process.env.NODE_ENV === "development") {
+        // Set auth cookie so middleware allows access to protected routes
+        document.cookie = "bcmp_auth=1; path=/; SameSite=Lax";
+        setUser({ id: 1, username: "kap_tambo", email: "tambo@kapitan.ph", first_name: "Tambo", last_name: "Admin", role: { id: 1, name: "barangay_admin", label: "Barangay Admin" }, permissions: [], tenant: { id: 1, name: "Barangay Tambo", slug: "tambo", is_active: true }, preferences: {} } as unknown as User);
+        setIsLoading(false);
+        return;
+      }
       // Clear stale cookie if token is missing (e.g., sessionStorage cleared on restart)
       // This prevents redirect loops: middleware sees cookie → allows access → no token → redirect to login → repeat
       api.clearToken();
@@ -38,6 +46,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // DEV ONLY: If API is not running, use mock user for local preview
       if (process.env.NODE_ENV === "development") {
+        // Set auth cookie so middleware allows access to protected routes
+        document.cookie = "bcmp_auth=1; path=/; SameSite=Lax";
         setUser({ id: 1, username: "kap_tambo", email: "tambo@kapitan.ph", first_name: "Tambo", last_name: "Admin", role: { id: 1, name: "barangay_admin", label: "Barangay Admin" }, permissions: [], tenant: { id: 1, name: "Barangay Tambo", slug: "tambo", is_active: true }, preferences: {} } as unknown as User);
       } else {
         api.clearToken();

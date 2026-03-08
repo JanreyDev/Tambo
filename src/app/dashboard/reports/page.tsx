@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import {
   BarChart3,
   Download,
@@ -19,6 +19,8 @@ import {
   CheckCircle2,
   FileSpreadsheet,
   FileBarChart,
+  Bot,
+  X,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -79,6 +81,7 @@ export default function ReportsPage() {
   const [showDilgOnly, setShowDilgOnly] = useState(false);
 
   // Generate modal
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [showGenerate, setShowGenerate] = useState(false);
   const [generateTarget, setGenerateTarget] = useState<ReportTemplate | null>(null);
   const [genPeriod, setGenPeriod] = useState("monthly");
@@ -97,6 +100,17 @@ export default function ReportsPage() {
   const [showView, setShowView] = useState(false);
   const [viewTarget, setViewTarget] = useState<ReportTemplate | null>(null);
 
+  // Toast notifications
+  const [toasts, setToasts] = useState<{ id: number; message: string; type: "success" | "error" }[]>([]);
+  const addToast = useCallback((message: string, type: "success" | "error" = "success") => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
+  }, []);
+  const dismissToast = useCallback((id: number) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
   const filtered = reportTemplates.filter((r) => {
     if (categoryFilter !== "All" && r.category !== categoryFilter) return false;
     if (showDilgOnly && !r.dilg_required) return false;
@@ -112,6 +126,7 @@ export default function ReportsPage() {
     setGenCharts(true);
     setGenDateFrom("");
     setGenDateTo("");
+    setFormErrors({});
     setShowGenerate(true);
   };
 
@@ -121,8 +136,29 @@ export default function ReportsPage() {
   };
 
   const handleGenerate = () => {
+    const errors: Record<string, string> = {};
+
+    if (genPeriod === "custom") {
+      if (!genDateFrom) {
+        errors.dateFrom = "Start date is required";
+      }
+      if (!genDateTo) {
+        errors.dateTo = "End date is required";
+      }
+      if (genDateFrom && genDateTo && genDateFrom > genDateTo) {
+        errors.dateRange = "Start date must be on or before end date";
+      }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+
+    setFormErrors({});
     setShowGenerate(false);
     setShowSuccess(true);
+    addToast("Report generated successfully", "success");
   };
 
   return (
@@ -137,6 +173,12 @@ export default function ReportsPage() {
           </div>
         }
       />
+
+      {/* Mabini AI Insight */}
+      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-accent-bg/30 border border-accent-primary/20">
+        <Bot className="h-4 w-4 shrink-0" style={{ color: "var(--accent-primary)" }} />
+        <p className="text-[11px] text-muted-foreground"><span className="font-semibold text-foreground">Mabini:</span> 3 DILG-required reports due this quarter. Population Report and Household Profile were last generated 2 months ago.</p>
+      </div>
 
       {/* Quick Stats */}
       <div className="grid grid-cols-3 gap-4">
@@ -212,7 +254,13 @@ export default function ReportsPage() {
       </div>
 
       {filtered.length === 0 && (
-        <div className="p-12 text-center text-muted-foreground rounded-xl border border-border bg-card">No reports found for this filter.</div>
+        <div className="p-12 text-center rounded-xl border border-border bg-card">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center bg-muted">
+            <FileBarChart className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <h3 className="text-sm font-semibold text-foreground mb-1">No reports generated yet</h3>
+          <p className="text-xs text-muted-foreground max-w-sm mx-auto">Generate DILG-required reports or custom analytics for your barangay.</p>
+        </div>
       )}
 
       {/* View Report Details Modal */}
@@ -290,7 +338,7 @@ export default function ReportsPage() {
         <Modal open={showGenerate} title={`Generate: ${generateTarget.name}`} onClose={() => setShowGenerate(false)} size="md"
           footer={<>
             <ModalButton variant="secondary" onClick={() => setShowGenerate(false)}>Cancel</ModalButton>
-            <ModalButton variant="primary" onClick={handleGenerate}>Generate Report</ModalButton>
+            <button onClick={handleGenerate} className="px-4 py-2 text-sm font-medium rounded-lg text-white transition-opacity hover:opacity-90" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>Generate Report</button>
           </>}>
           <div className="space-y-5">
             {/* Report Period */}
@@ -298,7 +346,7 @@ export default function ReportsPage() {
               <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Report Period</p>
               <div className="flex items-center gap-1 p-1 rounded-lg bg-muted/50 border border-border mb-3">
                 {["monthly", "quarterly", "annually", "custom"].map((p) => (
-                  <button key={p} onClick={() => setGenPeriod(p)}
+                  <button key={p} onClick={() => { setGenPeriod(p); setFormErrors({}); }}
                     className={cn("flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors capitalize",
                       genPeriod === p ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
                     {p}
@@ -313,26 +361,34 @@ export default function ReportsPage() {
                 </div>
               )}
               {genPeriod === "quarterly" && (
-                <div className="grid grid-cols-2 gap-3">
-                  <ReportSelect label="Quarter" value={genQuarter} onChange={setGenQuarter} options={quarters} />
-                  <ReportSelect label="Year" value={genYear} onChange={setGenYear} options={years} />
+                <div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <ReportSelect label="Quarter" value={genQuarter} onChange={setGenQuarter} options={quarters} />
+                    <ReportSelect label="Year" value={genYear} onChange={setGenYear} options={years} />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground/70 mt-2">DILG quarterly reports: Jan-Mar, Apr-Jun, Jul-Sep, Oct-Dec.</p>
                 </div>
               )}
               {genPeriod === "annually" && (
                 <ReportSelect label="Year" value={genYear} onChange={setGenYear} options={years} />
               )}
               {genPeriod === "custom" && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">From</label>
-                    <input type="date" value={genDateFrom} onChange={(e) => setGenDateFrom(e.target.value)}
-                      className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2" style={{ "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties} />
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">From</label>
+                      <input type="date" value={genDateFrom} onChange={(e) => { setGenDateFrom(e.target.value); setFormErrors((prev) => { const { dateFrom, dateRange, ...rest } = prev; return rest; }); }}
+                        className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2", formErrors.dateFrom || formErrors.dateRange ? "border-red-500" : "border-border")} style={{ "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties} />
+                      {formErrors.dateFrom && <p className="text-[11px] text-red-500 mt-1">{formErrors.dateFrom}</p>}
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">To</label>
+                      <input type="date" value={genDateTo} onChange={(e) => { setGenDateTo(e.target.value); setFormErrors((prev) => { const { dateTo, dateRange, ...rest } = prev; return rest; }); }}
+                        className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2", formErrors.dateTo || formErrors.dateRange ? "border-red-500" : "border-border")} style={{ "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties} />
+                      {formErrors.dateTo && <p className="text-[11px] text-red-500 mt-1">{formErrors.dateTo}</p>}
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">To</label>
-                    <input type="date" value={genDateTo} onChange={(e) => setGenDateTo(e.target.value)}
-                      className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2" style={{ "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties} />
-                  </div>
+                  {formErrors.dateRange && <p className="text-[11px] text-red-500">{formErrors.dateRange}</p>}
                 </div>
               )}
             </div>
@@ -407,7 +463,7 @@ export default function ReportsPage() {
         <Modal open={showSuccess} title="Report Generated" onClose={() => setShowSuccess(false)} size="sm"
           footer={<>
             <ModalButton variant="secondary" onClick={() => setShowSuccess(false)}>Close</ModalButton>
-            <ModalButton variant="primary" onClick={() => setShowSuccess(false)}>
+            <ModalButton variant="primary" onClick={() => { setShowSuccess(false); addToast("Report download started", "success"); }}>
               <Download className="h-4 w-4 mr-1.5" /> Download
             </ModalButton>
           </>}>
@@ -431,6 +487,22 @@ export default function ReportsPage() {
             </div>
           </div>
         </Modal>
+      )}
+
+      {/* Toast Notifications */}
+      {toasts.length > 0 && (
+        <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
+          {toasts.map((toast) => (
+            <div key={toast.id}
+              className={cn("flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg text-sm font-medium text-white animate-in slide-in-from-right-5 fade-in duration-300",
+                toast.type === "success" ? "bg-emerald-600" : "bg-red-600")}>
+              <span>{toast.message}</span>
+              <button onClick={() => dismissToast(toast.id)} className="ml-1 hover:opacity-80">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

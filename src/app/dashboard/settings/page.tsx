@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   Save,
   Upload,
@@ -14,22 +15,26 @@ import {
   FileText,
   Printer,
   AlertTriangle,
+  Bot,
+  X,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Modal, ModalButton } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
 
-function SettingsInput({ label, value, onChange, placeholder, icon: Icon, disabled }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; icon?: React.ElementType; disabled?: boolean }) {
+function SettingsInput({ label, value, onChange, placeholder, icon: Icon, disabled, error }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; icon?: React.ElementType; disabled?: boolean; error?: string }) {
   return (
     <div>
       <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}</label>
       <div className="relative">
         {Icon && <Icon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />}
         <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} disabled={disabled}
-          className={cn("w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 transition-colors",
+          className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 transition-colors",
+            error ? "border-red-500 focus:ring-red-500/30" : "border-border",
             Icon && "pl-9", disabled && "opacity-50 cursor-not-allowed")}
-          style={{ "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties} />
+          style={!error ? { "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties : undefined} />
       </div>
+      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
     </div>
   );
 }
@@ -56,6 +61,45 @@ function SettingsToggle({ label, description, checked, onChange }: { label: stri
 }
 
 export default function SettingsPage() {
+  const router = useRouter();
+
+  // Toast notifications
+  const [toasts, setToasts] = useState<{ id: number; message: string; type: "success" | "error" }[]>([]);
+  const addToast = useCallback((message: string, type: "success" | "error" = "success") => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
+  }, []);
+  const dismissToast = useCallback((id: number) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  // Form Errors
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  const clearError = (field: string) => {
+    setFormErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  };
+
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+    if (!barangayName.trim()) errors.barangayName = "Barangay name is required";
+    if (!municipality.trim()) errors.municipality = "Municipality is required";
+    if (!province.trim()) errors.province = "Province is required";
+    if (!zipCode.trim()) errors.zipCode = "ZIP code is required";
+    if (!documentPrefix.trim()) errors.documentPrefix = "Document prefix is required";
+    if (contactEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail.trim())) {
+      errors.contactEmail = "Invalid email format";
+    }
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   // Barangay Info
   const [barangayName, setBarangayName] = useState("Barangay Tambo");
   const [municipality, setMunicipality] = useState("Olongapo City");
@@ -108,13 +152,29 @@ export default function SettingsPage() {
               className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors text-muted-foreground">
               Reset to Default
             </button>
-            <button onClick={() => setShowSaveConfirm(true)}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}>
+            <button onClick={() => { if (validateForm()) setShowSaveConfirm(true); }}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>
               <Save className="h-4 w-4" /> Save Changes
             </button>
           </div>
         }
       />
+
+      {/* Mabini AI Insight */}
+      <div className="flex items-start gap-3 px-4 py-3 rounded-xl border border-accent-primary/20 bg-accent-bg/30">
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: "var(--accent-primary)", opacity: 0.15 }}>
+          <Bot className="w-4 h-4" style={{ color: "var(--accent-primary)" }} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-foreground">Mabini AI Settings Check</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+            Barangay logo and seal not yet uploaded — required for official documents. Automatic backup is enabled. Public portal is active with 9 modules.
+          </p>
+        </div>
+        <button onClick={() => router.push("/dashboard/ai")} className="shrink-0 px-3 py-1.5 text-[10px] font-semibold rounded-lg transition-colors hover:opacity-80" style={{ background: "var(--accent-primary)", color: "#fff" }}>
+          Ask Mabini
+        </button>
+      </div>
 
       <div className="flex gap-6">
         {/* Sidebar Navigation */}
@@ -142,14 +202,14 @@ export default function SettingsPage() {
               <h2 className="text-lg font-semibold text-foreground mb-1">Barangay Information</h2>
               <p className="text-sm text-muted-foreground mb-5">Official barangay details used in documents and reports.</p>
               <div className="space-y-4">
-                <SettingsInput label="Barangay Name" value={barangayName} onChange={setBarangayName} icon={Building2} />
+                <SettingsInput label="Barangay Name" value={barangayName} onChange={(v) => { setBarangayName(v); clearError("barangayName"); }} icon={Building2} error={formErrors.barangayName} />
                 <div className="grid grid-cols-2 gap-4">
-                  <SettingsInput label="Municipality / City" value={municipality} onChange={setMunicipality} />
-                  <SettingsInput label="Province" value={province} onChange={setProvince} />
+                  <SettingsInput label="Municipality / City" value={municipality} onChange={(v) => { setMunicipality(v); clearError("municipality"); }} error={formErrors.municipality} />
+                  <SettingsInput label="Province" value={province} onChange={(v) => { setProvince(v); clearError("province"); }} error={formErrors.province} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <SettingsInput label="Region" value={region} onChange={setRegion} />
-                  <SettingsInput label="ZIP Code" value={zipCode} onChange={setZipCode} />
+                  <SettingsInput label="ZIP Code" value={zipCode} onChange={(v) => { setZipCode(v); clearError("zipCode"); }} error={formErrors.zipCode} />
                 </div>
                 <div className="grid grid-cols-3 gap-4">
                   <SettingsInput label="PSGC Code" value={barangayCode} onChange={setBarangayCode} />
@@ -170,7 +230,7 @@ export default function SettingsPage() {
                   <SettingsInput label="Landline" value={contactPhone} onChange={setContactPhone} icon={Phone} />
                   <SettingsInput label="Mobile" value={contactMobile} onChange={setContactMobile} icon={Phone} />
                 </div>
-                <SettingsInput label="Email Address" value={contactEmail} onChange={setContactEmail} icon={Mail} />
+                <SettingsInput label="Email Address" value={contactEmail} onChange={(v) => { setContactEmail(v); clearError("contactEmail"); }} icon={Mail} error={formErrors.contactEmail} />
                 <SettingsInput label="Office Address" value={contactAddress} onChange={setContactAddress} icon={MapPin} />
                 <SettingsInput label="Office Hours" value={officeHours} onChange={setOfficeHours} icon={Clock} />
               </div>
@@ -183,25 +243,31 @@ export default function SettingsPage() {
               <h2 className="text-lg font-semibold text-foreground mb-1">Barangay Branding</h2>
               <p className="text-sm text-muted-foreground mb-5">Upload your barangay logo and seal. These appear on documents and the public portal.</p>
               <div className="grid grid-cols-2 gap-4 mb-4">
-                <div className="border-2 border-dashed border-border rounded-xl p-8 flex flex-col items-center justify-center text-center hover:border-muted-foreground/30 transition-colors cursor-pointer">
-                  <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-3">
-                    <Upload className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <div className="border-2 border-dashed border-border rounded-xl p-8 flex flex-col items-center justify-center text-center hover:border-muted-foreground/30 transition-colors cursor-pointer">
+                    <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-3">
+                      <Upload className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <p className="text-sm font-medium text-foreground">Barangay Logo</p>
+                    <p className="text-xs text-muted-foreground mt-1">PNG or JPG, max 2MB</p>
+                    <button className="mt-3 px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted transition-colors">
+                      Upload File
+                    </button>
                   </div>
-                  <p className="text-sm font-medium text-foreground">Barangay Logo</p>
-                  <p className="text-xs text-muted-foreground mt-1">PNG or JPG, max 2MB</p>
-                  <button className="mt-3 px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted transition-colors">
-                    Upload File
-                  </button>
+                  <p className="text-[11px] text-muted-foreground/70 mt-2 px-1">Recommended: square image, 512x512px minimum. Appears on documents and certificates.</p>
                 </div>
-                <div className="border-2 border-dashed border-border rounded-xl p-8 flex flex-col items-center justify-center text-center hover:border-muted-foreground/30 transition-colors cursor-pointer">
-                  <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-3">
-                    <Upload className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <div className="border-2 border-dashed border-border rounded-xl p-8 flex flex-col items-center justify-center text-center hover:border-muted-foreground/30 transition-colors cursor-pointer">
+                    <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-3">
+                      <Upload className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <p className="text-sm font-medium text-foreground">Barangay Seal</p>
+                    <p className="text-xs text-muted-foreground mt-1">PNG or JPG, max 2MB</p>
+                    <button className="mt-3 px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted transition-colors">
+                      Upload File
+                    </button>
                   </div>
-                  <p className="text-sm font-medium text-foreground">Barangay Seal</p>
-                  <p className="text-xs text-muted-foreground mt-1">PNG or JPG, max 2MB</p>
-                  <button className="mt-3 px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted transition-colors">
-                    Upload File
-                  </button>
+                  <p className="text-[11px] text-muted-foreground/70 mt-2 px-1">Official seal used for document authentication. PNG with transparent background recommended.</p>
                 </div>
               </div>
               <div className="p-3 rounded-lg bg-muted/30 border border-border">
@@ -232,7 +298,7 @@ export default function SettingsPage() {
               <p className="text-sm text-muted-foreground mb-5">Configure document numbering, default values, and printing options.</p>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <SettingsInput label="Document ID Prefix" value={documentPrefix} onChange={setDocumentPrefix} placeholder="e.g., TMB" />
+                  <SettingsInput label="Document ID Prefix" value={documentPrefix} onChange={(v) => { setDocumentPrefix(v); clearError("documentPrefix"); }} placeholder="e.g., TMB" error={formErrors.documentPrefix} />
                   <div>
                     <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Fiscal Year Start</label>
                     <select value={fiscalYear} onChange={(e) => setFiscalYear(e.target.value)}
@@ -295,7 +361,7 @@ export default function SettingsPage() {
         <Modal open={showSaveConfirm} title="Save Settings" onClose={() => setShowSaveConfirm(false)} size="sm"
           footer={<>
             <ModalButton variant="secondary" onClick={() => setShowSaveConfirm(false)}>Cancel</ModalButton>
-            <ModalButton variant="primary" onClick={() => setShowSaveConfirm(false)}>Save Changes</ModalButton>
+            <ModalButton variant="primary" onClick={() => { setShowSaveConfirm(false); addToast("Settings saved successfully", "success"); }}>Save Changes</ModalButton>
           </>}>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
@@ -313,7 +379,7 @@ export default function SettingsPage() {
         <Modal open={showResetConfirm} title="Reset to Default" onClose={() => setShowResetConfirm(false)} size="sm"
           footer={<>
             <ModalButton variant="secondary" onClick={() => setShowResetConfirm(false)}>Cancel</ModalButton>
-            <ModalButton variant="danger" onClick={() => setShowResetConfirm(false)}>Reset Settings</ModalButton>
+            <ModalButton variant="danger" onClick={() => { setShowResetConfirm(false); addToast("Settings reset to default", "success"); }}>Reset Settings</ModalButton>
           </>}>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
@@ -327,6 +393,21 @@ export default function SettingsPage() {
           </div>
         </Modal>
 
+      {/* Toast Notifications */}
+      {toasts.length > 0 && (
+        <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
+          {toasts.map((toast) => (
+            <div key={toast.id}
+              className={cn("flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg text-sm font-medium text-white animate-in slide-in-from-right-5 fade-in duration-300",
+                toast.type === "success" ? "bg-emerald-600" : "bg-red-600")}>
+              <span>{toast.message}</span>
+              <button onClick={() => dismissToast(toast.id)} className="ml-1 hover:opacity-80">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

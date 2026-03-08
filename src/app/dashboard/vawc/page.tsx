@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import {
   Shield,
+  ShieldAlert,
   Plus,
   Search,
   Filter,
@@ -23,7 +24,10 @@ import {
   Trash2,
   Save,
   MapPin,
+  Bot,
+  CheckCircle2,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge, StatusBadge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/stat-card";
@@ -87,25 +91,27 @@ const emptyForm: Record<string, string> = {
 };
 
 // ── Form Field Components (module-level) ──
-function FormInput({ label, value, onChange, required, type = "text", placeholder = "" }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; type?: string; placeholder?: string }) {
+function FormInput({ label, value, onChange, required, type = "text", placeholder = "", error }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; type?: string; placeholder?: string; error?: string }) {
   return (
     <div>
       <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
       <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+        className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", error ? "border-red-500" : "border-border")} />
+      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
     </div>
   );
 }
 
-function FormSelect({ label, value, onChange, options, required }: { label: string; value: string; onChange: (value: string) => void; options: string[]; required?: boolean }) {
+function FormSelect({ label, value, onChange, options, required, error }: { label: string; value: string; onChange: (value: string) => void; options: string[]; required?: boolean; error?: string }) {
   return (
     <div>
       <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
       <select value={value} onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+        className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", error ? "border-red-500" : "border-border")}>
         <option value="">-- Select --</option>
         {options.map((o) => <option key={o} value={o}>{o}</option>)}
       </select>
+      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
     </div>
   );
 }
@@ -121,6 +127,7 @@ function FormTextarea({ label, value, onChange, required, rows = 3, placeholder 
 }
 
 export default function VawcPage() {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("All Types");
   const [riskFilter, setRiskFilter] = useState("All Risk");
@@ -139,8 +146,19 @@ export default function VawcPage() {
   const [showDelete, setShowDelete] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<VawcCase | null>(null);
 
+  // Form validation
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
   // Action menu
   const [actionMenu, setActionMenu] = useState<string | null>(null);
+
+  // Toast system
+  const [toasts, setToasts] = useState<{ id: number; message: string }[]>([]);
+  const showToast = useCallback((message: string) => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3500);
+  }, []);
 
   const filtered = mockCases.filter((c) => {
     if (search) {
@@ -170,10 +188,66 @@ export default function VawcPage() {
   };
 
   // -- Form helpers --
-  const updateForm = (key: string, value: string) => setForm((prev) => ({ ...prev, [key]: value }));
+  const updateForm = (key: string, value: string) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+    setFormErrors((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+    // Required fields
+    if (!form["incident_type"]?.trim()) errors["incident_type"] = "Type of violence is required";
+    if (!form["incident_date"]?.trim()) errors["incident_date"] = "Incident date is required";
+    if (!form["victim_name"]?.trim()) errors["victim_name"] = "Victim name is required";
+    if (!form["victim_age"]?.trim()) errors["victim_age"] = "Victim age is required";
+    if (!form["perpetrator_name"]?.trim()) errors["perpetrator_name"] = "Perpetrator name is required";
+    if (!form["relationship_to_victim"]?.trim()) errors["relationship_to_victim"] = "Relationship to victim is required";
+    // VAWC-specific validation
+    if (form["victim_age"]?.trim()) {
+      const age = Number(form["victim_age"]);
+      if (isNaN(age) || age < 0 || age > 150 || !Number.isInteger(age)) {
+        errors["victim_age"] = "Enter a valid age (0-150)";
+      }
+    }
+    if (form["incident_date"]?.trim()) {
+      const incidentDate = new Date(form["incident_date"]);
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+      if (incidentDate > today) {
+        errors["incident_date"] = "Incident date cannot be in the future";
+      }
+    }
+    setFormErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      // Navigate to the first tab that has errors
+      const tabFieldMap: Record<number, string[]> = {
+        0: ["victim_name", "victim_age"],
+        1: ["perpetrator_name", "relationship_to_victim"],
+        2: ["incident_type", "incident_date"],
+        3: [],
+      };
+      for (let t = 0; t < 4; t++) {
+        if (tabFieldMap[t].some((f) => errors[f])) { setFormTab(t); break; }
+      }
+      return false;
+    }
+    return true;
+  };
+
+  const handleSave = () => {
+    if (validateForm()) {
+      showToast(showEdit ? "Case Updated" : "VAWC Case Recorded");
+      closeFormModal();
+    }
+  };
 
   const openCreateCase = () => {
     setForm({ ...emptyForm });
+    setFormErrors({});
     setFormTab(0);
     setShowCreate(true);
   };
@@ -199,6 +273,7 @@ export default function VawcPage() {
       action_taken: c.action_taken,
       status: c.status.charAt(0).toUpperCase() + c.status.slice(1).replace("_", " "),
     });
+    setFormErrors({});
     setFormTab(0);
     setShowEdit(true);
     setActionMenu(null);
@@ -231,8 +306,8 @@ export default function VawcPage() {
     switch (formTab) {
       case 0: return (
         <div className="grid grid-cols-2 gap-4">
-          <FormInput label="Victim Name" value={form["victim_name"] || ""} onChange={(v) => updateForm("victim_name", v)} required placeholder="Full name (anonymized in records)" />
-          <FormInput label="Age" value={form["victim_age"] || ""} onChange={(v) => updateForm("victim_age", v)} type="number" required placeholder="e.g. 28" />
+          <FormInput label="Victim Name" value={form["victim_name"] || ""} onChange={(v) => updateForm("victim_name", v)} required placeholder="Full name (anonymized in records)" error={formErrors["victim_name"]} />
+          <FormInput label="Age" value={form["victim_age"] || ""} onChange={(v) => updateForm("victim_age", v)} type="number" required placeholder="e.g. 28" error={formErrors["victim_age"]} />
           <FormSelect label="Sex" value={form["victim_sex"] || ""} onChange={(v) => updateForm("victim_sex", v)} options={victimSexOptions} required />
           <FormSelect label="Civil Status" value={form["victim_civil_status"] || ""} onChange={(v) => updateForm("victim_civil_status", v)} options={civilStatusOptions} required />
           <FormInput label="Contact Number" value={form["victim_contact"] || ""} onChange={(v) => updateForm("victim_contact", v)} placeholder="e.g. 0917-XXX-XXXX" />
@@ -241,16 +316,16 @@ export default function VawcPage() {
       );
       case 1: return (
         <div className="grid grid-cols-2 gap-4">
-          <FormInput label="Perpetrator Name" value={form["perpetrator_name"] || ""} onChange={(v) => updateForm("perpetrator_name", v)} required placeholder="Full name" />
+          <FormInput label="Perpetrator Name" value={form["perpetrator_name"] || ""} onChange={(v) => updateForm("perpetrator_name", v)} required placeholder="Full name" error={formErrors["perpetrator_name"]} />
           <FormInput label="Age" value={form["perpetrator_age"] || ""} onChange={(v) => updateForm("perpetrator_age", v)} type="number" placeholder="e.g. 35" />
           <FormSelect label="Sex" value={form["perpetrator_sex"] || ""} onChange={(v) => updateForm("perpetrator_sex", v)} options={perpetratorSexOptions} required />
-          <FormSelect label="Relationship to Victim" value={form["relationship_to_victim"] || ""} onChange={(v) => updateForm("relationship_to_victim", v)} options={relationshipOptions} required />
+          <FormSelect label="Relationship to Victim" value={form["relationship_to_victim"] || ""} onChange={(v) => updateForm("relationship_to_victim", v)} options={relationshipOptions} required error={formErrors["relationship_to_victim"]} />
         </div>
       );
       case 2: return (
         <div className="grid grid-cols-2 gap-4">
-          <FormSelect label="Type of Violence" value={form["incident_type"] || ""} onChange={(v) => updateForm("incident_type", v)} options={incidentTypeOptions} required />
-          <FormInput label="Date of Incident" value={form["incident_date"] || ""} onChange={(v) => updateForm("incident_date", v)} type="date" required />
+          <FormSelect label="Type of Violence" value={form["incident_type"] || ""} onChange={(v) => updateForm("incident_type", v)} options={incidentTypeOptions} required error={formErrors["incident_type"]} />
+          <FormInput label="Date of Incident" value={form["incident_date"] || ""} onChange={(v) => updateForm("incident_date", v)} type="date" required error={formErrors["incident_date"]} />
           <div className="col-span-2">
             <FormInput label="Location of Incident" value={form["incident_location"] || ""} onChange={(v) => updateForm("incident_location", v)} placeholder="e.g. Residence - Purok Sampaguita" />
           </div>
@@ -259,7 +334,10 @@ export default function VawcPage() {
       );
       case 3: return (
         <div className="grid grid-cols-2 gap-4">
-          <FormSelect label="Protection Order" value={form["protection_order"] || ""} onChange={(v) => updateForm("protection_order", v)} options={protectionOrderOptions} required />
+          <div>
+            <FormSelect label="Protection Order Type" value={form["protection_order"] || ""} onChange={(v) => updateForm("protection_order", v)} options={protectionOrderOptions} required />
+            <p className="text-[10px] text-muted-foreground mt-1">BPO = Barangay Protection Order (issued by Punong Barangay). TPO = Temporary (court). PPO = Permanent (court).</p>
+          </div>
           <FormSelect label="Referral" value={form["referral"] || ""} onChange={(v) => updateForm("referral", v)} options={referralOptions} required />
           <FormTextarea label="Action Taken" value={form["action_taken"] || ""} onChange={(v) => updateForm("action_taken", v)} rows={3} placeholder="e.g. BPO issued, referred to PNP Women's Desk, victim placed in shelter..." colSpan2 />
           <div className="col-span-2">
@@ -280,10 +358,26 @@ export default function VawcPage() {
         actions={
           <div className="flex items-center gap-2">
             <button className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors"><Download className="h-4 w-4" /> Export</button>
-            <button onClick={openCreateCase} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}><Plus className="h-4 w-4" /> Record VAWC Case</button>
+            <button onClick={openCreateCase} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}><Plus className="h-4 w-4" /> Record VAWC Case</button>
           </div>
         }
       />
+
+      {/* Mabini AI Insight */}
+      <div className="flex items-start gap-3 px-4 py-3 rounded-xl border border-accent-primary/20 bg-accent-bg/30">
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: "var(--accent-primary)", opacity: 0.15 }}>
+          <Bot className="w-4 h-4" style={{ color: "var(--accent-primary)" }} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-foreground">Mabini AI VAWC Case Monitor</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+            2 high-risk cases require immediate follow-up. 1 BPO expiring within 15 days — consider TPO filing. Physical violence cases account for 60% of records this quarter.
+          </p>
+        </div>
+        <button onClick={() => router.push("/dashboard/ai")} className="shrink-0 px-3 py-1.5 text-[10px] font-semibold rounded-lg transition-colors hover:opacity-80" style={{ background: "var(--accent-primary)", color: "#fff" }}>
+          Ask Mabini
+        </button>
+      </div>
 
       {/* RA 9262 Confidential Banner */}
       <div className="p-4 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 flex items-start gap-3">
@@ -334,7 +428,13 @@ export default function VawcPage() {
       {/* Case Cards */}
       <div className="space-y-3">
         {paged.length === 0 ? (
-          <div className="p-12 text-center text-muted-foreground rounded-xl border border-border bg-card">No VAWC cases found.</div>
+          <div className="p-12 text-center rounded-xl border border-border bg-card flex flex-col items-center gap-3">
+            <ShieldAlert className="h-10 w-10 text-muted-foreground/50" />
+            <div>
+              <p className="text-sm font-medium text-foreground">No VAWC cases recorded</p>
+              <p className="text-xs text-muted-foreground mt-1">Cases will be recorded here with full confidentiality under RA 9262.</p>
+            </div>
+          </div>
         ) : (
           paged.map((c) => (
             <div key={c.id} className="p-5 rounded-xl border bg-card hover:shadow-md transition-all"
@@ -424,7 +524,7 @@ export default function VawcPage() {
                   Next <ChevronRight className="w-4 h-4 ml-1" />
                 </ModalButton>
               ) : (
-                <ModalButton variant="primary" onClick={closeFormModal}>
+                <ModalButton variant="primary" onClick={handleSave}>
                   <Save className="w-4 h-4 mr-1" /> {showEdit ? "Update" : "Save"}
                 </ModalButton>
               )}
@@ -458,12 +558,16 @@ export default function VawcPage() {
         footer={
           <>
             <ModalButton variant="secondary" onClick={() => { setShowDelete(false); setDeleteTarget(null); }}>Cancel</ModalButton>
-            <ModalButton variant="danger" onClick={() => { setShowDelete(false); setDeleteTarget(null); }}>Delete Case</ModalButton>
+            <ModalButton variant="danger" onClick={() => { showToast("Case Deleted"); setShowDelete(false); setDeleteTarget(null); }}>Delete Case</ModalButton>
           </>
         }>
         {deleteTarget && (
           <div className="space-y-3">
             <p className="text-sm text-foreground">Are you sure you want to delete case <span className="font-bold">{deleteTarget.case_number}</span>?</p>
+            <div className="flex items-center gap-2 mt-1">
+              <Badge variant={riskColor(deleteTarget.risk_level) as "danger" | "warning" | "muted"}>{deleteTarget.risk_level.toUpperCase()} RISK</Badge>
+              <span className="text-xs text-muted-foreground">{deleteTarget.case_type}</span>
+            </div>
             <p className="text-sm text-muted-foreground">This will permanently remove this VAWC case record. This action cannot be undone and may affect ongoing investigations or protection orders.</p>
             <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900">
               <p className="text-xs text-amber-700 dark:text-amber-300">Note: Deletion of VAWC records may be subject to RA 9262 and RA 10173 data retention requirements.</p>
@@ -529,6 +633,16 @@ export default function VawcPage() {
           </div>
         )}
       </Modal>
+
+      {/* Toast Notifications */}
+      <div className="fixed bottom-6 right-6 z-[100] flex flex-col gap-2">
+        {toasts.map((t) => (
+          <div key={t.id} className="flex items-center gap-2 px-4 py-3 rounded-lg bg-foreground text-background text-sm font-medium shadow-lg animate-in slide-in-from-bottom-2 fade-in duration-300">
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
+            {t.message}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

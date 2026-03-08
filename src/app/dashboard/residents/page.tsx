@@ -10,7 +10,7 @@ import {
   Camera, Printer, Eye, TrendingUp, ChevronDown, Plus, Fingerprint, CheckCircle, Loader2,
   GraduationCap, Briefcase, Contact, Globe,
   IdCard, Vote, MessageSquare, ScrollText, Archive,
-  PawPrint, HandHeart, Link2, Paperclip, Image,
+  PawPrint, HandHeart, Link2, Paperclip, Image, Users,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge, StatusBadge } from "@/components/ui/badge";
@@ -77,6 +77,34 @@ const tenantConfig = {
   province: "ZAMBALES",
   zip_code: "2200",
   logo_url: "", // Production: uploaded via Settings > Branding, fetched from API
+};
+
+// ── Barangay ID (resident_number) Auto-Generation ──
+// Format: RES-{PSGC_CODE}-{SEQUENTIAL_PADDED}
+// Example: RES-1376040160-0001
+// - PSGC_CODE = Philippine Standard Geographic Code of the barangay (assigned during onboarding in Pulitika)
+// - SEQUENTIAL = auto-incrementing per barangay, zero-padded to 4 digits (expandable)
+// - Generated server-side on submit (bcmp-api), NOT editable by user
+// - Primary key in residents table, unique constraint, indexed
+// - In production: POST /api/residents returns the generated resident_number
+// - Frontend displays it AFTER successful creation (confirmation modal)
+const generateMockResidentNumber = () => {
+  const maxNum = mockResidents.reduce((max, r) => {
+    const num = parseInt(r.resident_number.split("-").pop() || "0", 10);
+    return num > max ? num : max;
+  }, 0);
+  return `RES-1376040160-${String(maxNum + 1).padStart(4, "0")}`;
+};
+
+// ── Validation Helpers ──
+const isValidPHMobile = (v: string) => /^09\d{9}$/.test(v.replace(/\s/g, ""));
+const isValidEmail = (v: string) => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(v);
+const formatPHMobile = (raw: string) => {
+  const digits = raw.replace(/\D/g, "").slice(0, 11);
+  // Auto-format: 09XX XXX XXXX
+  if (digits.length <= 4) return digits;
+  if (digits.length <= 7) return `${digits.slice(0, 4)} ${digits.slice(4)}`;
+  return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`;
 };
 
 const puroks = ["All Puroks", ...defaultPuroks];
@@ -149,29 +177,195 @@ const employmentTypeOptions = ["", "Full-Time", "Part-Time", "Casual", "Seasonal
 const incomeRanges = ["", "Below 5,000", "5,001 - 10,000", "10,001 - 15,000", "15,001 - 20,000", "20,001 - 30,000", "30,001 - 50,000", "50,001 - 75,000", "75,001 - 100,000", "100,001 - 150,000", "150,001 - 250,000", "250,001 - 500,000", "500,001 - 1,000,000", "Above 1,000,000"];
 
 // ── Reusable Form Fields ──
-function FInput({ label, name, required, type = "text", placeholder = "", value, onChange, className, valid }: {
-  label: string; name: string; required?: boolean; type?: string; placeholder?: string; value: string; onChange: (name: string, value: string | boolean) => void; className?: string; valid?: boolean;
+function FInput({ label, name, required, type = "text", placeholder = "", value, onChange, className, valid, error, maxLength }: {
+  label: string; name: string; required?: boolean; type?: string; placeholder?: string; value: string; onChange: (name: string, value: string | boolean) => void; className?: string; valid?: boolean; error?: string; maxLength?: number;
 }) {
+  const forceUpper = type === "text" || type === "search";
   return (
     <div className={className}>
       <label className="block text-xs font-medium text-muted-foreground mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <input type={type} value={value} onChange={(e) => onChange(name, e.target.value)} placeholder={placeholder}
+      <input type={type} name={name} value={value} maxLength={maxLength}
+        onChange={(e) => onChange(name, forceUpper ? e.target.value.toUpperCase() : e.target.value)} placeholder={placeholder}
         className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 transition-colors",
+          forceUpper && "uppercase",
+          error ? "border-red-500 focus:ring-red-300 bg-red-50 dark:bg-red-950/20" :
           valid ? "border-green-500 focus:ring-green-300 bg-green-50 dark:bg-green-950/20" : "border-border focus:ring-accent-ring")} />
+      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
     </div>
   );
 }
 
-function FSelect({ label, name, options, required, value, onChange, className }: {
-  label: string; name: string; options: string[]; required?: boolean; value: string; onChange: (name: string, value: string | boolean) => void; className?: string;
+// ── Custom Date Picker with calendar dropdown ──
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const DAYS_SHORT = ["Su","Mo","Tu","We","Th","Fr","Sa"];
+
+function FDatePicker({ label, name, required, value, onChange, className, valid, error }: {
+  label: string; name: string; required?: boolean; value: string; onChange: (name: string, value: string | boolean) => void; className?: string; valid?: boolean; error?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const today = new Date();
+  // Parse current value or default to a sensible view date
+  const parsed = value ? new Date(value + "T00:00:00") : null;
+  const [viewMonth, setViewMonth] = useState(parsed ? parsed.getMonth() : today.getMonth());
+  const [viewYear, setViewYear] = useState(parsed ? parsed.getFullYear() : today.getFullYear() - 25);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  // Build calendar grid for viewMonth/viewYear
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const firstDayOfWeek = new Date(viewYear, viewMonth, 1).getDay();
+  const cells: (number | null)[] = [];
+  for (let i = 0; i < firstDayOfWeek; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+  const selectDate = (day: number) => {
+    const mm = String(viewMonth + 1).padStart(2, "0");
+    const dd = String(day).padStart(2, "0");
+    onChange(name, `${viewYear}-${mm}-${dd}`);
+    setOpen(false);
+  };
+
+  const isSelected = (day: number) => {
+    if (!parsed) return false;
+    return parsed.getFullYear() === viewYear && parsed.getMonth() === viewMonth && parsed.getDate() === day;
+  };
+
+  const isToday = (day: number) => {
+    return today.getFullYear() === viewYear && today.getMonth() === viewMonth && today.getDate() === day;
+  };
+
+  // Age calculation
+  const age = parsed ? (() => {
+    let a = today.getFullYear() - parsed.getFullYear();
+    const m = today.getMonth() - parsed.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < parsed.getDate())) a--;
+    return a;
+  })() : null;
+
+  // Display value
+  const displayValue = parsed
+    ? `${MONTHS[parsed.getMonth()]} ${parsed.getDate()}, ${parsed.getFullYear()}`
+    : "";
+
+  // Year options: 1920 to current year
+  const yearOptions: number[] = [];
+  for (let y = today.getFullYear(); y >= 1920; y--) yearOptions.push(y);
+
+  const prevMonth = () => {
+    if (viewMonth === 0) { setViewMonth(11); setViewYear(viewYear - 1); }
+    else setViewMonth(viewMonth - 1);
+  };
+  const nextMonth = () => {
+    if (viewMonth === 11) { setViewMonth(0); setViewYear(viewYear + 1); }
+    else setViewMonth(viewMonth + 1);
+  };
+
+  return (
+    <div className={cn("relative", className)} ref={ref}>
+      <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+      </label>
+      {/* Trigger button */}
+      <button type="button" name={name} onClick={() => setOpen(!open)}
+        className={cn(
+          "w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg border bg-background text-left focus:outline-none focus:ring-2 transition-colors",
+          error ? "border-red-500 focus:ring-red-300 bg-red-50 dark:bg-red-950/20" :
+          valid ? "border-green-500 focus:ring-green-300 bg-green-50 dark:bg-green-950/20" : "border-border focus:ring-accent-ring"
+        )}>
+        <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
+        <span className={cn("flex-1 truncate", !displayValue && "text-muted-foreground")}>
+          {displayValue || "Select date"}
+        </span>
+        {age !== null && (
+          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-accent-bg text-accent-text shrink-0">
+            {age} yrs
+          </span>
+        )}
+        <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground shrink-0 transition-transform", open && "rotate-180")} />
+      </button>
+      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
+
+      {/* Calendar dropdown */}
+      {open && (
+        <div className="absolute z-50 mt-1 w-72 rounded-xl border border-border bg-card shadow-lg p-3 animate-in fade-in slide-in-from-top-1 duration-150">
+          {/* Month/Year header */}
+          <div className="flex items-center justify-between mb-2">
+            <button type="button" onClick={prevMonth} className="p-1 rounded-md hover:bg-muted transition-colors">
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <div className="flex items-center gap-1.5">
+              <select value={viewMonth} onChange={(e) => setViewMonth(Number(e.target.value))}
+                className="text-sm font-semibold bg-transparent border-none focus:outline-none cursor-pointer hover:text-accent-text transition-colors">
+                {MONTHS.map((m, i) => <option key={m} value={i}>{m}</option>)}
+              </select>
+              <select value={viewYear} onChange={(e) => setViewYear(Number(e.target.value))}
+                className="text-sm font-semibold bg-transparent border-none focus:outline-none cursor-pointer hover:text-accent-text transition-colors">
+                {yearOptions.map((y) => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
+            <button type="button" onClick={nextMonth} className="p-1 rounded-md hover:bg-muted transition-colors">
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+          {/* Day-of-week headers */}
+          <div className="grid grid-cols-7 mb-1">
+            {DAYS_SHORT.map((d) => (
+              <div key={d} className="text-[10px] font-medium text-muted-foreground text-center py-1">{d}</div>
+            ))}
+          </div>
+          {/* Calendar days */}
+          <div className="grid grid-cols-7">
+            {cells.map((day, i) => (
+              <div key={i} className="flex items-center justify-center">
+                {day ? (
+                  <button type="button" onClick={() => selectDate(day)}
+                    className={cn(
+                      "w-8 h-8 text-xs rounded-lg transition-colors font-medium",
+                      isSelected(day)
+                        ? "text-white shadow-sm"
+                        : isToday(day)
+                        ? "bg-accent-bg/30 text-accent-text font-bold"
+                        : "text-foreground hover:bg-muted"
+                    )}
+                    style={isSelected(day) ? { background: "var(--accent-primary)" } : undefined}>
+                    {day}
+                  </button>
+                ) : <div className="w-8 h-8" />}
+              </div>
+            ))}
+          </div>
+          {/* Quick actions */}
+          <div className="flex items-center justify-between mt-2 pt-2 border-t border-border">
+            <button type="button" onClick={() => { onChange(name, ""); setOpen(false); }}
+              className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">Clear</button>
+            <button type="button" onClick={() => { setViewMonth(today.getMonth()); setViewYear(today.getFullYear()); }}
+              className="text-[11px] font-medium hover:text-accent-text transition-colors" style={{ color: "var(--accent-primary)" }}>Today</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FSelect({ label, name, options, required, value, onChange, className, error }: {
+  label: string; name: string; options: string[]; required?: boolean; value: string; onChange: (name: string, value: string | boolean) => void; className?: string; error?: string;
 }) {
   return (
     <div className={className}>
       <label className="block text-xs font-medium text-muted-foreground mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <select value={value} onChange={(e) => onChange(name, e.target.value)}
-        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring transition-colors">
+      <select name={name} value={value} onChange={(e) => onChange(name, e.target.value)}
+        className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 transition-colors",
+          error ? "border-red-500 focus:ring-red-300 bg-red-50 dark:bg-red-950/20" : "border-border focus:ring-accent-ring")}>
         {options.map((o) => <option key={o} value={o === options[0] && o === "" ? "" : o}>{o || `Select ${label.toLowerCase()}`}</option>)}
       </select>
+      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
     </div>
   );
 }
@@ -219,10 +413,12 @@ function similarity(a: string, b: string): number {
 
 interface SmartEntry { canonical: string; count: number; aliases: string[] }
 
-function FCombobox({ label, name, entries, required, value, onChange, onSubmit }: {
+function FCombobox({ label, name, entries, required, value, onChange, onSubmit, onEntriesChange, placeholder: customPlaceholder }: {
   label: string; name: string; entries: SmartEntry[]; required?: boolean; value: string;
   onChange: (name: string, value: string | boolean) => void;
-  onSubmit: (value: string) => void;
+  onSubmit?: (value: string) => void;
+  onEntriesChange?: React.Dispatch<React.SetStateAction<SmartEntry[]>>;
+  placeholder?: string;
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -258,8 +454,19 @@ function FCombobox({ label, name, entries, required, value, onChange, onSubmit }
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  const submitValue = (val: string) => {
+    if (onSubmit) { onSubmit(val); }
+    else if (onEntriesChange) {
+      onEntriesChange((prev) => {
+        const existing = prev.find((e) => e.canonical.toUpperCase() === val.toUpperCase());
+        if (existing) return prev.map((e) => e === existing ? { ...e, count: e.count + 1 } : e);
+        return [...prev, { canonical: val, count: 1, aliases: [] }];
+      });
+    }
+  };
+
   const handleSelect = (val: string) => {
-    onSubmit(val);
+    submitValue(val);
     onChange(name, val);
     setQuery("");
     setOpen(false);
@@ -267,7 +474,7 @@ function FCombobox({ label, name, entries, required, value, onChange, onSubmit }
 
   const handleNew = () => {
     if (!trimmed) return;
-    onSubmit(trimmed);
+    submitValue(trimmed);
     onChange(name, trimmed);
     setQuery("");
     setOpen(false);
@@ -278,10 +485,10 @@ function FCombobox({ label, name, entries, required, value, onChange, onSubmit }
       <label className="block text-xs font-medium text-muted-foreground mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
       <div className={cn("flex items-center w-full rounded-lg border bg-background transition-colors",
         open ? "ring-2 ring-accent-ring border-accent-primary/50" : "border-border")}>
-        <input type="text" value={open ? query : value} placeholder={value || `Type to search or add...`}
-          className="flex-1 px-3 py-2 text-sm bg-transparent focus:outline-none min-w-0"
+        <input type="text" value={open ? query : value} placeholder={value || customPlaceholder || `Type to search or add...`}
+          className="flex-1 px-3 py-2 text-sm bg-transparent focus:outline-none min-w-0 uppercase"
           onFocus={() => { setOpen(true); setQuery(""); }}
-          onChange={(e) => { setQuery(e.target.value); if (!open) setOpen(true); }}
+          onChange={(e) => { setQuery(e.target.value.toUpperCase()); if (!open) setOpen(true); }}
           onKeyDown={(e) => { if (e.key === "Enter" && trimmed) { e.preventDefault(); fuzzyMatch ? handleSelect(fuzzyMatch.canonical) : handleNew(); } }} />
         {value && !open && (
           <button type="button" onClick={() => { onChange(name, ""); setOpen(true); }}
@@ -385,9 +592,15 @@ function Section({ icon, title, open, onToggle, children }: {
 interface EduEntry { level: string; course: string; school: string; start_year: string; end_year: string; currently_studying: boolean; }
 const emptyEdu: EduEntry = { level: "", course: "", school: "", start_year: "", end_year: "", currently_studying: false };
 
-// ── Work Experience Entry ──
+// ── Work / Employment Entry ──
 interface WorkEntry { position: string; company: string; employment_type: string; start_year: string; end_year: string; description: string; }
 const emptyWork: WorkEntry = { position: "", company: "", employment_type: "", start_year: "", end_year: "", description: "" };
+
+// ── Business / Self-Employment Entry ──
+interface BusinessEntry { business_name: string; business_type: string; business_address: string; business_permit_no: string; dti_sec_no: string; monthly_income: string; start_year: string; status: string; description: string; }
+const emptyBusiness: BusinessEntry = { business_name: "", business_type: "", business_address: "", business_permit_no: "", dti_sec_no: "", monthly_income: "", start_year: "", status: "", description: "" };
+const businessStatuses = ["", "Active", "Temporarily Closed", "Closed", "Seasonal"];
+const livelihoodTypes = ["", "Employed", "Self-Employed / Business Owner", "Both", "Unemployed", "Retired", "Student", "OFW"];
 
 // ── Relative Entry ──
 interface RelativeEntry { resident_id: string; resident_name: string; relationship: string; }
@@ -461,10 +674,264 @@ const defaultAssistanceSourceEntries: SmartEntry[] = [
   { canonical: "DOH", count: 18, aliases: ["department of health", "malasakit"] },
   { canonical: "Senatorial Fund", count: 10, aliases: ["senator", "senador"] },
 ];
+const defaultSectorOtherEntries: SmartEntry[] = [
+  { canonical: "Tricycle Driver", count: 180, aliases: ["trike", "traysikel", "trisikad"] },
+  { canonical: "Fish Vendor", count: 120, aliases: ["tindera ng isda", "fish seller", "magisda"] },
+  { canonical: "Sari-Sari Store Owner", count: 110, aliases: ["tindahan", "sari sari", "store owner", "tindero", "tindera"] },
+  { canonical: "Construction Worker", count: 95, aliases: ["mason", "karpintero", "carpenter", "tubero", "plumber", "construction"] },
+  { canonical: "Barangay Health Worker", count: 85, aliases: ["bhw", "health worker", "midwife", "hilot"] },
+  { canonical: "Barangay Nutrition Scholar", count: 70, aliases: ["bns", "nutrition scholar"] },
+  { canonical: "Barangay Tanod", count: 65, aliases: ["tanod", "bantay bayan", "peace officer"] },
+  { canonical: "Lupon Member", count: 55, aliases: ["lupon", "lupon tagapamayapa", "katarungang pambarangay"] },
+  { canonical: "SK Member", count: 50, aliases: ["sangguniang kabataan", "sk council", "kabataan"] },
+  { canonical: "Women's Association", count: 45, aliases: ["kababaihan", "women org", "samahan ng kababaihan"] },
+  { canonical: "Jeepney Driver", count: 40, aliases: ["tsuper", "driver", "jeep driver"] },
+  { canonical: "Teacher", count: 38, aliases: ["guro", "titser", "educator"] },
+  { canonical: "Kasambahay", count: 35, aliases: ["katulong", "helper", "domestic worker", "yaya", "maid"] },
+  { canonical: "Church Worker", count: 30, aliases: ["sakristan", "choir", "simbahan", "church volunteer"] },
+  { canonical: "Cooperative Member", count: 28, aliases: ["coop", "kooperatiba", "credit coop"] },
+  { canonical: "Senior Citizen Association", count: 25, aliases: ["osca", "senior org", "samahan ng matatanda"] },
+  { canonical: "PWD Organization", count: 22, aliases: ["pwd org", "disabled org", "samahan ng pwd"] },
+  { canonical: "Market Vendor", count: 20, aliases: ["magtitinda", "palengke", "market seller", "vendor sa palengke"] },
+  { canonical: "Laundry Worker", count: 18, aliases: ["labandera", "labandero", "maglalaba"] },
+  { canonical: "Security Guard", count: 15, aliases: ["guard", "guwardiya", "security"] },
+];
+const defaultBusinessTypeEntries: SmartEntry[] = [
+  { canonical: "Sari-Sari Store", count: 280, aliases: ["tindahan", "store", "sari sari", "magtitinda"] },
+  { canonical: "Carinderia / Eatery", count: 150, aliases: ["karinderia", "karinderya", "eatery", "kainan", "turo-turo", "turo turo"] },
+  { canonical: "Tricycle Operation", count: 130, aliases: ["traysikel", "trike operation", "tricycle", "trike"] },
+  { canonical: "Buy and Sell", count: 95, aliases: ["buy & sell", "trading", "negosyo", "reseller"] },
+  { canonical: "Water Refilling Station", count: 80, aliases: ["water station", "tubig", "refilling", "purified water"] },
+  { canonical: "Laundry Service", count: 70, aliases: ["labahan", "laundry shop", "labandera"] },
+  { canonical: "Piggery / Livestock", count: 65, aliases: ["babuyan", "pig farm", "manukan", "poultry", "livestock"] },
+  { canonical: "Rice Trading", count: 55, aliases: ["bigas", "rice dealer", "bigasan", "rice mill"] },
+  { canonical: "Welding / Fabrication", count: 50, aliases: ["panday", "welding shop", "fabrication", "metal works"] },
+  { canonical: "Beauty Salon / Barbershop", count: 48, aliases: ["parlor", "barbershop", "salon", "beauty parlor", "gupit"] },
+  { canonical: "Farming / Agriculture", count: 45, aliases: ["magsasaka", "bukid", "farm", "palay", "agriculture"] },
+  { canonical: "Fishing", count: 42, aliases: ["mangingisda", "isda", "fishpond", "aquaculture"] },
+  { canonical: "Vulcanizing Shop", count: 38, aliases: ["vulcanizing", "gomahan", "tire repair"] },
+  { canonical: "Computer Shop / Internet Cafe", count: 35, aliases: ["comp shop", "internet cafe", "pisonet", "pisowifi"] },
+  { canonical: "Bakery", count: 32, aliases: ["panaderya", "bakeshop", "bread", "tinapay"] },
+  { canonical: "Construction / Contractor", count: 30, aliases: ["kontratista", "construction", "builder", "mason"] },
+  { canonical: "Jeepney Operation", count: 28, aliases: ["jeepney", "jeep operation", "jeep"] },
+  { canonical: "Food Vending", count: 25, aliases: ["food cart", "street food", "tusok-tusok", "fishball", "vendor"] },
+  { canonical: "Auto / Motor Repair", count: 22, aliases: ["talyer", "mechanic", "auto repair", "motor shop"] },
+  { canonical: "Online Selling", count: 20, aliases: ["online shop", "shopee seller", "lazada", "facebook selling", "online business"] },
+];
+const defaultOccupationEntries: SmartEntry[] = [
+  { canonical: "Farmer", count: 280, aliases: ["magsasaka", "mag-uuma", "bukid", "palay farmer"] },
+  { canonical: "Fisherman", count: 200, aliases: ["mangingisda", "fisher", "isda"] },
+  { canonical: "Tricycle Driver", count: 180, aliases: ["trike driver", "traysikel", "trisikad driver"] },
+  { canonical: "Vendor", count: 160, aliases: ["magtitinda", "tindera", "tindero", "market vendor", "ambulant vendor"] },
+  { canonical: "Construction Worker", count: 150, aliases: ["mason", "karpintero", "carpenter", "tubero", "laborer"] },
+  { canonical: "Teacher", count: 140, aliases: ["guro", "titser", "educator", "instructor"] },
+  { canonical: "Housewife / Homemaker", count: 130, aliases: ["housewife", "homemaker", "maybahay", "nag-aalaga ng bahay"] },
+  { canonical: "Driver", count: 120, aliases: ["tsuper", "jeepney driver", "truck driver", "delivery driver"] },
+  { canonical: "Domestic Worker", count: 110, aliases: ["kasambahay", "katulong", "helper", "yaya", "maid"] },
+  { canonical: "Government Employee", count: 100, aliases: ["gov employee", "empleyado ng gobyerno", "public servant"] },
+  { canonical: "Security Guard", count: 90, aliases: ["guard", "guwardiya", "watchman"] },
+  { canonical: "Barangay Health Worker", count: 85, aliases: ["bhw", "health worker", "midwife"] },
+  { canonical: "Sari-Sari Store Owner", count: 80, aliases: ["tindahan owner", "store owner", "magtitinda"] },
+  { canonical: "Electrician", count: 70, aliases: ["elektrista", "elektrisyan", "electrical"] },
+  { canonical: "Mechanic", count: 65, aliases: ["mekaniko", "auto mechanic", "motor mechanic"] },
+  { canonical: "OFW", count: 60, aliases: ["overseas filipino worker", "abroad", "migrant worker"] },
+  { canonical: "Nurse", count: 55, aliases: ["nars", "registered nurse", "rn"] },
+  { canonical: "Laundry Worker", count: 50, aliases: ["labandera", "labandero", "maglalaba"] },
+  { canonical: "Student", count: 45, aliases: ["estudyante", "mag-aaral", "scholar"] },
+  { canonical: "Retired", count: 40, aliases: ["retirado", "pensioner", "senior"] },
+];
+const defaultSkillEntries: SmartEntry[] = [
+  { canonical: "Welding", count: 150, aliases: ["welder", "panday", "arc welding", "metal fabrication"] },
+  { canonical: "Carpentry", count: 140, aliases: ["karpintero", "woodwork", "furniture making"] },
+  { canonical: "Dressmaking / Tailoring", count: 120, aliases: ["mananahi", "seamstress", "tailor", "sewing"] },
+  { canonical: "Cooking / Food Preparation", count: 110, aliases: ["pagluluto", "chef", "cook", "baking"] },
+  { canonical: "Driving (Professional)", count: 100, aliases: ["pagmamaneho", "professional driver", "LTO license"] },
+  { canonical: "Farming / Agriculture", count: 95, aliases: ["pagsasaka", "crop production", "organic farming"] },
+  { canonical: "Electrical Installation", count: 85, aliases: ["elektrista", "wiring", "electrical work"] },
+  { canonical: "Plumbing", count: 80, aliases: ["tubero", "pipe fitting", "water system"] },
+  { canonical: "Masonry", count: 75, aliases: ["mason", "brick laying", "concrete work", "pagtatayo"] },
+  { canonical: "Fishing", count: 70, aliases: ["pangingisda", "net making", "fish processing"] },
+  { canonical: "Beauty / Hairdressing", count: 65, aliases: ["parlor", "salon", "hair cutting", "gupit", "rebond"] },
+  { canonical: "Auto / Motor Repair", count: 60, aliases: ["mekaniko", "automotive", "motor repair", "talyer"] },
+  { canonical: "Computer Literacy", count: 55, aliases: ["computer", "MS Office", "typing", "encoding"] },
+  { canonical: "Electronics Repair", count: 50, aliases: ["technician", "cellphone repair", "appliance repair"] },
+  { canonical: "Livestock / Animal Husbandry", count: 45, aliases: ["pag-aalaga ng hayop", "piggery", "poultry", "manukan"] },
+  { canonical: "Handicraft / Weaving", count: 40, aliases: ["paghahabi", "basket weaving", "handicraft", "banig"] },
+  { canonical: "Massage / Hilot", count: 35, aliases: ["hilot", "spa", "therapeutic massage", "wellness"] },
+  { canonical: "Painting (House)", count: 30, aliases: ["pintor", "house painting", "wall painting"] },
+  { canonical: "Baking / Pastry", count: 28, aliases: ["baker", "panaderya", "cake making", "pastry chef"] },
+  { canonical: "Online Selling / E-Commerce", count: 25, aliases: ["online business", "shopee", "lazada", "facebook selling"] },
+];
+const defaultPositionEntries: SmartEntry[] = [
+  { canonical: "Laborer / Helper", count: 200, aliases: ["labor", "helper", "kargador", "utility worker"] },
+  { canonical: "Driver", count: 150, aliases: ["tsuper", "delivery driver", "company driver"] },
+  { canonical: "Cashier", count: 120, aliases: ["kahera", "cahier", "cash handler"] },
+  { canonical: "Sales Associate", count: 100, aliases: ["saleslady", "salesman", "sales clerk", "tindera"] },
+  { canonical: "Teacher / Instructor", count: 95, aliases: ["guro", "titser", "faculty", "substitute teacher"] },
+  { canonical: "Security Guard", count: 90, aliases: ["guard", "guwardiya", "security officer"] },
+  { canonical: "Machine Operator", count: 80, aliases: ["operator", "factory worker", "production"] },
+  { canonical: "Office Staff / Clerk", count: 75, aliases: ["clerk", "admin staff", "office assistant", "encoder"] },
+  { canonical: "Foreman / Supervisor", count: 65, aliases: ["forman", "kapatas", "team leader", "supervisor"] },
+  { canonical: "Nurse / Midwife", count: 60, aliases: ["nars", "registered nurse", "komadrona", "midwife"] },
+  { canonical: "Barangay Health Worker", count: 55, aliases: ["bhw", "health worker"] },
+  { canonical: "Maintenance / Janitor", count: 50, aliases: ["janitor", "custodian", "cleaner", "utility"] },
+  { canonical: "Cook / Kitchen Staff", count: 48, aliases: ["cook", "kitchen helper", "kusinero", "kusinera"] },
+  { canonical: "Delivery Rider", count: 45, aliases: ["rider", "grab rider", "foodpanda", "lalamove"] },
+  { canonical: "Technician", count: 42, aliases: ["tech", "electrician", "aircon tech", "IT tech"] },
+  { canonical: "Farm Worker", count: 40, aliases: ["farm hand", "magsasaka", "harvester", "plantation worker"] },
+  { canonical: "Construction Worker", count: 38, aliases: ["mason", "carpenter", "welder", "steel man"] },
+  { canonical: "Domestic Helper", count: 35, aliases: ["kasambahay", "katulong", "yaya", "househelp"] },
+  { canonical: "Factory Worker", count: 30, aliases: ["production staff", "packer", "assembly line"] },
+  { canonical: "Seaman / Seafarer", count: 25, aliases: ["seaman", "marino", "sailor", "ofw seaman"] },
+];
+const defaultEmployerEntries: SmartEntry[] = [
+  { canonical: "Self-Employed", count: 300, aliases: ["sarili", "own business", "self employed", "freelance"] },
+  { canonical: "Department of Education (DepEd)", count: 120, aliases: ["deped", "dep ed", "public school"] },
+  { canonical: "Local Government Unit (LGU)", count: 100, aliases: ["lgu", "municipal", "city hall", "barangay"] },
+  { canonical: "SM Group", count: 80, aliases: ["sm supermarket", "sm mall", "savemore", "sm retail"] },
+  { canonical: "Jollibee Foods Corp.", count: 75, aliases: ["jollibee", "jfc", "chowking", "greenwich", "mang inasal"] },
+  { canonical: "Security Agency", count: 70, aliases: ["agency", "guard agency", "security service"] },
+  { canonical: "Construction Company", count: 65, aliases: ["contractor", "construction firm", "building company"] },
+  { canonical: "Private Household", count: 60, aliases: ["private", "bahay", "employer household", "family employer"] },
+  { canonical: "Department of Health (DOH)", count: 55, aliases: ["doh", "hospital", "rural health unit", "rhu"] },
+  { canonical: "Philippine National Police (PNP)", count: 50, aliases: ["pnp", "police", "pulis"] },
+  { canonical: "Armed Forces of the Philippines (AFP)", count: 45, aliases: ["afp", "military", "army", "sundalo"] },
+  { canonical: "DOLE / PESO", count: 40, aliases: ["dole", "peso", "public employment service"] },
+  { canonical: "Universal Robina Corp.", count: 35, aliases: ["urc", "jack n jill", "c2"] },
+  { canonical: "Puregold", count: 30, aliases: ["puregold", "s&r"] },
+  { canonical: "BPO / Call Center", count: 28, aliases: ["bpo", "call center", "outsourcing", "customer service"] },
+  { canonical: "Grab / Delivery Platform", count: 25, aliases: ["grab", "foodpanda", "lalamove", "angkas"] },
+  { canonical: "Factory / Manufacturing", count: 22, aliases: ["factory", "pabrika", "manufacturing plant"] },
+  { canonical: "Cooperative", count: 20, aliases: ["coop", "kooperatiba", "multi-purpose coop"] },
+  { canonical: "Church / Religious Org", count: 18, aliases: ["simbahan", "church", "religious"] },
+  { canonical: "NGO / Foundation", count: 15, aliases: ["ngo", "foundation", "charity", "non-profit"] },
+];
 const assistanceStatuses = ["", "Received", "Pending", "Approved", "Denied", "Partially Received"];
+
+// ── Smart Entries: Education ──
+const defaultCourseEntries: SmartEntry[] = [
+  { canonical: "BS Computer Science", count: 45, aliases: ["bscs", "compsci", "cs"] },
+  { canonical: "BS Information Technology", count: 42, aliases: ["bsit", "it", "infotech"] },
+  { canonical: "BS Nursing", count: 80, aliases: ["bsn", "nursing"] },
+  { canonical: "BS Education", count: 75, aliases: ["bsed", "education", "teaching"] },
+  { canonical: "BS Criminology", count: 60, aliases: ["bscrim", "crim", "criminology"] },
+  { canonical: "BS Accountancy", count: 35, aliases: ["bsa", "accountancy", "accounting"] },
+  { canonical: "BS Business Administration", count: 55, aliases: ["bsba", "business admin", "business"] },
+  { canonical: "BS Civil Engineering", count: 30, aliases: ["bsce", "civil eng", "engineering"] },
+  { canonical: "BS Agriculture", count: 28, aliases: ["bsa agri", "agriculture", "agri"] },
+  { canonical: "BS Social Work", count: 22, aliases: ["bssw", "social work"] },
+  { canonical: "Associate in Computer Technology", count: 18, aliases: ["act", "computer tech"] },
+  { canonical: "BS Hotel & Restaurant Management", count: 25, aliases: ["bshrm", "hrm", "hotel management"] },
+  { canonical: "BS Marine Transportation", count: 15, aliases: ["bsmt", "marine", "seaman course"] },
+  { canonical: "Technical Vocational (TESDA)", count: 40, aliases: ["tesda", "tvet", "vocational", "nc2"] },
+  { canonical: "General Academic Strand (GAS)", count: 20, aliases: ["gas", "shs gas", "senior high"] },
+  { canonical: "STEM", count: 18, aliases: ["shs stem", "science tech"] },
+  { canonical: "ABM", count: 15, aliases: ["shs abm", "accountancy business"] },
+  { canonical: "HUMSS", count: 12, aliases: ["shs humss", "humanities"] },
+  { canonical: "TVL", count: 10, aliases: ["shs tvl", "tech voc livelihood"] },
+  { canonical: "BS Pharmacy", count: 20, aliases: ["bspharm", "pharmacy"] },
+];
+const defaultSchoolEntries: SmartEntry[] = [
+  { canonical: "Gordon College", count: 120, aliases: ["gc", "gordon"] },
+  { canonical: "Columban College", count: 85, aliases: ["columban", "cc olongapo"] },
+  { canonical: "Olongapo City National High School", count: 95, aliases: ["ocnhs", "city high"] },
+  { canonical: "Zambales National High School", count: 60, aliases: ["znhs"] },
+  { canonical: "President Ramon Magsaysay State University", count: 55, aliases: ["prmsu", "prms", "magsaysay univ"] },
+  { canonical: "Philippine Christian University", count: 25, aliases: ["pcu"] },
+  { canonical: "STI College", count: 40, aliases: ["sti", "sti olongapo"] },
+  { canonical: "AMA Computer College", count: 35, aliases: ["ama", "amacc"] },
+  { canonical: "University of the Philippines", count: 20, aliases: ["up", "up diliman", "up manila"] },
+  { canonical: "Polytechnic University of the Philippines", count: 30, aliases: ["pup"] },
+  { canonical: "Technological University of the Philippines", count: 25, aliases: ["tup"] },
+  { canonical: "Don Bosco Training Center", count: 18, aliases: ["don bosco", "dbti"] },
+  { canonical: "Subic Bay Colleges", count: 15, aliases: ["sbc"] },
+  { canonical: "Philippine Science High School", count: 10, aliases: ["pisay", "pshs"] },
+  { canonical: "DepEd ALS (Alternative Learning System)", count: 22, aliases: ["als", "alternative learning"] },
+];
+const defaultPlaceOfBirthEntries: SmartEntry[] = [
+  { canonical: "Olongapo City", count: 350, aliases: ["olongapo", "olongapo city, zambales"] },
+  { canonical: "Subic, Zambales", count: 120, aliases: ["subic"] },
+  { canonical: "San Marcelino, Zambales", count: 85, aliases: ["san marcelino"] },
+  { canonical: "Castillejos, Zambales", count: 70, aliases: ["castillejos"] },
+  { canonical: "San Antonio, Zambales", count: 55, aliases: ["san antonio zambales"] },
+  { canonical: "Iba, Zambales", count: 65, aliases: ["iba"] },
+  { canonical: "Tarlac City", count: 45, aliases: ["tarlac", "tarlac city"] },
+  { canonical: "Manila", count: 80, aliases: ["manila city", "city of manila"] },
+  { canonical: "Quezon City", count: 50, aliases: ["qc", "quezon"] },
+  { canonical: "Angeles City, Pampanga", count: 35, aliases: ["angeles city", "angeles"] },
+  { canonical: "San Fernando, Pampanga", count: 28, aliases: ["san fernando pampanga"] },
+  { canonical: "Dagupan City, Pangasinan", count: 22, aliases: ["dagupan"] },
+  { canonical: "Baguio City", count: 25, aliases: ["baguio"] },
+  { canonical: "Zambales", count: 40, aliases: ["zambales province"] },
+  { canonical: "Caloocan City", count: 20, aliases: ["caloocan"] },
+  { canonical: "Makati City", count: 18, aliases: ["makati"] },
+  { canonical: "Cebu City", count: 15, aliases: ["cebu"] },
+  { canonical: "Davao City", count: 12, aliases: ["davao"] },
+  { canonical: "Zamboanga City", count: 10, aliases: ["zamboanga"] },
+  { canonical: "Bataan", count: 30, aliases: ["bataan province", "balanga"] },
+];
 
 // ── Year options ──
 const yearOptions = ["", ...Array.from({ length: 60 }, (_, i) => String(2026 - i))];
+
+// ── Toast Notification System ──
+interface Toast { id: string; type: "success" | "error" | "warning" | "info"; title: string; message?: string; duration?: number; }
+
+function ToastContainer({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id: string) => void }) {
+  return (
+    <div className="fixed bottom-6 right-6 z-[100] flex flex-col gap-3 pointer-events-none">
+      {toasts.map((toast) => (
+        <ToastItem key={toast.id} toast={toast} onDismiss={onDismiss} />
+      ))}
+    </div>
+  );
+}
+
+function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string) => void }) {
+  const [exiting, setExiting] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const dur = toast.duration ?? 5000;
+    timerRef.current = setTimeout(() => { setExiting(true); setTimeout(() => onDismiss(toast.id), 300); }, dur);
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [toast.id, toast.duration, onDismiss]);
+
+  const colors = {
+    success: { bg: "bg-emerald-50 dark:bg-emerald-950/40", border: "border-emerald-200 dark:border-emerald-800", icon: "text-emerald-600 dark:text-emerald-400", bar: "bg-emerald-500" },
+    error: { bg: "bg-red-50 dark:bg-red-950/40", border: "border-red-200 dark:border-red-800", icon: "text-red-600 dark:text-red-400", bar: "bg-red-500" },
+    warning: { bg: "bg-amber-50 dark:bg-amber-950/40", border: "border-amber-200 dark:border-amber-800", icon: "text-amber-600 dark:text-amber-400", bar: "bg-amber-500" },
+    info: { bg: "bg-blue-50 dark:bg-blue-950/40", border: "border-blue-200 dark:border-blue-800", icon: "text-blue-600 dark:text-blue-400", bar: "bg-blue-500" },
+  }[toast.type];
+
+  const Icon = toast.type === "success" ? CheckCircle : toast.type === "error" ? X : AlertTriangle;
+
+  return (
+    <div className={cn(
+      "pointer-events-auto w-96 rounded-xl border shadow-2xl overflow-hidden transition-all duration-300",
+      colors.bg, colors.border,
+      exiting ? "opacity-0 translate-x-8" : "opacity-100 translate-x-0 animate-in slide-in-from-right-5 fade-in"
+    )}>
+      <div className="flex items-start gap-3 p-4">
+        <div className={cn("shrink-0 mt-0.5", colors.icon)}>
+          <Icon className="h-5 w-5" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-foreground">{toast.title}</p>
+          {toast.message && <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{toast.message}</p>}
+        </div>
+        <button onClick={() => { setExiting(true); setTimeout(() => onDismiss(toast.id), 300); }}
+          className="shrink-0 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+      {/* Progress bar */}
+      <div className="h-1 w-full bg-black/5 dark:bg-white/5">
+        <div className={cn("h-full rounded-full", colors.bar)} style={{ animation: `shrink ${toast.duration ?? 5000}ms linear forwards` }} />
+      </div>
+    </div>
+  );
+}
 
 // ══════════════════════════════════════════════════════════════
 // ── MAIN PAGE COMPONENT
@@ -504,6 +971,18 @@ export default function ResidentsPage() {
     emergency: false, relatives: false, pets: false, assistance: false, biometric: false,
   });
 
+  // ── Form Validation ──
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
+
+  // ── Toast Notifications ──
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const addToast = useCallback((toast: Omit<Toast, "id">) => {
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+    setToasts((prev) => [...prev, { ...toast, id }]);
+  }, []);
+  const dismissToast = useCallback((id: string) => setToasts((prev) => prev.filter((t) => t.id !== id)), []);
+
   // ── Smart Address Entries (AI-learned, no manual config needed) ──
   const [purokEntries, setPurokEntries] = useState<SmartEntry[]>(defaultPurokEntries);
   const [streetEntries, setStreetEntries] = useState<SmartEntry[]>(defaultStreetEntries);
@@ -514,6 +993,16 @@ export default function ResidentsPage() {
   const [petTypeEntries, setPetTypeEntries] = useState<SmartEntry[]>(defaultPetTypeEntries);
   const [assistanceTypeEntries, setAssistanceTypeEntries] = useState<SmartEntry[]>(defaultAssistanceTypeEntries);
   const [assistanceSourceEntries, setAssistanceSourceEntries] = useState<SmartEntry[]>(defaultAssistanceSourceEntries);
+  const [sectorOtherEntries, setSectorOtherEntries] = useState<SmartEntry[]>(defaultSectorOtherEntries);
+  const [businessTypeEntries, setBusinessTypeEntries] = useState<SmartEntry[]>(defaultBusinessTypeEntries);
+  const [occupationEntries, setOccupationEntries] = useState<SmartEntry[]>(defaultOccupationEntries);
+  const [skillEntries, setSkillEntries] = useState<SmartEntry[]>(defaultSkillEntries);
+  const [positionEntries, setPositionEntries] = useState<SmartEntry[]>(defaultPositionEntries);
+  const [employerEntries, setEmployerEntries] = useState<SmartEntry[]>(defaultEmployerEntries);
+  const [businessEntries, setBusinessEntries] = useState<BusinessEntry[]>([]);
+  const [courseEntries, setCourseEntries] = useState<SmartEntry[]>(defaultCourseEntries);
+  const [schoolEntries, setSchoolEntries] = useState<SmartEntry[]>(defaultSchoolEntries);
+  const [placeOfBirthEntries, setPlaceOfBirthEntries] = useState<SmartEntry[]>(defaultPlaceOfBirthEntries);
 
   // ── Map State (Leaflet + Google Geocoding) ──
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -819,7 +1308,8 @@ export default function ResidentsPage() {
   };
 
   // ── Duplicate Detection State ──
-  const [dupMatches, setDupMatches] = useState<Resident[]>([]);
+  interface DupMatch { resident: Resident; score: number; matchedFields: string[] }
+  const [dupMatches, setDupMatches] = useState<DupMatch[]>([]);
   const [dupModal, setDupModal] = useState(false);
   const [dupChecked, setDupChecked] = useState(false);
   const dupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -830,50 +1320,139 @@ export default function ResidentsPage() {
     const middleName = String(formData.middle_name || "").trim().toLowerCase();
     const dob = String(formData.date_of_birth || "");
 
-    // Need at least first + last name to check
     if (!firstName || !lastName) { setDupMatches([]); setDupChecked(false); return; }
 
-    const matches = mockResidents.filter((r) => {
+    const scored: DupMatch[] = [];
+    for (const r of mockResidents) {
       const rFirst = r.first_name.toLowerCase();
       const rLast = r.last_name.toLowerCase();
       const rMiddle = r.middle_name.toLowerCase();
       const rDob = r.date_of_birth;
-      // Exact match: first + last + DOB
-      if (rFirst === firstName && rLast === lastName && dob && rDob === dob) return true;
-      // Partial: first + last + middle
-      if (rFirst === firstName && rLast === lastName && middleName && rMiddle === middleName) return true;
-      // Partial: last + DOB only
-      if (rLast === lastName && dob && rDob === dob) return true;
-      return false;
-    });
+      let score = 0;
+      const matched: string[] = [];
+      if (rFirst === firstName) { score += 30; matched.push("First Name"); }
+      if (rLast === lastName) { score += 30; matched.push("Last Name"); }
+      if (middleName && rMiddle === middleName) { score += 15; matched.push("Middle Name"); }
+      if (dob && rDob === dob) { score += 25; matched.push("Date of Birth"); }
+      if (score >= 55) scored.push({ resident: r, score, matchedFields: matched });
+    }
+    scored.sort((a, b) => b.score - a.score);
 
-    setDupMatches(matches);
+    setDupMatches(scored);
     setDupChecked(true);
-    if (matches.length > 0) setDupModal(true);
+    if (scored.length > 0) setDupModal(true);
   }, []);
 
   const toggleSection = (key: string) => setOpenSections((s) => ({ ...s, [key]: !s[key] }));
   const updateForm = (key: string, value: string | boolean) => {
-    const next = { ...form, [key]: value };
+    let v = value;
+    // Auto-format Philippine mobile number
+    if (key === "mobile_number" && typeof v === "string") {
+      v = formatPHMobile(v);
+    }
+    const next = { ...form, [key]: v };
     setForm(next);
+    // Clear field error on change
+    if (formErrors[key]) setFormErrors((prev) => { const n = { ...prev }; delete n[key]; return n; });
+    // Real-time validation for mobile/email
+    if (key === "mobile_number" && typeof v === "string" && v.replace(/\s/g, "").length === 11) {
+      if (!isValidPHMobile(v)) setFormErrors((prev) => ({ ...prev, mobile_number: "Must be a valid PH mobile number (09XX XXX XXXX)" }));
+    }
+    if (key === "email" && typeof v === "string" && v.length > 0) {
+      if (!isValidEmail(v)) setFormErrors((prev) => ({ ...prev, email: "Must be a valid email address" }));
+      else setFormErrors((prev) => { const n = { ...prev }; delete n.email; return n; });
+    }
     // Trigger duplicate check on name/DOB changes with debounce
     if (["first_name", "last_name", "middle_name", "date_of_birth"].includes(key)) {
       setDupChecked(false);
       if (dupTimerRef.current) clearTimeout(dupTimerRef.current);
       dupTimerRef.current = setTimeout(() => checkDuplicates(next), 600);
     }
+    // Recompute sector warnings when related fields change
+    if (["date_of_birth", "civil_status", "livelihood_type", "pwd_id"].includes(key)) {
+      setSectorWarnings(computeSectorWarnings(sectors, next));
+    }
   };
   const f = (key: string) => String(form[key] || "");
   const fb = (key: string) => !!form[key];
 
-  // Helper: green border when duplicate-checked and no matches
   const dupOk = (key: string) => dupChecked && dupMatches.length === 0 && !!f(key);
+
+  // ── Submit Handler ──
+  const handleSubmit = () => {
+    const errors: Record<string, string> = {};
+    // Required fields
+    if (!f("first_name").trim()) errors.first_name = "First name is required";
+    if (!f("last_name").trim()) errors.last_name = "Last name is required";
+    if (!f("sex")) errors.sex = "Sex is required";
+    if (!f("date_of_birth")) errors.date_of_birth = "Date of birth is required";
+    if (!f("place_of_birth").trim()) errors.place_of_birth = "Place of birth is required";
+    if (!f("civil_status")) errors.civil_status = "Civil status is required";
+    if (!f("resident_type")) errors.resident_type = "Residence type is required";
+
+    // Tanga-proof: Date of Birth must not be in the future
+    if (f("date_of_birth")) {
+      const dob = new Date(f("date_of_birth") + "T00:00:00");
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (dob > today) errors.date_of_birth = "Date of birth cannot be in the future";
+      // Must be at least 1 day old (no same-day — use hospital records for newborns)
+      const ageDays = Math.floor((today.getTime() - dob.getTime()) / 86400000);
+      if (ageDays < 0) errors.date_of_birth = "Date of birth cannot be in the future";
+    }
+
+    // Tanga-proof: Height bounds (30cm to 250cm)
+    const height = f("height_cm");
+    if (height && (parseFloat(height) < 30 || parseFloat(height) > 250)) {
+      errors.height_cm = "Height must be between 30 and 250 cm";
+    }
+
+    // Tanga-proof: Weight bounds (1kg to 500kg)
+    const weight = f("weight_kg");
+    if (weight && (parseFloat(weight) < 1 || parseFloat(weight) > 500)) {
+      errors.weight_kg = "Weight must be between 1 and 500 kg";
+    }
+
+    // Mobile validation (optional but must be valid if filled)
+    const mobile = f("mobile_number").replace(/\s/g, "");
+    if (mobile && !isValidPHMobile(mobile)) errors.mobile_number = "Must be a valid PH number (09XX XXX XXXX)";
+
+    // Email validation (optional but must be valid if filled)
+    const email = f("email");
+    if (email && !isValidEmail(email)) errors.email = "Must be a valid email address";
+
+    // Tanga-proof: Government ID format hints
+    const tin = f("tin_number").replace(/[^0-9]/g, "");
+    if (tin && tin.length !== 9 && tin.length !== 12) errors.tin_number = "TIN must be 9 or 12 digits";
+    const sss = f("sss_gsis_number").replace(/[^0-9]/g, "");
+    if (sss && sss.length < 7) errors.sss_gsis_number = "SSS/GSIS number too short";
+    const philhealth = f("philhealth_number").replace(/[^0-9]/g, "");
+    if (philhealth && philhealth.length < 8) errors.philhealth_number = "PhilHealth number too short";
+
+    setFormErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      const firstKey = Object.keys(errors)[0];
+      const el = document.querySelector(`[name="${firstKey}"]`);
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      addToast({ type: "error", title: "Validation Failed", message: `Please fix ${Object.keys(errors).length} error${Object.keys(errors).length > 1 ? "s" : ""} before submitting.`, duration: 4000 });
+      return;
+    }
+
+    setSubmitting(true);
+    const residentNumber = generateMockResidentNumber();
+    setTimeout(() => {
+      setSubmitting(false);
+      setMode("list");
+      addToast({ type: "success", title: "Resident Registered Successfully", message: `Barangay ID: ${residentNumber}`, duration: 8000 });
+    }, 800);
+  };
 
   const openCreate = () => {
     setForm({ nationality: "Filipino", resident_type: "Permanent", status: "active" });
     setSectors([]);
     setEduEntries([{ ...emptyEdu }]);
     setWorkEntries([{ ...emptyWork }]);
+    setBusinessEntries([]);
     setOpenSections({ other: false, education: false, work: false, govinfo: false, emergency: false, biometric: false });
     setPhotoPreview(null);
     setPhotoAnalysis(null);
@@ -888,6 +1467,7 @@ export default function ResidentsPage() {
     setSectors([]);
     setEduEntries([{ ...emptyEdu }]);
     setWorkEntries([{ ...emptyWork }]);
+    setBusinessEntries([]);
     setOpenSections({ other: true, education: true, work: true, govinfo: true, emergency: true, biometric: true });
     setMode("edit");
     setViewResident(null);
@@ -895,7 +1475,78 @@ export default function ResidentsPage() {
 
   const openDelete = () => { setShowDelete(true); setViewResident(null); };
 
-  const toggleSector = (s: string) => setSectors((prev) => prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]);
+  // ── Smart Sector Sync ──
+  // Auto-sync sectors with other form fields to prevent contradictions.
+  // Sector warnings appear inline when a conflict is detected.
+  const [sectorWarnings, setSectorWarnings] = useState<Record<string, string>>({});
+
+  const getAgeFromDob = (dob: string) => {
+    if (!dob) return null;
+    const d = new Date(dob + "T00:00:00");
+    const now = new Date();
+    let age = now.getFullYear() - d.getFullYear();
+    const m = now.getMonth() - d.getMonth();
+    if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age--;
+    return age;
+  };
+
+  const computeSectorWarnings = useCallback((currentSectors: string[], formData: Record<string, string | boolean>) => {
+    const warnings: Record<string, string> = {};
+    const age = getAgeFromDob(String(formData.date_of_birth || ""));
+    const civil = String(formData.civil_status || "");
+    const livelihood = String(formData.livelihood_type || "");
+
+    // Senior Citizen: must be 60+
+    if (currentSectors.includes("Senior Citizen") && age !== null && age < 60) {
+      warnings["Senior Citizen"] = `Age is ${age}. Senior Citizen requires 60+.`;
+    }
+    // PWD: should have PWD ID filled
+    if (currentSectors.includes("PWD") && !String(formData.pwd_id || "").trim()) {
+      warnings["PWD"] = "Fill in PWD ID under Government Info.";
+    }
+    // Solo Parent: married is contradictory
+    if (currentSectors.includes("Solo Parent") && civil === "Married") {
+      warnings["Solo Parent"] = "Civil status is Married. Verify if Solo Parent applies.";
+    }
+    // Student vs livelihood
+    if (currentSectors.includes("Student") && livelihood && livelihood !== "Student" && livelihood !== "") {
+      warnings["Student"] = `Livelihood is "${livelihood}". Consider "Working Student" instead.`;
+    }
+    // OFW vs livelihood
+    if (currentSectors.includes("OFW") && livelihood && livelihood !== "OFW" && livelihood !== "") {
+      warnings["OFW"] = `Livelihood is "${livelihood}". Set Livelihood Type to "OFW" to match.`;
+    }
+    return warnings;
+  }, []);
+
+  const toggleSector = (s: string) => {
+    setSectors((prev) => {
+      const next = prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s];
+      // Recompute warnings with updated sectors
+      const w = computeSectorWarnings(next, form);
+      setSectorWarnings(w);
+      return next;
+    });
+  };
+
+  // Auto-suggest sectors from other fields (non-intrusive: add info badge, don't force)
+  const sectorSuggestions = (() => {
+    const suggestions: { sector: string; reason: string }[] = [];
+    const age = getAgeFromDob(f("date_of_birth"));
+    if (age !== null && age >= 60 && !sectors.includes("Senior Citizen")) {
+      suggestions.push({ sector: "Senior Citizen", reason: `Age is ${age}` });
+    }
+    if (f("pwd_id") && !sectors.includes("PWD")) {
+      suggestions.push({ sector: "PWD", reason: "PWD ID is filled" });
+    }
+    if (f("livelihood_type") === "Student" && !sectors.includes("Student") && !sectors.includes("Working Student")) {
+      suggestions.push({ sector: "Student", reason: "Livelihood is Student" });
+    }
+    if (f("livelihood_type") === "OFW" && !sectors.includes("OFW")) {
+      suggestions.push({ sector: "OFW", reason: "Livelihood is OFW" });
+    }
+    return suggestions;
+  })();
 
   // ── Relative Search (mock — in production, API call to /api/residents/search) ──
   const searchResidents = useCallback((query: string) => {
@@ -1170,6 +1821,7 @@ export default function ResidentsPage() {
   if (mode === "create" || mode === "edit") {
     return (
       <div className="space-y-5">
+        <ToastContainer toasts={toasts} onDismiss={dismissToast} />
         {/* Header: Back + Title */}
         <div className="flex items-center justify-between">
           <div>
@@ -1197,21 +1849,21 @@ export default function ResidentsPage() {
                 <div className="flex items-start gap-6">
                   <div className="flex-1 space-y-4">
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                      <FInput label="First Name" name="first_name" required placeholder="e.g. Juan" value={f("first_name")} onChange={updateForm} valid={dupOk("first_name")} />
+                      <FInput label="First Name" name="first_name" required placeholder="e.g. Juan" value={f("first_name")} onChange={updateForm} valid={dupOk("first_name")} error={formErrors.first_name} />
                       <FInput label="Middle Name" name="middle_name" placeholder="e.g. Santiago" value={f("middle_name")} onChange={updateForm} valid={dupOk("middle_name")} />
-                      <FInput label="Last Name" name="last_name" required placeholder="e.g. Dela Cruz" value={f("last_name")} onChange={updateForm} valid={dupOk("last_name")} />
+                      <FInput label="Last Name" name="last_name" required placeholder="e.g. Dela Cruz" value={f("last_name")} onChange={updateForm} valid={dupOk("last_name")} error={formErrors.last_name} />
                       <FSelect label="Extension" name="extension_name" options={extensions} value={f("extension_name")} onChange={updateForm} />
                     </div>
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                      <FSelect label="Sex" name="sex" options={["", "Male", "Female"]} required value={f("sex")} onChange={updateForm} />
-                      <FInput label="Date of Birth" name="date_of_birth" type="date" required value={f("date_of_birth")} onChange={updateForm} valid={dupOk("date_of_birth")} />
-                      <FInput label="Place of Birth" name="place_of_birth" required placeholder="e.g. Olongapo City" value={f("place_of_birth")} onChange={updateForm} />
-                      <FSelect label="Civil Status" name="civil_status" options={["", ...civilStatuses]} required value={f("civil_status")} onChange={updateForm} />
+                      <FSelect label="Sex" name="sex" options={["", "Male", "Female"]} required value={f("sex")} onChange={updateForm} error={formErrors.sex} />
+                      <FDatePicker label="Date of Birth" name="date_of_birth" required value={f("date_of_birth")} onChange={updateForm} valid={dupOk("date_of_birth")} error={formErrors.date_of_birth} />
+                      <FCombobox label="Place of Birth" name="place_of_birth" required entries={placeOfBirthEntries} value={f("place_of_birth")} onChange={updateForm} onEntriesChange={setPlaceOfBirthEntries} />
+                      <FSelect label="Civil Status" name="civil_status" options={["", ...civilStatuses]} required value={f("civil_status")} onChange={updateForm} error={formErrors.civil_status} />
                     </div>
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                      <FInput label="Contact No." name="mobile_number" placeholder="09XX XXX XXXX" value={f("mobile_number")} onChange={updateForm} />
-                      <FInput label="Email Address" name="email" type="email" placeholder="name@example.com" value={f("email")} onChange={updateForm} />
-                      <FSelect label="Residence Type" name="resident_type" options={residentTypes} required value={f("resident_type")} onChange={updateForm} />
+                      <FInput label="Contact No." name="mobile_number" type="tel" placeholder="09XX XXX XXXX" value={f("mobile_number")} onChange={updateForm} maxLength={13} error={formErrors.mobile_number} />
+                      <FInput label="Email Address" name="email" type="email" placeholder="name@example.com" value={f("email")} onChange={updateForm} error={formErrors.email} />
+                      <FSelect label="Residence Type" name="resident_type" options={residentTypes} required value={f("resident_type")} onChange={updateForm} error={formErrors.resident_type} />
                       <FRadio label="Head of Household?" name="is_head_of_household" value={fb("is_head_of_household") ? "yes" : "no"}
                         options={[{ value: "yes", label: "Yes" }, { value: "no", label: "No" }]}
                         onChange={(n, v) => updateForm(n, v === "yes")} />
@@ -1367,38 +2019,87 @@ export default function ResidentsPage() {
           </div>
 
           {/* Duplicate Match Modal */}
-          <Modal open={dupModal} onClose={() => setDupModal(false)} title="Possible Duplicate Found" size="lg">
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                The following resident(s) in the database have similar information. Please verify before continuing.
-              </p>
+          <Modal open={dupModal} onClose={() => setDupModal(false)} title="" size="lg">
+            <div className="space-y-5">
+              {/* Header with icon */}
+              <div className="flex items-start gap-4">
+                <div className="shrink-0 w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-950/40 flex items-center justify-center">
+                  <AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-foreground">Possible Duplicate Detected</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    We found {dupMatches.length} existing record{dupMatches.length !== 1 ? "s" : ""} with similar information.
+                    Review the match{dupMatches.length !== 1 ? "es" : ""} below before proceeding.
+                  </p>
+                </div>
+              </div>
+
+              {/* Match cards */}
               <div className="space-y-3 max-h-80 overflow-y-auto">
-                {dupMatches.map((r) => (
-                  <div key={r.id} className="flex items-center justify-between rounded-lg border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/20 p-4">
-                    <div className="flex items-center gap-3">
-                      <div className={cn("w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold",
-                        r.sex === "female" ? "bg-pink-500" : "bg-blue-500")}>
-                        {r.first_name[0]}{r.last_name[0]}
+                {dupMatches.map(({ resident: r, score, matchedFields }) => (
+                  <div key={r.id} className={cn("rounded-xl border-2 p-4 transition-colors",
+                    score >= 90 ? "border-red-300 dark:border-red-800 bg-red-50/50 dark:bg-red-950/20" :
+                    score >= 70 ? "border-amber-300 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20" :
+                    "border-yellow-200 dark:border-yellow-900 bg-yellow-50/50 dark:bg-yellow-950/20"
+                  )}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={cn("w-11 h-11 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0",
+                          r.sex === "female" ? "bg-pink-500" : "bg-blue-500")}>
+                          {r.first_name[0]}{r.last_name[0]}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-foreground truncate">{r.last_name.toUpperCase()}, {r.first_name.toUpperCase()} {r.middle_name ? r.middle_name[0].toUpperCase() + "." : ""} {r.extension_name}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{r.resident_number} &middot; {r.sex} &middot; DOB: {r.date_of_birth} &middot; Purok {r.purok}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-semibold text-foreground">{r.last_name.toUpperCase()}, {r.first_name.toUpperCase()} {r.middle_name ? r.middle_name[0].toUpperCase() + "." : ""}</p>
-                        <p className="text-xs text-muted-foreground">{r.resident_number} &middot; {r.sex} &middot; DOB: {r.date_of_birth} &middot; {r.purok}</p>
+                      {/* Match % badge */}
+                      <div className={cn("shrink-0 px-2.5 py-1 rounded-full text-xs font-bold",
+                        score >= 90 ? "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300" :
+                        score >= 70 ? "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300" :
+                        "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300"
+                      )}>
+                        {score}% match
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button className="px-3 py-1.5 text-xs font-medium rounded-md border border-border hover:bg-muted transition-colors flex items-center gap-1.5">
-                        <ScrollText className="h-3.5 w-3.5" /> Documents
+                    {/* Matched fields pills */}
+                    <div className="flex flex-wrap gap-1.5 mt-3">
+                      {matchedFields.map((field) => (
+                        <span key={field} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-black/5 dark:bg-white/10 text-muted-foreground">
+                          <CheckCircle className="h-3 w-3 text-emerald-500" /> {field}
+                        </span>
+                      ))}
+                    </div>
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/50">
+                      <button onClick={() => { setDupModal(false); setViewResident(r); setMode("list"); }}
+                        className="px-3 py-1.5 text-xs font-medium rounded-lg text-white transition-colors hover:opacity-90 flex items-center gap-1.5" style={{ background: "var(--accent-primary)" }}>
+                        <Eye className="h-3.5 w-3.5" /> View Profile
                       </button>
-                      <button className="px-3 py-1.5 text-xs font-medium rounded-md border border-border hover:bg-muted transition-colors flex items-center gap-1.5">
-                        <IdCard className="h-3.5 w-3.5" /> Generate ID
+                      <button className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted transition-colors flex items-center gap-1.5">
+                        <ScrollText className="h-3.5 w-3.5" /> Documents
                       </button>
                     </div>
                   </div>
                 ))}
               </div>
-              <div className="flex justify-end gap-3 pt-2">
-                <ModalButton variant="secondary" onClick={() => { setDupModal(false); setMode("list"); }}>Cancel Registration</ModalButton>
-                <ModalButton variant="primary" onClick={() => setDupModal(false)}>Continue Anyway</ModalButton>
+
+              {/* Footer actions */}
+              <div className="flex items-center justify-between pt-2 border-t border-border">
+                <p className="text-[11px] text-muted-foreground">
+                  {dupMatches.some((d) => d.score >= 90) ? "High confidence match found. Verify carefully before continuing." : "Partial match detected. Review and decide."}
+                </p>
+                <div className="flex gap-3">
+                  <button onClick={() => { setDupModal(false); setMode("list"); }}
+                    className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors">
+                    Cancel
+                  </button>
+                  <button onClick={() => setDupModal(false)}
+                    className="px-4 py-2 text-sm font-semibold rounded-lg bg-amber-500 hover:bg-amber-600 text-white transition-colors">
+                    Not a Duplicate — Continue
+                  </button>
+                </div>
               </div>
             </div>
           </Modal>
@@ -1499,8 +2200,8 @@ export default function ResidentsPage() {
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Physical</p>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   <FSelect label="Blood Type" name="blood_type" options={bloodTypes} value={f("blood_type")} onChange={updateForm} />
-                  <FInput label="Height (cm)" name="height_cm" type="number" placeholder="e.g. 165" value={f("height_cm")} onChange={updateForm} />
-                  <FInput label="Weight (kg)" name="weight_kg" type="number" placeholder="e.g. 60" value={f("weight_kg")} onChange={updateForm} />
+                  <FInput label="Height (cm)" name="height_cm" type="number" placeholder="e.g. 165" value={f("height_cm")} onChange={updateForm} error={formErrors.height_cm} />
+                  <FInput label="Weight (kg)" name="weight_kg" type="number" placeholder="e.g. 60" value={f("weight_kg")} onChange={updateForm} error={formErrors.weight_kg} />
                   <FSelect label="Complexion" name="complexion" options={complexionOptions} value={f("complexion")} onChange={updateForm} />
                 </div>
               </div>
@@ -1508,28 +2209,43 @@ export default function ResidentsPage() {
               {/* Sector / Organization */}
               <div>
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Sector / Organization</p>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-y-1.5 gap-x-2">
                   {sectorOptions.map((s) => (
-                    <label key={s} className="flex items-center gap-2 cursor-pointer group">
-                      <input type="checkbox" checked={sectors.includes(s)} onChange={() => toggleSector(s)}
-                        className="w-4 h-4 rounded border-border text-accent-primary focus:ring-accent-ring" />
-                      <span className="text-sm text-foreground group-hover:text-accent-text transition-colors">{s}</span>
-                    </label>
+                    <div key={s}>
+                      <label className="flex items-center gap-2 cursor-pointer group">
+                        <input type="checkbox" checked={sectors.includes(s)} onChange={() => toggleSector(s)}
+                          className="w-4 h-4 rounded border-border text-accent-primary focus:ring-accent-ring" />
+                        <span className={cn("text-sm transition-colors",
+                          sectorWarnings[s] ? "text-amber-600 dark:text-amber-400 font-medium" : "text-foreground group-hover:text-accent-text"
+                        )}>{s}</span>
+                        {sectorWarnings[s] && <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />}
+                      </label>
+                      {sectorWarnings[s] && (
+                        <p className="text-[10px] text-amber-600 dark:text-amber-400 ml-6 mt-0.5 leading-tight">{sectorWarnings[s]}</p>
+                      )}
+                    </div>
                   ))}
-                  {/* Others with text input */}
-                  <div className="flex items-center gap-2 col-span-2 md:col-span-3 lg:col-span-4 mt-1">
-                    <label className="flex items-center gap-2 cursor-pointer group shrink-0">
-                      <input type="checkbox" checked={!!f("sector_other")} onChange={() => updateForm("sector_other", f("sector_other") ? "" : " ")}
-                        className="w-4 h-4 rounded border-border text-accent-primary focus:ring-accent-ring" />
-                      <span className="text-sm text-foreground group-hover:text-accent-text transition-colors">Others:</span>
-                    </label>
-                    <input type="text" value={f("sector_other").trim()} placeholder="Specify other sector/organization"
-                      onChange={(e) => updateForm("sector_other", e.target.value || " ")}
-                      disabled={!f("sector_other")}
-                      className={cn("flex-1 max-w-sm px-3 py-1.5 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring",
-                        !f("sector_other") && "opacity-50 cursor-not-allowed")} />
+                  {/* Others with smart combobox */}
+                  <div className="col-span-2 md:col-span-3 lg:col-span-4 mt-1">
+                    <FCombobox label="Others" name="sector_other" value={f("sector_other")}
+                      entries={sectorOtherEntries} onEntriesChange={setSectorOtherEntries}
+                      onChange={updateForm} placeholder="Type to search or add sector/organization..." />
                   </div>
                 </div>
+                {/* Auto-suggestions from other fields */}
+                {sectorSuggestions.length > 0 && (
+                  <div className="mt-3 rounded-lg border border-blue-200 dark:border-blue-900/40 bg-blue-50/50 dark:bg-blue-950/20 p-3">
+                    <p className="text-[11px] font-semibold text-blue-700 dark:text-blue-300 mb-2">Suggested sectors based on form data:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {sectorSuggestions.map(({ sector, reason }) => (
+                        <button key={sector} type="button" onClick={() => toggleSector(sector)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-blue-300 dark:border-blue-700 bg-white dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors">
+                          <Plus className="h-3 w-3" /> {sector} <span className="text-blue-500 dark:text-blue-400">({reason})</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="mt-3">
                   <FRadio label="Organ Donor?" name="is_organ_donor" value={f("is_organ_donor") || "no"}
                     options={[{ value: "yes", label: "Yes" }, { value: "no", label: "No" }]} onChange={updateForm} />
@@ -1543,13 +2259,13 @@ export default function ResidentsPage() {
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-medium text-muted-foreground mb-1.5">Health History</label>
-                      <textarea value={f("health_history")} onChange={(e) => updateForm("health_history", e.target.value)} placeholder="e.g. Past illnesses, allergies, disabilities"
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-20" />
+                      <textarea value={f("health_history")} onChange={(e) => updateForm("health_history", e.target.value.toUpperCase())} placeholder="e.g. Past illnesses, allergies, disabilities"
+                        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-20 uppercase" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-muted-foreground mb-1.5">Skills</label>
-                      <textarea value={f("skills")} onChange={(e) => updateForm("skills", e.target.value)} placeholder="e.g. Carpentry, Cooking, Sewing, Driving"
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-20" />
+                      <textarea value={f("skills")} onChange={(e) => updateForm("skills", e.target.value.toUpperCase())} placeholder="e.g. Carpentry, Cooking, Sewing, Driving"
+                        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-20 uppercase" />
                     </div>
                   </div>
                 </div>
@@ -1558,8 +2274,8 @@ export default function ResidentsPage() {
               {/* Remarks */}
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5">Other Remarks</label>
-                <textarea value={f("other_remarks")} onChange={(e) => updateForm("other_remarks", e.target.value)} placeholder="e.g. Any additional notes about this resident"
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-16" />
+                <textarea value={f("other_remarks")} onChange={(e) => updateForm("other_remarks", e.target.value.toUpperCase())} placeholder="e.g. Any additional notes about this resident"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-16 uppercase" />
               </div>
             </div>
           </Section>
@@ -1577,10 +2293,10 @@ export default function ResidentsPage() {
                   <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                     <FSelect label="Level" name="level" options={educationLevels}
                       value={entry.level} onChange={(_, v) => setEduEntries((e) => e.map((x, i) => i === idx ? { ...x, level: String(v) } : x))} />
-                    <FInput label="Course / Program" name="course" placeholder="e.g. BS Computer Science"
-                      value={entry.course} onChange={(_, v) => setEduEntries((e) => e.map((x, i) => i === idx ? { ...x, course: String(v) } : x))} />
-                    <FInput label="School / Institution" name="school" placeholder="e.g. Gordon College"
-                      value={entry.school} onChange={(_, v) => setEduEntries((e) => e.map((x, i) => i === idx ? { ...x, school: String(v) } : x))} />
+                    <FCombobox label="Course / Program" name="course" entries={courseEntries} value={entry.course}
+                      onChange={(_, v) => setEduEntries((e) => e.map((x, i) => i === idx ? { ...x, course: String(v) } : x))} onEntriesChange={setCourseEntries} />
+                    <FCombobox label="School / Institution" name="school" entries={schoolEntries} value={entry.school}
+                      onChange={(_, v) => setEduEntries((e) => e.map((x, i) => i === idx ? { ...x, school: String(v) } : x))} onEntriesChange={setSchoolEntries} />
                   </div>
                   <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                     <FSelect label="Start Year" name="start_year" options={yearOptions}
@@ -1604,48 +2320,119 @@ export default function ResidentsPage() {
             </div>
           </Section>
 
-          {/* 5. Work Experiences */}
-          <Section icon={<Briefcase className="h-4 w-4" />} title="Work Experiences"
+          {/* 5. Livelihood & Employment */}
+          <Section icon={<Briefcase className="h-4 w-4" />} title="Livelihood & Employment"
             open={openSections.work} onToggle={() => toggleSection("work")}>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-2">
-                <FSelect label="Current Employment Status" name="employment_status" options={employmentStatuses} value={f("employment_status")} onChange={updateForm} />
-                <FInput label="Current Occupation" name="occupation" placeholder="e.g. Teacher, Fisherman" value={f("occupation")} onChange={updateForm} />
+            <div className="space-y-5">
+              {/* Livelihood Overview */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <FSelect label="Livelihood Type" name="livelihood_type" options={livelihoodTypes} value={f("livelihood_type")} onChange={updateForm} />
+                <FCombobox label="Current Occupation" name="occupation" value={f("occupation")}
+                  entries={occupationEntries} onEntriesChange={setOccupationEntries}
+                  onChange={updateForm} placeholder="Type to search or add occupation..." />
                 <FSelect label="Monthly Income Range" name="monthly_income_range" options={incomeRanges} value={f("monthly_income_range")} onChange={updateForm} />
+                <FCombobox label="Skills / Specialization" name="skills" value={f("skills")}
+                  entries={skillEntries} onEntriesChange={setSkillEntries}
+                  onChange={updateForm} placeholder="Type to search or add skill..." />
               </div>
 
-              {workEntries.map((entry, idx) => (
-                <div key={idx} className="relative rounded-lg border border-border p-4 space-y-3">
-                  {workEntries.length > 1 && (
-                    <button onClick={() => setWorkEntries((e) => e.filter((_, i) => i !== idx))}
-                      className="absolute top-3 right-3 p-1 text-muted-foreground hover:text-red-500 transition-colors"><X className="h-4 w-4" /></button>
-                  )}
-                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                    <FInput label="Position / Job Title" name="position" placeholder="e.g. Software Developer"
-                      value={entry.position} onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, position: String(v) } : x))} />
-                    <FInput label="Company / Business Name" name="company" placeholder="e.g. Ashton Data LLC"
-                      value={entry.company} onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, company: String(v) } : x))} />
-                    <FSelect label="Type of Employment" name="employment_type" options={employmentTypeOptions}
-                      value={entry.employment_type} onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, employment_type: String(v) } : x))} />
-                  </div>
-                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                    <FSelect label="Start Year" name="start_year" options={yearOptions}
-                      value={entry.start_year} onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, start_year: String(v) } : x))} />
-                    <FSelect label="End Year" name="end_year" options={yearOptions}
-                      value={entry.end_year} onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, end_year: String(v) } : x))} />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">Job Description</label>
-                    <textarea value={entry.description} onChange={(e) => setWorkEntries((es) => es.map((x, i) => i === idx ? { ...x, description: e.target.value } : x))}
-                      placeholder="Brief summary of responsibilities and achievements"
-                      className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-16" />
-                  </div>
+              {/* Employment History — shown for Employed, Both, OFW */}
+              {(f("livelihood_type") === "Employed" || f("livelihood_type") === "Both" || f("livelihood_type") === "OFW") && (
+                <div className="space-y-3">
+                  <h4 className="text-xs font-semibold text-accent-text uppercase tracking-wider">Employment History</h4>
+                  {workEntries.map((entry, idx) => (
+                    <div key={idx} className="relative rounded-lg border border-border p-4 space-y-3">
+                      {workEntries.length > 1 && (
+                        <button onClick={() => setWorkEntries((e) => e.filter((_, i) => i !== idx))}
+                          className="absolute top-3 right-3 p-1 text-muted-foreground hover:text-red-500 transition-colors"><X className="h-4 w-4" /></button>
+                      )}
+                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                        <FCombobox label="Position / Job Title" name="position"
+                          value={entry.position} entries={positionEntries} onEntriesChange={setPositionEntries}
+                          onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, position: String(v) } : x))}
+                          placeholder="Type to search or add position..." />
+                        <FCombobox label="Company / Employer" name="company"
+                          value={entry.company} entries={employerEntries} onEntriesChange={setEmployerEntries}
+                          onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, company: String(v) } : x))}
+                          placeholder="Type to search or add employer..." />
+                        <FSelect label="Type of Employment" name="employment_type" options={employmentTypeOptions}
+                          value={entry.employment_type} onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, employment_type: String(v) } : x))} />
+                      </div>
+                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                        <FSelect label="Start Year" name="start_year" options={yearOptions}
+                          value={entry.start_year} onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, start_year: String(v) } : x))} />
+                        <FSelect label="End Year" name="end_year" options={yearOptions}
+                          value={entry.end_year} onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, end_year: String(v) } : x))} />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-muted-foreground mb-1.5">Job Description</label>
+                        <textarea value={entry.description} onChange={(e) => setWorkEntries((es) => es.map((x, i) => i === idx ? { ...x, description: e.target.value.toUpperCase() } : x))}
+                          placeholder="Brief summary of responsibilities and achievements"
+                          className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-16 uppercase" />
+                      </div>
+                    </div>
+                  ))}
+                  <button onClick={() => setWorkEntries((e) => [...e, { ...emptyWork }])}
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-dashed border-accent-primary text-accent-text hover:bg-accent-bg transition-colors">
+                    <Plus className="h-4 w-4" /> + Add employment record
+                  </button>
                 </div>
-              ))}
-              <button onClick={() => setWorkEntries((e) => [...e, { ...emptyWork }])}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-dashed border-accent-primary text-accent-text hover:bg-accent-bg transition-colors">
-                <Plus className="h-4 w-4" /> + Add another work experience
-              </button>
+              )}
+
+              {/* Business / Self-Employment — shown for Self-Employed / Business Owner, Both */}
+              {(f("livelihood_type") === "Self-Employed / Business Owner" || f("livelihood_type") === "Both") && (
+                <div className="space-y-3">
+                  <h4 className="text-xs font-semibold text-accent-text uppercase tracking-wider">Business / Self-Employment</h4>
+                  {(businessEntries.length === 0 ? [{ ...emptyBusiness }] : businessEntries).map((entry, idx) => (
+                    <div key={idx} className="relative rounded-lg border border-border p-4 space-y-3">
+                      {businessEntries.length > 1 && (
+                        <button onClick={() => setBusinessEntries((e) => e.filter((_, i) => i !== idx))}
+                          className="absolute top-3 right-3 p-1 text-muted-foreground hover:text-red-500 transition-colors"><X className="h-4 w-4" /></button>
+                      )}
+                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                        <FInput label="Business Name" name="business_name" placeholder="e.g. Maria's Sari-Sari Store"
+                          value={entry.business_name} onChange={(_, v) => setBusinessEntries((e) => { const arr = e.length === 0 ? [{ ...emptyBusiness }] : [...e]; return arr.map((x, i) => i === idx ? { ...x, business_name: String(v) } : x); })} />
+                        <FCombobox label="Business Type" name="business_type"
+                          value={entry.business_type}
+                          entries={businessTypeEntries} onEntriesChange={setBusinessTypeEntries}
+                          onChange={(_, v) => setBusinessEntries((e) => { const arr = e.length === 0 ? [{ ...emptyBusiness }] : [...e]; return arr.map((x, i) => i === idx ? { ...x, business_type: String(v) } : x); })}
+                          placeholder="Type to search or add business type..." />
+                        <FSelect label="Status" name="business_status" options={businessStatuses}
+                          value={entry.status} onChange={(_, v) => setBusinessEntries((e) => { const arr = e.length === 0 ? [{ ...emptyBusiness }] : [...e]; return arr.map((x, i) => i === idx ? { ...x, status: String(v) } : x); })} />
+                      </div>
+                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                        <FInput label="Business Address" name="business_address" placeholder="e.g. 123 Rizal St., Purok Sampaguita"
+                          value={entry.business_address} onChange={(_, v) => setBusinessEntries((e) => { const arr = e.length === 0 ? [{ ...emptyBusiness }] : [...e]; return arr.map((x, i) => i === idx ? { ...x, business_address: String(v) } : x); })} />
+                        <FInput label="Business Permit No." name="business_permit_no" placeholder="e.g. BP-2026-001"
+                          value={entry.business_permit_no} onChange={(_, v) => setBusinessEntries((e) => { const arr = e.length === 0 ? [{ ...emptyBusiness }] : [...e]; return arr.map((x, i) => i === idx ? { ...x, business_permit_no: String(v) } : x); })} />
+                        <FInput label="DTI / SEC Registration" name="dti_sec_no" placeholder="e.g. DTI-2026-12345"
+                          value={entry.dti_sec_no} onChange={(_, v) => setBusinessEntries((e) => { const arr = e.length === 0 ? [{ ...emptyBusiness }] : [...e]; return arr.map((x, i) => i === idx ? { ...x, dti_sec_no: String(v) } : x); })} />
+                      </div>
+                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                        <FSelect label="Est. Monthly Income" name="business_monthly_income" options={incomeRanges}
+                          value={entry.monthly_income} onChange={(_, v) => setBusinessEntries((e) => { const arr = e.length === 0 ? [{ ...emptyBusiness }] : [...e]; return arr.map((x, i) => i === idx ? { ...x, monthly_income: String(v) } : x); })} />
+                        <FSelect label="Started" name="business_start_year" options={yearOptions}
+                          value={entry.start_year} onChange={(_, v) => setBusinessEntries((e) => { const arr = e.length === 0 ? [{ ...emptyBusiness }] : [...e]; return arr.map((x, i) => i === idx ? { ...x, start_year: String(v) } : x); })} />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-muted-foreground mb-1.5">Description / Notes</label>
+                        <textarea value={entry.description} onChange={(e) => setBusinessEntries((es) => { const arr = es.length === 0 ? [{ ...emptyBusiness }] : [...es]; return arr.map((x, i) => i === idx ? { ...x, description: e.target.value.toUpperCase() } : x); })}
+                          placeholder="e.g. Operates daily, 2 employees, sells snacks and household items"
+                          className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-16 uppercase" />
+                      </div>
+                    </div>
+                  ))}
+                  <button onClick={() => setBusinessEntries((e) => [...(e.length === 0 ? [{ ...emptyBusiness }] : e), { ...emptyBusiness }])}
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-dashed border-accent-primary text-accent-text hover:bg-accent-bg transition-colors">
+                    <Plus className="h-4 w-4" /> + Add another business
+                  </button>
+                </div>
+              )}
+
+              {/* Hint when no livelihood type selected */}
+              {!f("livelihood_type") && (
+                <p className="text-xs text-muted-foreground italic">Select a livelihood type above to show relevant fields.</p>
+              )}
             </div>
           </Section>
 
@@ -1657,26 +2444,26 @@ export default function ResidentsPage() {
               <h4 className="text-xs font-semibold text-accent-text uppercase tracking-wider">Government IDs</h4>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="rounded-lg border border-border p-3 space-y-2">
-                  <FInput label="GSIS/SSS No." name="sss_gsis_number" placeholder="e.g. GSIS/SSS No." value={f("sss_gsis_number")} onChange={updateForm} />
-                  <FInput label="Expiration Date" name="sss_gsis_expiry" type="date" value={f("sss_gsis_expiry")} onChange={updateForm} />
+                  <FInput label="GSIS/SSS No." name="sss_gsis_number" placeholder="e.g. GSIS/SSS No." value={f("sss_gsis_number")} onChange={updateForm} error={formErrors.sss_gsis_number} />
+                  <FDatePicker label="Expiration Date" name="sss_gsis_expiry" value={f("sss_gsis_expiry")} onChange={updateForm} />
                 </div>
                 <div className="rounded-lg border border-border p-3 space-y-2">
-                  <FInput label="PhilHealth No." name="philhealth_number" placeholder="e.g. PhilHealth No." value={f("philhealth_number")} onChange={updateForm} />
-                  <FInput label="Expiration Date" name="philhealth_expiry" type="date" value={f("philhealth_expiry")} onChange={updateForm} />
+                  <FInput label="PhilHealth No." name="philhealth_number" placeholder="e.g. PhilHealth No." value={f("philhealth_number")} onChange={updateForm} error={formErrors.philhealth_number} />
+                  <FDatePicker label="Expiration Date" name="philhealth_expiry" value={f("philhealth_expiry")} onChange={updateForm} />
                 </div>
                 <div className="rounded-lg border border-border p-3 space-y-2">
                   <FInput label="Pag-IBIG No." name="pagibig_number" placeholder="e.g. Pag-IBIG No." value={f("pagibig_number")} onChange={updateForm} />
-                  <FInput label="Expiration Date" name="pagibig_expiry" type="date" value={f("pagibig_expiry")} onChange={updateForm} />
+                  <FDatePicker label="Expiration Date" name="pagibig_expiry" value={f("pagibig_expiry")} onChange={updateForm} />
                 </div>
                 <div className="rounded-lg border border-border p-3 space-y-2">
-                  <FInput label="TIN No." name="tin_number" placeholder="e.g. TIN No." value={f("tin_number")} onChange={updateForm} />
-                  <FInput label="Expiration Date" name="tin_expiry" type="date" value={f("tin_expiry")} onChange={updateForm} />
+                  <FInput label="TIN No." name="tin_number" placeholder="e.g. TIN No." value={f("tin_number")} onChange={updateForm} error={formErrors.tin_number} />
+                  <FDatePicker label="Expiration Date" name="tin_expiry" value={f("tin_expiry")} onChange={updateForm} />
                 </div>
               </div>
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="rounded-lg border border-border p-3 space-y-2">
                   <FInput label="PWD ID" name="pwd_id" placeholder="e.g. PWD ID" value={f("pwd_id")} onChange={updateForm} />
-                  <FInput label="Expiration Date" name="pwd_id_expiry" type="date" value={f("pwd_id_expiry")} onChange={updateForm} />
+                  <FDatePicker label="Expiration Date" name="pwd_id_expiry" value={f("pwd_id_expiry")} onChange={updateForm} />
                 </div>
                 <FInput label="Senior Citizen ID" name="senior_citizen_id" placeholder="e.g. Senior Citizen ID" value={f("senior_citizen_id")} onChange={updateForm} />
                 <FInput label="Voter&apos;s No." name="voter_id" placeholder="e.g. Voter's No." value={f("voter_id")} onChange={updateForm} />
@@ -1701,8 +2488,8 @@ export default function ResidentsPage() {
               <p className="text-[11px] text-muted-foreground -mt-1">Is this person a Barangay employee or staff? Fill out the details below if yes.</p>
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                 <FInput label="Barangay Position" name="barangay_position" placeholder="e.g. Staff, Kagawad" value={f("barangay_position")} onChange={updateForm} />
-                <FInput label="Start Date" name="barangay_role_start" type="date" value={f("barangay_role_start")} onChange={updateForm} />
-                <FInput label="End Date" name="barangay_role_end" type="date" value={f("barangay_role_end")} onChange={updateForm} />
+                <FDatePicker label="Start Date" name="barangay_role_start" value={f("barangay_role_start")} onChange={updateForm} />
+                <FDatePicker label="End Date" name="barangay_role_end" value={f("barangay_role_end")} onChange={updateForm} />
               </div>
             </div>
           </Section>
@@ -1819,45 +2606,51 @@ export default function ResidentsPage() {
                         onSubmit={(val) => submitEntry(petTypeEntries, setPetTypeEntries, val)} />
                       <FSelect label="Sex" name="pet_sex" options={petSexOptions} value={pet.sex}
                         onChange={(_, v) => setPetEntries((es) => es.map((x, i) => i === idx ? { ...x, sex: String(v) } : x))} />
-                      <FInput label="Date of Birth" name="pet_dob" type="date" value={pet.date_of_birth}
+                      <FDatePicker label="Date of Birth" name="pet_dob" value={pet.date_of_birth}
                         onChange={(_, v) => setPetEntries((es) => es.map((x, i) => i === idx ? { ...x, date_of_birth: String(v) } : x))} />
                     </div>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-1.5">Remarks</label>
-                    <textarea value={pet.remarks} onChange={(e) => setPetEntries((es) => es.map((x, i) => i === idx ? { ...x, remarks: e.target.value } : x))}
+                    <textarea value={pet.remarks} onChange={(e) => setPetEntries((es) => es.map((x, i) => i === idx ? { ...x, remarks: e.target.value.toUpperCase() } : x))}
                       placeholder="e.g. Breed, color, vaccination status, special notes"
-                      className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-14" />
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-14 uppercase" />
                   </div>
                   {/* Attachments */}
                   <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">Attachments (photos, vaccination records, documents)</label>
-                    <div className="flex flex-wrap gap-2">
-                      {pet.attachments.map((att, aidx) => (
-                        <div key={aidx} className="relative group">
-                          {att.type === "image" && att.preview ? (
-                            <div className="w-14 h-14 rounded-lg border border-border overflow-hidden">
-                              <img src={att.preview} alt={att.name} className="w-full h-full object-cover" />
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-muted text-xs">
-                              <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                              <span className="max-w-[100px] truncate">{att.name}</span>
-                            </div>
-                          )}
-                          <button onClick={() => setPetEntries((es) => es.map((x, i) => i === idx ? { ...x, attachments: x.attachments.filter((_, ai) => ai !== aidx) } : x))}
-                            className="absolute -top-1.5 -right-1.5 p-0.5 bg-red-500 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                            <X className="h-3 w-3" />
-                          </button>
-                        </div>
-                      ))}
-                      <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-border text-xs text-muted-foreground hover:border-accent-primary hover:text-accent-text cursor-pointer transition-colors">
-                        <Paperclip className="h-3.5 w-3.5" />
-                        <span>Add File</span>
-                        <input type="file" multiple accept="image/jpeg,image/png,image/webp,application/pdf,.doc,.docx" className="hidden"
-                          onChange={(e) => e.target.files && handleAttachments(e.target.files, (atts) => setPetEntries((es) => es.map((x, i) => i === idx ? { ...x, attachments: [...x.attachments, ...atts] } : x)))} />
-                      </label>
-                    </div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">Attachments</label>
+                    {pet.attachments.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {pet.attachments.map((att, aidx) => (
+                          <div key={aidx} className="relative group">
+                            {att.type === "image" && att.preview ? (
+                              <div className="w-16 h-16 rounded-lg border border-border overflow-hidden shadow-sm">
+                                <img src={att.preview} alt={att.name} className="w-full h-full object-cover" />
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors rounded-lg" />
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 pl-2.5 pr-6 py-2 rounded-lg border border-border bg-muted/50 text-xs shadow-sm">
+                                <div className="w-7 h-7 rounded bg-accent-bg flex items-center justify-center flex-shrink-0">
+                                  <FileText className="h-3.5 w-3.5" style={{ color: "var(--accent-primary)" }} />
+                                </div>
+                                <span className="max-w-[100px] truncate font-medium text-foreground">{att.name}</span>
+                              </div>
+                            )}
+                            <button onClick={() => setPetEntries((es) => es.map((x, i) => i === idx ? { ...x, attachments: x.attachments.filter((_, ai) => ai !== aidx) } : x))}
+                              className="absolute -top-1.5 -right-1.5 w-5 h-5 flex items-center justify-center bg-red-500 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity shadow-sm">
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <label className="flex flex-col items-center justify-center gap-1.5 py-4 px-4 rounded-lg border-2 border-dashed border-border hover:border-accent-primary hover:bg-accent-bg/30 cursor-pointer transition-all group">
+                      <Upload className="h-5 w-5 text-muted-foreground group-hover:text-accent-primary transition-colors" />
+                      <span className="text-xs font-medium text-muted-foreground group-hover:text-accent-text transition-colors">Click to upload files</span>
+                      <span className="text-[10px] text-muted-foreground/60">JPG, PNG, PDF, DOC up to 10MB</span>
+                      <input type="file" multiple accept="image/jpeg,image/png,image/webp,application/pdf,.doc,.docx" className="hidden"
+                        onChange={(e) => e.target.files && handleAttachments(e.target.files, (atts) => setPetEntries((es) => es.map((x, i) => i === idx ? { ...x, attachments: [...x.attachments, ...atts] } : x)))} />
+                    </label>
                   </div>
                 </div>
               ))}
@@ -1884,7 +2677,7 @@ export default function ResidentsPage() {
                   <button onClick={() => setAssistanceEntries((e) => e.filter((_, i) => i !== idx))}
                     className="absolute top-3 right-3 p-1 text-muted-foreground hover:text-red-500 transition-colors"><X className="h-4 w-4" /></button>
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    <FInput label="Date" name="assistance_date" type="date" value={entry.date}
+                    <FDatePicker label="Date" name="assistance_date" value={entry.date}
                       onChange={(_, v) => setAssistanceEntries((es) => es.map((x, i) => i === idx ? { ...x, date: String(v) } : x))} />
                     <FCombobox label="Type of Assistance" name="assistance_type" entries={assistanceTypeEntries} value={entry.type}
                       onChange={(_, v) => setAssistanceEntries((es) => es.map((x, i) => i === idx ? { ...x, type: String(v) } : x))}
@@ -1898,15 +2691,15 @@ export default function ResidentsPage() {
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-medium text-muted-foreground mb-1.5">Description</label>
-                      <textarea value={entry.description} onChange={(e) => setAssistanceEntries((es) => es.map((x, i) => i === idx ? { ...x, description: e.target.value } : x))}
+                      <textarea value={entry.description} onChange={(e) => setAssistanceEntries((es) => es.map((x, i) => i === idx ? { ...x, description: e.target.value.toUpperCase() } : x))}
                         placeholder="Details of assistance received"
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-16" />
+                        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-16 uppercase" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-muted-foreground mb-1.5">Remarks</label>
-                      <textarea value={entry.remarks} onChange={(e) => setAssistanceEntries((es) => es.map((x, i) => i === idx ? { ...x, remarks: e.target.value } : x))}
+                      <textarea value={entry.remarks} onChange={(e) => setAssistanceEntries((es) => es.map((x, i) => i === idx ? { ...x, remarks: e.target.value.toUpperCase() } : x))}
                         placeholder="e.g. Received by spouse, partial amount, etc."
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-16" />
+                        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-16 uppercase" />
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
@@ -1915,33 +2708,39 @@ export default function ResidentsPage() {
                   </div>
                   {/* Attachments */}
                   <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">Attachments (receipts, photos, documents)</label>
-                    <div className="flex flex-wrap gap-2">
-                      {entry.attachments.map((att, aidx) => (
-                        <div key={aidx} className="relative group">
-                          {att.type === "image" && att.preview ? (
-                            <div className="w-14 h-14 rounded-lg border border-border overflow-hidden">
-                              <img src={att.preview} alt={att.name} className="w-full h-full object-cover" />
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-muted text-xs">
-                              <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                              <span className="max-w-[100px] truncate">{att.name}</span>
-                            </div>
-                          )}
-                          <button onClick={() => setAssistanceEntries((es) => es.map((x, i) => i === idx ? { ...x, attachments: x.attachments.filter((_, ai) => ai !== aidx) } : x))}
-                            className="absolute -top-1.5 -right-1.5 p-0.5 bg-red-500 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                            <X className="h-3 w-3" />
-                          </button>
-                        </div>
-                      ))}
-                      <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-border text-xs text-muted-foreground hover:border-accent-primary hover:text-accent-text cursor-pointer transition-colors">
-                        <Paperclip className="h-3.5 w-3.5" />
-                        <span>Add File</span>
-                        <input type="file" multiple accept="image/jpeg,image/png,image/webp,application/pdf,.doc,.docx" className="hidden"
-                          onChange={(e) => e.target.files && handleAttachments(e.target.files, (atts) => setAssistanceEntries((es) => es.map((x, i) => i === idx ? { ...x, attachments: [...x.attachments, ...atts] } : x)))} />
-                      </label>
-                    </div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">Attachments</label>
+                    {entry.attachments.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {entry.attachments.map((att, aidx) => (
+                          <div key={aidx} className="relative group">
+                            {att.type === "image" && att.preview ? (
+                              <div className="w-16 h-16 rounded-lg border border-border overflow-hidden shadow-sm">
+                                <img src={att.preview} alt={att.name} className="w-full h-full object-cover" />
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors rounded-lg" />
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 pl-2.5 pr-6 py-2 rounded-lg border border-border bg-muted/50 text-xs shadow-sm">
+                                <div className="w-7 h-7 rounded bg-accent-bg flex items-center justify-center flex-shrink-0">
+                                  <FileText className="h-3.5 w-3.5" style={{ color: "var(--accent-primary)" }} />
+                                </div>
+                                <span className="max-w-[100px] truncate font-medium text-foreground">{att.name}</span>
+                              </div>
+                            )}
+                            <button onClick={() => setAssistanceEntries((es) => es.map((x, i) => i === idx ? { ...x, attachments: x.attachments.filter((_, ai) => ai !== aidx) } : x))}
+                              className="absolute -top-1.5 -right-1.5 w-5 h-5 flex items-center justify-center bg-red-500 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity shadow-sm">
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <label className="flex flex-col items-center justify-center gap-1.5 py-4 px-4 rounded-lg border-2 border-dashed border-border hover:border-accent-primary hover:bg-accent-bg/30 cursor-pointer transition-all group">
+                      <Upload className="h-5 w-5 text-muted-foreground group-hover:text-accent-primary transition-colors" />
+                      <span className="text-xs font-medium text-muted-foreground group-hover:text-accent-text transition-colors">Click to upload files</span>
+                      <span className="text-[10px] text-muted-foreground/60">JPG, PNG, PDF, DOC up to 10MB</span>
+                      <input type="file" multiple accept="image/jpeg,image/png,image/webp,application/pdf,.doc,.docx" className="hidden"
+                        onChange={(e) => e.target.files && handleAttachments(e.target.files, (atts) => setAssistanceEntries((es) => es.map((x, i) => i === idx ? { ...x, attachments: [...x.attachments, ...atts] } : x)))} />
+                    </label>
                   </div>
                 </div>
               ))}
@@ -1987,14 +2786,25 @@ export default function ResidentsPage() {
           </Section>
         </div>
 
-        {/* Bottom Actions (V3 style: Cancel + Submit, not sticky) */}
-        <div className="flex items-center justify-end gap-3 pt-2 pb-6">
-          <button onClick={() => setMode("list")} className="px-5 py-2.5 text-sm rounded-lg border border-border hover:bg-muted transition-colors">
-            Cancel
-          </button>
-          <button className="px-6 py-2.5 text-sm font-semibold rounded-lg text-white transition-colors hover:opacity-90" style={{ background: "var(--accent-primary)" }}>
-            Submit
-          </button>
+        {/* Sticky Bottom Action Bar */}
+        <div className="sticky bottom-0 z-30 -mx-6 px-6 py-4 bg-card/95 backdrop-blur-sm border-t border-border shadow-[0_-4px_16px_rgba(0,0,0,0.06)] dark:shadow-[0_-4px_16px_rgba(0,0,0,0.25)]">
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">
+              <span className="text-red-500">*</span> Required fields must be filled before submitting
+            </p>
+            <div className="flex items-center gap-3">
+              <button onClick={() => setMode("list")}
+                className="px-5 py-2.5 text-sm font-medium rounded-lg border border-border hover:bg-muted transition-all hover:shadow-sm">
+                Cancel
+              </button>
+              <button onClick={handleSubmit} disabled={submitting}
+                className="group relative px-7 py-2.5 text-sm font-bold rounded-lg text-white transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+                style={{ background: submitting ? "var(--accent-primary)" : "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>
+                {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                {submitting ? "Registering..." : "Register Resident"}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -2006,6 +2816,7 @@ export default function ResidentsPage() {
 
   return (
     <div className="space-y-6">
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <PageHeader title="Residents" description="Manage barangay resident records, profiles, and demographics. Register new residents, update existing records, generate documents and IDs, and track population data across all puroks."
         breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "Records" }, { label: "Residents" }]}
       />
@@ -2176,7 +2987,22 @@ export default function ResidentsPage() {
             </thead>
             <tbody>
               {paged.length === 0 ? (
-                <tr><td colSpan={9} className="px-4 py-12 text-center text-muted-foreground">No residents found matching your criteria.</td></tr>
+                <tr>
+                  <td colSpan={9} className="px-4 py-16 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                        <Users className="w-6 h-6 text-muted-foreground" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">No residents found</p>
+                        <p className="text-xs text-muted-foreground mt-1">Register your first resident or import records from BIMS to get started.</p>
+                      </div>
+                      <button onClick={openCreate} className="mt-1 px-4 py-2 text-xs font-semibold rounded-lg text-white transition-all hover:opacity-90" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>
+                        + New Resident
+                      </button>
+                    </div>
+                  </td>
+                </tr>
               ) : (
                 paged.map((r) => {
                   const initials = `${r.first_name[0]}${r.last_name[0]}`;
