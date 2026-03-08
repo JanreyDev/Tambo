@@ -95,9 +95,35 @@ class Barangay extends Model
         $this->decrement('sms_credit_balance', $amount);
     }
 
+    public function hasAiCredits(float $amount): bool
+    {
+        return $this->ai_credit_balance >= $amount;
+    }
+
     public function deductAiCredit(float $amount): void
     {
         $this->decrement('ai_credit_balance', $amount);
+    }
+
+    /**
+     * Get AI markup percentage for this barangay.
+     * Checks barangay-level settings first, falls back to global config.
+     */
+    public function getAiMarkup(): float
+    {
+        $settings = $this->settings ?? [];
+
+        return (float) ($settings['ai_markup_percentage'] ?? config('services.anthropic.markup_percentage', 60.00));
+    }
+
+    /**
+     * Get AI model override for this barangay (if set).
+     */
+    public function getAiModel(): string
+    {
+        $settings = $this->settings ?? [];
+
+        return $settings['ai_model'] ?? config('services.anthropic.model');
     }
 
     public function incrementStorage(int $bytes): void

@@ -4,8 +4,67 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "d5369c5246ddfbfe4ae8061e7f9289ee",
+    "content-hash": "77031b62f5ae1fb3e0249003dc068309",
     "packages": [
+        {
+            "name": "anthropic-ai/sdk",
+            "version": "v0.6.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/anthropics/anthropic-sdk-php.git",
+                "reference": "0e444affbbedc17af88b9f899b75008244ffd33d"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/anthropics/anthropic-sdk-php/zipball/0e444affbbedc17af88b9f899b75008244ffd33d",
+                "reference": "0e444affbbedc17af88b9f899b75008244ffd33d",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.1",
+                "php-http/discovery": "^1",
+                "psr/http-client": "^1",
+                "psr/http-client-implementation": "^1",
+                "psr/http-factory-implementation": "^1",
+                "psr/http-message": "^1|^2"
+            },
+            "require-dev": {
+                "aws/aws-sdk-php": "^3.368",
+                "friendsofphp/php-cs-fixer": "^3",
+                "google/auth": "^1.49",
+                "nyholm/psr7": "^1",
+                "pestphp/pest": "^3",
+                "php-http/mock-client": "^1",
+                "phpstan/extension-installer": "^1",
+                "phpstan/phpstan": "^2",
+                "phpstan/phpstan-phpunit": "^2",
+                "phpunit/phpunit": "^11",
+                "symfony/http-client": "^7"
+            },
+            "suggest": {
+                "aws/aws-sdk-php": "Allows using the AWS Bedrock SDK",
+                "google/auth": "Allows using the Google Vertex SDK"
+            },
+            "type": "library",
+            "autoload": {
+                "files": [
+                    "src/Version.php"
+                ],
+                "psr-4": {
+                    "Anthropic\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "Anthropic PHP SDK",
+            "support": {
+                "issues": "https://github.com/anthropics/anthropic-sdk-php/issues",
+                "source": "https://github.com/anthropics/anthropic-sdk-php/tree/v0.6.0"
+            },
+            "time": "2026-02-19T19:42:08+00:00"
+        },
         {
             "name": "aws/aws-crt-php",
             "version": "v1.2.7",

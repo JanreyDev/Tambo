@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\Api\V1\AccountController;
 use App\Http\Controllers\Api\V1\Admin\PlatformUpdateController;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\Tenant\AiController;
 use App\Http\Controllers\Api\V1\Tenant\AssetController;
 use App\Http\Controllers\Api\V1\Tenant\AttendanceRecordController;
 use App\Http\Controllers\Api\V1\Tenant\BarangayPostController;
@@ -135,6 +136,18 @@ Route::prefix('v1')->group(function () {
                 Route::get('activity', [DashboardController::class, 'activity']);
                 Route::get('sign-ins', [DashboardController::class, 'signIns']);
                 Route::get('credits', [DashboardController::class, 'credits']);
+            });
+
+            // ── Mabini AI ──
+            Route::prefix('ai')->group(function () {
+                Route::get('credits', [AiController::class, 'credits']);
+                Route::get('conversations', [AiController::class, 'index']);
+                Route::post('conversations', [AiController::class, 'store'])
+                    ->middleware('throttle:30,1');
+                Route::get('conversations/{conversation}', [AiController::class, 'show']);
+                Route::post('conversations/{conversation}/messages', [AiController::class, 'sendMessage'])
+                    ->middleware('throttle:30,1');
+                Route::delete('conversations/{conversation}', [AiController::class, 'destroy']);
             });
 
             // ── SMS Transactions ──
