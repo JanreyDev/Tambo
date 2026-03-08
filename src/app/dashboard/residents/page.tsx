@@ -4,12 +4,12 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import type L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import {
-  Users, UserPlus, Home, MapPin, Filter, Download, Upload, MoreHorizontal,
+  Home, MapPin, Filter, Download, Upload, MoreHorizontal,
   Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X, Flag,
-  AlertTriangle, Phone, Mail, Calendar, User, Heart, FileText, Edit, Trash2,
-  Save, Camera, Printer, Eye, TrendingUp, ChevronDown, Plus, Fingerprint, CheckCircle, Loader2,
-  GraduationCap, Briefcase, Shield, Contact, Building2, Globe, Droplets,
-  IdCard, Vote, ArrowLeft, MessageSquare, ScrollText, Archive,
+  AlertTriangle, Phone, Mail, Calendar, User, Heart, FileText, Edit,
+  Camera, Printer, Eye, TrendingUp, ChevronDown, Plus, Fingerprint, CheckCircle, Loader2,
+  GraduationCap, Briefcase, Contact, Globe,
+  IdCard, Vote, MessageSquare, ScrollText, Archive,
   PawPrint, HandHeart, Link2, Paperclip, Image,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
@@ -69,7 +69,6 @@ const defaultStreetEntries: SmartEntry[] = [
   { canonical: "Aguinaldo Street", count: 22, aliases: ["aguinaldo st.", "aguinaldo st"] },
 ];
 const defaultPuroks = defaultPurokEntries.map((e) => e.canonical);
-const defaultStreets = defaultStreetEntries.map((e) => e.canonical);
 
 // Mock tenant data — in production, fetched from API (set during Pulitika onboarding)
 const tenantConfig = {
@@ -90,7 +89,6 @@ const educationLevels = ["", "No Formal Education", "Elementary Level", "Element
 const extensions = ["", "Jr.", "Sr.", "II", "III", "IV", "V"];
 const residentTypes = ["", "Permanent", "Transient", "Seasonal", "Migrant"];
 const relationships = ["Head", "Spouse", "Son", "Daughter", "Father", "Mother", "Brother", "Sister", "Grandson", "Granddaughter", "Nephew", "Niece", "Boarder", "Helper", "Others"];
-const pwdTypes = ["", "Visual", "Hearing", "Speech", "Physical", "Mental", "Psychosocial", "Learning", "Multiple"];
 const sectorOptions = ["Senior Citizen", "PWD", "Solo Parent", "4Ps Beneficiary", "Farmer", "Nano/Micro Entrepreneur", "Student", "OFW", "TODA Driver", "JODA Driver", "Other Driver", "Vendor", "Working Student", "LGBTQIA+", "With Comorbidities", "IP (Indigenous People)"];
 const employmentStatuses = ["", "Employed", "Self-employed", "Unemployed", "Retired", "Student", "OFW"];
 const complexionOptions = ["", "Fair", "Light Brown", "Brown", "Dark Brown", "Dark"];
@@ -954,9 +952,9 @@ export default function ResidentsPage() {
   };
 
   // ── Leaflet Map + Google Geocoding ──
-  const initLeafletMap = useCallback(() => {
+  const initLeafletMap = useCallback(async () => {
     if (!mapContainerRef.current || leafletMapRef.current) return;
-    const L = require("leaflet") as typeof import("leaflet");
+    const L = (await import("leaflet")).default;
 
     // Default center: Olongapo City, Zambales
     const defaultLat = parseFloat(String(f("latitude"))) || 14.8386;
@@ -1010,9 +1008,9 @@ export default function ResidentsPage() {
     </svg>`;
   }, []);
 
-  const placeLeafletMarker = useCallback((lat: number, lng: number) => {
+  const placeLeafletMarker = useCallback(async (lat: number, lng: number) => {
     if (!leafletMapRef.current) return;
-    const L = require("leaflet") as typeof import("leaflet");
+    const L = (await import("leaflet")).default;
     const hasPhoto = !!photoPreview;
     const pinHtml = buildPinHtml(photoPreview);
     const size: [number, number] = hasPhoto ? [44, 56] : [36, 48];
@@ -1041,13 +1039,15 @@ export default function ResidentsPage() {
   // Update marker icon when photo changes
   useEffect(() => {
     if (!leafletMarkerRef.current || !leafletMapRef.current) return;
-    const L = require("leaflet") as typeof import("leaflet");
-    const hasPhoto = !!photoPreview;
-    const pinHtml = buildPinHtml(photoPreview);
-    const size: [number, number] = hasPhoto ? [44, 56] : [36, 48];
-    const anchor: [number, number] = hasPhoto ? [22, 56] : [18, 48];
-    const newIcon = L.divIcon({ html: pinHtml, className: "", iconSize: size, iconAnchor: anchor, popupAnchor: [0, -(size[1] - 6)] });
-    leafletMarkerRef.current.setIcon(newIcon);
+    (async () => {
+      const L = (await import("leaflet")).default;
+      const hasPhoto = !!photoPreview;
+      const pinHtml = buildPinHtml(photoPreview);
+      const size: [number, number] = hasPhoto ? [44, 56] : [36, 48];
+      const anchor: [number, number] = hasPhoto ? [22, 56] : [18, 48];
+      const newIcon = L.divIcon({ html: pinHtml, className: "", iconSize: size, iconAnchor: anchor, popupAnchor: [0, -(size[1] - 6)] });
+      leafletMarkerRef.current?.setIcon(newIcon);
+    })();
   }, [photoPreview, buildPinHtml]);
 
   const geocodeAddress = useCallback(async (addressStr: string) => {

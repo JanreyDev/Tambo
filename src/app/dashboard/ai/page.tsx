@@ -75,9 +75,19 @@ export default function AiAssistantPage() {
   // Greeting for the user
   const userName = user?.first_name || "there";
 
+  const loadCredits = async () => {
+    try {
+      const res = await api.ai.getCredits();
+      setCredits(res);
+    } catch {
+      // silent fail
+    }
+  };
+
   // Load credits on mount
   useEffect(() => {
     loadCredits();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Scroll to bottom when messages change or streaming
@@ -92,15 +102,6 @@ export default function AiAssistantPage() {
       inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 120) + "px";
     }
   }, [input]);
-
-  const loadCredits = async () => {
-    try {
-      const res = await api.ai.getCredits();
-      setCredits(res);
-    } catch {
-      // silent fail
-    }
-  };
 
   const loadConversation = async (id: string) => {
     try {

@@ -20,9 +20,11 @@ interface PageHeaderProps {
 function useLiveClock() {
   const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
-    setNow(new Date());
-    const t = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(t);
+    const update = () => setNow(new Date());
+    // Use requestAnimationFrame to avoid synchronous setState in effect body
+    const raf = requestAnimationFrame(update);
+    const t = setInterval(update, 1000);
+    return () => { cancelAnimationFrame(raf); clearInterval(t); };
   }, []);
   return now;
 }
