@@ -33,12 +33,14 @@ return [
         'Authorization',
         'Accept',
         'X-Requested-With',
-        'X-XSRF-TOKEN',
+        // X-XSRF-TOKEN removed — token-based auth only, no CSRF cookies
     ],
 
     'exposed_headers' => [],
 
-    'max_age' => 86400,
+    // 1 hour preflight cache — reduces OPTIONS requests from browsers.
+    // 86400 (24h) was too aggressive; some browsers cap at 2h anyway.
+    'max_age' => 3600,
 
     'supports_credentials' => false,
 

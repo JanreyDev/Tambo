@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Middleware\BlockSuspiciousRequests;
+use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\SetTenantContext;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
@@ -15,11 +17,23 @@ return Application::configure(basePath: dirname(__DIR__))
         web: __DIR__.'/../routes/web.php',
         api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
-        health: '/up',
+        // health: '/up', -- Disabled: exposes diagnostic info. Status page at / is sufficient.
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'tenant' => SetTenantContext::class,
+        ]);
+
+        // ── Global middleware (runs on every request) ──
+        // Order matters: block suspicious requests first, then add security headers.
+        $middleware->prepend(BlockSuspiciousRequests::class);
+        $middleware->append(SecurityHeaders::class);
+
+        // ── Global API rate limiting ──
+        // 60 requests per minute per IP across all API routes.
+        // Per-endpoint throttling (login 5/min, OTP 5/min, etc.) still applies on top.
+        $middleware->api(prepend: [
+            'throttle:api',
         ]);
 
         // Trust Cloudflare proxy headers so rate limiting uses real client IP.

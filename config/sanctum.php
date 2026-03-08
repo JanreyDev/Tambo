@@ -15,12 +15,10 @@ return [
     |
     */
 
-    'stateful' => explode(',', env('SANCTUM_STATEFUL_DOMAINS', sprintf(
-        '%s%s',
-        'localhost,localhost:3000,127.0.0.1,127.0.0.1:8000,::1',
-        Sanctum::currentApplicationUrlWithPort(),
-        // Sanctum::currentRequestHost(),
-    ))),
+    // No stateful domains — BCMP uses token-based auth exclusively.
+    // statefulApi() is NOT called in bootstrap/app.php.
+    // Keeping this empty prevents accidental cookie-based session hijacking.
+    'stateful' => [],
 
     /*
     |--------------------------------------------------------------------------
@@ -47,7 +45,9 @@ return [
     |
     */
 
-    'expiration' => null,
+    // 30 days = 43200 minutes. Safety net for the per-token expires_at set at login.
+    // If a token is created without an explicit expires_at, this global config catches it.
+    'expiration' => 43200,
 
     /*
     |--------------------------------------------------------------------------
