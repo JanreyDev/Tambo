@@ -270,7 +270,7 @@ export default function TanodPage() {
         <div className="flex-1 min-w-0">
           <p className="text-xs font-semibold text-foreground">Mabini AI Tanod Operations</p>
           <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-            3 tanod members on duty tonight. Purok 5 had the most incidents last week — consider increasing patrol coverage. 1 member's ID is expiring within 30 days.
+            3 tanod members on duty tonight. Purok 5 had the most incidents last week — consider increasing patrol coverage. 1 member&apos;s ID is expiring within 30 days.
           </p>
         </div>
         <button onClick={() => router.push("/dashboard/ai")} className="shrink-0 px-3 py-1.5 text-[10px] font-semibold rounded-lg transition-colors hover:opacity-80" style={{ background: "var(--accent-primary)", color: "#fff" }}>
