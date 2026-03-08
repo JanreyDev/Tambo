@@ -41,3 +41,7 @@ yarn-error.log*
 next-env.d.ts
 deploy-*.tar.gz
 deploy.tar.gz
+
+# junk files (Windows artifacts)
+nul
+*temp_lint_output*
