@@ -16,7 +16,6 @@ import {
   Shield,
   TrendingUp,
   Clock,
-  X,
   CheckCircle2,
   FileSpreadsheet,
   FileBarChart,
@@ -62,6 +61,18 @@ const formats = [
   { id: "excel", label: "Excel Spreadsheet", icon: FileSpreadsheet, desc: "Best for data analysis and editing" },
   { id: "csv", label: "CSV File", icon: FileBarChart, desc: "Best for importing to other systems" },
 ];
+
+function ReportSelect({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: string[] }) {
+  return (
+    <div>
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}</label>
+      <select value={value} onChange={(e) => onChange(e.target.value)}
+        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2" style={{ "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties}>
+        {options.map((o) => <option key={o} value={o}>{o}</option>)}
+      </select>
+    </div>
+  );
+}
 
 export default function ReportsPage() {
   const [categoryFilter, setCategoryFilter] = useState("All");
@@ -113,16 +124,6 @@ export default function ReportsPage() {
     setShowGenerate(false);
     setShowSuccess(true);
   };
-
-  const Select = ({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: string[] }) => (
-    <div>
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}</label>
-      <select value={value} onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2" style={{ "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties}>
-        {options.map((o) => <option key={o} value={o}>{o}</option>)}
-      </select>
-    </div>
-  );
 
   return (
     <div className="space-y-6">
@@ -307,18 +308,18 @@ export default function ReportsPage() {
 
               {genPeriod === "monthly" && (
                 <div className="grid grid-cols-2 gap-3">
-                  <Select label="Month" value={genMonth} onChange={setGenMonth} options={months} />
-                  <Select label="Year" value={genYear} onChange={setGenYear} options={years} />
+                  <ReportSelect label="Month" value={genMonth} onChange={setGenMonth} options={months} />
+                  <ReportSelect label="Year" value={genYear} onChange={setGenYear} options={years} />
                 </div>
               )}
               {genPeriod === "quarterly" && (
                 <div className="grid grid-cols-2 gap-3">
-                  <Select label="Quarter" value={genQuarter} onChange={setGenQuarter} options={quarters} />
-                  <Select label="Year" value={genYear} onChange={setGenYear} options={years} />
+                  <ReportSelect label="Quarter" value={genQuarter} onChange={setGenQuarter} options={quarters} />
+                  <ReportSelect label="Year" value={genYear} onChange={setGenYear} options={years} />
                 </div>
               )}
               {genPeriod === "annually" && (
-                <Select label="Year" value={genYear} onChange={setGenYear} options={years} />
+                <ReportSelect label="Year" value={genYear} onChange={setGenYear} options={years} />
               )}
               {genPeriod === "custom" && (
                 <div className="grid grid-cols-2 gap-3">

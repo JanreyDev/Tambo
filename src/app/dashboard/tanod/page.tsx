@@ -62,6 +62,35 @@ const mockSchedules: PatrolSchedule[] = [
 
 const memberFormTabs = ["Personal", "Service"];
 
+function FormInput({ label, name, value, placeholder, required, type, onChange }: { label: string; name: string; value: string; placeholder?: string; required?: boolean; type?: string; onChange: (name: string, value: string) => void }) {
+  return (
+    <div>
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <input type={type || "text"} value={value} onChange={(e) => onChange(name, e.target.value)} placeholder={placeholder} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+    </div>
+  );
+}
+
+function FormSelect({ label, name, value, options, required, onChange }: { label: string; name: string; value: string; options: string[]; required?: boolean; onChange: (name: string, value: string) => void }) {
+  return (
+    <div>
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <select value={value} onChange={(e) => onChange(name, e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+        {options.map((o) => <option key={o} value={o}>{o || "\u2014 Select \u2014"}</option>)}
+      </select>
+    </div>
+  );
+}
+
+function FormTextarea({ label, name, value, placeholder, rows, required, onChange }: { label: string; name: string; value: string; placeholder?: string; rows?: number; required?: boolean; onChange: (name: string, value: string) => void }) {
+  return (
+    <div className="col-span-2">
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <textarea value={value} onChange={(e) => onChange(name, e.target.value)} placeholder={placeholder} rows={rows || 3} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
+    </div>
+  );
+}
+
 export default function TanodPage() {
   const [activeTab, setActiveTab] = useState<"members" | "schedule">("members");
   const [search, setSearch] = useState("");
@@ -135,52 +164,8 @@ export default function TanodPage() {
     setScheduleActionMenu(null);
   };
 
-  const Input = ({ label, name, value, placeholder, required, type }: { label: string; name: string; value: string; placeholder?: string; required?: boolean; type?: string }) => (
-    <div>
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <input type={type || "text"} value={value} onChange={(e) => setForm((f) => ({ ...f, [name]: e.target.value }))} placeholder={placeholder} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
-    </div>
-  );
-
-  const Select = ({ label, name, value, options, required }: { label: string; name: string; value: string; options: string[]; required?: boolean }) => (
-    <div>
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <select value={value} onChange={(e) => setForm((f) => ({ ...f, [name]: e.target.value }))} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
-        {options.map((o) => <option key={o} value={o}>{o || "\u2014 Select \u2014"}</option>)}
-      </select>
-    </div>
-  );
-
-  const Textarea = ({ label, name, value, placeholder, rows, required }: { label: string; name: string; value: string; placeholder?: string; rows?: number; required?: boolean }) => (
-    <div className="col-span-2">
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <textarea value={value} onChange={(e) => setForm((f) => ({ ...f, [name]: e.target.value }))} placeholder={placeholder} rows={rows || 3} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
-    </div>
-  );
-
-  // Schedule form helpers (use scheduleForm state)
-  const ScheduleInput = ({ label, name, value, placeholder, required, type }: { label: string; name: string; value: string; placeholder?: string; required?: boolean; type?: string }) => (
-    <div>
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <input type={type || "text"} value={value} onChange={(e) => setScheduleForm((f) => ({ ...f, [name]: e.target.value }))} placeholder={placeholder} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
-    </div>
-  );
-
-  const ScheduleSelect = ({ label, name, value, options, required }: { label: string; name: string; value: string; options: string[]; required?: boolean }) => (
-    <div>
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <select value={value} onChange={(e) => setScheduleForm((f) => ({ ...f, [name]: e.target.value }))} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
-        {options.map((o) => <option key={o} value={o}>{o || "\u2014 Select \u2014"}</option>)}
-      </select>
-    </div>
-  );
-
-  const ScheduleTextarea = ({ label, name, value, placeholder, rows, required }: { label: string; name: string; value: string; placeholder?: string; rows?: number; required?: boolean }) => (
-    <div className="col-span-2">
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <textarea value={value} onChange={(e) => setScheduleForm((f) => ({ ...f, [name]: e.target.value }))} placeholder={placeholder} rows={rows || 3} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
-    </div>
-  );
+  const handleFieldChange = (name: string, value: string) => setForm((f) => ({ ...f, [name]: value }));
+  const handleScheduleFieldChange = (name: string, value: string) => setScheduleForm((f) => ({ ...f, [name]: value }));
 
   return (
     <div className="space-y-6">
@@ -338,21 +323,21 @@ export default function TanodPage() {
         </div>
         {formTab === 0 && (
           <div className="grid grid-cols-2 gap-4">
-            <Input label="Full Name" name="full_name" value={form.full_name || ""} placeholder="e.g. Ricardo Garcia" required />
-            <Input label="Contact Number" name="contact_number" value={form.contact_number || ""} placeholder="e.g. 0917-000-0000" required />
-            <Input label="Address" name="address" value={form.address || ""} placeholder="e.g. 123 Main St." />
-            <Select label="Purok" name="purok" value={form.purok || ""} options={["", "Sampaguita", "Rosal", "Ilang-Ilang", "Dahlia", "Sunflower", "Orchid", "Jasmine"]} />
-            <Input label="Date of Birth" name="date_of_birth" value={form.date_of_birth || ""} type="date" />
-            <Select label="Sex" name="sex" value={form.sex || ""} options={["", "Male", "Female"]} />
+            <FormInput onChange={handleFieldChange} label="Full Name" name="full_name" value={form.full_name || ""} placeholder="e.g. Ricardo Garcia" required />
+            <FormInput onChange={handleFieldChange} label="Contact Number" name="contact_number" value={form.contact_number || ""} placeholder="e.g. 0917-000-0000" required />
+            <FormInput onChange={handleFieldChange} label="Address" name="address" value={form.address || ""} placeholder="e.g. 123 Main St." />
+            <FormSelect onChange={handleFieldChange} label="Purok" name="purok" value={form.purok || ""} options={["", "Sampaguita", "Rosal", "Ilang-Ilang", "Dahlia", "Sunflower", "Orchid", "Jasmine"]} />
+            <FormInput onChange={handleFieldChange} label="Date of Birth" name="date_of_birth" value={form.date_of_birth || ""} type="date" />
+            <FormSelect onChange={handleFieldChange} label="Sex" name="sex" value={form.sex || ""} options={["", "Male", "Female"]} />
           </div>
         )}
         {formTab === 1 && (
           <div className="grid grid-cols-2 gap-4">
-            <Select label="Position" name="position" value={form.position || ""} options={["", "Chief Tanod", "Deputy Chief", "Tanod Member"]} />
-            <Input label="Date Appointed" name="date_appointed" value={form.date_appointed || ""} type="date" />
-            <Select label="Status" name="status" value={form.status || ""} options={["", "Active", "Inactive", "On Leave"]} />
-            <Input label="Training Completed" name="training_completed" value={form.training_completed || ""} placeholder="e.g. Basic Tanod Training" />
-            <Input label="ID Number" name="id_number" value={form.id_number || ""} placeholder="e.g. TNO-2026-001" />
+            <FormSelect onChange={handleFieldChange} label="Position" name="position" value={form.position || ""} options={["", "Chief Tanod", "Deputy Chief", "Tanod Member"]} />
+            <FormInput onChange={handleFieldChange} label="Date Appointed" name="date_appointed" value={form.date_appointed || ""} type="date" />
+            <FormSelect onChange={handleFieldChange} label="Status" name="status" value={form.status || ""} options={["", "Active", "Inactive", "On Leave"]} />
+            <FormInput onChange={handleFieldChange} label="Training Completed" name="training_completed" value={form.training_completed || ""} placeholder="e.g. Basic Tanod Training" />
+            <FormInput onChange={handleFieldChange} label="ID Number" name="id_number" value={form.id_number || ""} placeholder="e.g. TNO-2026-001" />
           </div>
         )}
       </Modal>
@@ -364,12 +349,12 @@ export default function TanodPage() {
           <ModalButton variant="primary">{showScheduleEdit ? "Update" : "Save"}</ModalButton>
         </>}>
         <div className="grid grid-cols-2 gap-4">
-          <ScheduleInput label="Patrol Date" name="patrol_date" value={scheduleForm.patrol_date || ""} type="date" required />
-          <ScheduleSelect label="Shift" name="shift" value={scheduleForm.shift || ""} options={["", "Day Shift (6AM-6PM)", "Night Shift (6PM-6AM)"]} />
-          <ScheduleInput label="Area" name="area" value={scheduleForm.area || ""} placeholder="e.g. Purok Sampaguita & Rosal" required />
-          <ScheduleInput label="Team Leader" name="team_leader" value={scheduleForm.team_leader || ""} placeholder="e.g. Ricardo Garcia" />
-          <ScheduleTextarea label="Members" name="members" value={scheduleForm.members || ""} placeholder="Enter names, one per line" rows={4} />
-          <ScheduleTextarea label="Notes" name="notes" value={scheduleForm.notes || ""} placeholder="Additional notes..." rows={4} />
+          <FormInput onChange={handleScheduleFieldChange} label="Patrol Date" name="patrol_date" value={scheduleForm.patrol_date || ""} type="date" required />
+          <FormSelect onChange={handleScheduleFieldChange} label="Shift" name="shift" value={scheduleForm.shift || ""} options={["", "Day Shift (6AM-6PM)", "Night Shift (6PM-6AM)"]} />
+          <FormInput onChange={handleScheduleFieldChange} label="Area" name="area" value={scheduleForm.area || ""} placeholder="e.g. Purok Sampaguita & Rosal" required />
+          <FormInput onChange={handleScheduleFieldChange} label="Team Leader" name="team_leader" value={scheduleForm.team_leader || ""} placeholder="e.g. Ricardo Garcia" />
+          <FormTextarea onChange={handleScheduleFieldChange} label="Members" name="members" value={scheduleForm.members || ""} placeholder="Enter names, one per line" rows={4} />
+          <FormTextarea onChange={handleScheduleFieldChange} label="Notes" name="notes" value={scheduleForm.notes || ""} placeholder="Additional notes..." rows={4} />
         </div>
       </Modal>
 

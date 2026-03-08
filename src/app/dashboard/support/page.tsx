@@ -69,6 +69,28 @@ const categories = ["All", "Document Issuance", "Settings", "Data Sync", "Featur
 const statusOptions = ["All Status", "Open", "Resolved", "Closed"];
 const priorityOptions = ["Normal", "High", "Low"];
 
+function SupportInput({ label, name, value, placeholder, required, onChange }: { label: string; name: string; value: string; placeholder?: string; required?: boolean; onChange: (name: string, value: string) => void }) {
+  return (
+    <div>
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <input type="text" value={value} onChange={(e) => onChange(name, e.target.value)} placeholder={placeholder}
+        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+    </div>
+  );
+}
+
+function SupportSelect({ label, name, value, options, required, onChange }: { label: string; name: string; value: string; options: string[]; required?: boolean; onChange: (name: string, value: string) => void }) {
+  return (
+    <div>
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <select value={value} onChange={(e) => onChange(name, e.target.value)}
+        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+        {options.map((o) => <option key={o} value={o}>{o || "-- Select --"}</option>)}
+      </select>
+    </div>
+  );
+}
+
 export default function SupportPage() {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
@@ -107,22 +129,7 @@ export default function SupportPage() {
 
   const formTabs = ["Ticket Info", "Details"];
 
-  const Input = ({ label, name, value, placeholder, required }: { label: string; name: string; value: string; placeholder?: string; required?: boolean }) => (
-    <div>
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <input type="text" value={value} onChange={(e) => setForm((f) => ({ ...f, [name]: e.target.value }))} placeholder={placeholder}
-        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
-    </div>
-  );
-  const Select = ({ label, name, value, options, required }: { label: string; name: string; value: string; options: string[]; required?: boolean }) => (
-    <div>
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <select value={value} onChange={(e) => setForm((f) => ({ ...f, [name]: e.target.value }))}
-        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
-        {options.map((o) => <option key={o} value={o}>{o || "-- Select --"}</option>)}
-      </select>
-    </div>
-  );
+  const handleFormFieldChange = (name: string, value: string) => setForm((f) => ({ ...f, [name]: value }));
 
   return (
     <div className="space-y-6">
@@ -234,10 +241,10 @@ export default function SupportPage() {
         {formTab === 0 && (
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
-              <Input label="Subject" name="subject" value={form.subject} placeholder="Brief description of your issue" required />
+              <SupportInput label="Subject" name="subject" value={form.subject} placeholder="Brief description of your issue" required onChange={handleFormFieldChange} />
             </div>
-            <Select label="Category" name="category" value={form.category} options={["", "Document Issuance", "Settings", "Data Sync", "Feature Request", "Bug Report"]} required />
-            <Select label="Priority" name="priority" value={form.priority} options={priorityOptions} required />
+            <SupportSelect label="Category" name="category" value={form.category} options={["", "Document Issuance", "Settings", "Data Sync", "Feature Request", "Bug Report"]} required onChange={handleFormFieldChange} />
+            <SupportSelect label="Priority" name="priority" value={form.priority} options={priorityOptions} required onChange={handleFormFieldChange} />
           </div>
         )}
         {formTab === 1 && (

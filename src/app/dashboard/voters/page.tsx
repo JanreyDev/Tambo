@@ -75,6 +75,26 @@ const emptyForm: Record<string, string> = {
   precinct_number: "", voter_id: "", purok: "", registration_status: "", is_sk_voter: "", voter_type: "",
 };
 
+function FormInput({ label, name, value, placeholder, required, type, onChange }: { label: string; name: string; value: string; placeholder?: string; required?: boolean; type?: string; onChange: (name: string, value: string) => void }) {
+  return (
+    <div>
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <input type={type || "text"} value={value} onChange={(e) => onChange(name, e.target.value)} placeholder={placeholder} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+    </div>
+  );
+}
+
+function FormSelect({ label, name, value, options, required, onChange }: { label: string; name: string; value: string; options: string[]; required?: boolean; onChange: (name: string, value: string) => void }) {
+  return (
+    <div>
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <select value={value} onChange={(e) => onChange(name, e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+        {options.map((o) => <option key={o} value={o}>{o || "\u2014 Select \u2014"}</option>)}
+      </select>
+    </div>
+  );
+}
+
 export default function VotersPage() {
   const [search, setSearch] = useState("");
   const [precinctFilter, setPrecinctFilter] = useState("All Precincts");
@@ -90,20 +110,7 @@ export default function VotersPage() {
   const [actionMenu, setActionMenu] = useState<string | null>(null);
   const pageSize = 10;
 
-  const Input = ({ label, name, value, placeholder, required, type }: { label: string; name: string; value: string; placeholder?: string; required?: boolean; type?: string }) => (
-    <div>
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <input type={type || "text"} value={value} onChange={(e) => setForm((f) => ({ ...f, [name]: e.target.value }))} placeholder={placeholder} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
-    </div>
-  );
-  const Select = ({ label, name, value, options, required }: { label: string; name: string; value: string; options: string[]; required?: boolean }) => (
-    <div>
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <select value={value} onChange={(e) => setForm((f) => ({ ...f, [name]: e.target.value }))} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
-        {options.map((o) => <option key={o} value={o}>{o || "\u2014 Select \u2014"}</option>)}
-      </select>
-    </div>
-  );
+  const handleFieldChange = (name: string, value: string) => setForm((f) => ({ ...f, [name]: value }));
 
   const openCreate = () => { setForm(emptyForm); setFormTab(0); setShowCreate(true); };
   const openEdit = (v: VoterRecord) => {
@@ -303,23 +310,23 @@ export default function VotersPage() {
         </div>
         {formTab === 0 && (
           <div className="grid grid-cols-2 gap-4">
-            <Input label="First Name" name="first_name" value={form.first_name} placeholder="First name" required />
-            <Input label="Middle Name" name="middle_name" value={form.middle_name} placeholder="Middle name" />
-            <Input label="Last Name" name="last_name" value={form.last_name} placeholder="Last name" required />
-            <Select label="Extension" name="extension" value={form.extension} options={suffixOptions} />
-            <Select label="Sex" name="sex" value={form.sex} options={sexOptions} />
-            <Input label="Date of Birth" name="date_of_birth" value={form.date_of_birth} type="date" />
-            <Select label="Civil Status" name="civil_status" value={form.civil_status} options={civilStatusOptions} />
+            <FormInput onChange={handleFieldChange} label="First Name" name="first_name" value={form.first_name} placeholder="First name" required />
+            <FormInput onChange={handleFieldChange} label="Middle Name" name="middle_name" value={form.middle_name} placeholder="Middle name" />
+            <FormInput onChange={handleFieldChange} label="Last Name" name="last_name" value={form.last_name} placeholder="Last name" required />
+            <FormSelect onChange={handleFieldChange} label="Extension" name="extension" value={form.extension} options={suffixOptions} />
+            <FormSelect onChange={handleFieldChange} label="Sex" name="sex" value={form.sex} options={sexOptions} />
+            <FormInput onChange={handleFieldChange} label="Date of Birth" name="date_of_birth" value={form.date_of_birth} type="date" />
+            <FormSelect onChange={handleFieldChange} label="Civil Status" name="civil_status" value={form.civil_status} options={civilStatusOptions} />
           </div>
         )}
         {formTab === 1 && (
           <div className="grid grid-cols-2 gap-4">
-            <Input label="Precinct Number" name="precinct_number" value={form.precinct_number} placeholder="0000X" required />
-            <Input label="Voter ID" name="voter_id" value={form.voter_id} placeholder="VRN-XXXX-XXXXX" />
-            <Select label="Purok" name="purok" value={form.purok} options={purokOptions} />
-            <Select label="Registration Status" name="registration_status" value={form.registration_status} options={regStatusOptions} />
-            <Select label="SK Voter" name="is_sk_voter" value={form.is_sk_voter} options={yesNoOptions} />
-            <Select label="Voter Type" name="voter_type" value={form.voter_type} options={voterTypeOptions} />
+            <FormInput onChange={handleFieldChange} label="Precinct Number" name="precinct_number" value={form.precinct_number} placeholder="0000X" required />
+            <FormInput onChange={handleFieldChange} label="Voter ID" name="voter_id" value={form.voter_id} placeholder="VRN-XXXX-XXXXX" />
+            <FormSelect onChange={handleFieldChange} label="Purok" name="purok" value={form.purok} options={purokOptions} />
+            <FormSelect onChange={handleFieldChange} label="Registration Status" name="registration_status" value={form.registration_status} options={regStatusOptions} />
+            <FormSelect onChange={handleFieldChange} label="SK Voter" name="is_sk_voter" value={form.is_sk_voter} options={yesNoOptions} />
+            <FormSelect onChange={handleFieldChange} label="Voter Type" name="voter_type" value={form.voter_type} options={voterTypeOptions} />
           </div>
         )}
       </Modal>

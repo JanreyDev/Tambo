@@ -7,19 +7,53 @@ import {
   MapPin,
   Phone,
   Mail,
-  Globe,
   Clock,
   Building2,
   Shield,
   Bell,
   FileText,
-  Users,
   Printer,
   AlertTriangle,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Modal, ModalButton } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
+
+function SettingsInput({ label, value, onChange, placeholder, icon: Icon, disabled }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; icon?: React.ElementType; disabled?: boolean }) {
+  return (
+    <div>
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}</label>
+      <div className="relative">
+        {Icon && <Icon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />}
+        <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} disabled={disabled}
+          className={cn("w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 transition-colors",
+            Icon && "pl-9", disabled && "opacity-50 cursor-not-allowed")}
+          style={{ "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties} />
+      </div>
+    </div>
+  );
+}
+
+function SettingsToggle({ label, description, checked, onChange }: { label: string; description: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <div className="flex items-center justify-between p-4 rounded-lg border border-border">
+      <div>
+        <p className="text-sm font-medium text-foreground">{label}</p>
+        <p className="text-[11px] text-muted-foreground">{description}</p>
+      </div>
+      <button onClick={() => onChange(!checked)} className="shrink-0">
+        {checked
+          ? <div className="w-10 h-6 rounded-full flex items-center justify-end px-0.5" style={{ background: "var(--accent-primary)" }}>
+              <div className="w-5 h-5 rounded-full bg-white" />
+            </div>
+          : <div className="w-10 h-6 rounded-full bg-muted flex items-center px-0.5">
+              <div className="w-5 h-5 rounded-full bg-white shadow" />
+            </div>
+        }
+      </button>
+    </div>
+  );
+}
 
 export default function SettingsPage() {
   // Barangay Info
@@ -61,38 +95,6 @@ export default function SettingsPage() {
     { id: "documents", label: "Document Settings", icon: FileText },
     { id: "notifications", label: "Notifications", icon: Bell },
   ];
-
-  const Input = ({ label, value, onChange, placeholder, icon: Icon, disabled }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; icon?: React.ElementType; disabled?: boolean }) => (
-    <div>
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}</label>
-      <div className="relative">
-        {Icon && <Icon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />}
-        <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} disabled={disabled}
-          className={cn("w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 transition-colors",
-            Icon && "pl-9", disabled && "opacity-50 cursor-not-allowed")}
-          style={{ "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties} />
-      </div>
-    </div>
-  );
-
-  const Toggle = ({ label, description, checked, onChange }: { label: string; description: string; checked: boolean; onChange: (v: boolean) => void }) => (
-    <div className="flex items-center justify-between p-4 rounded-lg border border-border">
-      <div>
-        <p className="text-sm font-medium text-foreground">{label}</p>
-        <p className="text-[11px] text-muted-foreground">{description}</p>
-      </div>
-      <button onClick={() => onChange(!checked)} className="shrink-0">
-        {checked
-          ? <div className="w-10 h-6 rounded-full flex items-center justify-end px-0.5" style={{ background: "var(--accent-primary)" }}>
-              <div className="w-5 h-5 rounded-full bg-white" />
-            </div>
-          : <div className="w-10 h-6 rounded-full bg-muted flex items-center px-0.5">
-              <div className="w-5 h-5 rounded-full bg-white shadow" />
-            </div>
-        }
-      </button>
-    </div>
-  );
 
   return (
     <div className="space-y-6">
@@ -140,19 +142,19 @@ export default function SettingsPage() {
               <h2 className="text-lg font-semibold text-foreground mb-1">Barangay Information</h2>
               <p className="text-sm text-muted-foreground mb-5">Official barangay details used in documents and reports.</p>
               <div className="space-y-4">
-                <Input label="Barangay Name" value={barangayName} onChange={setBarangayName} icon={Building2} />
+                <SettingsInput label="Barangay Name" value={barangayName} onChange={setBarangayName} icon={Building2} />
                 <div className="grid grid-cols-2 gap-4">
-                  <Input label="Municipality / City" value={municipality} onChange={setMunicipality} />
-                  <Input label="Province" value={province} onChange={setProvince} />
+                  <SettingsInput label="Municipality / City" value={municipality} onChange={setMunicipality} />
+                  <SettingsInput label="Province" value={province} onChange={setProvince} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <Input label="Region" value={region} onChange={setRegion} />
-                  <Input label="ZIP Code" value={zipCode} onChange={setZipCode} />
+                  <SettingsInput label="Region" value={region} onChange={setRegion} />
+                  <SettingsInput label="ZIP Code" value={zipCode} onChange={setZipCode} />
                 </div>
                 <div className="grid grid-cols-3 gap-4">
-                  <Input label="PSGC Code" value={barangayCode} onChange={setBarangayCode} />
-                  <Input label="Population" value={population} onChange={setPopulation} />
-                  <Input label="Number of Puroks" value={numPuroks} onChange={setNumPuroks} />
+                  <SettingsInput label="PSGC Code" value={barangayCode} onChange={setBarangayCode} />
+                  <SettingsInput label="Population" value={population} onChange={setPopulation} />
+                  <SettingsInput label="Number of Puroks" value={numPuroks} onChange={setNumPuroks} />
                 </div>
               </div>
             </div>
@@ -165,12 +167,12 @@ export default function SettingsPage() {
               <p className="text-sm text-muted-foreground mb-5">Contact information displayed on documents and the public portal.</p>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <Input label="Landline" value={contactPhone} onChange={setContactPhone} icon={Phone} />
-                  <Input label="Mobile" value={contactMobile} onChange={setContactMobile} icon={Phone} />
+                  <SettingsInput label="Landline" value={contactPhone} onChange={setContactPhone} icon={Phone} />
+                  <SettingsInput label="Mobile" value={contactMobile} onChange={setContactMobile} icon={Phone} />
                 </div>
-                <Input label="Email Address" value={contactEmail} onChange={setContactEmail} icon={Mail} />
-                <Input label="Office Address" value={contactAddress} onChange={setContactAddress} icon={MapPin} />
-                <Input label="Office Hours" value={officeHours} onChange={setOfficeHours} icon={Clock} />
+                <SettingsInput label="Email Address" value={contactEmail} onChange={setContactEmail} icon={Mail} />
+                <SettingsInput label="Office Address" value={contactAddress} onChange={setContactAddress} icon={MapPin} />
+                <SettingsInput label="Office Hours" value={officeHours} onChange={setOfficeHours} icon={Clock} />
               </div>
             </div>
           )}
@@ -216,9 +218,9 @@ export default function SettingsPage() {
               <h2 className="text-lg font-semibold text-foreground mb-1">System Preferences</h2>
               <p className="text-sm text-muted-foreground mb-5">Configure system-wide behavior and defaults.</p>
               <div className="space-y-3">
-                <Toggle label="Automatic Backup" description="Create daily automated backups of all barangay data" checked={autoBackup} onChange={setAutoBackup} />
-                <Toggle label="Public Portal" description="Enable your barangay.org.ph public-facing website" checked={publicPortal} onChange={setPublicPortal} />
-                <Toggle label="Require Document Approval" description="Documents need approval from the Barangay Captain before issuance" checked={requireApproval} onChange={setRequireApproval} />
+                <SettingsToggle label="Automatic Backup" description="Create daily automated backups of all barangay data" checked={autoBackup} onChange={setAutoBackup} />
+                <SettingsToggle label="Public Portal" description="Enable your barangay.org.ph public-facing website" checked={publicPortal} onChange={setPublicPortal} />
+                <SettingsToggle label="Require Document Approval" description="Documents need approval from the Barangay Captain before issuance" checked={requireApproval} onChange={setRequireApproval} />
               </div>
             </div>
           )}
@@ -230,7 +232,7 @@ export default function SettingsPage() {
               <p className="text-sm text-muted-foreground mb-5">Configure document numbering, default values, and printing options.</p>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <Input label="Document ID Prefix" value={documentPrefix} onChange={setDocumentPrefix} placeholder="e.g., TMB" />
+                  <SettingsInput label="Document ID Prefix" value={documentPrefix} onChange={setDocumentPrefix} placeholder="e.g., TMB" />
                   <div>
                     <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Fiscal Year Start</label>
                     <select value={fiscalYear} onChange={(e) => setFiscalYear(e.target.value)}
@@ -241,7 +243,7 @@ export default function SettingsPage() {
                     </select>
                   </div>
                 </div>
-                <Input label="Default Number of Copies" value={defaultCopies} onChange={setDefaultCopies} icon={Printer} />
+                <SettingsInput label="Default Number of Copies" value={defaultCopies} onChange={setDefaultCopies} icon={Printer} />
                 <div className="p-3 rounded-lg bg-muted/30 border border-border">
                   <p className="text-xs text-muted-foreground">
                     Document IDs are auto-generated as: {documentPrefix}-YYYY-NNNNN (e.g., {documentPrefix}-2026-00001). This prefix applies to all documents issued by this barangay.
@@ -257,7 +259,7 @@ export default function SettingsPage() {
               <h2 className="text-lg font-semibold text-foreground mb-1">Notifications</h2>
               <p className="text-sm text-muted-foreground mb-5">Configure how you receive alerts and updates.</p>
               <div className="space-y-3">
-                <Toggle label="Email Notifications" description="Receive email alerts for new requests, approvals, and system events" checked={emailNotif} onChange={setEmailNotif} />
+                <SettingsToggle label="Email Notifications" description="Receive email alerts for new requests, approvals, and system events" checked={emailNotif} onChange={setEmailNotif} />
                 <div className="flex items-center justify-between p-4 rounded-lg border border-border">
                   <div>
                     <p className="text-sm font-medium text-foreground">SMS Notifications</p>

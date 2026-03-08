@@ -21,7 +21,6 @@ import {
   Eye,
   Edit,
   Play,
-  Ban,
   User,
   Phone,
   MapPin,
@@ -95,6 +94,39 @@ const documentTypes = ["Barangay Clearance", "Certificate of Residency", "Certif
 const docFilterOptions = ["All Documents", ...documentTypes];
 const statusOptions = ["All Status", "Pending", "Processing", "Ready", "Released", "Rejected"];
 const priorityOptions = ["Normal", "Rush"];
+
+function RequestInput({ label, field, required, type = "text", placeholder = "", disabled, value, onChange }: { label: string; field: string; required?: boolean; type?: string; placeholder?: string; disabled?: boolean; value: string; onChange: (field: string, value: string) => void }) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <input type={type} value={value} onChange={(e) => onChange(field, e.target.value)} placeholder={placeholder} disabled={disabled}
+        className={cn("w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", disabled && "opacity-50 cursor-not-allowed")} />
+    </div>
+  );
+}
+
+function RequestSelect({ label, field, options, required, value, onChange }: { label: string; field: string; options: string[]; required?: boolean; value: string; onChange: (field: string, value: string) => void }) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <select value={value} onChange={(e) => onChange(field, e.target.value)}
+        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+        <option value="">Select {label}</option>
+        {options.map((o) => <option key={o} value={o}>{o}</option>)}
+      </select>
+    </div>
+  );
+}
+
+function RequestTextarea({ label, field, placeholder = "", rows = 3, value, onChange }: { label: string; field: string; placeholder?: string; rows?: number; value: string; onChange: (field: string, value: string) => void }) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-muted-foreground mb-1">{label}</label>
+      <textarea value={value} onChange={(e) => onChange(field, e.target.value)} placeholder={placeholder} rows={rows}
+        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
+    </div>
+  );
+}
 
 const emptyForm: Record<string, string> = {
   requestor_mode: "resident",
@@ -237,34 +269,6 @@ export default function RequestsPage() {
     setActionMenu(null);
   };
 
-  // ── Form Field Components ──
-  const Input = ({ label, field, required, type = "text", placeholder = "", disabled }: { label: string; field: string; required?: boolean; type?: string; placeholder?: string; disabled?: boolean }) => (
-    <div>
-      <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <input type={type} value={form[field] || ""} onChange={(e) => updateForm(field, e.target.value)} placeholder={placeholder} disabled={disabled}
-        className={cn("w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", disabled && "opacity-50 cursor-not-allowed")} />
-    </div>
-  );
-
-  const Select = ({ label, field, options, required }: { label: string; field: string; options: string[]; required?: boolean }) => (
-    <div>
-      <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <select value={form[field] || ""} onChange={(e) => updateForm(field, e.target.value)}
-        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
-        <option value="">Select {label}</option>
-        {options.map((o) => <option key={o} value={o}>{o}</option>)}
-      </select>
-    </div>
-  );
-
-  const Textarea = ({ label, field, placeholder = "", rows = 3 }: { label: string; field: string; placeholder?: string; rows?: number }) => (
-    <div>
-      <label className="block text-xs font-medium text-muted-foreground mb-1">{label}</label>
-      <textarea value={form[field] || ""} onChange={(e) => updateForm(field, e.target.value)} placeholder={placeholder} rows={rows}
-        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
-    </div>
-  );
-
   // ── Render Form Tab Content ──
   const renderFormTab = () => {
     switch (formTab) {
@@ -340,10 +344,10 @@ export default function RequestsPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              <Input label="Full Name" field="requestor_name" required placeholder="e.g. Juan Dela Cruz" />
+              <RequestInput label="Full Name" field="requestor_name" required placeholder="e.g. Juan Dela Cruz" value={form.requestor_name || ""} onChange={updateForm} />
               <div className="grid grid-cols-2 gap-4">
-                <Input label="Contact Number" field="requestor_contact" required placeholder="e.g. 0917-123-4567" />
-                <Input label="Address" field="requestor_address" required placeholder="e.g. 123 Rizal St., Purok Sampaguita" />
+                <RequestInput label="Contact Number" field="requestor_contact" required placeholder="e.g. 0917-123-4567" value={form.requestor_contact || ""} onChange={updateForm} />
+                <RequestInput label="Address" field="requestor_address" required placeholder="e.g. 123 Rizal St., Purok Sampaguita" value={form.requestor_address || ""} onChange={updateForm} />
               </div>
             </div>
           )}
@@ -351,8 +355,8 @@ export default function RequestsPage() {
       );
       case 1: return (
         <div className="space-y-4">
-          <Select label="Document Type" field="document_type" options={documentTypes} required />
-          <Input label="Purpose" field="purpose" required placeholder="e.g. Employment, School enrollment, NBI Clearance requirement" />
+          <RequestSelect label="Document Type" field="document_type" options={documentTypes} required value={form.document_type || ""} onChange={updateForm} />
+          <RequestInput label="Purpose" field="purpose" required placeholder="e.g. Employment, School enrollment, NBI Clearance requirement" value={form.purpose || ""} onChange={updateForm} />
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-muted-foreground mb-1">Number of Copies<span className="text-red-500 ml-0.5">*</span></label>
@@ -400,9 +404,9 @@ export default function RequestsPage() {
                 <p className="mt-1.5 text-[11px] text-amber-600 dark:text-amber-400">Rush requests may incur additional processing fees.</p>
               )}
             </div>
-            <Input label="Estimated Pickup Date" field="estimated_pickup" type="date" />
+            <RequestInput label="Estimated Pickup Date" field="estimated_pickup" type="date" value={form.estimated_pickup || ""} onChange={updateForm} />
           </div>
-          <Textarea label="Notes / Special Instructions" field="special_instructions" placeholder="e.g. Please include middle name on the certificate, Pickup by authorized representative..." rows={4} />
+          <RequestTextarea label="Notes / Special Instructions" field="special_instructions" placeholder="e.g. Please include middle name on the certificate, Pickup by authorized representative..." rows={4} value={form.special_instructions || ""} onChange={updateForm} />
         </div>
       );
       default: return null;
@@ -413,8 +417,8 @@ export default function RequestsPage() {
   const isFormOpen = showCreate || showEdit;
   const closeForm = () => { setShowCreate(false); setShowEdit(false); };
 
-  const FormModal = ({ open, onClose }: { open: boolean; onClose: () => void }) => (
-    <Modal open={open} onClose={onClose}
+  const requestFormModal = (
+    <Modal open={isFormOpen} onClose={closeForm}
       title={showEdit ? "Edit Request" : "New Service Request"}
       description={showEdit ? "Update request details" : "Create a new document request"}
       size="xl"
@@ -428,13 +432,13 @@ export default function RequestsPage() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            <ModalButton variant="secondary" onClick={onClose}>Cancel</ModalButton>
+            <ModalButton variant="secondary" onClick={closeForm}>Cancel</ModalButton>
             {formTab < formTabs.length - 1 ? (
               <ModalButton variant="primary" onClick={() => setFormTab((t) => t + 1)}>
                 Next <ChevronRight className="w-4 h-4 ml-1" />
               </ModalButton>
             ) : (
-              <ModalButton variant="primary" onClick={onClose}>
+              <ModalButton variant="primary" onClick={closeForm}>
                 <Save className="w-4 h-4 mr-1" /> {showEdit ? "Update Request" : "Submit Request"}
               </ModalButton>
             )}
@@ -759,7 +763,7 @@ export default function RequestsPage() {
       </Modal>
 
       {/* New/Edit Request Form Modal */}
-      <FormModal open={isFormOpen} onClose={closeForm} />
+      {requestFormModal}
 
       {/* Delete Confirmation Modal */}
       <Modal open={showDelete} onClose={() => { setShowDelete(false); setDeleteTarget(null); }} title="Delete Request" size="sm"

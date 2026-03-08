@@ -51,6 +51,35 @@ const categoriesFilter = ["All", "Furniture", "IT Equipment", "Office Supplies",
 
 const formTabs = ["Item Info", "Details"];
 
+function FormInput({ label, name, value, placeholder, required, type, onChange }: { label: string; name: string; value: string; placeholder?: string; required?: boolean; type?: string; onChange: (name: string, value: string) => void }) {
+  return (
+    <div>
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <input type={type || "text"} value={value} onChange={(e) => onChange(name, e.target.value)} placeholder={placeholder} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+    </div>
+  );
+}
+
+function FormSelect({ label, name, value, options, required, onChange }: { label: string; name: string; value: string; options: string[]; required?: boolean; onChange: (name: string, value: string) => void }) {
+  return (
+    <div>
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <select value={value} onChange={(e) => onChange(name, e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+        {options.map((o) => <option key={o} value={o}>{o || "\u2014 Select \u2014"}</option>)}
+      </select>
+    </div>
+  );
+}
+
+function FormTextarea({ label, name, value, placeholder, rows, required, onChange }: { label: string; name: string; value: string; placeholder?: string; rows?: number; required?: boolean; onChange: (name: string, value: string) => void }) {
+  return (
+    <div className="col-span-2">
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <textarea value={value} onChange={(e) => onChange(name, e.target.value)} placeholder={placeholder} rows={rows || 3} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
+    </div>
+  );
+}
+
 export default function InventoryPage() {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
@@ -96,28 +125,7 @@ export default function InventoryPage() {
     setActionMenu(null);
   };
 
-  const Input = ({ label, name, value, placeholder, required, type }: { label: string; name: string; value: string; placeholder?: string; required?: boolean; type?: string }) => (
-    <div>
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <input type={type || "text"} value={value} onChange={(e) => setForm((f) => ({ ...f, [name]: e.target.value }))} placeholder={placeholder} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
-    </div>
-  );
-
-  const Select = ({ label, name, value, options, required }: { label: string; name: string; value: string; options: string[]; required?: boolean }) => (
-    <div>
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <select value={value} onChange={(e) => setForm((f) => ({ ...f, [name]: e.target.value }))} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
-        {options.map((o) => <option key={o} value={o}>{o || "\u2014 Select \u2014"}</option>)}
-      </select>
-    </div>
-  );
-
-  const Textarea = ({ label, name, value, placeholder, rows, required }: { label: string; name: string; value: string; placeholder?: string; rows?: number; required?: boolean }) => (
-    <div className="col-span-2">
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <textarea value={value} onChange={(e) => setForm((f) => ({ ...f, [name]: e.target.value }))} placeholder={placeholder} rows={rows || 3} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
-    </div>
-  );
+  const handleFieldChange = (name: string, value: string) => setForm((f) => ({ ...f, [name]: value }));
 
   return (
     <div className="space-y-6">
@@ -249,22 +257,22 @@ export default function InventoryPage() {
         </div>
         {formTab === 0 && (
           <div className="grid grid-cols-2 gap-4">
-            <Input label="Item Name" name="item_name" value={form.item_name || ""} placeholder="e.g. Office Chair" required />
-            <Select label="Category" name="category" value={form.category || ""} options={["", "Office Supplies", "Furniture", "Equipment", "Cleaning", "Medical", "Disaster Preparedness", "Others"]} />
-            <Input label="Quantity" name="quantity" value={form.quantity || ""} placeholder="e.g. 10" type="number" required />
-            <Select label="Unit" name="unit" value={form.unit || ""} options={["", "pcs", "box", "ream", "pack", "bottle", "gallon", "set"]} />
-            <Input label="Unit Cost" name="unit_cost" value={form.unit_cost || ""} placeholder="e.g. 3500" type="number" required />
+            <FormInput onChange={handleFieldChange} label="Item Name" name="item_name" value={form.item_name || ""} placeholder="e.g. Office Chair" required />
+            <FormSelect onChange={handleFieldChange} label="Category" name="category" value={form.category || ""} options={["", "Office Supplies", "Furniture", "Equipment", "Cleaning", "Medical", "Disaster Preparedness", "Others"]} />
+            <FormInput onChange={handleFieldChange} label="Quantity" name="quantity" value={form.quantity || ""} placeholder="e.g. 10" type="number" required />
+            <FormSelect onChange={handleFieldChange} label="Unit" name="unit" value={form.unit || ""} options={["", "pcs", "box", "ream", "pack", "bottle", "gallon", "set"]} />
+            <FormInput onChange={handleFieldChange} label="Unit Cost" name="unit_cost" value={form.unit_cost || ""} placeholder="e.g. 3500" type="number" required />
           </div>
         )}
         {formTab === 1 && (
           <div className="grid grid-cols-2 gap-4">
-            <Select label="Condition" name="condition" value={form.condition || ""} options={["", "New", "Good", "Fair", "Poor", "For Disposal"]} />
-            <Input label="Location" name="location" value={form.location || ""} placeholder="e.g. Storage Room" />
-            <Input label="Date Acquired" name="date_acquired" value={form.date_acquired || ""} type="date" />
-            <Input label="Supplier" name="supplier" value={form.supplier || ""} placeholder="e.g. Office Warehouse" />
-            <Input label="Serial Number" name="serial_number" value={form.serial_number || ""} placeholder="e.g. SN-12345" />
-            <Input label="Reorder Level" name="reorder_level" value={form.reorder_level || ""} placeholder="e.g. 5" type="number" />
-            <Textarea label="Notes" name="notes" value={form.notes || ""} placeholder="Additional notes about this item..." />
+            <FormSelect onChange={handleFieldChange} label="Condition" name="condition" value={form.condition || ""} options={["", "New", "Good", "Fair", "Poor", "For Disposal"]} />
+            <FormInput onChange={handleFieldChange} label="Location" name="location" value={form.location || ""} placeholder="e.g. Storage Room" />
+            <FormInput onChange={handleFieldChange} label="Date Acquired" name="date_acquired" value={form.date_acquired || ""} type="date" />
+            <FormInput onChange={handleFieldChange} label="Supplier" name="supplier" value={form.supplier || ""} placeholder="e.g. Office Warehouse" />
+            <FormInput onChange={handleFieldChange} label="Serial Number" name="serial_number" value={form.serial_number || ""} placeholder="e.g. SN-12345" />
+            <FormInput onChange={handleFieldChange} label="Reorder Level" name="reorder_level" value={form.reorder_level || ""} placeholder="e.g. 5" type="number" />
+            <FormTextarea onChange={handleFieldChange} label="Notes" name="notes" value={form.notes || ""} placeholder="Additional notes about this item..." />
           </div>
         )}
       </Modal>

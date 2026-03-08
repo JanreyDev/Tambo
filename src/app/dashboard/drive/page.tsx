@@ -19,7 +19,6 @@ import {
   Trash2,
   Eye,
   Edit,
-  X,
   Check,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";

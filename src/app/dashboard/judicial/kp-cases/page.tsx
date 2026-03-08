@@ -73,6 +73,40 @@ const emptyForm: Record<string, string> = {
   description: "", relief_sought: "", lupon_chairman: "", initial_hearing_date: "", notes: "",
 };
 
+// ── Form Field Components (module-level) ──
+function FormInput({ label, value, onChange, required, type = "text", placeholder = "" }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; type?: string; placeholder?: string }) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+    </div>
+  );
+}
+
+function FormSelect({ label, value, onChange, options, required }: { label: string; value: string; onChange: (value: string) => void; options: string[]; required?: boolean }) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <select value={value} onChange={(e) => onChange(e.target.value)}
+        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+        <option value="">Select {label}</option>
+        {options.map((o) => <option key={o} value={o}>{o}</option>)}
+      </select>
+    </div>
+  );
+}
+
+function FormTextarea({ label, value, onChange, required, rows = 3, placeholder = "" }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; rows?: number; placeholder?: string }) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={rows} placeholder={placeholder}
+        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
+    </div>
+  );
+}
+
 export default function KpCasesPage() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("All Types");
@@ -160,43 +194,15 @@ export default function KpCasesPage() {
 
   const formTabs = ["Case Info", "Parties", "Details"];
 
-  // -- Form Field Components --
-  const Input = ({ label, field, required, type = "text", placeholder = "" }: { label: string; field: string; required?: boolean; type?: string; placeholder?: string }) => (
-    <div>
-      <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <input type={type} value={form[field] || ""} onChange={(e) => updateForm(field, e.target.value)} placeholder={placeholder}
-        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
-    </div>
-  );
-
-  const Select = ({ label, field, options, required }: { label: string; field: string; options: string[]; required?: boolean }) => (
-    <div>
-      <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <select value={form[field] || ""} onChange={(e) => updateForm(field, e.target.value)}
-        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
-        <option value="">Select {label}</option>
-        {options.map((o) => <option key={o} value={o}>{o}</option>)}
-      </select>
-    </div>
-  );
-
-  const Textarea = ({ label, field, required, rows = 3, placeholder = "" }: { label: string; field: string; required?: boolean; rows?: number; placeholder?: string }) => (
-    <div>
-      <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <textarea value={form[field] || ""} onChange={(e) => updateForm(field, e.target.value)} rows={rows} placeholder={placeholder}
-        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
-    </div>
-  );
-
   // -- Render Form Tab Content --
   const renderFormTab = () => {
     switch (formTab) {
       case 0: return (
         <div className="space-y-4">
-          <Input label="Case Title" field="title" required placeholder="e.g. Boundary Dispute - Lot 45/46" />
+          <FormInput label="Case Title" value={form["title"] || ""} onChange={(v) => updateForm("title", v)} required placeholder="e.g. Boundary Dispute - Lot 45/46" />
           <div className="grid grid-cols-2 gap-4">
-            <Select label="Case Type" field="case_type" options={caseTypeOptions} required />
-            <Input label="Date Filed" field="date_filed" type="date" required />
+            <FormSelect label="Case Type" value={form["case_type"] || ""} onChange={(v) => updateForm("case_type", v)} options={caseTypeOptions} required />
+            <FormInput label="Date Filed" value={form["date_filed"] || ""} onChange={(v) => updateForm("date_filed", v)} type="date" required />
           </div>
         </div>
       );
@@ -204,31 +210,31 @@ export default function KpCasesPage() {
         <div className="space-y-4">
           <h4 className="text-sm font-semibold text-foreground">Complainant</h4>
           <div className="grid grid-cols-1 gap-4">
-            <Input label="Complainant Name(s)" field="complainant_names" required placeholder="e.g. Maria Dela Cruz (separate multiple with commas)" />
+            <FormInput label="Complainant Name(s)" value={form["complainant_names"] || ""} onChange={(v) => updateForm("complainant_names", v)} required placeholder="e.g. Maria Dela Cruz (separate multiple with commas)" />
             <div className="grid grid-cols-2 gap-4">
-              <Input label="Contact Number" field="complainant_contact" placeholder="09XX-XXX-XXXX" />
-              <Input label="Address" field="complainant_address" placeholder="e.g. Purok Sampaguita, Rizal St." />
+              <FormInput label="Contact Number" value={form["complainant_contact"] || ""} onChange={(v) => updateForm("complainant_contact", v)} placeholder="09XX-XXX-XXXX" />
+              <FormInput label="Address" value={form["complainant_address"] || ""} onChange={(v) => updateForm("complainant_address", v)} placeholder="e.g. Purok Sampaguita, Rizal St." />
             </div>
           </div>
           <h4 className="text-sm font-semibold text-foreground mt-6">Respondent</h4>
           <div className="grid grid-cols-1 gap-4">
-            <Input label="Respondent Name(s)" field="respondent_names" required placeholder="e.g. Juan Santos (separate multiple with commas)" />
+            <FormInput label="Respondent Name(s)" value={form["respondent_names"] || ""} onChange={(v) => updateForm("respondent_names", v)} required placeholder="e.g. Juan Santos (separate multiple with commas)" />
             <div className="grid grid-cols-2 gap-4">
-              <Input label="Contact Number" field="respondent_contact" placeholder="09XX-XXX-XXXX" />
-              <Input label="Address" field="respondent_address" placeholder="e.g. Purok Rosal, Mabini St." />
+              <FormInput label="Contact Number" value={form["respondent_contact"] || ""} onChange={(v) => updateForm("respondent_contact", v)} placeholder="09XX-XXX-XXXX" />
+              <FormInput label="Address" value={form["respondent_address"] || ""} onChange={(v) => updateForm("respondent_address", v)} placeholder="e.g. Purok Rosal, Mabini St." />
             </div>
           </div>
         </div>
       );
       case 2: return (
         <div className="space-y-4">
-          <Textarea label="Brief Description / Facts of the Case" field="description" required rows={4} placeholder="Describe the facts and circumstances of the complaint..." />
-          <Input label="Relief / Remedy Sought" field="relief_sought" placeholder="e.g. Payment of damages, removal of structure" />
+          <FormTextarea label="Brief Description / Facts of the Case" value={form["description"] || ""} onChange={(v) => updateForm("description", v)} required rows={4} placeholder="Describe the facts and circumstances of the complaint..." />
+          <FormInput label="Relief / Remedy Sought" value={form["relief_sought"] || ""} onChange={(v) => updateForm("relief_sought", v)} placeholder="e.g. Payment of damages, removal of structure" />
           <div className="grid grid-cols-2 gap-4">
-            <Select label="Lupon Chairman" field="lupon_chairman" options={luponChairmen} required />
-            <Input label="Initial Hearing Date" field="initial_hearing_date" type="date" />
+            <FormSelect label="Lupon Chairman" value={form["lupon_chairman"] || ""} onChange={(v) => updateForm("lupon_chairman", v)} options={luponChairmen} required />
+            <FormInput label="Initial Hearing Date" value={form["initial_hearing_date"] || ""} onChange={(v) => updateForm("initial_hearing_date", v)} type="date" />
           </div>
-          <Textarea label="Notes" field="notes" rows={2} placeholder="Any additional notes or remarks..." />
+          <FormTextarea label="Notes" value={form["notes"] || ""} onChange={(v) => updateForm("notes", v)} rows={2} placeholder="Any additional notes or remarks..." />
         </div>
       );
       default: return null;
@@ -465,7 +471,7 @@ export default function KpCasesPage() {
         {deleteTarget && (
           <div className="space-y-3">
             <p className="text-sm text-foreground">Are you sure you want to delete case <span className="font-bold">{deleteTarget.case_number}</span>?</p>
-            <p className="text-sm text-muted-foreground">This will permanently remove the KP case "{deleteTarget.title}" including all hearing records and settlement data. This action cannot be undone.</p>
+            <p className="text-sm text-muted-foreground">This will permanently remove the KP case &ldquo;{deleteTarget.title}&rdquo; including all hearing records and settlement data. This action cannot be undone.</p>
           </div>
         )}
       </Modal>

@@ -23,7 +23,6 @@ import {
   Trash2,
   Save,
   MapPin,
-  Clock,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge, StatusBadge } from "@/components/ui/badge";
@@ -71,8 +70,6 @@ const mockCases: VawcCase[] = [
 
 const caseTypes = ["All Types", "Physical Violence", "Sexual Violence", "Psychological Violence", "Economic Abuse"];
 const riskLevels = ["All Risk", "High", "Medium", "Low"];
-const statusOptions = ["All Status", "Active", "Under Investigation", "Referred", "Resolved", "Closed"];
-
 const incidentTypeOptions = ["Physical Violence", "Sexual Violence", "Psychological Violence", "Economic Abuse"];
 const victimSexOptions = ["Female", "Male"];
 const civilStatusOptions = ["Single", "Married", "Cohabiting", "Separated", "Widowed"];
@@ -88,6 +85,40 @@ const emptyForm: Record<string, string> = {
   incident_type: "", incident_date: "", incident_location: "", narrative: "",
   protection_order: "", referral: "", action_taken: "", status: "",
 };
+
+// ── Form Field Components (module-level) ──
+function FormInput({ label, value, onChange, required, type = "text", placeholder = "" }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; type?: string; placeholder?: string }) {
+  return (
+    <div>
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+    </div>
+  );
+}
+
+function FormSelect({ label, value, onChange, options, required }: { label: string; value: string; onChange: (value: string) => void; options: string[]; required?: boolean }) {
+  return (
+    <div>
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <select value={value} onChange={(e) => onChange(e.target.value)}
+        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+        <option value="">-- Select --</option>
+        {options.map((o) => <option key={o} value={o}>{o}</option>)}
+      </select>
+    </div>
+  );
+}
+
+function FormTextarea({ label, value, onChange, required, rows = 3, placeholder = "", colSpan2 = false }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; rows?: number; placeholder?: string; colSpan2?: boolean }) {
+  return (
+    <div className={colSpan2 ? "col-span-2" : undefined}>
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={rows} placeholder={placeholder}
+        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
+    </div>
+  );
+}
 
 export default function VawcPage() {
   const [search, setSearch] = useState("");
@@ -195,72 +226,44 @@ export default function VawcPage() {
 
   const formTabs = ["Victim Information", "Perpetrator", "Incident", "Action"];
 
-  // -- Form Field Components --
-  const Input = ({ label, field, required, type = "text", placeholder = "" }: { label: string; field: string; required?: boolean; type?: string; placeholder?: string }) => (
-    <div>
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <input type={type} value={form[field] || ""} onChange={(e) => updateForm(field, e.target.value)} placeholder={placeholder}
-        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
-    </div>
-  );
-
-  const Select = ({ label, field, options, required }: { label: string; field: string; options: string[]; required?: boolean }) => (
-    <div>
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <select value={form[field] || ""} onChange={(e) => updateForm(field, e.target.value)}
-        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
-        <option value="">-- Select --</option>
-        {options.map((o) => <option key={o} value={o}>{o}</option>)}
-      </select>
-    </div>
-  );
-
-  const Textarea = ({ label, field, required, rows = 3, placeholder = "" }: { label: string; field: string; required?: boolean; rows?: number; placeholder?: string }) => (
-    <div className="col-span-2">
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <textarea value={form[field] || ""} onChange={(e) => updateForm(field, e.target.value)} rows={rows} placeholder={placeholder}
-        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
-    </div>
-  );
-
   // -- Render Form Tab Content --
   const renderFormTab = () => {
     switch (formTab) {
       case 0: return (
         <div className="grid grid-cols-2 gap-4">
-          <Input label="Victim Name" field="victim_name" required placeholder="Full name (anonymized in records)" />
-          <Input label="Age" field="victim_age" type="number" required placeholder="e.g. 28" />
-          <Select label="Sex" field="victim_sex" options={victimSexOptions} required />
-          <Select label="Civil Status" field="victim_civil_status" options={civilStatusOptions} required />
-          <Input label="Contact Number" field="victim_contact" placeholder="e.g. 0917-XXX-XXXX" />
-          <Input label="Address" field="victim_address" placeholder="Purok / Street" />
+          <FormInput label="Victim Name" value={form["victim_name"] || ""} onChange={(v) => updateForm("victim_name", v)} required placeholder="Full name (anonymized in records)" />
+          <FormInput label="Age" value={form["victim_age"] || ""} onChange={(v) => updateForm("victim_age", v)} type="number" required placeholder="e.g. 28" />
+          <FormSelect label="Sex" value={form["victim_sex"] || ""} onChange={(v) => updateForm("victim_sex", v)} options={victimSexOptions} required />
+          <FormSelect label="Civil Status" value={form["victim_civil_status"] || ""} onChange={(v) => updateForm("victim_civil_status", v)} options={civilStatusOptions} required />
+          <FormInput label="Contact Number" value={form["victim_contact"] || ""} onChange={(v) => updateForm("victim_contact", v)} placeholder="e.g. 0917-XXX-XXXX" />
+          <FormInput label="Address" value={form["victim_address"] || ""} onChange={(v) => updateForm("victim_address", v)} placeholder="Purok / Street" />
         </div>
       );
       case 1: return (
         <div className="grid grid-cols-2 gap-4">
-          <Input label="Perpetrator Name" field="perpetrator_name" required placeholder="Full name" />
-          <Input label="Age" field="perpetrator_age" type="number" placeholder="e.g. 35" />
-          <Select label="Sex" field="perpetrator_sex" options={perpetratorSexOptions} required />
-          <Select label="Relationship to Victim" field="relationship_to_victim" options={relationshipOptions} required />
+          <FormInput label="Perpetrator Name" value={form["perpetrator_name"] || ""} onChange={(v) => updateForm("perpetrator_name", v)} required placeholder="Full name" />
+          <FormInput label="Age" value={form["perpetrator_age"] || ""} onChange={(v) => updateForm("perpetrator_age", v)} type="number" placeholder="e.g. 35" />
+          <FormSelect label="Sex" value={form["perpetrator_sex"] || ""} onChange={(v) => updateForm("perpetrator_sex", v)} options={perpetratorSexOptions} required />
+          <FormSelect label="Relationship to Victim" value={form["relationship_to_victim"] || ""} onChange={(v) => updateForm("relationship_to_victim", v)} options={relationshipOptions} required />
         </div>
       );
       case 2: return (
         <div className="grid grid-cols-2 gap-4">
-          <Select label="Type of Violence" field="incident_type" options={incidentTypeOptions} required />
-          <Input label="Date of Incident" field="incident_date" type="date" required />
+          <FormSelect label="Type of Violence" value={form["incident_type"] || ""} onChange={(v) => updateForm("incident_type", v)} options={incidentTypeOptions} required />
+          <FormInput label="Date of Incident" value={form["incident_date"] || ""} onChange={(v) => updateForm("incident_date", v)} type="date" required />
           <div className="col-span-2">
-            <Input label="Location of Incident" field="incident_location" placeholder="e.g. Residence - Purok Sampaguita" />
+            <FormInput label="Location of Incident" value={form["incident_location"] || ""} onChange={(v) => updateForm("incident_location", v)} placeholder="e.g. Residence - Purok Sampaguita" />
           </div>
-          <Textarea label="Incident Narrative" field="narrative" required rows={5} placeholder="Describe the incident in detail. Include what happened, injuries observed, and circumstances." />
+          <FormTextarea label="Incident Narrative" value={form["narrative"] || ""} onChange={(v) => updateForm("narrative", v)} required rows={5} placeholder="Describe the incident in detail. Include what happened, injuries observed, and circumstances." colSpan2 />
         </div>
       );
       case 3: return (
         <div className="grid grid-cols-2 gap-4">
-          <Select label="Protection Order" field="protection_order" options={protectionOrderOptions} required />
-          <Select label="Referral" field="referral" options={referralOptions} required />
-          <Textarea label="Action Taken" field="action_taken" rows={3} placeholder="e.g. BPO issued, referred to PNP Women's Desk, victim placed in shelter..." />
+          <FormSelect label="Protection Order" value={form["protection_order"] || ""} onChange={(v) => updateForm("protection_order", v)} options={protectionOrderOptions} required />
+          <FormSelect label="Referral" value={form["referral"] || ""} onChange={(v) => updateForm("referral", v)} options={referralOptions} required />
+          <FormTextarea label="Action Taken" value={form["action_taken"] || ""} onChange={(v) => updateForm("action_taken", v)} rows={3} placeholder="e.g. BPO issued, referred to PNP Women's Desk, victim placed in shelter..." colSpan2 />
           <div className="col-span-2">
-            <Select label="Case Status" field="status" options={caseStatusOptions} required />
+            <FormSelect label="Case Status" value={form["status"] || ""} onChange={(v) => updateForm("status", v)} options={caseStatusOptions} required />
           </div>
         </div>
       );

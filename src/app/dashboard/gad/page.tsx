@@ -43,6 +43,35 @@ const mockPrograms: GadProgram[] = [
 
 const formTabs = ["Program Info", "Budget & Status"];
 
+function FormInput({ label, name, value, placeholder, required, type, onChange }: { label: string; name: string; value: string; placeholder?: string; required?: boolean; type?: string; onChange: (name: string, value: string) => void }) {
+  return (
+    <div>
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <input type={type || "text"} value={value} onChange={(e) => onChange(name, e.target.value)} placeholder={placeholder} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+    </div>
+  );
+}
+
+function FormSelect({ label, name, value, options, required, onChange }: { label: string; name: string; value: string; options: string[]; required?: boolean; onChange: (name: string, value: string) => void }) {
+  return (
+    <div>
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <select value={value} onChange={(e) => onChange(name, e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+        {options.map((o) => <option key={o} value={o}>{o || "\u2014 Select \u2014"}</option>)}
+      </select>
+    </div>
+  );
+}
+
+function FormTextarea({ label, name, value, placeholder, rows, required, onChange }: { label: string; name: string; value: string; placeholder?: string; rows?: number; required?: boolean; onChange: (name: string, value: string) => void }) {
+  return (
+    <div className="col-span-2">
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <textarea value={value} onChange={(e) => onChange(name, e.target.value)} placeholder={placeholder} rows={rows || 3} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
+    </div>
+  );
+}
+
 export default function GadPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [viewProgram, setViewProgram] = useState<GadProgram | null>(null);
@@ -82,28 +111,7 @@ export default function GadPage() {
     setActionMenu(null);
   };
 
-  const Input = ({ label, name, value, placeholder, required, type }: { label: string; name: string; value: string; placeholder?: string; required?: boolean; type?: string }) => (
-    <div>
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <input type={type || "text"} value={value} onChange={(e) => setForm((f) => ({ ...f, [name]: e.target.value }))} placeholder={placeholder} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
-    </div>
-  );
-
-  const Select = ({ label, name, value, options, required }: { label: string; name: string; value: string; options: string[]; required?: boolean }) => (
-    <div>
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <select value={value} onChange={(e) => setForm((f) => ({ ...f, [name]: e.target.value }))} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
-        {options.map((o) => <option key={o} value={o}>{o || "\u2014 Select \u2014"}</option>)}
-      </select>
-    </div>
-  );
-
-  const Textarea = ({ label, name, value, placeholder, rows, required }: { label: string; name: string; value: string; placeholder?: string; rows?: number; required?: boolean }) => (
-    <div className="col-span-2">
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <textarea value={value} onChange={(e) => setForm((f) => ({ ...f, [name]: e.target.value }))} placeholder={placeholder} rows={rows || 3} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
-    </div>
-  );
+  const handleFieldChange = (name: string, value: string) => setForm((f) => ({ ...f, [name]: value }));
 
   return (
     <div className="space-y-6">
@@ -225,22 +233,22 @@ export default function GadPage() {
         </div>
         {formTab === 0 && (
           <div className="grid grid-cols-2 gap-4">
-            <Input label="Program Name" name="program_name" value={form.program_name || ""} placeholder="e.g. Women's Livelihood Training" required />
-            <Select label="Category" name="category" value={form.category || ""} options={["", "Health", "Education", "Livelihood", "Violence Prevention", "Leadership", "Youth Development"]} />
-            <Textarea label="Description" name="description" value={form.description || ""} placeholder="Brief description of the program..." />
-            <Input label="Target Beneficiaries" name="target_beneficiaries" value={form.target_beneficiaries || ""} placeholder="e.g. Women (18-60)" />
-            <Input label="Start Date" name="start_date" value={form.start_date || ""} type="date" />
-            <Input label="End Date" name="end_date" value={form.end_date || ""} type="date" />
+            <FormInput label="Program Name" name="program_name" value={form.program_name || ""} placeholder="e.g. Women's Livelihood Training" required onChange={handleFieldChange} />
+            <FormSelect label="Category" name="category" value={form.category || ""} options={["", "Health", "Education", "Livelihood", "Violence Prevention", "Leadership", "Youth Development"]} onChange={handleFieldChange} />
+            <FormTextarea label="Description" name="description" value={form.description || ""} placeholder="Brief description of the program..." onChange={handleFieldChange} />
+            <FormInput label="Target Beneficiaries" name="target_beneficiaries" value={form.target_beneficiaries || ""} placeholder="e.g. Women (18-60)" onChange={handleFieldChange} />
+            <FormInput label="Start Date" name="start_date" value={form.start_date || ""} type="date" onChange={handleFieldChange} />
+            <FormInput label="End Date" name="end_date" value={form.end_date || ""} type="date" onChange={handleFieldChange} />
           </div>
         )}
         {formTab === 1 && (
           <div className="grid grid-cols-2 gap-4">
-            <Input label="Budget" name="budget" value={form.budget || ""} placeholder="e.g. 50000" type="number" required />
-            <Input label="Amount Spent" name="amount_spent" value={form.amount_spent || ""} placeholder="e.g. 35000" type="number" />
-            <Select label="Funding Source" name="funding_source" value={form.funding_source || ""} options={["", "GAD Fund", "General Fund", "External Grant", "Donation"]} />
-            <Select label="Status" name="status" value={form.status || ""} options={["", "Planning", "Active", "Completed", "Cancelled"]} />
-            <Input label="Responsible Person" name="responsible_person" value={form.responsible_person || ""} placeholder="e.g. Elena Santos" />
-            <Textarea label="Remarks" name="remarks" value={form.remarks || ""} placeholder="Additional remarks..." />
+            <FormInput label="Budget" name="budget" value={form.budget || ""} placeholder="e.g. 50000" type="number" required onChange={handleFieldChange} />
+            <FormInput label="Amount Spent" name="amount_spent" value={form.amount_spent || ""} placeholder="e.g. 35000" type="number" onChange={handleFieldChange} />
+            <FormSelect label="Funding Source" name="funding_source" value={form.funding_source || ""} options={["", "GAD Fund", "General Fund", "External Grant", "Donation"]} onChange={handleFieldChange} />
+            <FormSelect label="Status" name="status" value={form.status || ""} options={["", "Planning", "Active", "Completed", "Cancelled"]} onChange={handleFieldChange} />
+            <FormInput label="Responsible Person" name="responsible_person" value={form.responsible_person || ""} placeholder="e.g. Elena Santos" onChange={handleFieldChange} />
+            <FormTextarea label="Remarks" name="remarks" value={form.remarks || ""} placeholder="Additional remarks..." onChange={handleFieldChange} />
           </div>
         )}
       </Modal>

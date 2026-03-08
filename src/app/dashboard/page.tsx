@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Users,
@@ -14,7 +13,6 @@ import {
   UserPlus,
   Gavel,
   Receipt,
-  Send,
   TrendingUp,
   Activity,
   Clock,
@@ -24,8 +22,6 @@ import {
   Zap,
   Eye,
   Calendar,
-  MapPin,
-  ArrowUpRight,
 } from "lucide-react";
 
 // ── Mini SVG Charts ──────────────────────────────────────────────

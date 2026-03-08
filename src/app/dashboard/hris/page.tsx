@@ -51,6 +51,26 @@ const departments = ["All", "Executive", "Administrative", "Finance", "Legislati
 
 const formTabs = ["Personal", "Employment", "Government IDs"];
 
+function FormInput({ label, name, value, placeholder, required, type, onChange }: { label: string; name: string; value: string; placeholder?: string; required?: boolean; type?: string; onChange: (name: string, value: string) => void }) {
+  return (
+    <div>
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <input type={type || "text"} value={value} onChange={(e) => onChange(name, e.target.value)} placeholder={placeholder} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+    </div>
+  );
+}
+
+function FormSelect({ label, name, value, options, required, onChange }: { label: string; name: string; value: string; options: string[]; required?: boolean; onChange: (name: string, value: string) => void }) {
+  return (
+    <div>
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <select value={value} onChange={(e) => onChange(name, e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+        {options.map((o) => <option key={o} value={o}>{o || "\u2014 Select \u2014"}</option>)}
+      </select>
+    </div>
+  );
+}
+
 export default function HrisPage() {
   const [search, setSearch] = useState("");
   const [deptFilter, setDeptFilter] = useState("All");
@@ -97,28 +117,7 @@ export default function HrisPage() {
     setActionMenu(null);
   };
 
-  const Input = ({ label, name, value, placeholder, required, type }: { label: string; name: string; value: string; placeholder?: string; required?: boolean; type?: string }) => (
-    <div>
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <input type={type || "text"} value={value} onChange={(e) => setForm((f) => ({ ...f, [name]: e.target.value }))} placeholder={placeholder} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
-    </div>
-  );
-
-  const Select = ({ label, name, value, options, required }: { label: string; name: string; value: string; options: string[]; required?: boolean }) => (
-    <div>
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <select value={value} onChange={(e) => setForm((f) => ({ ...f, [name]: e.target.value }))} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
-        {options.map((o) => <option key={o} value={o}>{o || "\u2014 Select \u2014"}</option>)}
-      </select>
-    </div>
-  );
-
-  const Textarea = ({ label, name, value, placeholder, rows, required }: { label: string; name: string; value: string; placeholder?: string; rows?: number; required?: boolean }) => (
-    <div className="col-span-2">
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <textarea value={value} onChange={(e) => setForm((f) => ({ ...f, [name]: e.target.value }))} placeholder={placeholder} rows={rows || 3} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
-    </div>
-  );
+  const handleFieldChange = (name: string, value: string) => setForm((f) => ({ ...f, [name]: value }));
 
   return (
     <div className="space-y-6">
@@ -235,35 +234,35 @@ export default function HrisPage() {
         </div>
         {formTab === 0 && (
           <div className="grid grid-cols-2 gap-4">
-            <Input label="First Name" name="first_name" value={form.first_name || ""} placeholder="e.g. Juan" required />
-            <Input label="Middle Name" name="middle_name" value={form.middle_name || ""} placeholder="e.g. Dela" />
-            <Input label="Last Name" name="last_name" value={form.last_name || ""} placeholder="e.g. Cruz" required />
-            <Select label="Extension" name="extension" value={form.extension || ""} options={["", "Jr.", "Sr.", "II", "III"]} />
-            <Select label="Sex" name="sex" value={form.sex || ""} options={["", "Male", "Female"]} />
-            <Input label="Date of Birth" name="date_of_birth" value={form.date_of_birth || ""} type="date" />
-            <Select label="Civil Status" name="civil_status" value={form.civil_status || ""} options={["", "Single", "Married", "Widowed", "Separated"]} />
-            <Input label="Contact Number" name="contact_number" value={form.contact_number || ""} placeholder="e.g. 0917-000-0000" />
-            <Input label="Email" name="email" value={form.email || ""} placeholder="e.g. juan@email.com" type="email" />
+            <FormInput label="First Name" name="first_name" value={form.first_name || ""} placeholder="e.g. Juan" required onChange={handleFieldChange} />
+            <FormInput label="Middle Name" name="middle_name" value={form.middle_name || ""} placeholder="e.g. Dela" onChange={handleFieldChange} />
+            <FormInput label="Last Name" name="last_name" value={form.last_name || ""} placeholder="e.g. Cruz" required onChange={handleFieldChange} />
+            <FormSelect label="Extension" name="extension" value={form.extension || ""} options={["", "Jr.", "Sr.", "II", "III"]} onChange={handleFieldChange} />
+            <FormSelect label="Sex" name="sex" value={form.sex || ""} options={["", "Male", "Female"]} onChange={handleFieldChange} />
+            <FormInput label="Date of Birth" name="date_of_birth" value={form.date_of_birth || ""} type="date" onChange={handleFieldChange} />
+            <FormSelect label="Civil Status" name="civil_status" value={form.civil_status || ""} options={["", "Single", "Married", "Widowed", "Separated"]} onChange={handleFieldChange} />
+            <FormInput label="Contact Number" name="contact_number" value={form.contact_number || ""} placeholder="e.g. 0917-000-0000" onChange={handleFieldChange} />
+            <FormInput label="Email" name="email" value={form.email || ""} placeholder="e.g. juan@email.com" type="email" onChange={handleFieldChange} />
           </div>
         )}
         {formTab === 1 && (
           <div className="grid grid-cols-2 gap-4">
-            <Input label="Position" name="position" value={form.position || ""} placeholder="e.g. Kagawad" required />
-            <Select label="Department" name="department" value={form.department || ""} options={["", "Executive", "Legislative", "Health", "Peace & Order", "Social Services", "Administrative", "SK Council"]} required />
-            <Select label="Employment Type" name="employment_type" value={form.employment_type || ""} options={["", "Elected", "Appointed", "Job Order", "Volunteer"]} />
-            <Input label="Date Appointed" name="date_appointed" value={form.date_appointed || ""} type="date" />
-            <Input label="Salary Grade" name="salary_grade" value={form.salary_grade || ""} placeholder="e.g. SG-15" />
-            <Input label="Monthly Salary" name="monthly_salary" value={form.monthly_salary || ""} placeholder="e.g. 15000" type="number" />
+            <FormInput label="Position" name="position" value={form.position || ""} placeholder="e.g. Kagawad" required onChange={handleFieldChange} />
+            <FormSelect label="Department" name="department" value={form.department || ""} options={["", "Executive", "Legislative", "Health", "Peace & Order", "Social Services", "Administrative", "SK Council"]} required onChange={handleFieldChange} />
+            <FormSelect label="Employment Type" name="employment_type" value={form.employment_type || ""} options={["", "Elected", "Appointed", "Job Order", "Volunteer"]} onChange={handleFieldChange} />
+            <FormInput label="Date Appointed" name="date_appointed" value={form.date_appointed || ""} type="date" onChange={handleFieldChange} />
+            <FormInput label="Salary Grade" name="salary_grade" value={form.salary_grade || ""} placeholder="e.g. SG-15" onChange={handleFieldChange} />
+            <FormInput label="Monthly Salary" name="monthly_salary" value={form.monthly_salary || ""} placeholder="e.g. 15000" type="number" onChange={handleFieldChange} />
           </div>
         )}
         {formTab === 2 && (
           <div className="grid grid-cols-2 gap-4">
-            <Input label="PhilHealth No." name="philhealth" value={form.philhealth || ""} placeholder="e.g. 12-345678901-2" />
-            <Input label="SSS / GSIS No." name="sss_gsis" value={form.sss_gsis || ""} placeholder="e.g. 33-1234567-8" />
-            <Input label="Pag-IBIG No." name="pagibig" value={form.pagibig || ""} placeholder="e.g. 1234-5678-9012" />
-            <Input label="TIN" name="tin" value={form.tin || ""} placeholder="e.g. 123-456-789-000" />
-            <Input label="Emergency Contact Name" name="emergency_contact_name" value={form.emergency_contact_name || ""} placeholder="e.g. Maria Cruz" />
-            <Input label="Emergency Contact Number" name="emergency_contact_number" value={form.emergency_contact_number || ""} placeholder="e.g. 0917-000-0000" />
+            <FormInput label="PhilHealth No." name="philhealth" value={form.philhealth || ""} placeholder="e.g. 12-345678901-2" onChange={handleFieldChange} />
+            <FormInput label="SSS / GSIS No." name="sss_gsis" value={form.sss_gsis || ""} placeholder="e.g. 33-1234567-8" onChange={handleFieldChange} />
+            <FormInput label="Pag-IBIG No." name="pagibig" value={form.pagibig || ""} placeholder="e.g. 1234-5678-9012" onChange={handleFieldChange} />
+            <FormInput label="TIN" name="tin" value={form.tin || ""} placeholder="e.g. 123-456-789-000" onChange={handleFieldChange} />
+            <FormInput label="Emergency Contact Name" name="emergency_contact_name" value={form.emergency_contact_name || ""} placeholder="e.g. Maria Cruz" onChange={handleFieldChange} />
+            <FormInput label="Emergency Contact Number" name="emergency_contact_number" value={form.emergency_contact_number || ""} placeholder="e.g. 0917-000-0000" onChange={handleFieldChange} />
           </div>
         )}
       </Modal>

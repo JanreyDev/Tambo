@@ -56,6 +56,35 @@ const emptyForm: Record<string, string> = {
   description: "", payee_payor: "", reference_number: "", remarks: "",
 };
 
+function FormInput({ label, name, value, placeholder, required, type, onChange }: { label: string; name: string; value: string; placeholder?: string; required?: boolean; type?: string; onChange: (name: string, value: string) => void }) {
+  return (
+    <div>
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <input type={type || "text"} value={value} onChange={(e) => onChange(name, e.target.value)} placeholder={placeholder} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+    </div>
+  );
+}
+
+function FormSelect({ label, name, value, options, required, onChange }: { label: string; name: string; value: string; options: string[]; required?: boolean; onChange: (name: string, value: string) => void }) {
+  return (
+    <div>
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <select value={value} onChange={(e) => onChange(name, e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+        {options.map((o) => <option key={o} value={o}>{o || "\u2014 Select \u2014"}</option>)}
+      </select>
+    </div>
+  );
+}
+
+function FormTextarea({ label, name, value, placeholder, rows, required, onChange }: { label: string; name: string; value: string; placeholder?: string; rows?: number; required?: boolean; onChange: (name: string, value: string) => void }) {
+  return (
+    <div className="col-span-2">
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <textarea value={value} onChange={(e) => onChange(name, e.target.value)} placeholder={placeholder} rows={rows || 3} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
+    </div>
+  );
+}
+
 export default function FinancePage() {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
@@ -68,26 +97,7 @@ export default function FinancePage() {
   const [form, setForm] = useState<Record<string, string>>(emptyForm);
   const [actionMenu, setActionMenu] = useState<string | null>(null);
 
-  const Input = ({ label, name, value, placeholder, required, type }: { label: string; name: string; value: string; placeholder?: string; required?: boolean; type?: string }) => (
-    <div>
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <input type={type || "text"} value={value} onChange={(e) => setForm((f) => ({ ...f, [name]: e.target.value }))} placeholder={placeholder} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
-    </div>
-  );
-  const Select = ({ label, name, value, options, required }: { label: string; name: string; value: string; options: string[]; required?: boolean }) => (
-    <div>
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <select value={value} onChange={(e) => setForm((f) => ({ ...f, [name]: e.target.value }))} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
-        {options.map((o) => <option key={o} value={o}>{o || "\u2014 Select \u2014"}</option>)}
-      </select>
-    </div>
-  );
-  const Textarea = ({ label, name, value, placeholder, rows, required }: { label: string; name: string; value: string; placeholder?: string; rows?: number; required?: boolean }) => (
-    <div className="col-span-2">
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <textarea value={value} onChange={(e) => setForm((f) => ({ ...f, [name]: e.target.value }))} placeholder={placeholder} rows={rows || 3} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
-    </div>
-  );
+  const handleFieldChange = (name: string, value: string) => setForm((f) => ({ ...f, [name]: value }));
 
   const openCreate = () => { setForm(emptyForm); setFormTab(0); setShowCreate(true); };
   const openEdit = (t: Transaction) => {
@@ -281,19 +291,19 @@ export default function FinancePage() {
         </div>
         {formTab === 0 && (
           <div className="grid grid-cols-2 gap-4">
-            <Select label="Transaction Type" name="transaction_type" value={form.transaction_type} options={transactionTypes} />
-            <Select label="Category" name="category" value={form.category} options={categoryOptions} />
-            <Input label="Amount" name="amount" value={form.amount} placeholder="0.00" type="number" required />
-            <Input label="OR/CV Number" name="or_number" value={form.or_number} placeholder="OR-XXXX-XXXX" />
-            <Input label="Date" name="date" value={form.date} type="date" />
+            <FormSelect label="Transaction Type" name="transaction_type" value={form.transaction_type} options={transactionTypes} onChange={handleFieldChange} />
+            <FormSelect label="Category" name="category" value={form.category} options={categoryOptions} onChange={handleFieldChange} />
+            <FormInput label="Amount" name="amount" value={form.amount} placeholder="0.00" type="number" required onChange={handleFieldChange} />
+            <FormInput label="OR/CV Number" name="or_number" value={form.or_number} placeholder="OR-XXXX-XXXX" onChange={handleFieldChange} />
+            <FormInput label="Date" name="date" value={form.date} type="date" onChange={handleFieldChange} />
           </div>
         )}
         {formTab === 1 && (
           <div className="grid grid-cols-2 gap-4">
-            <Input label="Description" name="description" value={form.description} placeholder="Transaction description" required />
-            <Input label="Payee / Payor" name="payee_payor" value={form.payee_payor} placeholder="Name of payee or payor" />
-            <Input label="Reference Number" name="reference_number" value={form.reference_number} placeholder="Reference number" />
-            <Textarea label="Remarks" name="remarks" value={form.remarks} placeholder="Additional remarks..." />
+            <FormInput label="Description" name="description" value={form.description} placeholder="Transaction description" required onChange={handleFieldChange} />
+            <FormInput label="Payee / Payor" name="payee_payor" value={form.payee_payor} placeholder="Name of payee or payor" onChange={handleFieldChange} />
+            <FormInput label="Reference Number" name="reference_number" value={form.reference_number} placeholder="Reference number" onChange={handleFieldChange} />
+            <FormTextarea label="Remarks" name="remarks" value={form.remarks} placeholder="Additional remarks..." onChange={handleFieldChange} />
           </div>
         )}
       </Modal>

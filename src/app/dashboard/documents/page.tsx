@@ -100,6 +100,30 @@ const validityOptions = [
 ];
 const paymentMethods = ["Cash", "Check", "Waived"];
 
+// ── Form Field Components (module-level to avoid re-creation during render) ──
+function FormInput({ label, value, onChange, required, type = "text", placeholder = "", disabled = false }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; type?: string; placeholder?: string; disabled?: boolean }) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} disabled={disabled}
+        className={cn("w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", disabled && "opacity-60 cursor-not-allowed bg-muted")} />
+    </div>
+  );
+}
+
+function FormSelect({ label, value, onChange, options, required, disabled = false }: { label: string; value: string; onChange: (value: string) => void; options: { value: string; label: string }[]; required?: boolean; disabled?: boolean }) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <select value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled}
+        className={cn("w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", disabled && "opacity-60 cursor-not-allowed bg-muted")}>
+        <option value="" disabled>Select {label}</option>
+        {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+    </div>
+  );
+}
+
 export default function DocumentsPage() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("All Types");
@@ -240,16 +264,6 @@ export default function DocumentsPage() {
     }));
   };
 
-  const handleDocumentTypeChange = (docType: string) => {
-    const fee = documentFees[docType] ?? 0;
-    setForm((prev) => ({
-      ...prev,
-      document_type: docType,
-      amount: String(fee),
-      payment_method: fee === 0 ? "Waived" : prev.payment_method === "Waived" ? "Cash" : prev.payment_method,
-    }));
-  };
-
   const openRevoke = (doc: IssuedDocument) => {
     setRevokeTarget(doc);
     setShowRevoke(true);
@@ -287,25 +301,6 @@ export default function DocumentsPage() {
 
   const issueTabs = ["Resident", "Document", "Payment"];
 
-  // ── Form Field Components ──
-  const Input = ({ label, field, required, type = "text", placeholder = "", disabled = false }: { label: string; field: string; required?: boolean; type?: string; placeholder?: string; disabled?: boolean }) => (
-    <div>
-      <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <input type={type} value={form[field] || ""} onChange={(e) => updateForm(field, e.target.value)} placeholder={placeholder} disabled={disabled}
-        className={cn("w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", disabled && "opacity-60 cursor-not-allowed bg-muted")} />
-    </div>
-  );
-
-  const Select = ({ label, field, options, required, disabled = false }: { label: string; field: string; options: { value: string; label: string }[]; required?: boolean; disabled?: boolean }) => (
-    <div>
-      <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <select value={form[field] || ""} onChange={(e) => updateForm(field, e.target.value)} disabled={disabled}
-        className={cn("w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", disabled && "opacity-60 cursor-not-allowed bg-muted")}>
-        <option value="" disabled>Select {label}</option>
-        {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
-    </div>
-  );
 
   // ── Render Issue Tab Content ──
   const renderIssueTab = () => {
@@ -383,7 +378,7 @@ export default function DocumentsPage() {
       case 1: return (
         <div className="space-y-4">
           <p className="text-xs text-muted-foreground">Select the document type and provide the purpose of request.</p>
-          <Select label="Document Type" field="document_type" required
+          <FormSelect label="Document Type" value={form["document_type"] || ""} onChange={(v) => updateForm("document_type", v)} required
             options={issueDocumentTypes.map((t) => ({ value: t, label: t }))}
           />
           {form.document_type && (
@@ -393,8 +388,8 @@ export default function DocumentsPage() {
               <span className="text-muted-foreground ml-1">| Default fee: {documentFees[form.document_type] === 0 ? "Free" : `₱${documentFees[form.document_type]}`}</span>
             </div>
           )}
-          <Input label="Purpose" field="purpose" required placeholder="e.g. Local Employment, School Enrollment, Medical Assistance" />
-          <Select label="Validity Period" field="validity_period" required
+          <FormInput label="Purpose" value={form["purpose"] || ""} onChange={(v) => updateForm("purpose", v)} required placeholder="e.g. Local Employment, School Enrollment, Medical Assistance" />
+          <FormSelect label="Validity Period" value={form["validity_period"] || ""} onChange={(v) => updateForm("validity_period", v)} required
             options={validityOptions}
           />
         </div>
@@ -403,10 +398,10 @@ export default function DocumentsPage() {
         <div className="space-y-4">
           <p className="text-xs text-muted-foreground">Enter payment details. Amount auto-fills based on document type.</p>
           <div className="grid grid-cols-2 gap-4">
-            <Input label="Amount (PHP)" field="amount" required type="number" placeholder="0" />
-            <Input label="OR Number" field="or_number" placeholder="e.g. OR-2026-0343" />
+            <FormInput label="Amount (PHP)" value={form["amount"] || ""} onChange={(v) => updateForm("amount", v)} required type="number" placeholder="0" />
+            <FormInput label="OR Number" value={form["or_number"] || ""} onChange={(v) => updateForm("or_number", v)} placeholder="e.g. OR-2026-0343" />
           </div>
-          <Select label="Payment Method" field="payment_method" required
+          <FormSelect label="Payment Method" value={form["payment_method"] || ""} onChange={(v) => updateForm("payment_method", v)} required
             options={paymentMethods.map((m) => ({ value: m, label: m }))}
           />
           {form.payment_method === "Waived" && (

@@ -15,7 +15,6 @@ import {
   Phone,
   Calendar,
   MoreHorizontal,
-  Eye,
   Edit,
   Trash2,
 } from "lucide-react";
@@ -63,6 +62,35 @@ const mockCenters: EvacuationCenter[] = [
 
 const formTabs = ["Event", "Impact", "Response"];
 
+function FormInput({ label, name, value, placeholder, required, type, onChange }: { label: string; name: string; value: string; placeholder?: string; required?: boolean; type?: string; onChange: (name: string, value: string) => void }) {
+  return (
+    <div>
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <input type={type || "text"} value={value} onChange={(e) => onChange(name, e.target.value)} placeholder={placeholder} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+    </div>
+  );
+}
+
+function FormSelect({ label, name, value, options, required, onChange }: { label: string; name: string; value: string; options: string[]; required?: boolean; onChange: (name: string, value: string) => void }) {
+  return (
+    <div>
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <select value={value} onChange={(e) => onChange(name, e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+        {options.map((o) => <option key={o} value={o}>{o || "\u2014 Select \u2014"}</option>)}
+      </select>
+    </div>
+  );
+}
+
+function FormTextarea({ label, name, value, placeholder, rows, required, onChange }: { label: string; name: string; value: string; placeholder?: string; rows?: number; required?: boolean; onChange: (name: string, value: string) => void }) {
+  return (
+    <div className="col-span-2">
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <textarea value={value} onChange={(e) => onChange(name, e.target.value)} placeholder={placeholder} rows={rows || 3} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
+    </div>
+  );
+}
+
 export default function DisasterPage() {
   const [activeTab, setActiveTab] = useState<"events" | "centers" | "preparedness">("events");
   const [showCreate, setShowCreate] = useState(false);
@@ -71,6 +99,8 @@ export default function DisasterPage() {
   const [formTab, setFormTab] = useState(0);
   const [form, setForm] = useState<Record<string, string>>({});
   const [actionMenu, setActionMenu] = useState<string | null>(null);
+
+  const handleFieldChange = (name: string, value: string) => setForm((f) => ({ ...f, [name]: value }));
 
   const eventIcon = (type: string) => {
     switch (type) {
@@ -106,29 +136,6 @@ export default function DisasterPage() {
     setShowEdit(true);
     setActionMenu(null);
   };
-
-  const Input = ({ label, name, value, placeholder, required, type }: { label: string; name: string; value: string; placeholder?: string; required?: boolean; type?: string }) => (
-    <div>
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <input type={type || "text"} value={value} onChange={(e) => setForm((f) => ({ ...f, [name]: e.target.value }))} placeholder={placeholder} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
-    </div>
-  );
-
-  const Select = ({ label, name, value, options, required }: { label: string; name: string; value: string; options: string[]; required?: boolean }) => (
-    <div>
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <select value={value} onChange={(e) => setForm((f) => ({ ...f, [name]: e.target.value }))} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
-        {options.map((o) => <option key={o} value={o}>{o || "\u2014 Select \u2014"}</option>)}
-      </select>
-    </div>
-  );
-
-  const Textarea = ({ label, name, value, placeholder, rows, required }: { label: string; name: string; value: string; placeholder?: string; rows?: number; required?: boolean }) => (
-    <div className="col-span-2">
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <textarea value={value} onChange={(e) => setForm((f) => ({ ...f, [name]: e.target.value }))} placeholder={placeholder} rows={rows || 3} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
-    </div>
-  );
 
   return (
     <div className="space-y-6">
@@ -295,32 +302,32 @@ export default function DisasterPage() {
         </div>
         {formTab === 0 && (
           <div className="grid grid-cols-2 gap-4">
-            <Select label="Event Type" name="event_type" value={form.event_type || ""} options={["", "Typhoon", "Flood", "Earthquake", "Fire", "Landslide", "Volcanic Activity", "Drought", "Epidemic", "Others"]} />
-            <Input label="Event Name" name="event_name" value={form.event_name || ""} placeholder="e.g. Typhoon Aghon" required />
-            <Input label="Date Started" name="date_started" value={form.date_started || ""} type="date" />
-            <Input label="Date Ended" name="date_ended" value={form.date_ended || ""} type="date" />
-            <Select label="Severity" name="severity" value={form.severity || ""} options={["", "Level 1 - Minor", "Level 2 - Moderate", "Level 3 - Major", "Level 4 - Catastrophic"]} />
+            <FormSelect label="Event Type" name="event_type" value={form.event_type || ""} options={["", "Typhoon", "Flood", "Earthquake", "Fire", "Landslide", "Volcanic Activity", "Drought", "Epidemic", "Others"]} onChange={handleFieldChange} />
+            <FormInput label="Event Name" name="event_name" value={form.event_name || ""} placeholder="e.g. Typhoon Aghon" required onChange={handleFieldChange} />
+            <FormInput label="Date Started" name="date_started" value={form.date_started || ""} type="date" onChange={handleFieldChange} />
+            <FormInput label="Date Ended" name="date_ended" value={form.date_ended || ""} type="date" onChange={handleFieldChange} />
+            <FormSelect label="Severity" name="severity" value={form.severity || ""} options={["", "Level 1 - Minor", "Level 2 - Moderate", "Level 3 - Major", "Level 4 - Catastrophic"]} onChange={handleFieldChange} />
           </div>
         )}
         {formTab === 1 && (
           <div className="grid grid-cols-2 gap-4">
-            <Input label="Affected Families" name="affected_families" value={form.affected_families || ""} placeholder="e.g. 45" type="number" />
-            <Input label="Affected Individuals" name="affected_individuals" value={form.affected_individuals || ""} placeholder="e.g. 180" type="number" />
-            <Input label="Casualties" name="casualties" value={form.casualties || ""} placeholder="0" type="number" />
-            <Input label="Injured" name="injured" value={form.injured || ""} placeholder="0" type="number" />
-            <Input label="Evacuated" name="evacuated" value={form.evacuated || ""} placeholder="e.g. 180" type="number" />
-            <Input label="Houses Damaged" name="houses_damaged" value={form.houses_damaged || ""} placeholder="0" type="number" />
-            <Input label="Houses Destroyed" name="houses_destroyed" value={form.houses_destroyed || ""} placeholder="0" type="number" />
-            <Input label="Estimated Cost" name="estimated_cost" value={form.estimated_cost || ""} placeholder="e.g. 500000" type="number" />
+            <FormInput label="Affected Families" name="affected_families" value={form.affected_families || ""} placeholder="e.g. 45" type="number" onChange={handleFieldChange} />
+            <FormInput label="Affected Individuals" name="affected_individuals" value={form.affected_individuals || ""} placeholder="e.g. 180" type="number" onChange={handleFieldChange} />
+            <FormInput label="Casualties" name="casualties" value={form.casualties || ""} placeholder="0" type="number" onChange={handleFieldChange} />
+            <FormInput label="Injured" name="injured" value={form.injured || ""} placeholder="0" type="number" onChange={handleFieldChange} />
+            <FormInput label="Evacuated" name="evacuated" value={form.evacuated || ""} placeholder="e.g. 180" type="number" onChange={handleFieldChange} />
+            <FormInput label="Houses Damaged" name="houses_damaged" value={form.houses_damaged || ""} placeholder="0" type="number" onChange={handleFieldChange} />
+            <FormInput label="Houses Destroyed" name="houses_destroyed" value={form.houses_destroyed || ""} placeholder="0" type="number" onChange={handleFieldChange} />
+            <FormInput label="Estimated Cost" name="estimated_cost" value={form.estimated_cost || ""} placeholder="e.g. 500000" type="number" onChange={handleFieldChange} />
           </div>
         )}
         {formTab === 2 && (
           <div className="grid grid-cols-2 gap-4">
-            <Input label="Evacuation Center" name="evacuation_center" value={form.evacuation_center || ""} placeholder="e.g. Barangay Covered Court" />
-            <Input label="Relief Distributed" name="relief_distributed" value={form.relief_distributed || ""} placeholder="e.g. Food packs, water" />
-            <Input label="Responding Agencies" name="responding_agencies" value={form.responding_agencies || ""} placeholder="e.g. BFP, PNP, CDRRMO" />
-            <Select label="Status" name="status" value={form.status || ""} options={["", "Active", "Monitoring", "Resolved", "Post-Recovery"]} />
-            <Textarea label="Remarks" name="remarks" value={form.remarks || ""} placeholder="Additional notes about the event..." />
+            <FormInput label="Evacuation Center" name="evacuation_center" value={form.evacuation_center || ""} placeholder="e.g. Barangay Covered Court" onChange={handleFieldChange} />
+            <FormInput label="Relief Distributed" name="relief_distributed" value={form.relief_distributed || ""} placeholder="e.g. Food packs, water" onChange={handleFieldChange} />
+            <FormInput label="Responding Agencies" name="responding_agencies" value={form.responding_agencies || ""} placeholder="e.g. BFP, PNP, CDRRMO" onChange={handleFieldChange} />
+            <FormSelect label="Status" name="status" value={form.status || ""} options={["", "Active", "Monitoring", "Resolved", "Post-Recovery"]} onChange={handleFieldChange} />
+            <FormTextarea label="Remarks" name="remarks" value={form.remarks || ""} placeholder="Additional notes about the event..." onChange={handleFieldChange} />
           </div>
         )}
       </Modal>

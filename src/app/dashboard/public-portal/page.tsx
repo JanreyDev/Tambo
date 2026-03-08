@@ -21,7 +21,6 @@ import {
   Edit,
   Trash2,
   Send,
-  Save,
   X,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
@@ -68,6 +67,28 @@ const mockAnnouncements: Announcement[] = [
 ];
 
 const categoryOptions = ["Meeting", "Health", "Community", "Advisory", "Event", "Notice", "Emergency"];
+
+function FormInput({ label, value, name, placeholder, required, onChange }: { label: string; value: string; name: string; placeholder?: string; required?: boolean; onChange: (name: string, value: string) => void }) {
+  return (
+    <div>
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <input type="text" value={value} onChange={(e) => onChange(name, e.target.value)} placeholder={placeholder}
+        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2" style={{ "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties} />
+    </div>
+  );
+}
+
+function FormSelect({ label, value, name, options, required, onChange }: { label: string; value: string; name: string; options: string[]; required?: boolean; onChange: (name: string, value: string) => void }) {
+  return (
+    <div>
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <select value={value} onChange={(e) => onChange(name, e.target.value)}
+        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2" style={{ "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties}>
+        {options.map((o) => <option key={o} value={o}>{o}</option>)}
+      </select>
+    </div>
+  );
+}
 
 export default function PublicPortalPage() {
   const [activeTab, setActiveTab] = useState<"modules" | "announcements" | "preview">("modules");
@@ -131,23 +152,7 @@ export default function PublicPortalPage() {
     setShowEditAnnouncement(false);
   };
 
-  const Input = ({ label, value, name, placeholder, required }: { label: string; value: string; name: string; placeholder?: string; required?: boolean }) => (
-    <div>
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <input type="text" value={value} onChange={(e) => setAnnouncementForm((f) => ({ ...f, [name]: e.target.value }))} placeholder={placeholder}
-        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2" style={{ "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties} />
-    </div>
-  );
-
-  const Select = ({ label, value, name, options, required }: { label: string; value: string; name: string; options: string[]; required?: boolean }) => (
-    <div>
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <select value={value} onChange={(e) => setAnnouncementForm((f) => ({ ...f, [name]: e.target.value }))}
-        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2" style={{ "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties}>
-        {options.map((o) => <option key={o} value={o}>{o}</option>)}
-      </select>
-    </div>
-  );
+  const handleAnnouncementFieldChange = (name: string, value: string) => setAnnouncementForm((f) => ({ ...f, [name]: value }));
 
   return (
     <div className="space-y-6">
@@ -324,8 +329,8 @@ export default function PublicPortalPage() {
 
           {formTab === 0 && (
             <div className="space-y-4">
-              <Input label="Title" name="title" value={announcementForm.title} placeholder="e.g., Barangay Assembly Meeting" required />
-              <Select label="Category" name="category" value={announcementForm.category} options={categoryOptions} required />
+              <FormInput label="Title" name="title" value={announcementForm.title} placeholder="e.g., Barangay Assembly Meeting" required onChange={handleAnnouncementFieldChange} />
+              <FormSelect label="Category" name="category" value={announcementForm.category} options={categoryOptions} required onChange={handleAnnouncementFieldChange} />
               <div>
                 <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Content <span className="text-red-500 ml-0.5">*</span></label>
                 <textarea value={announcementForm.content}

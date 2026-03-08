@@ -77,6 +77,40 @@ const emptyForm: Record<string, string> = {
   narrative: "", action_taken: "", recorded_by: "", witness_names: "", evidence_notes: "",
 };
 
+// ── Form Field Components (module-level) ──
+function FormInput({ label, value, onChange, required, type = "text", placeholder = "", disabled = false }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; type?: string; placeholder?: string; disabled?: boolean }) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} disabled={disabled}
+        className={cn("w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", disabled && "opacity-50 cursor-not-allowed")} />
+    </div>
+  );
+}
+
+function FormSelect({ label, value, onChange, options, required }: { label: string; value: string; onChange: (value: string) => void; options: string[]; required?: boolean }) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <select value={value} onChange={(e) => onChange(e.target.value)}
+        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+        <option value="">Select {label}</option>
+        {options.map((o) => <option key={o} value={o}>{o}</option>)}
+      </select>
+    </div>
+  );
+}
+
+function FormTextarea({ label, value, onChange, required, rows = 3, placeholder = "" }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; rows?: number; placeholder?: string }) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={rows} placeholder={placeholder}
+        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
+    </div>
+  );
+}
+
 export default function BlotterPage() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("All Types");
@@ -191,33 +225,6 @@ export default function BlotterPage() {
 
   const formTabs = ["Incident", "Parties", "Details"];
 
-  // ── Form Field Components ──
-  const Input = ({ label, field, required, type = "text", placeholder = "", disabled = false }: { label: string; field: string; required?: boolean; type?: string; placeholder?: string; disabled?: boolean }) => (
-    <div>
-      <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <input type={type} value={form[field] || ""} onChange={(e) => updateForm(field, e.target.value)} placeholder={placeholder} disabled={disabled}
-        className={cn("w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", disabled && "opacity-50 cursor-not-allowed")} />
-    </div>
-  );
-
-  const Select = ({ label, field, options, required }: { label: string; field: string; options: string[]; required?: boolean }) => (
-    <div>
-      <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <select value={form[field] || ""} onChange={(e) => updateForm(field, e.target.value)}
-        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
-        <option value="">Select {label}</option>
-        {options.map((o) => <option key={o} value={o}>{o}</option>)}
-      </select>
-    </div>
-  );
-
-  const Textarea = ({ label, field, required, rows = 3, placeholder = "" }: { label: string; field: string; required?: boolean; rows?: number; placeholder?: string }) => (
-    <div>
-      <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <textarea value={form[field] || ""} onChange={(e) => updateForm(field, e.target.value)} rows={rows} placeholder={placeholder}
-        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
-    </div>
-  );
 
   // ── Render Form Tab Content ──
   const renderFormTab = () => {
@@ -225,16 +232,16 @@ export default function BlotterPage() {
       case 0: return (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <Select label="Incident Type" field="incident_type" options={incidentTypeOptions} required />
-            <Select label="Severity" field="severity" options={severityOptions} required />
+            <FormSelect label="Incident Type" value={form["incident_type"] || ""} onChange={(v) => updateForm("incident_type", v)} options={incidentTypeOptions} required />
+            <FormSelect label="Severity" value={form["severity"] || ""} onChange={(v) => updateForm("severity", v)} options={severityOptions} required />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <Input label="Date of Incident" field="incident_date" type="date" required />
-            <Input label="Time of Incident" field="incident_time" type="time" required />
+            <FormInput label="Date of Incident" value={form["incident_date"] || ""} onChange={(v) => updateForm("incident_date", v)} type="date" required />
+            <FormInput label="Time of Incident" value={form["incident_time"] || ""} onChange={(v) => updateForm("incident_time", v)} type="time" required />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <Select label="Purok / Zone" field="incident_purok" options={purokOptions} required />
-            <Input label="Street / Address" field="incident_location" placeholder="e.g. Rizal St. near sari-sari store" required />
+            <FormSelect label="Purok / Zone" value={form["incident_purok"] || ""} onChange={(v) => updateForm("incident_purok", v)} options={purokOptions} required />
+            <FormInput label="Street / Address" value={form["incident_location"] || ""} onChange={(v) => updateForm("incident_location", v)} placeholder="e.g. Rizal St. near sari-sari store" required />
           </div>
         </div>
       );
@@ -242,10 +249,10 @@ export default function BlotterPage() {
         <div className="space-y-4">
           <h4 className="text-sm font-semibold text-foreground">Complainant Information</h4>
           <div className="grid grid-cols-2 gap-4">
-            <Input label="Full Name" field="complainant_name" required placeholder="e.g. Maria Dela Cruz" />
-            <Input label="Contact Number" field="complainant_contact" placeholder="e.g. 0917-123-4567" />
+            <FormInput label="Full Name" value={form["complainant_name"] || ""} onChange={(v) => updateForm("complainant_name", v)} required placeholder="e.g. Maria Dela Cruz" />
+            <FormInput label="Contact Number" value={form["complainant_contact"] || ""} onChange={(v) => updateForm("complainant_contact", v)} placeholder="e.g. 0917-123-4567" />
           </div>
-          <Input label="Address" field="complainant_address" placeholder="e.g. Purok Sampaguita, Rizal St." />
+          <FormInput label="Address" value={form["complainant_address"] || ""} onChange={(v) => updateForm("complainant_address", v)} placeholder="e.g. Purok Sampaguita, Rizal St." />
           <hr className="border-border my-2" />
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-semibold text-foreground">Respondent Information</h4>
@@ -262,21 +269,21 @@ export default function BlotterPage() {
             </label>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <Input label="Full Name" field="respondent_name" required placeholder="e.g. Juan Santos" disabled={form.respondent_unknown === "yes"} />
-            <Input label="Contact Number" field="respondent_contact" placeholder="e.g. 0918-234-5678" disabled={form.respondent_unknown === "yes"} />
+            <FormInput label="Full Name" value={form["respondent_name"] || ""} onChange={(v) => updateForm("respondent_name", v)} required placeholder="e.g. Juan Santos" disabled={form.respondent_unknown === "yes"} />
+            <FormInput label="Contact Number" value={form["respondent_contact"] || ""} onChange={(v) => updateForm("respondent_contact", v)} placeholder="e.g. 0918-234-5678" disabled={form.respondent_unknown === "yes"} />
           </div>
-          <Input label="Address" field="respondent_address" placeholder="e.g. Purok Rosal, Mabini St." disabled={form.respondent_unknown === "yes"} />
+          <FormInput label="Address" value={form["respondent_address"] || ""} onChange={(v) => updateForm("respondent_address", v)} placeholder="e.g. Purok Rosal, Mabini St." disabled={form.respondent_unknown === "yes"} />
         </div>
       );
       case 2: return (
         <div className="space-y-4">
-          <Textarea label="Incident Narrative" field="narrative" required rows={4} placeholder="Describe the incident in detail. Include what happened, when, where, and how it was reported." />
-          <Textarea label="Action Taken" field="action_taken" rows={3} placeholder="e.g. Forwarded to PNP, mediation conducted, parties summoned..." />
+          <FormTextarea label="Incident Narrative" value={form["narrative"] || ""} onChange={(v) => updateForm("narrative", v)} required rows={4} placeholder="Describe the incident in detail. Include what happened, when, where, and how it was reported." />
+          <FormTextarea label="Action Taken" value={form["action_taken"] || ""} onChange={(v) => updateForm("action_taken", v)} rows={3} placeholder="e.g. Forwarded to PNP, mediation conducted, parties summoned..." />
           <div className="grid grid-cols-2 gap-4">
-            <Input label="Recorded By" field="recorded_by" required placeholder="e.g. Secretary Santos" />
-            <Input label="Witness Names" field="witness_names" placeholder="e.g. Juan Dela Cruz, Maria Santos" />
+            <FormInput label="Recorded By" value={form["recorded_by"] || ""} onChange={(v) => updateForm("recorded_by", v)} required placeholder="e.g. Secretary Santos" />
+            <FormInput label="Witness Names" value={form["witness_names"] || ""} onChange={(v) => updateForm("witness_names", v)} placeholder="e.g. Juan Dela Cruz, Maria Santos" />
           </div>
-          <Input label="Evidence / Attachments Note" field="evidence_notes" placeholder="e.g. CCTV footage saved, medical certificate attached" />
+          <FormInput label="Evidence / Attachments Note" value={form["evidence_notes"] || ""} onChange={(v) => updateForm("evidence_notes", v)} placeholder="e.g. CCTV footage saved, medical certificate attached" />
         </div>
       );
       default: return null;
@@ -477,7 +484,7 @@ export default function BlotterPage() {
         {deleteTarget && (
           <div className="space-y-3">
             <p className="text-sm text-foreground">Are you sure you want to delete blotter record <span className="font-bold">{deleteTarget.blotter_number}</span>?</p>
-            <p className="text-sm text-muted-foreground">This action cannot be undone. The record for "{deleteTarget.incident_type}" involving {deleteTarget.complainant_name} vs. {deleteTarget.respondent_name} will be permanently removed.</p>
+            <p className="text-sm text-muted-foreground">This action cannot be undone. The record for &ldquo;{deleteTarget.incident_type}&rdquo; involving {deleteTarget.complainant_name} vs. {deleteTarget.respondent_name} will be permanently removed.</p>
           </div>
         )}
       </Modal>

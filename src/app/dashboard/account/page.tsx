@@ -46,7 +46,6 @@ import {
   QrCode,
   Copy,
   RefreshCw,
-  ChevronDown,
   X,
 } from "lucide-react";
 
@@ -79,6 +78,21 @@ type ActivityLog = {
   metadata?: Record<string, unknown>;
   created_at: string;
 };
+
+function SaveButton({ status, label = "Save Changes", onClick }: { status: Status; label?: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={status === "loading"}
+      className="px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors disabled:opacity-50 flex items-center gap-2"
+      style={{ background: status === "success" ? "#059669" : status === "error" ? "#dc2626" : "var(--accent-primary)" }}
+    >
+      {status === "loading" && <Loader2 className="w-4 h-4 animate-spin" />}
+      {status === "success" && <Check className="w-4 h-4" />}
+      {status === "success" ? "Saved" : status === "loading" ? "Saving..." : label}
+    </button>
+  );
+}
 
 export default function AccountPage() {
   const { user, refreshUser } = useAuth();
@@ -608,19 +622,6 @@ export default function AccountPage() {
     { id: "notifications", label: "Notifications", icon: Bell },
     { id: "privacy", label: "Data & Privacy", icon: ShieldCheck },
   ];
-
-  const SaveButton = ({ status, label = "Save Changes", onClick }: { status: Status; label?: string; onClick: () => void }) => (
-    <button
-      onClick={onClick}
-      disabled={status === "loading"}
-      className="px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors disabled:opacity-50 flex items-center gap-2"
-      style={{ background: status === "success" ? "#059669" : status === "error" ? "#dc2626" : "var(--accent-primary)" }}
-    >
-      {status === "loading" && <Loader2 className="w-4 h-4 animate-spin" />}
-      {status === "success" && <Check className="w-4 h-4" />}
-      {status === "success" ? "Saved" : status === "loading" ? "Saving..." : label}
-    </button>
-  );
 
   return (
     <div className="max-w-4xl space-y-6">

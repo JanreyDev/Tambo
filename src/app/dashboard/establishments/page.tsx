@@ -95,6 +95,35 @@ const emptyForm: Record<string, string> = {
   number_of_employees: "", business_area_sqm: "", annual_income_range: "", status: "", notes: "",
 };
 
+function FormInput({ label, name, value, placeholder, required, type, onChange }: { label: string; name: string; value: string; placeholder?: string; required?: boolean; type?: string; onChange: (name: string, value: string) => void }) {
+  return (
+    <div>
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <input type={type || "text"} value={value} onChange={(e) => onChange(name, e.target.value)} placeholder={placeholder} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+    </div>
+  );
+}
+
+function FormSelect({ label, name, value, options, required, onChange }: { label: string; name: string; value: string; options: string[]; required?: boolean; onChange: (name: string, value: string) => void }) {
+  return (
+    <div>
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <select value={value} onChange={(e) => onChange(name, e.target.value)} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+        {options.map((o) => <option key={o} value={o}>{o || "\u2014 Select \u2014"}</option>)}
+      </select>
+    </div>
+  );
+}
+
+function FormTextarea({ label, name, value, placeholder, rows, required, onChange }: { label: string; name: string; value: string; placeholder?: string; rows?: number; required?: boolean; onChange: (name: string, value: string) => void }) {
+  return (
+    <div className="col-span-2">
+      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <textarea value={value} onChange={(e) => onChange(name, e.target.value)} placeholder={placeholder} rows={rows || 3} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
+    </div>
+  );
+}
+
 export default function EstablishmentsPage() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("All Types");
@@ -112,26 +141,7 @@ export default function EstablishmentsPage() {
   const [actionMenu, setActionMenu] = useState<string | null>(null);
   const pageSize = 10;
 
-  const Input = ({ label, name, value, placeholder, required, type }: { label: string; name: string; value: string; placeholder?: string; required?: boolean; type?: string }) => (
-    <div>
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <input type={type || "text"} value={value} onChange={(e) => setForm((f) => ({ ...f, [name]: e.target.value }))} placeholder={placeholder} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
-    </div>
-  );
-  const Select = ({ label, name, value, options, required }: { label: string; name: string; value: string; options: string[]; required?: boolean }) => (
-    <div>
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <select value={value} onChange={(e) => setForm((f) => ({ ...f, [name]: e.target.value }))} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
-        {options.map((o) => <option key={o} value={o}>{o || "\u2014 Select \u2014"}</option>)}
-      </select>
-    </div>
-  );
-  const Textarea = ({ label, name, value, placeholder, rows, required }: { label: string; name: string; value: string; placeholder?: string; rows?: number; required?: boolean }) => (
-    <div className="col-span-2">
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <textarea value={value} onChange={(e) => setForm((f) => ({ ...f, [name]: e.target.value }))} placeholder={placeholder} rows={rows || 3} className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
-    </div>
-  );
+  const handleFieldChange = (name: string, value: string) => setForm((f) => ({ ...f, [name]: value }));
 
   const openCreate = () => { setForm(emptyForm); setFormTab(0); setShowCreate(true); };
   const openEdit = (e: Establishment) => {
@@ -377,28 +387,28 @@ export default function EstablishmentsPage() {
         </div>
         {formTab === 0 && (
           <div className="grid grid-cols-2 gap-4">
-            <Input label="Business Name" name="business_name" value={form.business_name} placeholder="Enter business name" required />
-            <Select label="Business Type" name="business_type" value={form.business_type} options={formBusinessTypes} required />
-            <Input label="Owner Name" name="owner_name" value={form.owner_name} placeholder="Full name of owner" required />
-            <Input label="Owner Contact" name="owner_contact" value={form.owner_contact} placeholder="09XX XXX XXXX" />
+            <FormInput label="Business Name" name="business_name" value={form.business_name} placeholder="Enter business name" required onChange={handleFieldChange} />
+            <FormSelect label="Business Type" name="business_type" value={form.business_type} options={formBusinessTypes} required onChange={handleFieldChange} />
+            <FormInput label="Owner Name" name="owner_name" value={form.owner_name} placeholder="Full name of owner" required onChange={handleFieldChange} />
+            <FormInput label="Owner Contact" name="owner_contact" value={form.owner_contact} placeholder="09XX XXX XXXX" onChange={handleFieldChange} />
           </div>
         )}
         {formTab === 1 && (
           <div className="grid grid-cols-2 gap-4">
-            <Input label="Address" name="address" value={form.address} placeholder="Street address" />
-            <Select label="Purok" name="purok" value={form.purok} options={purokOptions} />
-            <Input label="Business Permit Number" name="business_permit_number" value={form.business_permit_number} placeholder="BP-XXXX-XXX" />
-            <Input label="Permit Expiry" name="permit_expiry" value={form.permit_expiry} type="date" />
-            <Input label="DTI/SEC Registration" name="dti_registration" value={form.dti_registration} placeholder="DTI-XXX-XXXX" />
+            <FormInput label="Address" name="address" value={form.address} placeholder="Street address" onChange={handleFieldChange} />
+            <FormSelect label="Purok" name="purok" value={form.purok} options={purokOptions} onChange={handleFieldChange} />
+            <FormInput label="Business Permit Number" name="business_permit_number" value={form.business_permit_number} placeholder="BP-XXXX-XXX" onChange={handleFieldChange} />
+            <FormInput label="Permit Expiry" name="permit_expiry" value={form.permit_expiry} type="date" onChange={handleFieldChange} />
+            <FormInput label="DTI/SEC Registration" name="dti_registration" value={form.dti_registration} placeholder="DTI-XXX-XXXX" onChange={handleFieldChange} />
           </div>
         )}
         {formTab === 2 && (
           <div className="grid grid-cols-2 gap-4">
-            <Input label="Number of Employees" name="number_of_employees" value={form.number_of_employees} placeholder="0" type="number" />
-            <Input label="Business Area (sqm)" name="business_area_sqm" value={form.business_area_sqm} placeholder="0" type="number" />
-            <Select label="Annual Income Range" name="annual_income_range" value={form.annual_income_range} options={incomeRanges} />
-            <Select label="Status" name="status" value={form.status} options={formStatusOptions} />
-            <Textarea label="Notes" name="notes" value={form.notes} placeholder="Additional notes..." />
+            <FormInput label="Number of Employees" name="number_of_employees" value={form.number_of_employees} placeholder="0" type="number" onChange={handleFieldChange} />
+            <FormInput label="Business Area (sqm)" name="business_area_sqm" value={form.business_area_sqm} placeholder="0" type="number" onChange={handleFieldChange} />
+            <FormSelect label="Annual Income Range" name="annual_income_range" value={form.annual_income_range} options={incomeRanges} onChange={handleFieldChange} />
+            <FormSelect label="Status" name="status" value={form.status} options={formStatusOptions} onChange={handleFieldChange} />
+            <FormTextarea label="Notes" name="notes" value={form.notes} placeholder="Additional notes..." onChange={handleFieldChange} />
           </div>
         )}
       </Modal>

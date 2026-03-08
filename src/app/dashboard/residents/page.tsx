@@ -5,7 +5,7 @@ import {
   Users, UserPlus, Home, MapPin, Filter, Download, Upload, MoreHorizontal,
   Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X, Flag,
   AlertTriangle, Phone, Mail, Calendar, User, Heart, FileText, Edit, Trash2,
-  Save, Camera, ChevronDown, Printer, Eye,
+  Save, Camera, Printer, Eye,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge, StatusBadge } from "@/components/ui/badge";
@@ -66,6 +66,38 @@ const extensions = ["", "Jr.", "Sr.", "II", "III", "IV", "V"];
 const residentTypes = ["permanent", "transient"];
 const relationships = ["Head", "Spouse", "Son", "Daughter", "Father", "Mother", "Brother", "Sister", "Grandson", "Granddaughter", "Nephew", "Niece", "Boarder", "Helper", "Others"];
 const pwdTypes = ["", "Visual", "Hearing", "Speech", "Physical", "Mental", "Psychosocial", "Learning", "Multiple"];
+
+function ResidentInput({ label, field, required, type = "text", placeholder = "", value, onChange }: { label: string; field: string; required?: boolean; type?: string; placeholder?: string; value: string; onChange: (field: string, value: string | boolean) => void }) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <input type={type} value={value} onChange={(e) => onChange(field, e.target.value)} placeholder={placeholder}
+        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+    </div>
+  );
+}
+
+function ResidentSelect({ label, field, options, required, value, onChange }: { label: string; field: string; options: string[]; required?: boolean; value: string; onChange: (field: string, value: string | boolean) => void }) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <select value={value} onChange={(e) => onChange(field, e.target.value)}
+        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+        {options.map((o) => <option key={o} value={o === options[0] && o === "" ? "" : o}>{o || `Select ${label}`}</option>)}
+      </select>
+    </div>
+  );
+}
+
+function ResidentCheckbox({ label, field, checked, onChange }: { label: string; field: string; checked: boolean; onChange: (field: string, value: string | boolean) => void }) {
+  return (
+    <label className="flex items-center gap-2 cursor-pointer">
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(field, e.target.checked)}
+        className="w-4 h-4 rounded border-border text-accent-primary focus:ring-accent-ring" />
+      <span className="text-sm text-foreground">{label}</span>
+    </label>
+  );
+}
 
 export default function ResidentsPage() {
   const [search, setSearch] = useState("");
@@ -131,32 +163,8 @@ export default function ResidentsPage() {
 
   const formTabs = ["Personal", "Contact & Address", "Employment", "Government IDs", "Voter & Household", "Health & Benefits"];
 
-  // ── Form Field Components ──
-  const Input = ({ label, field, required, type = "text", placeholder = "" }: { label: string; field: string; required?: boolean; type?: string; placeholder?: string }) => (
-    <div>
-      <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <input type={type} value={(form as Record<string, string>)[field] || ""} onChange={(e) => updateForm(field, e.target.value)} placeholder={placeholder}
-        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
-    </div>
-  );
-
-  const Select = ({ label, field, options, required }: { label: string; field: string; options: string[]; required?: boolean }) => (
-    <div>
-      <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <select value={(form as Record<string, string>)[field] || ""} onChange={(e) => updateForm(field, e.target.value)}
-        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
-        {options.map((o) => <option key={o} value={o === options[0] && o === "" ? "" : o}>{o || `Select ${label}`}</option>)}
-      </select>
-    </div>
-  );
-
-  const Checkbox = ({ label, field }: { label: string; field: string }) => (
-    <label className="flex items-center gap-2 cursor-pointer">
-      <input type="checkbox" checked={!!(form as Record<string, boolean>)[field]} onChange={(e) => updateForm(field, e.target.checked)}
-        className="w-4 h-4 rounded border-border text-accent-primary focus:ring-accent-ring" />
-      <span className="text-sm text-foreground">{label}</span>
-    </label>
-  );
+  const formStr = form as Record<string, string>;
+  const formBool = form as Record<string, boolean>;
 
   // ── Render Form Tab Content ──
   const renderFormTab = () => {
@@ -172,22 +180,22 @@ export default function ResidentsPage() {
             </div>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <Input label="First Name" field="first_name" required placeholder="e.g. Maria" />
-            <Input label="Middle Name" field="middle_name" placeholder="e.g. Santos" />
-            <Input label="Last Name" field="last_name" required placeholder="e.g. Dela Cruz" />
-            <Select label="Extension" field="extension_name" options={extensions} />
+            <ResidentInput label="First Name" field="first_name" required placeholder="e.g. Maria" value={formStr.first_name || ""} onChange={updateForm} />
+            <ResidentInput label="Middle Name" field="middle_name" placeholder="e.g. Santos" value={formStr.middle_name || ""} onChange={updateForm} />
+            <ResidentInput label="Last Name" field="last_name" required placeholder="e.g. Dela Cruz" value={formStr.last_name || ""} onChange={updateForm} />
+            <ResidentSelect label="Extension" field="extension_name" options={extensions} value={formStr.extension_name || ""} onChange={updateForm} />
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <Select label="Sex" field="sex" options={["", "male", "female"]} required />
-            <Input label="Date of Birth" field="date_of_birth" type="date" required />
-            <Input label="Place of Birth" field="place_of_birth" placeholder="e.g. Manila" />
-            <Select label="Civil Status" field="civil_status" options={["", ...civilStatuses]} required />
+            <ResidentSelect label="Sex" field="sex" options={["", "male", "female"]} required value={formStr.sex || ""} onChange={updateForm} />
+            <ResidentInput label="Date of Birth" field="date_of_birth" type="date" required value={formStr.date_of_birth || ""} onChange={updateForm} />
+            <ResidentInput label="Place of Birth" field="place_of_birth" placeholder="e.g. Manila" value={formStr.place_of_birth || ""} onChange={updateForm} />
+            <ResidentSelect label="Civil Status" field="civil_status" options={["", ...civilStatuses]} required value={formStr.civil_status || ""} onChange={updateForm} />
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <Input label="Nationality" field="nationality" placeholder="Filipino" />
-            <Select label="Religion" field="religion" options={religions} />
-            <Select label="Blood Type" field="blood_type" options={bloodTypes} />
-            <Select label="Resident Type" field="resident_type" options={residentTypes} />
+            <ResidentInput label="Nationality" field="nationality" placeholder="Filipino" value={formStr.nationality || ""} onChange={updateForm} />
+            <ResidentSelect label="Religion" field="religion" options={religions} value={formStr.religion || ""} onChange={updateForm} />
+            <ResidentSelect label="Blood Type" field="blood_type" options={bloodTypes} value={formStr.blood_type || ""} onChange={updateForm} />
+            <ResidentSelect label="Resident Type" field="resident_type" options={residentTypes} value={formStr.resident_type || ""} onChange={updateForm} />
           </div>
         </div>
       );
@@ -195,15 +203,15 @@ export default function ResidentsPage() {
         <div className="space-y-4">
           <h4 className="text-sm font-semibold text-foreground">Contact Information</h4>
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-            <Input label="Mobile Number" field="mobile_number" placeholder="09XX-XXX-XXXX" />
-            <Input label="Telephone" field="telephone" placeholder="044-XXX-XXXX" />
-            <Input label="Email Address" field="email" type="email" placeholder="email@example.com" />
+            <ResidentInput label="Mobile Number" field="mobile_number" placeholder="09XX-XXX-XXXX" value={formStr.mobile_number || ""} onChange={updateForm} />
+            <ResidentInput label="Telephone" field="telephone" placeholder="044-XXX-XXXX" value={formStr.telephone || ""} onChange={updateForm} />
+            <ResidentInput label="Email Address" field="email" type="email" placeholder="email@example.com" value={formStr.email || ""} onChange={updateForm} />
           </div>
           <h4 className="text-sm font-semibold text-foreground mt-6">Address</h4>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <Input label="House/Unit No." field="house_number" placeholder="e.g. 123" />
-            <Input label="Street" field="street" required placeholder="e.g. Rizal St." />
-            <Select label="Purok/Zone" field="purok" options={["", ...puroks.slice(1)]} required />
+            <ResidentInput label="House/Unit No." field="house_number" placeholder="e.g. 123" value={formStr.house_number || ""} onChange={updateForm} />
+            <ResidentInput label="Street" field="street" required placeholder="e.g. Rizal St." value={formStr.street || ""} onChange={updateForm} />
+            <ResidentSelect label="Purok/Zone" field="purok" options={["", ...puroks.slice(1)]} required value={formStr.purok || ""} onChange={updateForm} />
             <div />
           </div>
         </div>
@@ -211,12 +219,12 @@ export default function ResidentsPage() {
       case 2: return (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <Select label="Educational Attainment" field="educational_attainment" options={educationLevels} />
-            <Input label="Occupation" field="occupation" placeholder="e.g. Teacher, Fisherman" />
+            <ResidentSelect label="Educational Attainment" field="educational_attainment" options={educationLevels} value={formStr.educational_attainment || ""} onChange={updateForm} />
+            <ResidentInput label="Occupation" field="occupation" placeholder="e.g. Teacher, Fisherman" value={formStr.occupation || ""} onChange={updateForm} />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <Input label="Employer / Business Name" field="employer" placeholder="e.g. DepEd, Self-employed" />
-            <Input label="Monthly Income (PHP)" field="monthly_income" placeholder="e.g. 25000" />
+            <ResidentInput label="Employer / Business Name" field="employer" placeholder="e.g. DepEd, Self-employed" value={formStr.employer || ""} onChange={updateForm} />
+            <ResidentInput label="Monthly Income (PHP)" field="monthly_income" placeholder="e.g. 25000" value={formStr.monthly_income || ""} onChange={updateForm} />
           </div>
         </div>
       );
@@ -224,12 +232,12 @@ export default function ResidentsPage() {
         <div className="space-y-4">
           <p className="text-xs text-muted-foreground">Government-issued ID numbers for official records. Leave blank if not applicable.</p>
           <div className="grid grid-cols-2 gap-4">
-            <Input label="PhilHealth Number" field="philhealth_number" placeholder="PH-XXXXXXXXX" />
-            <Input label="SSS / GSIS Number" field="sss_gsis_number" placeholder="SSS-XXXXXXX or GSIS-XXXXXXX" />
+            <ResidentInput label="PhilHealth Number" field="philhealth_number" placeholder="PH-XXXXXXXXX" value={formStr.philhealth_number || ""} onChange={updateForm} />
+            <ResidentInput label="SSS / GSIS Number" field="sss_gsis_number" placeholder="SSS-XXXXXXX or GSIS-XXXXXXX" value={formStr.sss_gsis_number || ""} onChange={updateForm} />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <Input label="Pag-IBIG Number" field="pagibig_number" placeholder="HD-XXXXXXXX" />
-            <Input label="TIN" field="tin_number" placeholder="XXX-XXX-XXX" />
+            <ResidentInput label="Pag-IBIG Number" field="pagibig_number" placeholder="HD-XXXXXXXX" value={formStr.pagibig_number || ""} onChange={updateForm} />
+            <ResidentInput label="TIN" field="tin_number" placeholder="XXX-XXX-XXX" value={formStr.tin_number || ""} onChange={updateForm} />
           </div>
         </div>
       );
@@ -237,15 +245,15 @@ export default function ResidentsPage() {
         <div className="space-y-4">
           <h4 className="text-sm font-semibold text-foreground">Voter Information</h4>
           <div className="grid grid-cols-3 gap-4">
-            <div className="pt-6"><Checkbox label="Registered Voter" field="is_voter" /></div>
-            <Input label="Voter ID Number" field="voter_id" placeholder="VN-XXXXXX" />
-            <Input label="Precinct Number" field="precinct_number" placeholder="e.g. 0045A" />
+            <div className="pt-6"><ResidentCheckbox label="Registered Voter" field="is_voter" checked={!!formBool.is_voter} onChange={updateForm} /></div>
+            <ResidentInput label="Voter ID Number" field="voter_id" placeholder="VN-XXXXXX" value={formStr.voter_id || ""} onChange={updateForm} />
+            <ResidentInput label="Precinct Number" field="precinct_number" placeholder="e.g. 0045A" value={formStr.precinct_number || ""} onChange={updateForm} />
           </div>
           <h4 className="text-sm font-semibold text-foreground mt-6">Household</h4>
           <div className="grid grid-cols-3 gap-4">
-            <Input label="Household Number" field="household_number" placeholder="HH-XXX" />
-            <Select label="Relationship to Head" field="relationship_to_head" options={["", ...relationships]} />
-            <div className="pt-6"><Checkbox label="Head of Household" field="is_head_of_household" /></div>
+            <ResidentInput label="Household Number" field="household_number" placeholder="HH-XXX" value={formStr.household_number || ""} onChange={updateForm} />
+            <ResidentSelect label="Relationship to Head" field="relationship_to_head" options={["", ...relationships]} value={formStr.relationship_to_head || ""} onChange={updateForm} />
+            <div className="pt-6"><ResidentCheckbox label="Head of Household" field="is_head_of_household" checked={!!formBool.is_head_of_household} onChange={updateForm} /></div>
           </div>
         </div>
       );
@@ -253,13 +261,13 @@ export default function ResidentsPage() {
         <div className="space-y-4">
           <h4 className="text-sm font-semibold text-foreground">PWD Information</h4>
           <div className="grid grid-cols-2 gap-4">
-            <div className="pt-2"><Checkbox label="Person with Disability (PWD)" field="is_pwd" /></div>
-            {form.is_pwd && <Select label="PWD Type" field="pwd_type" options={pwdTypes} />}
+            <div className="pt-2"><ResidentCheckbox label="Person with Disability (PWD)" field="is_pwd" checked={!!formBool.is_pwd} onChange={updateForm} /></div>
+            {form.is_pwd && <ResidentSelect label="PWD Type" field="pwd_type" options={pwdTypes} value={formStr.pwd_type || ""} onChange={updateForm} />}
           </div>
           <h4 className="text-sm font-semibold text-foreground mt-6">Benefits & Programs</h4>
           <div className="grid grid-cols-2 gap-4">
-            <Checkbox label="4Ps (Pantawid Pamilyang Pilipino Program) Beneficiary" field="is_4ps" />
-            <Checkbox label="Solo Parent" field="is_solo_parent" />
+            <ResidentCheckbox label="4Ps (Pantawid Pamilyang Pilipino Program) Beneficiary" field="is_4ps" checked={!!formBool.is_4ps} onChange={updateForm} />
+            <ResidentCheckbox label="Solo Parent" field="is_solo_parent" checked={!!formBool.is_solo_parent} onChange={updateForm} />
           </div>
         </div>
       );
@@ -267,8 +275,8 @@ export default function ResidentsPage() {
     }
   };
 
-  // ── Registration Form Modal ──
-  const FormModal = ({ open, onClose, title }: { open: boolean; onClose: () => void; title: string }) => (
+  // ── Registration Form Modal (rendered as JSX, not a component) ──
+  const renderResidentFormModal = (open: boolean, onClose: () => void, title: string) => (
     <Modal open={open} onClose={onClose} title={title} size="xl"
       footer={
         <div className="flex items-center justify-between w-full">
@@ -583,8 +591,8 @@ export default function ResidentsPage() {
       </Modal>
 
       {/* Create / Edit Form Modals */}
-      <FormModal open={showCreate} onClose={() => setShowCreate(false)} title="Register New Resident" />
-      <FormModal open={showEdit} onClose={() => setShowEdit(false)} title="Edit Resident Profile" />
+      {renderResidentFormModal(showCreate, () => setShowCreate(false), "Register New Resident")}
+      {renderResidentFormModal(showEdit, () => setShowEdit(false), "Edit Resident Profile")}
 
       {/* Delete Confirmation */}
       <Modal open={showDelete} onClose={() => setShowDelete(false)} title="Deactivate Resident" size="sm"
