@@ -38,6 +38,16 @@ import {
   LogIn,
   LogOut,
   Loader2,
+  Smartphone,
+  Globe,
+  MapPin,
+  Lock,
+  Fingerprint,
+  QrCode,
+  Copy,
+  RefreshCw,
+  ChevronDown,
+  X,
 } from "lucide-react";
 
 type TabId = "profile" | "security" | "activity" | "notifications" | "privacy";
@@ -50,14 +60,23 @@ type Session = {
   last_used_at: string | null;
   created_at: string;
   expires_at: string | null;
+  ip_address?: string;
+  browser?: string;
+  browser_version?: string;
+  platform?: string;
+  device_type?: string;
+  location?: string;
 };
 
 type ActivityLog = {
   id: string;
   action: string;
+  category: string;
+  description: string;
   ip_address: string;
   device_type: string;
   browser: string;
+  metadata?: Record<string, unknown>;
   created_at: string;
 };
 
@@ -128,6 +147,33 @@ export default function AccountPage() {
   // ── Sign out all ──
   const [signOutAllLoading, setSignOutAllLoading] = useState(false);
 
+  // ── Username cooldown ──
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [usernameCheckLoading, setUsernameCheckLoading] = useState(false);
+  const usernameCheckTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── 2FA ──
+  const [twoFASetupStep, setTwoFASetupStep] = useState<"idle" | "qr" | "verify" | "done">("idle");
+  const [twoFASecret, setTwoFASecret] = useState("");
+  const [twoFAQrCode, setTwoFAQrCode] = useState("");
+  const [twoFACode, setTwoFACode] = useState("");
+  const [twoFARecoveryCodes, setTwoFARecoveryCodes] = useState<string[]>([]);
+  const [twoFAStatus, setTwoFAStatus] = useState<Status>("idle");
+  const [twoFAMessage, setTwoFAMessage] = useState("");
+  const [showDisable2FA, setShowDisable2FA] = useState(false);
+  const [disable2FAPassword, setDisable2FAPassword] = useState("");
+  const [showRecoveryCodes, setShowRecoveryCodes] = useState(false);
+
+  // ── Activity filter ──
+  const [activityFilter, setActivityFilter] = useState("all");
+  const [activityPage, setActivityPage] = useState(1);
+  const [activityHasMore, setActivityHasMore] = useState(false);
+  const [activityTotal, setActivityTotal] = useState(0);
+
+  // ── Deletion ──
+  const [deletionStatus, setDeletionStatus] = useState<Status>("idle");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
   // Populate form from user data
   useEffect(() => {
     if (user) {
@@ -193,11 +239,17 @@ export default function AccountPage() {
     }
   };
 
-  const loadActivity = async () => {
+  const loadActivity = async (page = 1, type = "all") => {
     setActivityLoading(true);
     try {
-      const data = await api.account.getActivity();
-      setActivityLogs(data.activity);
+      const data = await api.account.getActivity({ page, type: type === "all" ? undefined : type });
+      if (page === 1) {
+        setActivityLogs(data.activity);
+      } else {
+        setActivityLogs((prev) => [...prev, ...data.activity]);
+      }
+      setActivityTotal(data.total);
+      setActivityHasMore(data.has_more);
     } catch {
       // silently fail
     } finally {
@@ -233,6 +285,24 @@ export default function AccountPage() {
     }
   };
 
+  const handleCheckUsername = (value: string) => {
+    setUsername(value);
+    setUsernameAvailable(null);
+    if (usernameCheckTimeout.current) clearTimeout(usernameCheckTimeout.current);
+    if (!value || value.length < 3 || value === user?.username) return;
+    setUsernameCheckLoading(true);
+    usernameCheckTimeout.current = setTimeout(async () => {
+      try {
+        const res = await api.account.checkUsername(value);
+        setUsernameAvailable(res.available);
+      } catch {
+        setUsernameAvailable(null);
+      } finally {
+        setUsernameCheckLoading(false);
+      }
+    }, 500);
+  };
+
   const handleUpdateUsername = async () => {
     if (!username || username.length < 3) {
       setUsernameStatus("error");
@@ -246,13 +316,20 @@ export default function AccountPage() {
       setTimeout(() => { setUsernameStatus("idle"); setUsernameMessage(""); }, 3000);
       return;
     }
+    if (usernameAvailable === false) {
+      setUsernameStatus("error");
+      setUsernameMessage("This username is already taken. Please choose another.");
+      setTimeout(() => { setUsernameStatus("idle"); setUsernameMessage(""); }, 3000);
+      return;
+    }
     setUsernameStatus("loading");
     try {
       await api.account.updateUsername(username);
       setUsernameStatus("success");
-      setUsernameMessage("Username updated.");
+      setUsernameMessage("Username updated. You can change it again after 3 months.");
+      setUsernameAvailable(null);
       refreshUser();
-      setTimeout(() => { setUsernameStatus("idle"); setUsernameMessage(""); }, 2000);
+      setTimeout(() => { setUsernameStatus("idle"); setUsernameMessage(""); }, 4000);
     } catch (e: unknown) {
       setUsernameStatus("error");
       setUsernameMessage(isApiError(e) ? (e.errors?.username?.[0] || e.message) : "Failed to update username.");
@@ -291,27 +368,34 @@ export default function AccountPage() {
   };
 
   const handleChangePassword = async () => {
+    if (!newPassword || newPassword.length < 8) {
+      setPasswordStatus("error");
+      setPasswordMessage("Password must be at least 8 characters.");
+      setTimeout(() => { setPasswordStatus("idle"); setPasswordMessage(""); }, 3000);
+      return;
+    }
     if (newPassword !== confirmPassword) {
       setPasswordStatus("error");
       setPasswordMessage("Passwords do not match.");
-      setTimeout(() => setPasswordStatus("idle"), 3000);
+      setTimeout(() => { setPasswordStatus("idle"); setPasswordMessage(""); }, 3000);
       return;
     }
     setPasswordStatus("loading");
     try {
       const res = await api.account.updatePassword(currentPassword, newPassword, confirmPassword);
       setPasswordStatus("success");
-      setPasswordMessage(res.message);
+      setPasswordMessage(res.message || "Password updated. You can change it again after 3 months.");
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      setTimeout(() => setPasswordStatus("idle"), 3000);
+      refreshUser();
+      setTimeout(() => { setPasswordStatus("idle"); setPasswordMessage(""); }, 4000);
     } catch (e: unknown) {
       setPasswordStatus("error");
       setPasswordMessage(
-        isApiError(e) ? (e.errors?.current_password?.[0] || e.message) : "Failed to change password"
+        isApiError(e) ? (e.errors?.current_password?.[0] || e.errors?.password?.[0] || e.message) : "Failed to change password"
       );
-      setTimeout(() => setPasswordStatus("idle"), 3000);
+      setTimeout(() => { setPasswordStatus("idle"); setPasswordMessage(""); }, 3000);
     }
   };
 
@@ -488,6 +572,23 @@ export default function AccountPage() {
 
   const isPhoneVerified = !!(user?.preferences as Record<string, unknown>)?.phone_verified;
   const isEmailVerified = !!(user?.preferences as Record<string, unknown>)?.email_verified;
+  const is2FAEnabled = !!(user?.preferences as Record<string, unknown>)?.two_factor_enabled;
+  const twoFAMethod = (user?.preferences as Record<string, unknown>)?.two_factor_method as string | undefined;
+
+  // Cooldown helpers (3-month = 90 days)
+  const getCooldownRemaining = (changedAt: unknown): { locked: boolean; daysLeft: number; dateStr: string } => {
+    if (!changedAt || typeof changedAt !== "string") return { locked: false, daysLeft: 0, dateStr: "" };
+    const changed = new Date(changedAt);
+    const unlockDate = new Date(changed.getTime() + 90 * 24 * 60 * 60 * 1000);
+    const now = new Date();
+    if (now >= unlockDate) return { locked: false, daysLeft: 0, dateStr: "" };
+    const daysLeft = Math.ceil((unlockDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+    return { locked: true, daysLeft, dateStr: unlockDate.toLocaleDateString("en-PH", { month: "long", day: "numeric", year: "numeric" }) };
+  };
+
+  const prefs = (user?.preferences || {}) as Record<string, unknown>;
+  const usernameCooldown = getCooldownRemaining(prefs.username_changed_at);
+  const passwordCooldown = getCooldownRemaining(prefs.password_changed_at);
 
   const accentOptions: { name: string; value: AccentColor }[] = [
     { name: "Blue", value: "blue" },
@@ -618,19 +719,30 @@ export default function AccountPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5">First Name</label>
-                <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-input-border bg-input-bg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
+                <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value.toUpperCase().replace(/[^A-Z\s\u00D1-]/g, ""))} className="w-full px-3 py-2 rounded-lg border border-input-border bg-input-bg text-sm text-foreground uppercase focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
+                <p className="text-[10px] text-muted-foreground/60 mt-1">Capital letters only</p>
               </div>
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5">Last Name</label>
-                <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-input-border bg-input-bg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
+                <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value.toUpperCase().replace(/[^A-Z\s\u00D1-]/g, ""))} className="w-full px-3 py-2 rounded-lg border border-input-border bg-input-bg text-sm text-foreground uppercase focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
+                <p className="text-[10px] text-muted-foreground/60 mt-1">Capital letters only</p>
               </div>
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5">Middle Name</label>
-                <input type="text" value={middleName} onChange={(e) => setMiddleName(e.target.value)} placeholder="Optional" className="w-full px-3 py-2 rounded-lg border border-input-border bg-input-bg text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
+                <input type="text" value={middleName} onChange={(e) => setMiddleName(e.target.value.toUpperCase().replace(/[^A-Z\s\u00D1-]/g, ""))} placeholder="Optional" className="w-full px-3 py-2 rounded-lg border border-input-border bg-input-bg text-sm text-foreground uppercase placeholder:text-muted-foreground/50 placeholder:normal-case focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
+                <p className="text-[10px] text-muted-foreground/60 mt-1">Capital letters only</p>
               </div>
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5">Extension Name</label>
-                <input type="text" value={extensionName} onChange={(e) => setExtensionName(e.target.value)} placeholder="Jr., Sr., III, etc." className="w-full px-3 py-2 rounded-lg border border-input-border bg-input-bg text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
+                <select value={extensionName} onChange={(e) => setExtensionName(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-input-border bg-input-bg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent">
+                  <option value="">None</option>
+                  <option value="JR.">Jr.</option>
+                  <option value="SR.">Sr.</option>
+                  <option value="II">II</option>
+                  <option value="III">III</option>
+                  <option value="IV">IV</option>
+                  <option value="V">V</option>
+                </select>
               </div>
             </div>
             <div className="flex justify-end mt-4">
@@ -704,16 +816,46 @@ export default function AccountPage() {
           <div className="bg-card border border-border rounded-xl p-6">
             <h2 className="text-lg font-semibold text-card-foreground mb-1">Username</h2>
             <p className="text-xs text-muted-foreground mb-4">Your login credential. Changing this will require you to use the new username on next login.</p>
-            <div className="max-w-sm">
-              <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-input-border bg-input-bg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
-              <p className="text-[11px] text-muted-foreground/70 mt-1">Only letters, numbers, and underscores. Minimum 3 characters.</p>
-            </div>
-            {usernameMessage && (
-              <p className={`text-xs mt-2 ${usernameStatus === "error" ? "text-red-500" : "text-emerald-500"}`}>{usernameMessage}</p>
+            {usernameCooldown.locked ? (
+              <div className="max-w-sm">
+                <input type="text" value={username} disabled className="w-full px-3 py-2 rounded-lg border border-input-border bg-muted text-sm text-muted-foreground cursor-not-allowed" />
+                <div className="flex items-start gap-2 mt-2 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
+                  <Lock className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" />
+                  <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                    Username change is locked for 3 months after each change. You can change it again on <span className="font-semibold">{usernameCooldown.dateStr}</span> ({usernameCooldown.daysLeft} days remaining).
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="max-w-sm">
+                  <div className="relative">
+                    <input type="text" value={username} onChange={(e) => handleCheckUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))} className="w-full px-3 py-2 pr-10 rounded-lg border border-input-border bg-input-bg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
+                    {usernameCheckLoading && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />}
+                    {!usernameCheckLoading && usernameAvailable === true && username !== user?.username && (
+                      <Check className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500" />
+                    )}
+                    {!usernameCheckLoading && usernameAvailable === false && (
+                      <X className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500" />
+                    )}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground/70 mt-1">Only lowercase letters, numbers, and underscores. Minimum 3 characters.</p>
+                  {usernameAvailable === false && (
+                    <p className="text-[11px] text-red-500 mt-1">This username is already taken. Please choose another.</p>
+                  )}
+                  {usernameAvailable === true && username !== user?.username && (
+                    <p className="text-[11px] text-emerald-500 mt-1">Username is available.</p>
+                  )}
+                  <p className="text-[10px] text-muted-foreground/50 mt-1">After changing, you will not be able to change it again for 3 months.</p>
+                </div>
+                {usernameMessage && (
+                  <p className={`text-xs mt-2 ${usernameStatus === "error" ? "text-red-500" : "text-emerald-500"}`}>{usernameMessage}</p>
+                )}
+                <div className="flex justify-end mt-4">
+                  <SaveButton status={usernameStatus} label="Update Username" onClick={handleUpdateUsername} />
+                </div>
+              </>
             )}
-            <div className="flex justify-end mt-4">
-              <SaveButton status={usernameStatus} label="Update Username" onClick={handleUpdateUsername} />
-            </div>
           </div>
 
           {/* Appearance */}
@@ -776,103 +918,318 @@ export default function AccountPage() {
           <div className="bg-card border border-border rounded-xl p-6">
             <h2 className="text-lg font-semibold text-card-foreground mb-1">Change Password</h2>
             <p className="text-xs text-muted-foreground mb-4">Update your password regularly for better security.</p>
-            <div className="space-y-3 max-w-md">
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5">Current Password</label>
-                <div className="relative">
-                  <input type={showCurrentPassword ? "text" : "password"} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="Enter current password" className="w-full px-3 py-2 pr-10 rounded-lg border border-input-border bg-input-bg text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
-                  <button type="button" onClick={() => setShowCurrentPassword(!showCurrentPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                    {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
+            {passwordCooldown.locked ? (
+              <div className="max-w-md">
+                <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
+                  <Lock className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" />
+                  <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                    Password change is locked for 3 months after each change. You can change it again on <span className="font-semibold">{passwordCooldown.dateStr}</span> ({passwordCooldown.daysLeft} days remaining).
+                  </p>
                 </div>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5">New Password</label>
-                <div className="relative">
-                  <input type={showNewPassword ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Enter new password" className="w-full px-3 py-2 pr-10 rounded-lg border border-input-border bg-input-bg text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
-                  <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                    {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
+            ) : (
+              <>
+                <div className="space-y-3 max-w-md">
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">Current Password</label>
+                    <div className="relative">
+                      <input type={showCurrentPassword ? "text" : "password"} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="Enter current password" className="w-full px-3 py-2 pr-10 rounded-lg border border-input-border bg-input-bg text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
+                      <button type="button" onClick={() => setShowCurrentPassword(!showCurrentPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                        {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">New Password</label>
+                    <div className="relative">
+                      <input type={showNewPassword ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Enter new password" className="w-full px-3 py-2 pr-10 rounded-lg border border-input-border bg-input-bg text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
+                      <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                        {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground/70 mt-1">Minimum 8 characters with uppercase, lowercase, and number.</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">Confirm New Password</label>
+                    <div className="relative">
+                      <input type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirm new password" className="w-full px-3 py-2 pr-10 rounded-lg border border-input-border bg-input-bg text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
+                      <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <p className="text-[11px] text-muted-foreground/70 mt-1">Minimum 8 characters with uppercase, lowercase, and number.</p>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5">Confirm New Password</label>
-                <div className="relative">
-                  <input type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirm new password" className="w-full px-3 py-2 pr-10 rounded-lg border border-input-border bg-input-bg text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
-                  <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                    {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
+                <p className="text-[10px] text-muted-foreground/50 mt-2 max-w-md">After changing, you will not be able to change it again for 3 months.</p>
+                {passwordMessage && (
+                  <p className={`text-xs mt-3 ${passwordStatus === "error" ? "text-red-500" : "text-emerald-500"}`}>{passwordMessage}</p>
+                )}
+                <div className="flex justify-end mt-4">
+                  <SaveButton status={passwordStatus} label="Update Password" onClick={handleChangePassword} />
                 </div>
-              </div>
-            </div>
-            {passwordMessage && (
-              <p className={`text-xs mt-3 ${passwordStatus === "error" ? "text-red-500" : "text-emerald-500"}`}>{passwordMessage}</p>
+              </>
             )}
-            <div className="flex justify-end mt-4">
-              <SaveButton status={passwordStatus} label="Update Password" onClick={handleChangePassword} />
-            </div>
           </div>
 
-          {/* Two-Factor Authentication (SMS) */}
+          {/* Two-Factor Authentication */}
           <div className="bg-card border border-border rounded-xl p-6">
-            <div className="flex items-start justify-between">
+            <div className="flex items-start justify-between mb-4">
               <div>
-                <h2 className="text-lg font-semibold text-card-foreground mb-1">SMS Verification</h2>
-                <p className="text-xs text-muted-foreground">Verify your phone number to enable SMS-based security features.</p>
+                <div className="flex items-center gap-2 mb-1">
+                  <Fingerprint className="w-5 h-5 text-muted-foreground" />
+                  <h2 className="text-lg font-semibold text-card-foreground">Two-Factor Authentication (2FA)</h2>
+                </div>
+                <p className="text-xs text-muted-foreground">Add an extra layer of security to your account by requiring a second form of verification.</p>
               </div>
-              {isPhoneVerified ? (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
-                  <Check className="w-3 h-3" /> Verified
+              {is2FAEnabled ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 whitespace-nowrap">
+                  <Check className="w-3 h-3" /> Enabled
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
-                  <AlertTriangle className="w-3 h-3" /> Not Verified
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800 whitespace-nowrap">
+                  <AlertTriangle className="w-3 h-3" /> Disabled
                 </span>
               )}
             </div>
-            <div className="mt-4 space-y-3">
+
+            <div className="space-y-3">
+              {/* Authenticator App */}
               <div className="flex items-center justify-between p-3 rounded-lg border border-border">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                    <Phone className="w-5 h-5 text-muted-foreground" />
+                    <QrCode className="w-5 h-5 text-muted-foreground" />
                   </div>
-                  <div className="text-left">
-                    <p className="text-sm font-medium text-foreground">Phone Number</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {user?.phone ? (
-                        isPhoneVerified ? `${user.phone} (verified)` : `${user.phone} (not verified)`
-                      ) : "No phone number set"}
-                    </p>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Authenticator App</p>
+                    <p className="text-[11px] text-muted-foreground">Use Google Authenticator, Authy, or similar apps</p>
                   </div>
                 </div>
-                {user?.phone ? (
-                  !isPhoneVerified && (
-                    <button
-                      onClick={() => { setPhoneToVerify(user.phone || ""); setShowPhoneVerify(true); }}
-                      className="px-3 py-1.5 text-xs font-medium rounded-lg text-white transition-colors"
-                      style={{ background: "var(--accent-primary)" }}
-                    >
-                      Verify Now
+                {is2FAEnabled && twoFAMethod === "authenticator" ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-emerald-500 font-medium">Active</span>
+                    <button onClick={() => setShowDisable2FA(true)} className="px-3 py-1.5 text-xs font-medium rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors">
+                      Disable
                     </button>
-                  )
+                  </div>
                 ) : (
                   <button
-                    onClick={() => setActiveTab("profile")}
-                    className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={async () => {
+                      setTwoFAStatus("loading");
+                      try {
+                        const res = await api.account.setup2FA();
+                        setTwoFASecret(res.secret);
+                        setTwoFAQrCode(res.qr_code);
+                        setTwoFARecoveryCodes(res.recovery_codes);
+                        setTwoFASetupStep("qr");
+                        setTwoFAStatus("idle");
+                      } catch (e: unknown) {
+                        setTwoFAStatus("error");
+                        setTwoFAMessage(isApiError(e) ? e.message : "Failed to setup 2FA.");
+                        setTimeout(() => { setTwoFAStatus("idle"); setTwoFAMessage(""); }, 3000);
+                      }
+                    }}
+                    disabled={twoFAStatus === "loading" || is2FAEnabled}
+                    className="px-3 py-1.5 text-xs font-medium rounded-lg text-white transition-colors disabled:opacity-50"
+                    style={{ background: "var(--accent-primary)" }}
                   >
-                    Add Phone
+                    {twoFAStatus === "loading" ? <Loader2 className="w-4 h-4 animate-spin" /> : "Setup"}
                   </button>
                 )}
               </div>
+
+              {/* SMS 2FA */}
+              <div className="flex items-center justify-between p-3 rounded-lg border border-border">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                    <Smartphone className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">SMS Verification</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {user?.phone ? (isPhoneVerified ? `Verified: ${user.phone}` : "Phone not verified yet") : "No phone number set"}
+                    </p>
+                  </div>
+                </div>
+                {!user?.phone ? (
+                  <button onClick={() => setActiveTab("profile")} className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors">
+                    Add Phone
+                  </button>
+                ) : !isPhoneVerified ? (
+                  <button onClick={() => { setPhoneToVerify(user.phone || ""); setShowPhoneVerify(true); }} className="px-3 py-1.5 text-xs font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}>
+                    Verify Now
+                  </button>
+                ) : (
+                  <span className="text-[11px] text-emerald-500 font-medium flex items-center gap-1"><Check className="w-3 h-3" /> Ready</span>
+                )}
+              </div>
+
+              {/* Email 2FA */}
+              <div className="flex items-center justify-between p-3 rounded-lg border border-border">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                    <Mail className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Email Verification</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {user?.email ? (isEmailVerified ? `Verified: ${user.email}` : "Email not verified yet") : "No email set"}
+                    </p>
+                  </div>
+                </div>
+                {!user?.email ? (
+                  <button onClick={() => setActiveTab("profile")} className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors">
+                    Add Email
+                  </button>
+                ) : !isEmailVerified ? (
+                  <button onClick={() => { setEmailToVerify(user.email || ""); setShowEmailVerify(true); }} className="px-3 py-1.5 text-xs font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}>
+                    Verify Now
+                  </button>
+                ) : (
+                  <span className="text-[11px] text-emerald-500 font-medium flex items-center gap-1"><Check className="w-3 h-3" /> Ready</span>
+                )}
+              </div>
+
+              {/* Recovery Codes */}
+              {is2FAEnabled && (
+                <div className="flex items-center justify-between p-3 rounded-lg border border-border">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                      <Key className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Recovery Codes</p>
+                      <p className="text-[11px] text-muted-foreground">Backup codes for when you lose access to your authenticator</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const res = await api.account.getRecoveryCodes();
+                        setTwoFARecoveryCodes(res.recovery_codes);
+                        setShowRecoveryCodes(true);
+                      } catch { /* silent */ }
+                    }}
+                    className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    View Codes
+                  </button>
+                </div>
+              )}
             </div>
+
+            {twoFAMessage && (
+              <p className={`text-xs mt-3 ${twoFAStatus === "error" ? "text-red-500" : "text-emerald-500"}`}>{twoFAMessage}</p>
+            )}
           </div>
+
+          {/* 2FA Setup Flow (inline) */}
+          {twoFASetupStep === "qr" && (
+            <div className="bg-card border-2 border-dashed rounded-xl p-6" style={{ borderColor: "var(--accent-primary)" }}>
+              <h3 className="text-lg font-semibold text-card-foreground mb-1">Step 1: Scan QR Code</h3>
+              <p className="text-xs text-muted-foreground mb-4">Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)</p>
+              <div className="flex flex-col items-center gap-4">
+                {twoFAQrCode && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={twoFAQrCode} alt="2FA QR Code" className="w-48 h-48 rounded-lg border border-border p-2 bg-white" />
+                )}
+                <div className="text-center">
+                  <p className="text-[11px] text-muted-foreground mb-1">Or enter this key manually:</p>
+                  <div className="flex items-center gap-2">
+                    <code className="px-3 py-1.5 rounded-lg bg-muted text-xs font-mono text-foreground tracking-wider">{twoFASecret}</code>
+                    <button onClick={() => navigator.clipboard.writeText(twoFASecret)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors" title="Copy">
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 mt-6">
+                <button onClick={() => { setTwoFASetupStep("idle"); setTwoFACode(""); }} className="px-4 py-2 text-sm font-medium rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors">Cancel</button>
+                <button onClick={() => setTwoFASetupStep("verify")} className="px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}>Next</button>
+              </div>
+            </div>
+          )}
+
+          {twoFASetupStep === "verify" && (
+            <div className="bg-card border-2 border-dashed rounded-xl p-6" style={{ borderColor: "var(--accent-primary)" }}>
+              <h3 className="text-lg font-semibold text-card-foreground mb-1">Step 2: Verify Code</h3>
+              <p className="text-xs text-muted-foreground mb-4">Enter the 6-digit code from your authenticator app to confirm setup.</p>
+              <div className="max-w-xs mx-auto space-y-3">
+                <input
+                  type="text"
+                  value={twoFACode}
+                  onChange={(e) => setTwoFACode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  placeholder="000000"
+                  maxLength={6}
+                  className="w-full px-3 py-3 rounded-lg border border-input-border bg-input-bg text-lg text-foreground text-center tracking-[0.5em] font-mono focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent"
+                  autoFocus
+                />
+                <button
+                  onClick={async () => {
+                    setTwoFAStatus("loading");
+                    try {
+                      const res = await api.account.enable2FA(twoFACode);
+                      setTwoFARecoveryCodes(res.recovery_codes);
+                      setTwoFASetupStep("done");
+                      setTwoFAStatus("success");
+                      refreshUser();
+                    } catch (e: unknown) {
+                      setTwoFAStatus("error");
+                      setTwoFAMessage(isApiError(e) ? e.message : "Invalid code. Try again.");
+                      setTimeout(() => { setTwoFAStatus("idle"); setTwoFAMessage(""); }, 3000);
+                    }
+                  }}
+                  disabled={twoFACode.length !== 6 || twoFAStatus === "loading"}
+                  className="w-full px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  style={{ background: "var(--accent-primary)" }}
+                >
+                  {twoFAStatus === "loading" && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Verify & Enable 2FA
+                </button>
+              </div>
+              {twoFAMessage && (
+                <p className={`text-xs mt-3 text-center ${twoFAStatus === "error" ? "text-red-500" : "text-emerald-500"}`}>{twoFAMessage}</p>
+              )}
+              <div className="flex justify-center mt-4">
+                <button onClick={() => { setTwoFASetupStep("qr"); setTwoFACode(""); }} className="text-xs text-muted-foreground hover:text-foreground transition-colors">Back to QR Code</button>
+              </div>
+            </div>
+          )}
+
+          {twoFASetupStep === "done" && (
+            <div className="bg-card border-2 border-emerald-200 dark:border-emerald-800 rounded-xl p-6">
+              <div className="flex items-center gap-2 mb-1">
+                <Check className="w-5 h-5 text-emerald-500" />
+                <h3 className="text-lg font-semibold text-emerald-600 dark:text-emerald-400">2FA Enabled Successfully</h3>
+              </div>
+              <p className="text-xs text-muted-foreground mb-4">Save these recovery codes in a safe place. You will need them if you lose access to your authenticator app.</p>
+              <div className="grid grid-cols-2 gap-2 p-4 rounded-lg bg-muted/50 border border-border mb-4">
+                {twoFARecoveryCodes.map((code, i) => (
+                  <code key={i} className="text-xs font-mono text-foreground">{code}</code>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => navigator.clipboard.writeText(twoFARecoveryCodes.join("\n"))}
+                  className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                >
+                  <Copy className="w-3 h-3" /> Copy All
+                </button>
+                <button onClick={() => setTwoFASetupStep("idle")} className="px-3 py-1.5 text-xs font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}>
+                  Done
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Active Sessions */}
           <div className="bg-card border border-border rounded-xl p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-card-foreground">Active Sessions</h2>
-              <button onClick={loadSessions} className="text-xs text-muted-foreground hover:text-foreground transition-colors">Refresh</button>
+              <div>
+                <h2 className="text-lg font-semibold text-card-foreground">Active Sessions</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">Devices and browsers currently signed into your account.</p>
+              </div>
+              <button onClick={loadSessions} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                <RefreshCw className="w-3 h-3" /> Refresh
+              </button>
             </div>
             {sessionsLoading ? (
               <div className="flex items-center justify-center py-8">
@@ -886,39 +1243,65 @@ export default function AccountPage() {
                   <div
                     key={session.id}
                     className={cn(
-                      "flex items-center justify-between p-4 rounded-lg border",
+                      "p-4 rounded-lg border",
                       session.is_current
                         ? "border-2 border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20"
                         : "border-border"
                     )}
                   >
-                    <div className="flex items-center gap-3">
-                      <div className={cn(
-                        "w-10 h-10 rounded-lg flex items-center justify-center",
-                        session.is_current ? "bg-emerald-100 dark:bg-emerald-900/30" : "bg-muted"
-                      )}>
-                        <Monitor className={cn("w-5 h-5", session.is_current ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")} />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium text-foreground">{session.name || "Web Session"}</p>
-                          {session.is_current && (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">Active Now</span>
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-3">
+                        <div className={cn(
+                          "w-10 h-10 rounded-lg flex items-center justify-center mt-0.5",
+                          session.is_current ? "bg-emerald-100 dark:bg-emerald-900/30" : "bg-muted"
+                        )}>
+                          {session.device_type === "mobile" ? (
+                            <Smartphone className={cn("w-5 h-5", session.is_current ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")} />
+                          ) : (
+                            <Monitor className={cn("w-5 h-5", session.is_current ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")} />
                           )}
                         </div>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">
-                          {session.last_used_at ? `Last active: ${formatTime(session.last_used_at)}` : `Created: ${formatTime(session.created_at)}`}
-                        </p>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium text-foreground">
+                              {session.browser || session.name || "Web Session"}
+                              {session.browser_version ? ` ${session.browser_version}` : ""}
+                            </p>
+                            {session.is_current && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">This Device</span>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1">
+                            {session.platform && (
+                              <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                <Monitor className="w-3 h-3" /> {session.platform}
+                              </span>
+                            )}
+                            {session.ip_address && (
+                              <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                <Globe className="w-3 h-3" /> {session.ip_address}
+                              </span>
+                            )}
+                            {session.location && (
+                              <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                <MapPin className="w-3 h-3" /> {session.location}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mt-1">
+                            {session.is_current ? "Active now" : session.last_used_at ? `Last active: ${formatTime(session.last_used_at)}` : `Created: ${formatTime(session.created_at)}`}
+                          </p>
+                        </div>
                       </div>
+                      {!session.is_current && (
+                        <button
+                          onClick={() => handleRevokeSession(session.id)}
+                          className="px-3 py-1.5 text-xs font-medium rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors whitespace-nowrap"
+                        >
+                          Revoke
+                        </button>
+                      )}
                     </div>
-                    {!session.is_current && (
-                      <button
-                        onClick={() => handleRevokeSession(session.id)}
-                        className="px-3 py-1.5 text-xs font-medium rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
-                      >
-                        Revoke
-                      </button>
-                    )}
                   </div>
                 ))}
               </div>
@@ -954,12 +1337,42 @@ export default function AccountPage() {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-lg font-semibold text-card-foreground">Activity Log</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Sign-in and sign-out history for your account</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Complete history of all actions performed on your account.
+                  {activityTotal > 0 && <span className="ml-1 font-medium">{activityTotal} total entries</span>}
+                </p>
               </div>
-              <button onClick={loadActivity} className="text-xs text-muted-foreground hover:text-foreground transition-colors">Refresh</button>
+              <button onClick={() => { setActivityPage(1); loadActivity(1, activityFilter); }} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                <RefreshCw className="w-3 h-3" /> Refresh
+              </button>
             </div>
 
-            {activityLoading ? (
+            {/* Filter tabs */}
+            <div className="flex gap-1 mb-4 overflow-x-auto">
+              {[
+                { value: "all", label: "All Activity" },
+                { value: "auth", label: "Sign-in/Out" },
+                { value: "document", label: "Documents" },
+                { value: "resident", label: "Residents" },
+                { value: "record", label: "Records" },
+                { value: "settings", label: "Settings" },
+              ].map((f) => (
+                <button
+                  key={f.value}
+                  onClick={() => { setActivityFilter(f.value); setActivityPage(1); loadActivity(1, f.value); }}
+                  className={cn(
+                    "px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors",
+                    activityFilter === f.value
+                      ? "bg-foreground text-background"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  )}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            {activityLoading && activityLogs.length === 0 ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
               </div>
@@ -970,30 +1383,85 @@ export default function AccountPage() {
               </div>
             ) : (
               <div className="space-y-1">
-                {activityLogs.map((log) => (
-                  <div key={log.id} className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-muted/50 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
-                        {log.action === "login" ? (
-                          <LogIn className="w-4 h-4 text-emerald-500" />
-                        ) : log.action === "logout" ? (
-                          <LogOut className="w-4 h-4 text-muted-foreground" />
-                        ) : (
-                          <AlertTriangle className="w-4 h-4 text-red-500" />
-                        )}
+                {activityLogs.map((log) => {
+                  const getIcon = () => {
+                    switch (log.category || log.action) {
+                      case "auth": case "login": return <LogIn className="w-4 h-4 text-emerald-500" />;
+                      case "logout": return <LogOut className="w-4 h-4 text-muted-foreground" />;
+                      case "login_failed": return <AlertTriangle className="w-4 h-4 text-red-500" />;
+                      case "document": return <FileText className="w-4 h-4 text-blue-500" />;
+                      case "resident": return <User className="w-4 h-4 text-violet-500" />;
+                      case "record": return <FileText className="w-4 h-4 text-amber-500" />;
+                      case "settings": return <Key className="w-4 h-4 text-orange-500" />;
+                      case "security": return <Shield className="w-4 h-4 text-red-500" />;
+                      default: return <Activity className="w-4 h-4 text-muted-foreground" />;
+                    }
+                  };
+
+                  const getLabel = () => {
+                    if (log.description) return log.description;
+                    switch (log.action) {
+                      case "login": return "Signed in";
+                      case "logout": return "Signed out";
+                      case "login_failed": return "Failed sign-in attempt";
+                      case "password_changed": return "Password changed";
+                      case "username_changed": return "Username changed";
+                      case "profile_updated": return "Profile updated";
+                      case "avatar_uploaded": return "Profile photo updated";
+                      case "avatar_deleted": return "Profile photo removed";
+                      case "document_issued": return "Document issued";
+                      case "document_printed": return "Document printed";
+                      case "resident_created": return "New resident registered";
+                      case "resident_updated": return "Resident profile updated";
+                      case "2fa_enabled": return "Two-factor authentication enabled";
+                      case "2fa_disabled": return "Two-factor authentication disabled";
+                      case "session_revoked": return "Session revoked";
+                      case "preferences_updated": return "Preferences updated";
+                      default: return log.action.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
+                    }
+                  };
+
+                  return (
+                    <div key={log.id} className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                          {getIcon()}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm text-foreground truncate">{getLabel()}</p>
+                          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                            <span>{log.browser || "Unknown"} on {log.device_type || "Unknown"}</span>
+                            <span>&middot;</span>
+                            <span>{log.ip_address}</span>
+                            {log.metadata && Object.keys(log.metadata).length > 0 && (
+                              <>
+                                <span>&middot;</span>
+                                <span className="text-muted-foreground/60">
+                                  {Object.entries(log.metadata).map(([k, v]) => `${k}: ${v}`).join(", ")}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm text-foreground">
-                          {log.action === "login" ? "Signed in" : log.action === "logout" ? "Signed out" : "Failed attempt"}
-                        </p>
-                        <p className="text-[11px] text-muted-foreground">
-                          {log.browser} on {log.device_type} &middot; {log.ip_address}
-                        </p>
-                      </div>
+                      <p className="text-xs text-muted-foreground whitespace-nowrap ml-3">{formatTime(log.created_at)}</p>
                     </div>
-                    <p className="text-xs text-muted-foreground">{formatTime(log.created_at)}</p>
-                  </div>
-                ))}
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Load more */}
+            {activityHasMore && (
+              <div className="flex justify-center mt-4">
+                <button
+                  onClick={() => { const next = activityPage + 1; setActivityPage(next); loadActivity(next, activityFilter); }}
+                  disabled={activityLoading}
+                  className="px-4 py-2 text-xs font-medium rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  {activityLoading && <Loader2 className="w-3 h-3 animate-spin" />}
+                  Load More
+                </button>
               </div>
             )}
           </div>
@@ -1229,6 +1697,39 @@ export default function AccountPage() {
             </div>
           </div>
 
+          {/* Consent & Agreements */}
+          <div className="bg-card border border-border rounded-xl p-6">
+            <div className="flex items-center gap-2 mb-1">
+              <FileText className="w-5 h-5 text-muted-foreground" />
+              <h2 className="text-lg font-semibold text-card-foreground">Consent & Agreements</h2>
+            </div>
+            <p className="text-xs text-muted-foreground mb-4">Legal agreements and consent you have provided.</p>
+            <div className="space-y-3">
+              {[
+                { label: "Terms of Service", desc: "Agreement to use kapitan.ph platform", accepted: true, date: user?.created_at },
+                { label: "Privacy Policy", desc: "How we collect, use, and protect your data", accepted: true, date: user?.created_at },
+                { label: "Data Processing Agreement", desc: "Consent for processing personal information under RA 10173", accepted: true, date: user?.created_at },
+              ].map((item) => (
+                <div key={item.label} className="flex items-center justify-between p-3 rounded-lg border border-border">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{item.label}</p>
+                    <p className="text-[11px] text-muted-foreground">{item.desc}</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-500">
+                      <Check className="w-3 h-3" /> Accepted
+                    </span>
+                    {item.date && (
+                      <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+                        {new Date(item.date).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Delete Account */}
           <div className="bg-card border border-red-200 dark:border-red-900 rounded-xl p-6">
             <div className="flex items-start gap-4">
@@ -1237,20 +1738,27 @@ export default function AccountPage() {
               </div>
               <div className="flex-1">
                 <h2 className="text-lg font-semibold text-red-600 dark:text-red-400 mb-1">Request Account Deletion</h2>
-                <p className="text-xs text-muted-foreground mb-3">
+                <p className="text-xs text-muted-foreground mb-1">
                   Under RA 10173 Section 18(f), you have the right to erasure of personal data. This request is reviewed by your barangay administrator and processed within 10 business days.
                 </p>
-                <button
-                  onClick={() => {
-                    if (confirm("Are you sure you want to request account deletion? This will be sent to your barangay administrator for review.")) {
-                      handleSaveNotificationPreference("deletion_requested", true);
-                      alert("Your account deletion request has been submitted. Your barangay administrator will review it within 10 business days.");
-                    }
-                  }}
-                  className="px-4 py-2 text-sm font-medium rounded-lg bg-red-500 hover:bg-red-600 text-white transition-colors"
-                >
-                  Request Account Deletion
-                </button>
+                <p className="text-[11px] text-muted-foreground/70 mb-3">
+                  Note: Official government records (barangay certificates, clearances, etc.) you have issued are permanent and cannot be deleted as required by law. Only your personal account data will be removed.
+                </p>
+                {(prefs.deletion_requested) ? (
+                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
+                    <Clock className="w-4 h-4 text-amber-500" />
+                    <p className="text-xs text-amber-700 dark:text-amber-300">Deletion request submitted. Under review by your barangay administrator.</p>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    disabled={deletionStatus === "loading"}
+                    className="px-4 py-2 text-sm font-medium rounded-lg bg-red-500 hover:bg-red-600 text-white transition-colors disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {deletionStatus === "loading" && <Loader2 className="w-4 h-4 animate-spin" />}
+                    Request Account Deletion
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -1425,6 +1933,143 @@ export default function AccountPage() {
             >
               Cancel
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════ */}
+      {/* DISABLE 2FA MODAL                           */}
+      {/* ═══════════════════════════════════════════ */}
+      {showDisable2FA && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowDisable2FA(false)}>
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-sm mx-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-red-600 dark:text-red-400 mb-1">Disable Two-Factor Authentication</h3>
+            <p className="text-xs text-muted-foreground mb-4">
+              Enter your password to confirm. This will remove the extra security layer from your account.
+            </p>
+            <div className="space-y-3">
+              <input
+                type="password"
+                value={disable2FAPassword}
+                onChange={(e) => setDisable2FAPassword(e.target.value)}
+                placeholder="Enter your password"
+                className="w-full px-3 py-2 rounded-lg border border-input-border bg-input-bg text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-transparent"
+                autoFocus
+              />
+              <button
+                onClick={async () => {
+                  if (!disable2FAPassword) return;
+                  setTwoFAStatus("loading");
+                  try {
+                    await api.account.disable2FA(disable2FAPassword);
+                    setShowDisable2FA(false);
+                    setDisable2FAPassword("");
+                    setTwoFAStatus("idle");
+                    refreshUser();
+                  } catch (e: unknown) {
+                    setTwoFAStatus("error");
+                    setTwoFAMessage(isApiError(e) ? e.message : "Wrong password.");
+                    setTimeout(() => { setTwoFAStatus("idle"); setTwoFAMessage(""); }, 3000);
+                  }
+                }}
+                disabled={!disable2FAPassword || twoFAStatus === "loading"}
+                className="w-full px-4 py-2 text-sm font-medium rounded-lg bg-red-500 hover:bg-red-600 text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {twoFAStatus === "loading" && <Loader2 className="w-4 h-4 animate-spin" />}
+                Disable 2FA
+              </button>
+            </div>
+            {twoFAMessage && (
+              <p className="text-xs mt-3 text-red-500">{twoFAMessage}</p>
+            )}
+            <button onClick={() => { setShowDisable2FA(false); setDisable2FAPassword(""); }} className="mt-3 w-full text-xs text-muted-foreground hover:text-foreground transition-colors">
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════ */}
+      {/* RECOVERY CODES MODAL                        */}
+      {/* ═══════════════════════════════════════════ */}
+      {showRecoveryCodes && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowRecoveryCodes(false)}>
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md mx-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-card-foreground mb-1">Recovery Codes</h3>
+            <p className="text-xs text-muted-foreground mb-4">
+              Store these codes securely. Each code can only be used once. If you lose access to your authenticator, use a recovery code to sign in.
+            </p>
+            <div className="grid grid-cols-2 gap-2 p-4 rounded-lg bg-muted/50 border border-border mb-4">
+              {twoFARecoveryCodes.map((code, i) => (
+                <code key={i} className="text-xs font-mono text-foreground">{code}</code>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => navigator.clipboard.writeText(twoFARecoveryCodes.join("\n"))}
+                className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+              >
+                <Copy className="w-3 h-3" /> Copy All
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await api.account.regenerateRecoveryCodes();
+                    setTwoFARecoveryCodes(res.recovery_codes);
+                  } catch { /* silent */ }
+                }}
+                className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+              >
+                <RefreshCw className="w-3 h-3" /> Regenerate
+              </button>
+              <button onClick={() => setShowRecoveryCodes(false)} className="ml-auto px-3 py-1.5 text-xs font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}>
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════ */}
+      {/* DELETE CONFIRM MODAL                        */}
+      {/* ═══════════════════════════════════════════ */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowDeleteConfirm(false)}>
+          <div className="bg-card border border-red-200 dark:border-red-900 rounded-xl p-6 w-full max-w-sm mx-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-10 h-10 rounded-lg bg-red-50 dark:bg-red-950/30 flex items-center justify-center">
+                <Trash2 className="w-5 h-5 text-red-500" />
+              </div>
+              <h3 className="text-lg font-semibold text-red-600 dark:text-red-400">Confirm Deletion Request</h3>
+            </div>
+            <p className="text-xs text-muted-foreground mb-4">
+              Are you sure you want to request account deletion? This will be sent to your barangay administrator for review and processed within 10 business days. This action cannot be undone.
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 px-4 py-2 text-sm font-medium rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors">
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  setDeletionStatus("loading");
+                  try {
+                    await api.account.requestDeletion();
+                    await api.account.updatePreferences({ deletion_requested: true });
+                    refreshUser();
+                    setShowDeleteConfirm(false);
+                    setDeletionStatus("success");
+                  } catch {
+                    setDeletionStatus("error");
+                    setTimeout(() => setDeletionStatus("idle"), 3000);
+                  }
+                }}
+                disabled={deletionStatus === "loading"}
+                className="flex-1 px-4 py-2 text-sm font-medium rounded-lg bg-red-500 hover:bg-red-600 text-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {deletionStatus === "loading" && <Loader2 className="w-4 h-4 animate-spin" />}
+                Yes, Request Deletion
+              </button>
+            </div>
           </div>
         </div>
       )}

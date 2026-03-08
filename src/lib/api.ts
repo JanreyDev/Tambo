@@ -196,7 +196,10 @@ const api = {
       api.patch<{ message: string }>("/account/profile", data),
 
     updateUsername: (username: string) =>
-      api.patch<{ message: string }>("/account/username", { username }),
+      api.patch<{ message: string; username_changed_at?: string }>("/account/username", { username }),
+
+    checkUsername: (username: string) =>
+      api.post<{ available: boolean; message: string }>("/account/check-username", { username }),
 
     uploadAvatar: (file: File) => {
       const formData = new FormData();
@@ -208,16 +211,44 @@ const api = {
       api.delete<{ message: string }>("/account/avatar"),
 
     updatePassword: (current_password: string, password: string, password_confirmation: string) =>
-      api.patch<{ message: string }>("/account/password", { current_password, password, password_confirmation }),
+      api.patch<{ message: string; password_changed_at?: string }>("/account/password", { current_password, password, password_confirmation }),
 
     getSessions: () =>
-      api.get<{ sessions: Array<{ id: string; name: string; is_current: boolean; last_used_at: string | null; created_at: string; expires_at: string | null }> }>("/account/sessions"),
+      api.get<{ sessions: Array<{
+        id: string;
+        name: string;
+        is_current: boolean;
+        last_used_at: string | null;
+        created_at: string;
+        expires_at: string | null;
+        ip_address?: string;
+        browser?: string;
+        browser_version?: string;
+        platform?: string;
+        device_type?: string;
+        location?: string;
+      }> }>("/account/sessions"),
 
     revokeSession: (tokenId: string) =>
       api.delete<{ message: string }>(`/account/sessions/${tokenId}`),
 
-    getActivity: () =>
-      api.get<{ activity: Array<{ id: string; action: string; ip_address: string; device_type: string; browser: string; created_at: string }> }>("/account/activity"),
+    getActivity: (params?: { page?: number; type?: string }) => {
+      const query = new URLSearchParams();
+      if (params?.page) query.set("page", String(params.page));
+      if (params?.type) query.set("type", params.type);
+      const qs = query.toString();
+      return api.get<{ activity: Array<{
+        id: string;
+        action: string;
+        category: string;
+        description: string;
+        ip_address: string;
+        device_type: string;
+        browser: string;
+        metadata?: Record<string, unknown>;
+        created_at: string;
+      }>; total: number; has_more: boolean }>(`/account/activity${qs ? `?${qs}` : ""}`);
+    },
 
     updatePreferences: (preferences: Record<string, unknown>) =>
       api.patch<{ message: string; preferences: Record<string, unknown> }>(
@@ -239,6 +270,25 @@ const api = {
 
     requestDataExport: () =>
       api.post<{ message: string; data: Record<string, unknown> }>("/account/data-export"),
+
+    requestDeletion: () =>
+      api.post<{ message: string }>("/account/request-deletion"),
+
+    // 2FA endpoints
+    setup2FA: () =>
+      api.post<{ secret: string; qr_code: string; recovery_codes: string[] }>("/account/2fa/setup"),
+
+    enable2FA: (code: string) =>
+      api.post<{ message: string; recovery_codes: string[] }>("/account/2fa/enable", { code }),
+
+    disable2FA: (password: string) =>
+      api.post<{ message: string }>("/account/2fa/disable", { password }),
+
+    getRecoveryCodes: () =>
+      api.get<{ recovery_codes: string[] }>("/account/2fa/recovery-codes"),
+
+    regenerateRecoveryCodes: () =>
+      api.post<{ recovery_codes: string[] }>("/account/2fa/recovery-codes/regenerate"),
   },
 };
 

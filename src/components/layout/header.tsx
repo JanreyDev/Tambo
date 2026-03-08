@@ -119,9 +119,14 @@ export function Header() {
             className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-muted transition-colors"
             aria-label="User menu"
           >
-            <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold" style={{ background: "var(--accent-primary)" }}>
-              {initials}
-            </div>
+            {user?.photo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={user.photo_url} alt="" className="w-8 h-8 rounded-full object-cover" />
+            ) : (
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold" style={{ background: "var(--accent-primary)" }}>
+                {initials}
+              </div>
+            )}
             <div className="hidden md:block text-left">
               <p className="text-sm font-medium text-foreground leading-none">
                 {displayName}
@@ -138,9 +143,14 @@ export function Header() {
               <div className="absolute right-0 top-full mt-1 w-72 rounded-xl border border-border bg-card shadow-lg z-50 py-1">
                 <div className="px-4 py-3.5 border-b border-border">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0" style={{ background: "var(--accent-primary)" }}>
-                      {initials}
-                    </div>
+                    {user?.photo_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={user.photo_url} alt="" className="w-10 h-10 rounded-full object-cover shrink-0" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0" style={{ background: "var(--accent-primary)" }}>
+                        {initials}
+                      </div>
+                    )}
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-foreground truncate">{displayName}</p>
                       <span className="inline-flex items-center mt-1 px-1.5 py-0.5 rounded text-[10px] font-medium" style={{ background: "var(--accent-bg)", color: "var(--accent-text)" }}>
