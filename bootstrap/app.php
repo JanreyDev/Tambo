@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Http\Middleware\BlockSuspiciousRequests;
+use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -19,7 +21,18 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->statefulApi();
+        // Token-based auth only -- no statefulApi() (removes unnecessary CSRF/session overhead).
+
+        // Security headers on every response.
+        $middleware->append(SecurityHeaders::class);
+
+        // Block scanners and attack-path probes before routing.
+        $middleware->append(BlockSuspiciousRequests::class);
+
+        // Global API rate limiting: 60 requests per minute per IP.
+        $middleware->api(prepend: [
+            'throttle:60,1',
+        ]);
 
         // Trust Cloudflare proxy headers so rate limiting uses real client IP.
         $middleware->trustProxies(
@@ -32,7 +45,18 @@ return Application::configure(basePath: dirname(__DIR__))
         );
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        // Return JSON 404 for API routes
+        // Unauthenticated requests: JSON 401 for API, redirect to / for browsers.
+        $exceptions->render(function (AuthenticationException $e, Request $request) {
+            if ($request->is('api/*') || $request->wantsJson()) {
+                return response()->json([
+                    'message' => 'Unauthenticated.',
+                ], 401);
+            }
+
+            return redirect('/');
+        });
+
+        // Return JSON 404 for API routes.
         $exceptions->render(function (NotFoundHttpException $e, Request $request) {
             if ($request->is('api/*') || $request->wantsJson()) {
                 return response()->json([
@@ -43,9 +67,9 @@ return Application::configure(basePath: dirname(__DIR__))
             return null;
         });
 
-        // Catch truly unhandled exceptions on API routes — never leak internals.
-        // Let Laravel handle ValidationException, AuthenticationException, and
-        // HttpExceptionInterface normally (they produce proper JSON responses).
+        // Catch truly unhandled exceptions on API routes -- never leak internals.
+        // Let Laravel handle ValidationException and HttpExceptionInterface
+        // normally (they produce proper JSON responses).
         $exceptions->render(function (\Throwable $e, Request $request) {
             if (! ($request->is('api/*') || $request->wantsJson())) {
                 return null;
