@@ -109,7 +109,7 @@ const features = [
   },
   {
     icon: Bot,
-    label: "AI-Powered Assistant",
+    label: "Mabini AI",
     desc: "Built-in AI for data queries, reports, and insights",
     color: "violet",
   },
@@ -588,16 +588,16 @@ export default function LoginPage() {
                 </div>
 
                 {/* Security features strip */}
-                <div className="flex items-center justify-center gap-1.5 pt-2 flex-wrap">
+                <div className="flex items-center justify-center gap-1.5 pt-2">
                   {[
                     { label: "RA 10173 Compliant", active: true },
                     { label: "NPC Registered", active: true },
-                    { label: "Cookies", active: securityInfo.cookiesEnabled },
                     { label: "Encrypted", active: securityInfo.protocol === "HTTPS" },
+                    { label: "Brute-Force Protected", active: true },
                   ].map((f) => (
                     <span
                       key={f.label}
-                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold ${
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold whitespace-nowrap ${
                         f.active
                           ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
                           : "bg-muted text-muted-foreground border border-border"

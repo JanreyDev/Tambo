@@ -11,6 +11,7 @@ import {
   type AccentColor,
 } from "@/hooks/use-theme-store";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/ui/page-header";
 import {
   Camera,
   User,
@@ -47,9 +48,26 @@ import {
   Copy,
   RefreshCw,
   X,
+  Bot,
+  ChevronDown,
+  ChevronUp,
+  CreditCard,
+  Hash,
+  Coins,
 } from "lucide-react";
+import Image from "next/image";
+import type { AiConversationSummary, AiCredits, AiConversation } from "@/lib/types";
+import { Markdown } from "@/components/ui/markdown";
 
-type TabId = "profile" | "security" | "activity" | "notifications" | "privacy";
+function MabiniIcon({ size = 32 }: { size?: number }) {
+  return (
+    <div className="overflow-hidden shrink-0 bg-white rounded-lg" style={{ width: size, height: size }}>
+      <Image src="/mabini-ai.png" alt="Mabini AI" width={size} height={size} className="object-cover" />
+    </div>
+  );
+}
+
+type TabId = "profile" | "security" | "activity" | "mabini" | "notifications" | "privacy";
 type Status = "idle" | "loading" | "success" | "error";
 
 type Session = {
@@ -135,6 +153,16 @@ export default function AccountPage() {
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [activityLoading, setActivityLoading] = useState(false);
 
+  // ── Mabini AI History ──
+  const [aiConversations, setAiConversations] = useState<AiConversationSummary[]>([]);
+  const [aiCredits, setAiCredits] = useState<AiCredits | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiPage, setAiPage] = useState(1);
+  const [aiLastPage, setAiLastPage] = useState(1);
+  const [expandedConv, setExpandedConv] = useState<string | null>(null);
+  const [expandedMessages, setExpandedMessages] = useState<AiConversation | null>(null);
+  const [expandedLoading, setExpandedLoading] = useState(false);
+
   // ── Phone verification ──
   const [showPhoneVerify, setShowPhoneVerify] = useState(false);
   const [phoneToVerify, setPhoneToVerify] = useState("");
@@ -215,6 +243,14 @@ export default function AccountPage() {
     }
   }, [activeTab]);
 
+  // Load Mabini AI history when tab is active
+  useEffect(() => {
+    if (activeTab === "mabini") {
+      loadAiHistory(1);
+      loadAiCredits();
+    }
+  }, [activeTab]);
+
   // OTP cooldown timers
   useEffect(() => {
     if (otpCooldown <= 0) return;
@@ -268,6 +304,51 @@ export default function AccountPage() {
       // silently fail
     } finally {
       setActivityLoading(false);
+    }
+  };
+
+  const loadAiHistory = async (page: number) => {
+    setAiLoading(true);
+    try {
+      const data = await api.ai.getConversations(page);
+      if (page === 1) {
+        setAiConversations(data.data);
+      } else {
+        setAiConversations((prev) => [...prev, ...data.data]);
+      }
+      setAiPage(data.current_page);
+      setAiLastPage(data.last_page);
+    } catch {
+      // silently fail
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const loadAiCredits = async () => {
+    try {
+      const data = await api.ai.getCredits();
+      setAiCredits(data);
+    } catch {
+      // silently fail
+    }
+  };
+
+  const loadConversationDetail = async (id: string) => {
+    if (expandedConv === id) {
+      setExpandedConv(null);
+      setExpandedMessages(null);
+      return;
+    }
+    setExpandedConv(id);
+    setExpandedLoading(true);
+    try {
+      const data = await api.ai.getConversation(id);
+      setExpandedMessages(data);
+    } catch {
+      setExpandedMessages(null);
+    } finally {
+      setExpandedLoading(false);
     }
   };
 
@@ -619,19 +700,15 @@ export default function AccountPage() {
     { id: "profile", label: "Profile", icon: User },
     { id: "security", label: "Security", icon: Shield },
     { id: "activity", label: "Activity", icon: Activity },
+    { id: "mabini", label: "Mabini AI History", icon: Bot },
     { id: "notifications", label: "Notifications", icon: Bell },
     { id: "privacy", label: "Data & Privacy", icon: ShieldCheck },
   ];
 
   return (
-    <div className="max-w-4xl space-y-6">
+    <div className="space-y-6">
       {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">My Account</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          Manage your profile, security, activity, notifications, and data privacy.
-        </p>
-      </div>
+      <PageHeader title="My Account" description="Manage your profile, security settings, activity logs, and notification preferences. All changes are logged and protected under RA 10173 (Data Privacy Act of 2012)." />
 
       {/* Tab Navigation */}
       <div className="flex gap-1 p-1 bg-muted/50 rounded-lg overflow-x-auto">
@@ -1462,6 +1539,178 @@ export default function AccountPage() {
                 >
                   {activityLoading && <Loader2 className="w-3 h-3 animate-spin" />}
                   Load More
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════ */}
+      {/* MABINI AI HISTORY TAB                      */}
+      {/* ═══════════════════════════════════════════ */}
+      {activeTab === "mabini" && (
+        <div className="space-y-6">
+          {/* Credit Summary Card */}
+          {aiCredits && (
+            <div className="bg-card border border-border rounded-xl p-6">
+              <div className="flex items-start gap-4">
+                <MabiniIcon size={48} />
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-lg font-semibold text-card-foreground">Mabini AI Usage</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">Track your AI conversation history and credit usage</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
+                    <div className="bg-muted/50 rounded-lg p-3">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                        <Coins className="w-3.5 h-3.5" />
+                        Balance
+                      </div>
+                      <p className="text-lg font-bold text-foreground">P{aiCredits.balance.toFixed(2)}</p>
+                    </div>
+                    <div className="bg-muted/50 rounded-lg p-3">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        Conversations
+                      </div>
+                      <p className="text-lg font-bold text-foreground">{aiCredits.conversation_count}</p>
+                    </div>
+                    <div className="bg-muted/50 rounded-lg p-3">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                        <CreditCard className="w-3.5 h-3.5" />
+                        Your Usage
+                      </div>
+                      <p className="text-lg font-bold text-foreground">P{aiCredits.total_used_by_user.toFixed(2)}</p>
+                    </div>
+                    <div className="bg-muted/50 rounded-lg p-3">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                        <Hash className="w-3.5 h-3.5" />
+                        Est. Remaining
+                      </div>
+                      <p className="text-lg font-bold text-foreground">~{aiCredits.estimated_messages_remaining.toLocaleString()}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Conversation History */}
+          <div className="bg-card border border-border rounded-xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-border">
+              <h3 className="text-sm font-semibold text-card-foreground">Conversation History</h3>
+              <p className="text-[11px] text-muted-foreground mt-0.5">All your Mabini AI sessions with full chat logs and cost breakdown</p>
+            </div>
+
+            {aiLoading && aiConversations.length === 0 ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : aiConversations.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="mx-auto mb-2 opacity-50"><MabiniIcon size={32} /></div>
+                <p className="text-sm text-muted-foreground">No conversations yet</p>
+                <p className="text-xs text-muted-foreground mt-1">Start chatting with Mabini in the Mabini AI page</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-border">
+                {aiConversations.map((conv) => (
+                  <div key={conv.id}>
+                    {/* Conversation Row */}
+                    <button
+                      onClick={() => loadConversationDetail(conv.id)}
+                      className="w-full flex items-center gap-3 px-6 py-3.5 text-left hover:bg-muted/50 transition-colors"
+                    >
+                      <MabiniIcon size={32} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{conv.title || "Untitled"}</p>
+                        <div className="flex items-center gap-3 mt-0.5">
+                          <span className="text-[11px] text-muted-foreground">
+                            {new Date(conv.created_at).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}
+                          </span>
+                          <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                            <MessageSquare className="w-3 h-3" />
+                            {conv.message_count} msgs
+                          </span>
+                          <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                            <Coins className="w-3 h-3" />
+                            P{parseFloat(conv.credit_cost).toFixed(4)}
+                          </span>
+                          <span className="text-[11px] text-muted-foreground">
+                            {conv.tokens_used.toLocaleString()} tokens
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex-shrink-0">
+                        {expandedConv === conv.id ? (
+                          <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                        )}
+                      </div>
+                    </button>
+
+                    {/* Expanded Chat History */}
+                    {expandedConv === conv.id && (
+                      <div className="bg-muted/30 border-t border-border px-6 py-4">
+                        {expandedLoading ? (
+                          <div className="flex items-center justify-center py-6">
+                            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                          </div>
+                        ) : expandedMessages ? (
+                          <div className="space-y-3 max-h-96 overflow-y-auto">
+                            {expandedMessages.messages.map((msg, i) => (
+                              <div key={i} className={cn("flex gap-2.5", msg.role === "user" ? "justify-end" : "justify-start")}>
+                                {msg.role === "assistant" && (
+                                  <MabiniIcon size={24} />
+                                )}
+                                <div className={cn(
+                                  "max-w-[80%] rounded-lg px-3 py-2 text-sm",
+                                  msg.role === "user"
+                                    ? "bg-[var(--accent-primary)] text-white"
+                                    : "bg-card border border-border"
+                                )}>
+                                  {msg.role === "assistant" ? (
+                                    <Markdown content={msg.content} className="text-xs text-justify" />
+                                  ) : (
+                                    <p className="text-sm text-justify">{msg.content}</p>
+                                  )}
+                                  <p className={cn("text-[10px] mt-1", msg.role === "user" ? "text-white/60" : "text-muted-foreground")}>
+                                    {new Date(msg.timestamp).toLocaleTimeString("en-PH", { hour: "numeric", minute: "2-digit" })}
+                                  </p>
+                                </div>
+                                {msg.role === "user" && (
+                                  <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5 text-[10px] font-bold" style={{ background: "var(--accent-bg)", color: "var(--accent-primary)" }}>
+                                    {user?.first_name?.[0]}{user?.last_name?.[0]}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                            {/* Session Summary */}
+                            <div className="flex items-center gap-4 pt-2 mt-2 border-t border-border text-[11px] text-muted-foreground">
+                              <span>Input: {expandedMessages.input_tokens_used.toLocaleString()} tokens</span>
+                              <span>Output: {expandedMessages.output_tokens_used.toLocaleString()} tokens</span>
+                              <span>Total Cost: P{parseFloat(expandedMessages.credit_cost).toFixed(4)}</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground text-center py-4">Failed to load conversation</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Pagination */}
+            {aiPage < aiLastPage && (
+              <div className="px-6 py-3 border-t border-border">
+                <button
+                  onClick={() => loadAiHistory(aiPage + 1)}
+                  disabled={aiLoading}
+                  className="w-full text-sm text-center py-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground"
+                >
+                  {aiLoading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Load more conversations"}
                 </button>
               </div>
             )}

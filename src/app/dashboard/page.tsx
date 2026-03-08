@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { PageHeader } from "@/components/ui/page-header";
 import {
   Users,
   FileText,
@@ -153,8 +154,6 @@ interface RecentResident {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const today = new Date();
-  const dateStr = today.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
 
   const activities: ActivityRow[] = [
     { initials: "MM", name: "Resurreccion, Malvin M.", residentId: "RES-1381000006-0501", document: "Brgy Clearance", documentColor: "#3b82f6", status: "Generated", statusColor: "#22c55e", time: "2 hours ago" },
@@ -200,16 +199,13 @@ export default function DashboardPage() {
     { label: "File Blotter", icon: Gavel, color: "#f97316", href: "/dashboard/judicial/blotter" },
     { label: "Record Payment", icon: Receipt, color: "#22c55e", href: "/dashboard/finance" },
     { label: "Send SMS", icon: MessageSquare, color: "#8b5cf6", href: "#" },
-    { label: "AI Assistant", icon: Bot, color: "#f59e0b", href: "/dashboard/ai" },
+    { label: "Mabini AI", icon: Bot, color: "#f59e0b", href: "/dashboard/ai" },
   ];
 
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">{dateStr}</p>
-      </div>
+      <PageHeader title="Dashboard" description="Barangay management overview and quick actions" />
 
       {/* Credits Bar */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">

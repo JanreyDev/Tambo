@@ -6,16 +6,18 @@ export function SortableHeader({
   sortKey,
   sortDir,
   onSort,
+  className,
 }: {
   label: string;
   field: string;
   sortKey: string | null;
   sortDir: "asc" | "desc";
   onSort: (field: string) => void;
+  className?: string;
 }) {
   return (
     <th
-      className="px-4 py-3 text-left font-medium text-muted-foreground cursor-pointer select-none hover:text-foreground transition-colors"
+      className={`px-4 py-3 text-left font-medium text-muted-foreground cursor-pointer select-none hover:text-foreground transition-colors ${className || ""}`}
       onClick={() => onSort(field)}
     >
       <div className="flex items-center gap-1">

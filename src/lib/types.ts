@@ -12,6 +12,7 @@ export interface User {
   is_super_admin: boolean;
   status: string;
   last_login_at: string | null;
+  last_login_ip: string | null;
   preferences: Record<string, unknown>;
   barangay: Barangay | null;
   roles: string[];
@@ -25,6 +26,7 @@ export interface Barangay {
   full_address: string;
   logo_url: string | null;
   status: string;
+  subscription_plan: string | null;
   sms_credit_balance: string;
   ai_credit_balance: string;
   call_credit_balance: string;
@@ -136,3 +138,52 @@ export interface DashboardCredits {
     percentage: number;
   };
 }
+
+// ── AI / Mabini Types ──
+
+export interface AiMessage {
+  role: "user" | "assistant";
+  content: string;
+  timestamp: string;
+}
+
+export interface AiConversation {
+  id: string;
+  title: string | null;
+  module_context: string | null;
+  messages: AiMessage[];
+  message_count: number;
+  tokens_used: number;
+  input_tokens_used: number;
+  output_tokens_used: number;
+  credit_cost: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AiConversationSummary {
+  id: string;
+  title: string | null;
+  module_context: string | null;
+  message_count: number;
+  tokens_used: number;
+  credit_cost: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AiCredits {
+  balance: number;
+  estimated_cost_per_message: number;
+  estimated_messages_remaining: number;
+  total_used_by_barangay: number;
+  total_used_by_user: number;
+  conversation_count: number;
+}
+
+export type AiStreamEvent =
+  | { event: "content_delta"; data: { text: string } }
+  | { event: "message_complete"; data: { conversation_id: string; title: string; tokens_used: number; input_tokens: number; output_tokens: number; credit_cost: number; remaining_balance: number } }
+  | { event: "error"; data: { message: string } };

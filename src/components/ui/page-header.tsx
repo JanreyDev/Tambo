@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { ChevronRight } from "lucide-react";
 
@@ -14,7 +17,19 @@ interface PageHeaderProps {
   className?: string;
 }
 
+function useLiveClock() {
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => {
+    setNow(new Date());
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  return now;
+}
+
 export function PageHeader({ title, description, breadcrumbs, actions, className }: PageHeaderProps) {
+  const now = useLiveClock();
+
   return (
     <div className={cn("space-y-1", className)}>
       {breadcrumbs && breadcrumbs.length > 0 && (
@@ -36,12 +51,22 @@ export function PageHeader({ title, description, breadcrumbs, actions, className
         </nav>
       )}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">{title}</h1>
-          {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+        <h1 className="text-2xl font-bold text-foreground">{title}</h1>
+        <div className="flex items-center gap-4 shrink-0">
+          {actions && <div className="flex items-center gap-2">{actions}</div>}
+          {now && (
+            <div className="text-right select-none hidden sm:block">
+              <p className="text-2xl font-bold text-foreground tabular-nums tracking-tight">
+                {now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true })}
+              </p>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                {now.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+              </p>
+            </div>
+          )}
         </div>
-        {actions && <div className="flex items-center gap-2">{actions}</div>}
       </div>
+      {description && <p className="text-sm text-muted-foreground">{description}</p>}
     </div>
   );
 }

@@ -54,7 +54,7 @@ const navGroups: NavGroup[] = [
   {
     title: "RECORDS",
     items: [
-      { label: "Residents", href: "/dashboard/residents", icon: Users, badge: 17 },
+      { label: "Residents", href: "/dashboard/residents", icon: Users },
       { label: "Establishments", href: "/dashboard/establishments", icon: Building2 },
       { label: "Lots & Buildings", href: "/dashboard/lots-buildings", icon: MapPin },
       { label: "Voters", href: "/dashboard/voters", icon: ClipboardList },
@@ -64,7 +64,7 @@ const navGroups: NavGroup[] = [
     title: "JUDICIAL",
     items: [
       { label: "Case Records", href: "/dashboard/judicial/kp-cases", icon: Scale },
-      { label: "Blotter Records", href: "/dashboard/judicial/blotter", icon: Gavel, badge: 3 },
+      { label: "Blotter Records", href: "/dashboard/judicial/blotter", icon: Gavel },
       { label: "VAWC Records", href: "/dashboard/vawc", icon: Shield },
     ],
   },
@@ -72,14 +72,14 @@ const navGroups: NavGroup[] = [
     title: "SERVICES",
     items: [
       { label: "Documents", href: "/dashboard/documents", icon: FileText },
-      { label: "Requests", href: "/dashboard/requests", icon: Receipt, badge: 2 },
+      { label: "Requests", href: "/dashboard/requests", icon: Receipt },
       { label: "Reports", href: "/dashboard/reports", icon: BarChart3 },
     ],
   },
   {
     title: "TOOLS",
     items: [
-      { label: "AI Assistant", href: "/dashboard/ai", icon: Bot },
+      { label: "Mabini AI", href: "/dashboard/ai", icon: Bot },
       { label: "Drive", href: "/dashboard/drive", icon: HardDrive },
       { label: "Public Portal", href: "/dashboard/public-portal", icon: Globe },
       { label: "Support Tickets", href: "/dashboard/support", icon: MessageCircle },
@@ -112,9 +112,9 @@ export function Sidebar() {
 
   const barangay = user?.barangay;
   const barangayName = barangay?.name || "Loading...";
-  const barangayLocation = barangay?.full_address
-    ? barangay.full_address.replace(/^Barangay\s+\S+,\s*/i, "")
-    : "";
+  const subscriptionLabel = barangay?.subscription_plan
+    ? barangay.subscription_plan.charAt(0).toUpperCase() + barangay.subscription_plan.slice(1) + " Plan"
+    : "Free Plan";
 
   const isActive = (href: string) =>
     pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
@@ -125,31 +125,33 @@ export function Sidebar() {
 
   return (
     <aside className="hidden lg:flex flex-col w-[232px] border-r border-sidebar-border bg-sidebar-bg h-screen sticky top-0 shrink-0">
-      {/* Logo + Barangay Info */}
+      {/* Barangay Identity */}
       <div className="px-3 pt-4 pb-2">
-        {/* Logo */}
-        <div className="flex items-center gap-2 px-2 mb-3">
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-xs" style={{ background: "var(--accent-primary)" }}>
-            K
-          </div>
-          <span className="text-sm font-semibold text-foreground">
-            kapitan<span style={{ color: "var(--accent-primary)" }}>.ph</span>
-          </span>
-        </div>
-
-        {/* Barangay Info Card */}
-        <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg border border-border/60 bg-card/50">
-          {barangay?.logo_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={barangay.logo_url} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
-          ) : (
-            <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-muted">
-              <MapPin className="w-4 h-4 text-muted-foreground" />
+        <div className="relative rounded-xl p-3 overflow-hidden" style={{ background: "var(--accent-primary)" }}>
+          {/* Subtle pattern overlay */}
+          <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle at 70% 20%, white 0.5px, transparent 0.5px)", backgroundSize: "12px 12px" }} />
+          <div className="relative">
+            <div className="flex items-center gap-2.5">
+              {barangay?.logo_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={barangay.logo_url} alt="" className="w-10 h-10 rounded-xl object-cover shrink-0 ring-2 ring-white/30" />
+              ) : (
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-white/20 backdrop-blur-sm">
+                  <MapPin className="w-5 h-5 text-white" />
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] font-bold text-white truncate leading-tight">Brgy. {barangayName}</p>
+                <p className="text-[11px] text-white/70 truncate leading-tight mt-0.5">{subscriptionLabel}</p>
+              </div>
             </div>
-          )}
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-semibold text-foreground truncate leading-tight">Brgy. {barangayName}</p>
-            <p className="text-[10px] text-muted-foreground truncate leading-tight mt-0.5">{barangayLocation}</p>
+            <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-white/15">
+              <span className="text-[10px] font-semibold text-white/50 tracking-wider uppercase">kapitan.ph</span>
+              <span className="flex items-center gap-1 text-[9px] font-medium text-white/40 bg-white/10 px-1.5 py-0.5 rounded">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                v5.0
+              </span>
+            </div>
           </div>
         </div>
       </div>

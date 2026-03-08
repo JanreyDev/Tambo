@@ -1,4 +1,4 @@
-import type { ApiError, LoginResponse, User } from "./types";
+import type { AiConversation, AiConversationSummary, AiCredits, AiStreamEvent, ApiError, LoginResponse, PaginatedResponse, User } from "./types";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
@@ -133,6 +133,75 @@ async function uploadFile<T>(
   return res.json();
 }
 
+async function streamRequest(
+  path: string,
+  body: unknown,
+  onEvent: (event: AiStreamEvent) => void,
+  signal?: AbortSignal
+): Promise<void> {
+  const headers: Record<string, string> = {
+    Accept: "text/event-stream",
+    "Content-Type": "application/json",
+  };
+
+  const token = getToken();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+    signal,
+  });
+
+  if (res.status === 401) {
+    clearToken();
+    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+      window.location.href = "/login";
+    }
+    throw { message: "Unauthorized" } as ApiError;
+  }
+
+  if (!res.ok) {
+    const error: ApiError = await res.json().catch(() => ({
+      message: `Request failed with status ${res.status}`,
+    }));
+    throw error;
+  }
+
+  const reader = res.body?.getReader();
+  if (!reader) throw { message: "No response body" } as ApiError;
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+
+    let currentEvent = "";
+    for (const line of lines) {
+      if (line.startsWith("event: ")) {
+        currentEvent = line.slice(7).trim();
+      } else if (line.startsWith("data: ") && currentEvent) {
+        try {
+          const data = JSON.parse(line.slice(6));
+          onEvent({ event: currentEvent, data } as AiStreamEvent);
+        } catch {
+          // skip malformed JSON
+        }
+        currentEvent = "";
+      }
+    }
+  }
+}
+
 const api = {
   getToken,
   setToken,
@@ -186,6 +255,26 @@ const api = {
         { username, reset_token, password, password_confirmation },
         { skipAuth: true }
       ),
+  },
+
+  ai: {
+    getCredits: () =>
+      api.get<AiCredits>("/ai/credits"),
+
+    getConversations: (page = 1) =>
+      api.get<PaginatedResponse<AiConversationSummary>>(`/ai/conversations?page=${page}`),
+
+    getConversation: (id: string) =>
+      api.get<{ conversation: AiConversation }>(`/ai/conversations/${id}`).then(r => r.conversation),
+
+    createConversation: (message: string, onEvent: (event: AiStreamEvent) => void, signal?: AbortSignal) =>
+      streamRequest("/ai/conversations", { message }, onEvent, signal),
+
+    sendMessage: (conversationId: string, message: string, onEvent: (event: AiStreamEvent) => void, signal?: AbortSignal) =>
+      streamRequest(`/ai/conversations/${conversationId}/messages`, { message }, onEvent, signal),
+
+    deleteConversation: (id: string) =>
+      api.delete<{ message: string }>(`/ai/conversations/${id}`),
   },
 
   account: {

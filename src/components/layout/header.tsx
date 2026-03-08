@@ -1,8 +1,8 @@
 "use client";
 
-import { Bell, Search, Moon, Sun, Menu, LogOut, ChevronDown, UserCog, Sparkles } from "lucide-react";
+import { Bell, Search, Moon, Sun, Menu, LogOut, ChevronDown, UserCog, Bot, Maximize, Minimize, MapPin, Clock, Globe, Crown, FileText, UserPlus, AlertTriangle, CheckCircle, X } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useState, useEffect, useSyncExternalStore } from "react";
+import { useState, useEffect, useCallback, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { persistThemePreference } from "@/hooks/use-theme-store";
@@ -70,7 +70,66 @@ export function Header({ onToggleSidebar, onToggleAI }: HeaderProps) {
   const { theme, setTheme } = useTheme();
   const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [gpsLocation, setGpsLocation] = useState<string | null>(null);
+
+  // Get GPS location on mount
+  const fetchLocation = useCallback(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&zoom=16`);
+          const data = await res.json();
+          const addr = data.address;
+          // Build a short location string: suburb/village, city, country
+          const parts = [addr.suburb || addr.village || addr.neighbourhood || addr.town, addr.city || addr.municipality, addr.country].filter(Boolean);
+          setGpsLocation(parts.join(", "));
+        } catch {
+          setGpsLocation(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+        }
+      },
+      () => { /* permission denied or error — leave null */ }
+    );
+  }, []);
+
+  useEffect(() => { fetchLocation(); }, [fetchLocation]);
+
+  // Mock notifications (will be API-driven later)
+  const notifications = [
+    { id: "1", type: "request" as const, title: "New certificate request", desc: "Valderrama, Nida requested a Barangay Clearance", time: "2 hours ago", read: false },
+    { id: "2", type: "resident" as const, title: "New resident registered", desc: "Garcia, Ana L. was added to Purok 3", time: "5 hours ago", read: false },
+    { id: "3", type: "alert" as const, title: "Blotter case filed", desc: "New blotter record #BLT-2026-0047 needs review", time: "1 day ago", read: false },
+    { id: "4", type: "system" as const, title: "System update completed", desc: "BCMP v5.0.1 patch applied successfully", time: "2 days ago", read: true },
+  ];
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  const notifIcon = (type: string) => {
+    switch (type) {
+      case "request": return <FileText className="w-4 h-4 text-blue-500" />;
+      case "resident": return <UserPlus className="w-4 h-4 text-emerald-500" />;
+      case "alert": return <AlertTriangle className="w-4 h-4 text-amber-500" />;
+      case "system": return <CheckCircle className="w-4 h-4 text-violet-500" />;
+      default: return <Bell className="w-4 h-4 text-muted-foreground" />;
+    }
+  };
+
+  useEffect(() => {
+    const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onFsChange);
+    return () => document.removeEventListener("fullscreenchange", onFsChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.();
+    } else {
+      document.exitFullscreen?.();
+    }
+  };
   const { user, logout } = useAuth();
   const router = useRouter();
 
@@ -81,8 +140,7 @@ export function Header({ onToggleSidebar, onToggleAI }: HeaderProps) {
   const initials = getInitials(user?.first_name, user?.last_name);
   const roleName = formatRole(user?.roles);
 
-  // Hardcoded notification count for now (will be API-driven later)
-  const notifCount = 3;
+  const notifCount = unreadCount;
 
   return (
     <header className="sticky top-0 z-30 flex items-center h-14 px-3 md:px-5 border-b border-border bg-card/95 backdrop-blur-md">
@@ -119,45 +177,91 @@ export function Header({ onToggleSidebar, onToggleAI }: HeaderProps) {
       {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Date & Time (UTC+8) */}
-      {mounted && (
-        <div className="hidden md:flex items-center gap-2 mr-3 select-none">
-          <div className="text-right">
-            <p className="text-[11px] font-medium text-foreground leading-tight tabular-nums">{time}</p>
-            <p className="text-[10px] text-muted-foreground leading-tight">{date}</p>
-          </div>
-          <span className="text-[9px] font-medium text-muted-foreground/60 bg-muted/50 px-1 py-0.5 rounded">
-            PHT
-          </span>
-        </div>
-      )}
-
       {/* Right side actions */}
       <div className="flex items-center gap-0.5">
-        {/* AI Quick Access */}
+        {/* Mabini AI */}
         <button
-          onClick={onToggleAI}
+          onClick={() => router.push("/dashboard/ai")}
           className="relative p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors group"
-          aria-label="Quick AI Query"
-          title="Ask AI anything"
+          aria-label="Mabini AI"
+          title="Mabini AI"
         >
-          <Sparkles className="w-[18px] h-[18px]" />
+          <Bot className="w-[18px] h-[18px]" />
           <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-card" />
         </button>
 
         {/* Notifications */}
-        <button
-          className="relative p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          aria-label={`Notifications (${notifCount} unread)`}
-          title="Notifications"
-        >
-          <Bell className="w-[18px] h-[18px]" />
-          {notifCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full text-[10px] font-bold text-white px-1 ring-2 ring-card" style={{ background: "var(--accent-primary)" }}>
-              {notifCount > 99 ? "99+" : notifCount}
-            </span>
+        <div className="relative">
+          <button
+            onClick={() => { setNotifOpen(!notifOpen); setUserMenuOpen(false); }}
+            className="relative p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            aria-label={`Notifications (${notifCount} unread)`}
+            title="Notifications"
+          >
+            <Bell className="w-[18px] h-[18px]" />
+            {notifCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full text-[10px] font-bold text-white px-1 ring-2 ring-card" style={{ background: "var(--accent-primary)" }}>
+                {notifCount > 99 ? "99+" : notifCount}
+              </span>
+            )}
+          </button>
+          {notifOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setNotifOpen(false)} />
+              <div className="absolute right-0 top-full mt-1.5 w-80 sm:w-96 rounded-2xl border border-border bg-card shadow-2xl z-50 overflow-hidden">
+                {/* Header */}
+                <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-semibold text-foreground">Notifications</h3>
+                    {unreadCount > 0 && (
+                      <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full text-[10px] font-bold text-white px-1.5" style={{ background: "var(--accent-primary)" }}>
+                        {unreadCount}
+                      </span>
+                    )}
+                  </div>
+                  <button onClick={() => setNotifOpen(false)} className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                {/* Notification list */}
+                <div className="max-h-80 overflow-y-auto">
+                  {notifications.map((n) => (
+                    <button
+                      key={n.id}
+                      className={cn(
+                        "w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-muted/50 transition-colors border-b border-border/50 last:border-0",
+                        !n.read && "bg-accent-bg/5"
+                      )}
+                      onClick={() => { setNotifOpen(false); router.push("/dashboard/requests"); }}
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0 mt-0.5">
+                        {notifIcon(n.type)}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className={cn("text-[13px] leading-tight truncate", !n.read ? "font-semibold text-foreground" : "font-medium text-foreground/80")}>{n.title}</p>
+                          {!n.read && <span className="w-2 h-2 rounded-full shrink-0 mt-1" style={{ background: "var(--accent-primary)" }} />}
+                        </div>
+                        <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">{n.desc}</p>
+                        <p className="text-[10px] text-muted-foreground/60 mt-1">{n.time}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                {/* Footer */}
+                <div className="border-t border-border px-4 py-2.5">
+                  <button
+                    onClick={() => { setNotifOpen(false); router.push("/dashboard/requests"); }}
+                    className="w-full text-center text-[12px] font-medium py-1 rounded-lg hover:bg-muted transition-colors"
+                    style={{ color: "var(--accent-primary)" }}
+                  >
+                    View all notifications
+                  </button>
+                </div>
+              </div>
+            </>
           )}
-        </button>
+        </div>
 
         {/* Theme toggle */}
         {mounted && (
@@ -175,77 +279,94 @@ export function Header({ onToggleSidebar, onToggleAI }: HeaderProps) {
           </button>
         )}
 
+        {/* Fullscreen toggle */}
+        <button
+          onClick={toggleFullscreen}
+          className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+          title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+        >
+          {isFullscreen ? (
+            <Minimize className="w-[18px] h-[18px]" />
+          ) : (
+            <Maximize className="w-[18px] h-[18px]" />
+          )}
+        </button>
+
         {/* Divider */}
         <div className="w-px h-7 bg-border mx-1.5 hidden sm:block" />
 
         {/* User menu */}
         <div className="relative">
           <button
-            onClick={() => setUserMenuOpen(!userMenuOpen)}
+            onClick={() => { setUserMenuOpen(!userMenuOpen); setNotifOpen(false); }}
             className="flex items-center gap-2 rounded-lg px-1.5 py-1 hover:bg-muted transition-colors"
             aria-label="User menu"
           >
             {user?.photo_url ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={user.photo_url} alt="" className="w-7 h-7 rounded-full object-cover ring-2 ring-border" />
+              <img src={user.photo_url} alt="" className="w-8 h-8 rounded-full object-cover ring-2 ring-border" />
             ) : (
-              <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[11px] font-bold ring-2 ring-border" style={{ background: "var(--accent-primary)" }}>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ring-2 ring-border" style={{ background: "var(--accent-primary)" }}>
                 {initials}
               </div>
             )}
-            <div className="hidden lg:block text-left max-w-[120px]">
-              <p className="text-xs font-medium text-foreground leading-none truncate">
-                {displayName}
-              </p>
-              <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
-                {roleName}
-              </p>
-            </div>
-            <ChevronDown className="hidden lg:block w-3.5 h-3.5 text-muted-foreground" />
+            <ChevronDown className="hidden sm:block w-3.5 h-3.5 text-muted-foreground" />
           </button>
           {userMenuOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
-              <div className="absolute right-0 top-full mt-1 w-64 rounded-xl border border-border bg-card shadow-xl z-50 overflow-hidden">
-                <div className="px-3.5 py-3 bg-muted/30">
-                  <div className="flex items-center gap-2.5">
+              <div className="absolute right-0 top-full mt-1.5 w-72 rounded-2xl border border-border bg-card shadow-2xl z-50 overflow-hidden">
+                {/* Accent header */}
+                <div className="relative px-4 pt-5 pb-4 overflow-hidden">
+                  <div className="absolute inset-0 opacity-[0.07]" style={{ background: "var(--accent-primary)" }} />
+                  <div className="absolute top-0 right-0 w-24 h-24 rounded-full opacity-[0.05] -translate-y-1/2 translate-x-1/3" style={{ background: "var(--accent-primary)" }} />
+                  <div className="relative flex items-center gap-3">
                     {user?.photo_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={user.photo_url} alt="" className="w-9 h-9 rounded-full object-cover shrink-0 ring-2 ring-border" />
+                      <img src={user.photo_url} alt="" className="w-11 h-11 rounded-xl object-cover shrink-0 ring-2 ring-white/20 shadow-sm" />
                     ) : (
-                      <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 ring-2 ring-border" style={{ background: "var(--accent-primary)" }}>
+                      <div className="w-11 h-11 rounded-xl flex items-center justify-center text-white text-sm font-bold shrink-0 shadow-sm" style={{ background: "var(--accent-primary)" }}>
                         {initials}
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-foreground truncate">{displayName}</p>
-                      <p className="text-[11px] text-muted-foreground truncate">@{user?.username}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-[13px] font-bold text-foreground truncate">{displayName}</p>
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 ring-2 ring-card" />
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{roleName}</p>
                     </div>
                   </div>
-                  <div className="mt-2">
-                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium" style={{ background: "var(--accent-bg)", color: "var(--accent-text)" }}>
-                      {roleName}
-                    </span>
+                </div>
+                {/* Info grid */}
+                <div className="px-3 pb-2 pt-1">
+                  <div className="rounded-lg bg-muted/40 divide-y divide-border/50">
+                    <div className="flex items-center gap-2.5 px-3 py-2">
+                      <MapPin className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
+                      <span className="text-[11px] text-foreground/80 truncate">{gpsLocation || "Locating..."}</span>
+                    </div>
+                    <div className="flex items-center gap-2.5 px-3 py-2">
+                      <Globe className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
+                      <span className="text-[11px] text-foreground/80 truncate">{user?.last_login_ip || "Unknown"}</span>
+                    </div>
+                    <div className="flex items-center gap-2.5 px-3 py-2">
+                      <Clock className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
+                      <span className="text-[11px] text-foreground/80 truncate">Last login: Today, {time}</span>
+                    </div>
                   </div>
                 </div>
-                <div className="py-1">
+                {/* Actions */}
+                <div className="px-3 pb-3 pt-1 space-y-0.5">
                   <button
-                    onClick={() => {
-                      setUserMenuOpen(false);
-                      router.push("/dashboard/account");
-                    }}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                    onClick={() => { setUserMenuOpen(false); router.push("/dashboard/account"); }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] font-medium text-foreground rounded-lg hover:bg-muted transition-colors"
                   >
                     <UserCog className="w-4 h-4 text-muted-foreground" /> My Account
                   </button>
-                </div>
-                <div className="border-t border-border py-1">
                   <button
-                    onClick={() => {
-                      setUserMenuOpen(false);
-                      logout();
-                    }}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+                    onClick={() => { setUserMenuOpen(false); logout(); }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] font-medium text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
                   >
                     <LogOut className="w-4 h-4" /> Sign Out
                   </button>
