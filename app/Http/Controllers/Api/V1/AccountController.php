@@ -5,9 +5,13 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\Platform\AuditLog;
 use App\Models\Platform\LoginLog;
+use App\Models\User;
 use App\Services\FileUploadService;
 use App\Services\SmsService;
+use chillerlan\QRCode\QRCode;
+use chillerlan\QRCode\QROptions;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -15,10 +19,14 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
+use PragmaRX\Google2FA\Google2FA;
 
 class AccountController extends Controller
 {
+    private const COOLDOWN_DAYS = 90;
+
     public function __construct(
         private readonly FileUploadService $fileUploadService,
         private readonly SmsService $smsService,
@@ -51,6 +59,9 @@ class AccountController extends Controller
             'photo_url' => $user->photo_url,
             'status' => $user->status,
             'last_login_at' => $user->last_login_at?->toIso8601String(),
+            'username_changed_at' => $user->username_changed_at?->toIso8601String(),
+            'password_changed_at' => $user->password_changed_at?->toIso8601String(),
+            'two_factor_enabled' => $user->hasTwoFactorEnabled(),
             'preferences' => $user->preferences,
             'roles' => $user->getRoleNames(),
             'barangay' => $user->barangay ? [
@@ -85,8 +96,33 @@ class AccountController extends Controller
         ]);
     }
 
+    // ════════════════════════════════════════════
+    // USERNAME (with cooldown)
+    // ════════════════════════════════════════════
+
     /**
-     * Update username.
+     * Check username availability.
+     *
+     * POST /api/v1/account/check-username
+     */
+    public function checkUsername(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'username' => ['required', 'string', 'min:3', 'max:100', 'regex:/^[a-zA-Z0-9_]+$/'],
+        ]);
+
+        $exists = User::where('username', $validated['username'])
+            ->where('id', '!=', $request->user()->id)
+            ->exists();
+
+        return response()->json([
+            'available' => ! $exists,
+            'message' => $exists ? 'Username is already taken.' : 'Username is available.',
+        ]);
+    }
+
+    /**
+     * Update username (90-day cooldown enforced).
      *
      * PATCH /api/v1/account/username
      */
@@ -96,10 +132,29 @@ class AccountController extends Controller
             'username' => ['required', 'string', 'min:3', 'max:100', 'regex:/^[a-zA-Z0-9_]+$/', 'unique:users,username,'.$request->user()->id],
         ]);
 
-        $request->user()->update($validated);
+        $user = $request->user();
+
+        // Check 90-day cooldown
+        if ($user->username_changed_at) {
+            $daysSince = (int) $user->username_changed_at->diffInDays(now());
+            if ($daysSince < self::COOLDOWN_DAYS) {
+                $daysLeft = self::COOLDOWN_DAYS - $daysSince;
+
+                return response()->json([
+                    'message' => 'Username can only be changed once every '.self::COOLDOWN_DAYS." days. {$daysLeft} days remaining.",
+                    'errors' => ['username' => ["You can change your username again on {$user->username_changed_at->addDays(self::COOLDOWN_DAYS)->format('M d, Y')}."]],
+                ], 422);
+            }
+        }
+
+        $user->update([
+            'username' => $validated['username'],
+            'username_changed_at' => now(),
+        ]);
 
         return response()->json([
             'message' => 'Username updated.',
+            'username_changed_at' => $user->username_changed_at->toIso8601String(),
         ]);
     }
 
@@ -115,15 +170,11 @@ class AccountController extends Controller
     public function uploadAvatar(Request $request): JsonResponse
     {
         $request->validate([
-            'avatar' => ['required', 'image', 'mimes:jpg,jpeg,png,gif,webp', 'max:2048'], // 2MB max
+            'avatar' => ['required', 'image', 'mimes:jpg,jpeg,png,gif,webp', 'max:2048'],
         ]);
 
         $user = $request->user();
-
-        // Set tenant context for RLS (files table is tenant-scoped)
         $this->setTenantContext($user);
-
-        // Delete old avatar file from storage if it exists
         $this->deleteOldAvatar($user);
 
         $file = $this->fileUploadService->uploadAvatar(
@@ -133,7 +184,6 @@ class AccountController extends Controller
         );
 
         $photoUrl = $this->fileUploadService->getPublicUrl($file);
-
         $user->update(['photo_url' => $photoUrl]);
 
         return response()->json([
@@ -150,12 +200,8 @@ class AccountController extends Controller
     public function deleteAvatar(Request $request): JsonResponse
     {
         $user = $request->user();
-
-        // Set tenant context for RLS
         $this->setTenantContext($user);
-
         $this->deleteOldAvatar($user);
-
         $user->update(['photo_url' => null]);
 
         return response()->json([
@@ -164,11 +210,11 @@ class AccountController extends Controller
     }
 
     // ════════════════════════════════════════════
-    // PASSWORD
+    // PASSWORD (with cooldown)
     // ════════════════════════════════════════════
 
     /**
-     * Change password.
+     * Change password (90-day cooldown enforced).
      *
      * PATCH /api/v1/account/password
      */
@@ -188,8 +234,22 @@ class AccountController extends Controller
             ], 422);
         }
 
+        // Check 90-day cooldown
+        if ($user->password_changed_at) {
+            $daysSince = (int) $user->password_changed_at->diffInDays(now());
+            if ($daysSince < self::COOLDOWN_DAYS) {
+                $daysLeft = self::COOLDOWN_DAYS - $daysSince;
+
+                return response()->json([
+                    'message' => 'Password can only be changed once every '.self::COOLDOWN_DAYS." days. {$daysLeft} days remaining.",
+                    'errors' => ['password' => ["You can change your password again on {$user->password_changed_at->addDays(self::COOLDOWN_DAYS)->format('M d, Y')}."]],
+                ], 422);
+            }
+        }
+
         $user->update([
             'password' => Hash::make($validated['password']),
+            'password_changed_at' => now(),
         ]);
 
         // Revoke all other tokens (keep current session)
@@ -198,15 +258,16 @@ class AccountController extends Controller
 
         return response()->json([
             'message' => 'Password changed. All other sessions have been signed out.',
+            'password_changed_at' => $user->password_changed_at->toIso8601String(),
         ]);
     }
 
     // ════════════════════════════════════════════
-    // SESSIONS
+    // SESSIONS (enhanced with device info)
     // ════════════════════════════════════════════
 
     /**
-     * Get active sessions (Sanctum tokens).
+     * Get active sessions (Sanctum tokens) with device details.
      *
      * GET /api/v1/account/sessions
      */
@@ -218,14 +279,24 @@ class AccountController extends Controller
         $tokens = $user->tokens()
             ->orderByDesc('last_used_at')
             ->get()
-            ->map(fn ($token) => [
-                'id' => $token->id,
-                'name' => $token->name,
-                'is_current' => $token->id === $currentTokenId,
-                'last_used_at' => $token->last_used_at?->toIso8601String(),
-                'created_at' => $token->created_at?->toIso8601String(),
-                'expires_at' => $token->expires_at?->toIso8601String(),
-            ]);
+            ->map(function ($token) use ($currentTokenId) {
+                $deviceInfo = $token->device_info ?? [];
+
+                return [
+                    'id' => $token->id,
+                    'name' => $token->name,
+                    'is_current' => $token->id === $currentTokenId,
+                    'ip_address' => $token->ip_address,
+                    'browser' => $deviceInfo['browser'] ?? 'Unknown',
+                    'browser_version' => $deviceInfo['browser_version'] ?? null,
+                    'platform' => $deviceInfo['platform'] ?? 'Unknown',
+                    'device_type' => $deviceInfo['device_type'] ?? 'desktop',
+                    'location' => $deviceInfo['location'] ?? null,
+                    'last_used_at' => $token->last_used_at?->toIso8601String(),
+                    'created_at' => $token->created_at?->toIso8601String(),
+                    'expires_at' => $token->expires_at?->toIso8601String(),
+                ];
+            });
 
         return response()->json([
             'sessions' => $tokens,
@@ -262,36 +333,314 @@ class AccountController extends Controller
     }
 
     // ════════════════════════════════════════════
-    // ACTIVITY
+    // ACTIVITY (enhanced with categories, pagination)
     // ════════════════════════════════════════════
 
     /**
-     * Get user activity log (login history).
+     * Get user activity log with filtering and pagination.
      *
      * GET /api/v1/account/activity
      */
     public function activity(Request $request): JsonResponse
     {
         $user = $request->user();
+        $type = $request->query('type', 'all');
+        $page = max(1, (int) $request->query('page', 1));
+        $perPage = 20;
 
-        // Set tenant context for RLS
         $this->setTenantContext($user);
 
-        $logs = LoginLog::where('user_id', $user->id)
-            ->orderByDesc('created_at')
-            ->limit(50)
-            ->get()
-            ->map(fn ($log) => [
-                'id' => $log->id,
-                'action' => $log->action,
-                'ip_address' => $log->ip_address,
-                'device_type' => $log->device_info['device_type'] ?? 'unknown',
-                'browser' => $log->device_info['browser'] ?? 'unknown',
-                'created_at' => $log->created_at?->toIso8601String(),
+        // Login/logout events from login_logs
+        $loginQuery = LoginLog::where('user_id', $user->id)
+            ->select([
+                'id',
+                'action',
+                DB::raw("'auth' as category"),
+                'ip_address',
+                'user_agent',
+                'device_info',
+                'created_at',
+                DB::raw('NULL as resource_type'),
+                DB::raw('NULL as resource_id'),
+                DB::raw('NULL as changes'),
+                DB::raw('NULL as module'),
             ]);
 
+        // Audit logs for non-auth events
+        $auditQuery = AuditLog::where('user_id', $user->id)
+            ->select([
+                'id',
+                'action',
+                DB::raw("COALESCE(module, 'system') as category"),
+                'ip_address',
+                'user_agent',
+                DB::raw('NULL as device_info'),
+                'created_at',
+                'resource_type',
+                'resource_id',
+                'changes',
+                'module',
+            ]);
+
+        // Apply type filter
+        if ($type !== 'all') {
+            $categoryMap = [
+                'auth' => ['login', 'logout', 'failed_login'],
+                'document' => 'document',
+                'resident' => 'resident',
+                'record' => 'record',
+                'settings' => 'settings',
+            ];
+
+            if ($type === 'auth') {
+                // Only login_logs for auth
+                $query = $loginQuery;
+            } else {
+                // Only audit_logs for other categories
+                $moduleFilter = $categoryMap[$type] ?? $type;
+                $query = $auditQuery->where(function ($q) use ($moduleFilter) {
+                    if (is_string($moduleFilter)) {
+                        $q->where('module', $moduleFilter);
+                    }
+                });
+            }
+        } else {
+            // Union both for "all"
+            $query = $loginQuery->unionAll($auditQuery);
+        }
+
+        // Get total count
+        if ($type === 'all') {
+            $loginCount = LoginLog::where('user_id', $user->id)->count();
+            $auditCount = AuditLog::where('user_id', $user->id)->count();
+            $total = $loginCount + $auditCount;
+        } elseif ($type === 'auth') {
+            $total = LoginLog::where('user_id', $user->id)->count();
+        } else {
+            $moduleFilter = $categoryMap[$type] ?? $type;
+            $total = AuditLog::where('user_id', $user->id)
+                ->where('module', $moduleFilter)
+                ->count();
+        }
+
+        // Paginate
+        $offset = ($page - 1) * $perPage;
+
+        if ($type === 'all') {
+            $results = DB::query()
+                ->fromSub($query, 'combined')
+                ->orderByDesc('created_at')
+                ->offset($offset)
+                ->limit($perPage)
+                ->get();
+        } else {
+            $results = $query
+                ->orderByDesc('created_at')
+                ->offset($offset)
+                ->limit($perPage)
+                ->get();
+        }
+
+        $activity = $results->map(function ($log) {
+            $deviceInfo = is_string($log->device_info) ? json_decode($log->device_info, true) : ($log->device_info ?? []);
+            $changes = is_string($log->changes) ? json_decode($log->changes, true) : ($log->changes ?? null);
+
+            return [
+                'id' => $log->id,
+                'action' => $log->action,
+                'category' => $log->category ?? 'system',
+                'description' => $this->formatActivityDescription($log->action, $log->resource_type, $changes),
+                'ip_address' => $log->ip_address ?? 'Unknown',
+                'device_type' => $deviceInfo['device_type'] ?? 'unknown',
+                'browser' => $deviceInfo['browser'] ?? 'unknown',
+                'metadata' => $changes ? ['changes' => $changes] : null,
+                'created_at' => $log->created_at,
+            ];
+        });
+
         return response()->json([
-            'activity' => $logs,
+            'activity' => $activity,
+            'total' => $total,
+            'has_more' => ($offset + $perPage) < $total,
+        ]);
+    }
+
+    // ════════════════════════════════════════════
+    // TWO-FACTOR AUTHENTICATION (TOTP)
+    // ════════════════════════════════════════════
+
+    /**
+     * Setup 2FA: generate secret + QR code.
+     *
+     * POST /api/v1/account/2fa/setup
+     */
+    public function setup2FA(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if ($user->hasTwoFactorEnabled()) {
+            return response()->json([
+                'message' => 'Two-factor authentication is already enabled.',
+            ], 422);
+        }
+
+        $google2fa = new Google2FA;
+        $secret = $google2fa->generateSecretKey(32);
+
+        // Store secret temporarily (not confirmed yet)
+        $user->update([
+            'two_factor_secret' => $secret,
+            'two_factor_confirmed_at' => null,
+        ]);
+
+        // Generate QR code as data URI
+        $otpauthUrl = $google2fa->getQRCodeUrl(
+            'Kapitan.ph',
+            $user->username,
+            $secret
+        );
+
+        $qrCode = $this->generateQrCodeDataUri($otpauthUrl);
+
+        // Pre-generate recovery codes (stored on enable, not setup)
+        $recoveryCodes = $this->generateRecoveryCodes();
+
+        return response()->json([
+            'secret' => $secret,
+            'qr_code' => $qrCode,
+            'recovery_codes' => $recoveryCodes,
+        ]);
+    }
+
+    /**
+     * Enable 2FA by verifying the TOTP code.
+     *
+     * POST /api/v1/account/2fa/enable
+     */
+    public function enable2FA(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'code' => ['required', 'string', 'size:6'],
+        ]);
+
+        $user = $request->user();
+
+        if ($user->hasTwoFactorEnabled()) {
+            return response()->json([
+                'message' => 'Two-factor authentication is already enabled.',
+            ], 422);
+        }
+
+        if (! $user->two_factor_secret) {
+            return response()->json([
+                'message' => 'Please set up 2FA first.',
+            ], 422);
+        }
+
+        $google2fa = new Google2FA;
+
+        if (! $google2fa->verifyKey($user->two_factor_secret, $validated['code'])) {
+            return response()->json([
+                'message' => 'Invalid verification code. Please try again.',
+            ], 422);
+        }
+
+        $recoveryCodes = $this->generateRecoveryCodes();
+
+        $user->update([
+            'two_factor_confirmed_at' => now(),
+            'two_factor_recovery_codes' => $recoveryCodes,
+        ]);
+
+        Log::info('2FA enabled', ['user_id' => $user->id]);
+
+        return response()->json([
+            'message' => 'Two-factor authentication enabled successfully.',
+            'recovery_codes' => $recoveryCodes,
+        ]);
+    }
+
+    /**
+     * Disable 2FA (requires password verification).
+     *
+     * POST /api/v1/account/2fa/disable
+     */
+    public function disable2FA(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'password' => ['required', 'string'],
+        ]);
+
+        $user = $request->user();
+
+        if (! $user->hasTwoFactorEnabled()) {
+            return response()->json([
+                'message' => 'Two-factor authentication is not enabled.',
+            ], 422);
+        }
+
+        if (! Hash::check($validated['password'], $user->password)) {
+            return response()->json([
+                'message' => 'Incorrect password.',
+                'errors' => ['password' => ['Incorrect password.']],
+            ], 422);
+        }
+
+        $user->update([
+            'two_factor_secret' => null,
+            'two_factor_confirmed_at' => null,
+            'two_factor_recovery_codes' => null,
+        ]);
+
+        Log::info('2FA disabled', ['user_id' => $user->id]);
+
+        return response()->json([
+            'message' => 'Two-factor authentication has been disabled.',
+        ]);
+    }
+
+    /**
+     * Get recovery codes.
+     *
+     * GET /api/v1/account/2fa/recovery-codes
+     */
+    public function getRecoveryCodes(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (! $user->hasTwoFactorEnabled()) {
+            return response()->json([
+                'message' => 'Two-factor authentication is not enabled.',
+            ], 422);
+        }
+
+        return response()->json([
+            'recovery_codes' => $user->two_factor_recovery_codes ?? [],
+        ]);
+    }
+
+    /**
+     * Regenerate recovery codes.
+     *
+     * POST /api/v1/account/2fa/recovery-codes/regenerate
+     */
+    public function regenerateRecoveryCodes(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (! $user->hasTwoFactorEnabled()) {
+            return response()->json([
+                'message' => 'Two-factor authentication is not enabled.',
+            ], 422);
+        }
+
+        $recoveryCodes = $this->generateRecoveryCodes();
+        $user->update(['two_factor_recovery_codes' => $recoveryCodes]);
+
+        Log::info('2FA recovery codes regenerated', ['user_id' => $user->id]);
+
+        return response()->json([
+            'recovery_codes' => $recoveryCodes,
         ]);
     }
 
@@ -313,7 +662,6 @@ class AccountController extends Controller
         $user = $request->user();
         $barangay = $user->barangay;
 
-        // Estimate cost (OTP messages are ~65 chars = 1 segment)
         $estimatedCost = SmsService::costPerSegment();
 
         if ($barangay && ! $barangay->hasSmsCredits($estimatedCost)) {
@@ -387,7 +735,6 @@ class AccountController extends Controller
         $email = $validated['email'];
         $otp = (string) random_int(100000, 999999);
 
-        // Store OTP in cache with 5-minute TTL
         Cache::put("email_otp:{$user->id}:{$email}", $otp, now()->addMinutes(5));
 
         try {
@@ -438,11 +785,9 @@ class AccountController extends Controller
             ], 422);
         }
 
-        // Delete used OTP
         Cache::forget($cacheKey);
 
-        // Check uniqueness (another user might have this email)
-        $existing = \App\Models\User::where('email', $email)
+        $existing = User::where('email', $email)
             ->where('id', '!=', $user->id)
             ->exists();
 
@@ -478,8 +823,6 @@ class AccountController extends Controller
     public function requestDataExport(Request $request): JsonResponse
     {
         $user = $request->user();
-
-        // Set tenant context for RLS
         $this->setTenantContext($user);
 
         $data = [
@@ -520,6 +863,35 @@ class AccountController extends Controller
         return response()->json([
             'message' => 'Data export generated.',
             'data' => $data,
+        ]);
+    }
+
+    // ════════════════════════════════════════════
+    // ACCOUNT DELETION REQUEST
+    // ════════════════════════════════════════════
+
+    /**
+     * Request account deletion (RA 10173 Section 19 right to erasure).
+     *
+     * POST /api/v1/account/request-deletion
+     */
+    public function requestDeletion(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $preferences = $user->preferences ?? [];
+        $preferences['deletion_requested'] = true;
+        $preferences['deletion_requested_at'] = now()->toIso8601String();
+
+        $user->update(['preferences' => $preferences]);
+
+        Log::warning('Account deletion requested', [
+            'user_id' => $user->id,
+            'username' => $user->username,
+        ]);
+
+        return response()->json([
+            'message' => 'Account deletion request submitted. Your barangay administrator will process your request within 30 days as required by RA 10173.',
         ]);
     }
 
@@ -577,7 +949,6 @@ class AccountController extends Controller
             return;
         }
 
-        // Find the file record by matching the URL
         $file = \App\Models\Admin\File::where('uploaded_by', $user->id)
             ->where('category', 'avatar')
             ->latest()
@@ -586,5 +957,52 @@ class AccountController extends Controller
         if ($file) {
             $this->fileUploadService->delete($file);
         }
+    }
+
+    private function generateRecoveryCodes(int $count = 8): array
+    {
+        $codes = [];
+        for ($i = 0; $i < $count; $i++) {
+            $codes[] = Str::upper(Str::random(4).'-'.Str::random(4));
+        }
+
+        return $codes;
+    }
+
+    private function generateQrCodeDataUri(string $data): string
+    {
+        $options = new QROptions([
+            'outputType' => QRCode::OUTPUT_MARKUP_SVG,
+            'eccLevel' => QRCode::ECC_M,
+            'scale' => 5,
+            'imageBase64' => false,
+            'addQuietzone' => true,
+        ]);
+
+        $qr = new QRCode($options);
+        $svg = $qr->render($data);
+
+        return 'data:image/svg+xml;base64,'.base64_encode($svg);
+    }
+
+    private function formatActivityDescription(string $action, ?string $resourceType, mixed $changes): string
+    {
+        $descriptions = [
+            'login' => 'Signed in to your account',
+            'logout' => 'Signed out of your account',
+            'failed_login' => 'Failed sign-in attempt',
+            'create' => 'Created '.($resourceType ? str_replace('_', ' ', $resourceType) : 'a record'),
+            'update' => 'Updated '.($resourceType ? str_replace('_', ' ', $resourceType) : 'a record'),
+            'delete' => 'Deleted '.($resourceType ? str_replace('_', ' ', $resourceType) : 'a record'),
+            'view' => 'Viewed '.($resourceType ? str_replace('_', ' ', $resourceType) : 'a record'),
+            'export' => 'Exported '.($resourceType ? str_replace('_', ' ', $resourceType) : 'data'),
+            'print' => 'Printed '.($resourceType ? str_replace('_', ' ', $resourceType) : 'a document'),
+            '2fa_enabled' => 'Two-factor authentication enabled',
+            '2fa_disabled' => 'Two-factor authentication disabled',
+            'password_changed' => 'Password changed',
+            'username_changed' => 'Username changed',
+        ];
+
+        return $descriptions[$action] ?? ucfirst(str_replace('_', ' ', $action));
     }
 }

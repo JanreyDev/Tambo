@@ -78,6 +78,18 @@ class AuthController extends Controller
             now()->addDays(30) // Token expires in 30 days
         );
 
+        // Store device info in the token for session tracking
+        $token->accessToken->update([
+            'ip_address' => $request->ip(),
+            'device_info' => [
+                'device_type' => $this->detectDeviceType($request->userAgent()),
+                'browser' => $this->detectBrowser($request->userAgent()),
+                'browser_version' => $this->detectBrowserVersion($request->userAgent()),
+                'platform' => $this->detectPlatform($request->userAgent()),
+                'location' => null, // IP geolocation can be added later
+            ],
+        ]);
+
         // Record login
         $user->recordLogin(
             $request->ip(),
@@ -356,6 +368,9 @@ class AuthController extends Controller
             'is_super_admin' => $user->is_super_admin,
             'status' => $user->status,
             'last_login_at' => $user->last_login_at?->toIso8601String(),
+            'username_changed_at' => $user->username_changed_at?->toIso8601String(),
+            'password_changed_at' => $user->password_changed_at?->toIso8601String(),
+            'two_factor_enabled' => $user->hasTwoFactorEnabled(),
             'preferences' => $user->preferences,
             'barangay' => $user->barangay ? [
                 'id' => $user->barangay->id,
@@ -394,7 +409,7 @@ class AuthController extends Controller
     private function detectBrowser(?string $userAgent): string
     {
         if (! $userAgent) {
-            return 'unknown';
+            return 'Unknown';
         }
 
         if (str_contains($userAgent, 'Firefox')) {
@@ -413,6 +428,57 @@ class AuthController extends Controller
             return 'Safari';
         }
 
-        return 'other';
+        return 'Other';
+    }
+
+    private function detectBrowserVersion(?string $userAgent): ?string
+    {
+        if (! $userAgent) {
+            return null;
+        }
+
+        $patterns = [
+            'Firefox' => '/Firefox\/([\d.]+)/',
+            'Edg' => '/Edg\/([\d.]+)/',
+            'Chrome' => '/Chrome\/([\d.]+)/',
+            'Safari' => '/Version\/([\d.]+)/',
+        ];
+
+        foreach ($patterns as $browser => $pattern) {
+            if (str_contains($userAgent, $browser) && preg_match($pattern, $userAgent, $matches)) {
+                return $matches[1];
+            }
+        }
+
+        return null;
+    }
+
+    private function detectPlatform(?string $userAgent): string
+    {
+        if (! $userAgent) {
+            return 'Unknown';
+        }
+
+        if (str_contains($userAgent, 'Windows')) {
+            return 'Windows';
+        }
+
+        if (str_contains($userAgent, 'Macintosh') || str_contains($userAgent, 'Mac OS')) {
+            return 'macOS';
+        }
+
+        if (str_contains($userAgent, 'Linux') && ! str_contains($userAgent, 'Android')) {
+            return 'Linux';
+        }
+
+        if (str_contains($userAgent, 'Android')) {
+            return 'Android';
+        }
+
+        if (str_contains($userAgent, 'iPhone') || str_contains($userAgent, 'iPad')) {
+            return 'iOS';
+        }
+
+        return 'Unknown';
     }
 }

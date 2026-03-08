@@ -91,6 +91,8 @@ Route::prefix('v1')->group(function () {
         Route::prefix('account')->group(function () {
             Route::get('profile', [AccountController::class, 'profile']);
             Route::patch('profile', [AccountController::class, 'updateProfile']);
+            Route::post('check-username', [AccountController::class, 'checkUsername'])
+                ->middleware('throttle:10,1');
             Route::patch('username', [AccountController::class, 'updateUsername']);
             Route::post('avatar', [AccountController::class, 'uploadAvatar']);
             Route::delete('avatar', [AccountController::class, 'deleteAvatar']);
@@ -108,6 +110,16 @@ Route::prefix('v1')->group(function () {
             Route::post('email/verify', [AccountController::class, 'verifyEmail'])
                 ->middleware('throttle:5,1');
             Route::post('data-export', [AccountController::class, 'requestDataExport']);
+            Route::post('request-deletion', [AccountController::class, 'requestDeletion']);
+
+            // Two-factor authentication
+            Route::prefix('2fa')->group(function () {
+                Route::post('setup', [AccountController::class, 'setup2FA']);
+                Route::post('enable', [AccountController::class, 'enable2FA']);
+                Route::post('disable', [AccountController::class, 'disable2FA']);
+                Route::get('recovery-codes', [AccountController::class, 'getRecoveryCodes']);
+                Route::post('recovery-codes/regenerate', [AccountController::class, 'regenerateRecoveryCodes']);
+            });
         });
 
         // Platform updates (no tenant context needed)
