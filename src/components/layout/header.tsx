@@ -1,10 +1,11 @@
 "use client";
 
-import { Bell, Search, Moon, Sun, Menu, LogOut, ChevronDown, UserCog, Bot, Maximize, Minimize, MapPin, Clock, Globe, Crown, FileText, UserPlus, AlertTriangle, CheckCircle, X } from "lucide-react";
+import { Bell, Search, Moon, Sun, Menu, LogOut, ChevronDown, UserCog, Bot, Maximize, Minimize, MapPin, Clock, Globe, Crown, FileText, UserPlus, AlertTriangle, CheckCircle, X, HelpCircle, Languages } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useState, useEffect, useCallback, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
+import { useLanguage } from "@/contexts/language-context";
 import { persistThemePreference } from "@/hooks/use-theme-store";
 import { cn } from "@/lib/utils";
 
@@ -75,6 +76,8 @@ export function Header({ onToggleSidebar, onToggleAI }: HeaderProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [gpsLocation, setGpsLocation] = useState<string | null>(null);
 
+  const { language, toggleLanguage, t } = useLanguage();
+
   // Get GPS location on mount
   const fetchLocation = useCallback(() => {
     if (!navigator.geolocation) return;
@@ -100,10 +103,10 @@ export function Header({ onToggleSidebar, onToggleAI }: HeaderProps) {
 
   // Mock notifications (will be API-driven later)
   const notifications = [
-    { id: "1", type: "request" as const, title: "New certificate request", desc: "Valderrama, Nida requested a Barangay Clearance", time: "2 hours ago", read: false },
-    { id: "2", type: "resident" as const, title: "New resident registered", desc: "Garcia, Ana L. was added to Purok 3", time: "5 hours ago", read: false },
-    { id: "3", type: "alert" as const, title: "Blotter case filed", desc: "New blotter record #BLT-2026-0047 needs review", time: "1 day ago", read: false },
-    { id: "4", type: "system" as const, title: "System update completed", desc: "BCMP v5.0.1 patch applied successfully", time: "2 days ago", read: true },
+    { id: "1", type: "request" as const, title: t.notifications.newRequest, desc: "Valderrama, Nida requested a Barangay Clearance", time: "2 hours ago", read: false },
+    { id: "2", type: "resident" as const, title: t.notifications.newResident, desc: "Garcia, Ana L. was added to Purok 3", time: "5 hours ago", read: false },
+    { id: "3", type: "alert" as const, title: t.notifications.blotterFiled, desc: "New blotter record #BLT-2026-0047 needs review", time: "1 day ago", read: false },
+    { id: "4", type: "system" as const, title: t.notifications.systemUpdate, desc: "BCMP v5.0.1 patch applied successfully", time: "2 days ago", read: true },
   ];
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -161,11 +164,11 @@ export function Header({ onToggleSidebar, onToggleAI }: HeaderProps) {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
         <input
           type="text"
-          placeholder="Search residents, documents, cases..."
+          placeholder={t.header.search}
           onFocus={() => setSearchFocused(true)}
           onBlur={() => setSearchFocused(false)}
           className="w-full pl-9 pr-16 py-1.5 rounded-lg border border-border bg-muted/40 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-accent-ring focus:border-accent-ring focus:bg-card transition-all"
-          aria-label="Search"
+          aria-label={t.common.search}
         />
         <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
           <kbd className="hidden sm:inline-flex h-5 items-center rounded border border-border/60 bg-muted/60 px-1.5 text-[10px] font-mono text-muted-foreground/70">
@@ -179,12 +182,35 @@ export function Header({ onToggleSidebar, onToggleAI }: HeaderProps) {
 
       {/* Right side actions */}
       <div className="flex items-center gap-0.5">
+        {/* Language switcher */}
+        <button
+          onClick={toggleLanguage}
+          className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          aria-label={`Switch language to ${language === "en" ? "Filipino" : "English"}`}
+          title={`${t.header.language} — ${language === "en" ? "Switch to Filipino" : "Switch to English"}`}
+        >
+          <Languages className="w-[18px] h-[18px]" />
+          <span className="text-[11px] font-semibold uppercase tracking-wide hidden sm:inline">
+            {language === "en" ? "EN" : "FIL"}
+          </span>
+        </button>
+
+        {/* Help */}
+        <button
+          onClick={() => router.push("/dashboard/help")}
+          className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          aria-label={t.header.help}
+          title={t.header.help}
+        >
+          <HelpCircle className="w-[18px] h-[18px]" />
+        </button>
+
         {/* Mabini AI */}
         <button
           onClick={() => router.push("/dashboard/ai")}
           className="relative p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors group"
-          aria-label="Mabini AI"
-          title="Mabini AI"
+          aria-label={t.header.mabiniAi}
+          title={t.header.mabiniAi}
         >
           <Bot className="w-[18px] h-[18px]" />
           <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-emerald-500 ring-2 ring-card" />
@@ -195,8 +221,8 @@ export function Header({ onToggleSidebar, onToggleAI }: HeaderProps) {
           <button
             onClick={() => { setNotifOpen(!notifOpen); setUserMenuOpen(false); }}
             className="relative p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            aria-label={`Notifications (${notifCount} unread)`}
-            title="Notifications"
+            aria-label={`${t.header.notifications} (${notifCount} unread)`}
+            title={t.header.notifications}
           >
             <Bell className="w-[18px] h-[18px]" />
             {notifCount > 0 && (
@@ -212,7 +238,7 @@ export function Header({ onToggleSidebar, onToggleAI }: HeaderProps) {
                 {/* Header */}
                 <div className="flex items-center justify-between px-4 py-3 border-b border-border">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-semibold text-foreground">Notifications</h3>
+                    <h3 className="text-sm font-semibold text-foreground">{t.header.notifications}</h3>
                     {unreadCount > 0 && (
                       <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full text-[10px] font-bold text-white px-1.5" style={{ background: "var(--accent-primary)" }}>
                         {unreadCount}
@@ -255,7 +281,7 @@ export function Header({ onToggleSidebar, onToggleAI }: HeaderProps) {
                     className="w-full text-center text-[12px] font-medium py-1 rounded-lg hover:bg-muted transition-colors"
                     style={{ color: "var(--accent-primary)" }}
                   >
-                    View all notifications
+                    {t.header.viewAllNotifications}
                   </button>
                 </div>
               </div>
@@ -268,8 +294,8 @@ export function Header({ onToggleSidebar, onToggleAI }: HeaderProps) {
           <button
             onClick={() => { const next = theme === "dark" ? "light" : "dark"; setTheme(next); persistThemePreference(next); }}
             className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-            title={theme === "dark" ? "Light mode" : "Dark mode"}
+            aria-label={theme === "dark" ? t.header.lightMode : t.header.darkMode}
+            title={theme === "dark" ? t.header.lightMode : t.header.darkMode}
           >
             {theme === "dark" ? (
               <Sun className="w-[18px] h-[18px]" />
@@ -283,8 +309,8 @@ export function Header({ onToggleSidebar, onToggleAI }: HeaderProps) {
         <button
           onClick={toggleFullscreen}
           className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-          title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+          aria-label={isFullscreen ? t.header.exitFullscreen : t.header.fullscreen}
+          title={isFullscreen ? t.header.exitFullscreen : t.header.fullscreen}
         >
           {isFullscreen ? (
             <Minimize className="w-[18px] h-[18px]" />
@@ -344,7 +370,7 @@ export function Header({ onToggleSidebar, onToggleAI }: HeaderProps) {
                   <div className="rounded-lg bg-muted/40 divide-y divide-border/50">
                     <div className="flex items-center gap-2.5 px-3 py-2">
                       <MapPin className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
-                      <span className="text-[11px] text-foreground/80 truncate">{gpsLocation || "Locating..."}</span>
+                      <span className="text-[11px] text-foreground/80 truncate">{gpsLocation || t.header.locating}</span>
                     </div>
                     <div className="flex items-center gap-2.5 px-3 py-2">
                       <Globe className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
@@ -352,7 +378,7 @@ export function Header({ onToggleSidebar, onToggleAI }: HeaderProps) {
                     </div>
                     <div className="flex items-center gap-2.5 px-3 py-2">
                       <Clock className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
-                      <span className="text-[11px] text-foreground/80 truncate">Last login: Today, {time}</span>
+                      <span className="text-[11px] text-foreground/80 truncate">{t.header.lastLogin}: {t.header.today}, {time}</span>
                     </div>
                   </div>
                 </div>
@@ -362,13 +388,13 @@ export function Header({ onToggleSidebar, onToggleAI }: HeaderProps) {
                     onClick={() => { setUserMenuOpen(false); router.push("/dashboard/account"); }}
                     className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] font-medium text-foreground rounded-lg hover:bg-muted transition-colors"
                   >
-                    <UserCog className="w-4 h-4 text-muted-foreground" /> My Account
+                    <UserCog className="w-4 h-4 text-muted-foreground" /> {t.header.myAccount}
                   </button>
                   <button
                     onClick={() => { setUserMenuOpen(false); logout(); }}
                     className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] font-medium text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
                   >
-                    <LogOut className="w-4 h-4" /> Sign Out
+                    <LogOut className="w-4 h-4" /> {t.header.signOut}
                   </button>
                 </div>
               </div>

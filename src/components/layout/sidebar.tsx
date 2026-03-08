@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
+import { useLanguage } from "@/contexts/language-context";
 import {
   LayoutDashboard,
   Users,
@@ -27,80 +28,82 @@ import {
   HardDrive,
   MessageCircle,
   ChevronDown,
+  HelpCircle,
 } from "lucide-react";
 import { useState } from "react";
 
-interface NavItem {
-  label: string;
+interface NavItemDef {
+  labelKey: string;
   href: string;
   icon: React.ElementType;
   badge?: number;
 }
 
-interface NavGroup {
-  title: string;
-  items: NavItem[];
+interface NavGroupDef {
+  titleKey: string;
+  items: NavItemDef[];
   collapsible?: boolean;
 }
 
-const navGroups: NavGroup[] = [
+const navGroupDefs: NavGroupDef[] = [
   {
-    title: "OVERVIEW",
+    titleKey: "overview",
     items: [
-      { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-      { label: "Map", href: "/dashboard/map", icon: Map },
+      { labelKey: "dashboard", href: "/dashboard", icon: LayoutDashboard },
+      { labelKey: "map", href: "/dashboard/map", icon: Map },
     ],
   },
   {
-    title: "RECORDS",
+    titleKey: "records",
     items: [
-      { label: "Residents", href: "/dashboard/residents", icon: Users },
-      { label: "Establishments", href: "/dashboard/establishments", icon: Building2 },
-      { label: "Lots & Buildings", href: "/dashboard/lots-buildings", icon: MapPin },
-      { label: "Voters", href: "/dashboard/voters", icon: ClipboardList },
+      { labelKey: "residents", href: "/dashboard/residents", icon: Users },
+      { labelKey: "establishments", href: "/dashboard/establishments", icon: Building2 },
+      { labelKey: "lotsBuildings", href: "/dashboard/lots-buildings", icon: MapPin },
+      { labelKey: "voters", href: "/dashboard/voters", icon: ClipboardList },
     ],
   },
   {
-    title: "JUDICIAL",
+    titleKey: "judicial",
     items: [
-      { label: "Case Records", href: "/dashboard/judicial/kp-cases", icon: Scale },
-      { label: "Blotter Records", href: "/dashboard/judicial/blotter", icon: Gavel },
-      { label: "VAWC Records", href: "/dashboard/vawc", icon: Shield },
+      { labelKey: "caseRecords", href: "/dashboard/judicial/kp-cases", icon: Scale },
+      { labelKey: "blotterRecords", href: "/dashboard/judicial/blotter", icon: Gavel },
+      { labelKey: "vawcRecords", href: "/dashboard/vawc", icon: Shield },
     ],
   },
   {
-    title: "SERVICES",
+    titleKey: "services",
     items: [
-      { label: "Documents", href: "/dashboard/documents", icon: FileText },
-      { label: "Requests", href: "/dashboard/requests", icon: Receipt },
-      { label: "Reports", href: "/dashboard/reports", icon: BarChart3 },
+      { labelKey: "documents", href: "/dashboard/documents", icon: FileText },
+      { labelKey: "requests", href: "/dashboard/requests", icon: Receipt },
+      { labelKey: "reports", href: "/dashboard/reports", icon: BarChart3 },
     ],
   },
   {
-    title: "TOOLS",
+    titleKey: "tools",
     items: [
-      { label: "Mabini AI", href: "/dashboard/ai", icon: Bot },
-      { label: "Drive", href: "/dashboard/drive", icon: HardDrive },
-      { label: "Public Portal", href: "/dashboard/public-portal", icon: Globe },
-      { label: "Support Tickets", href: "/dashboard/support", icon: MessageCircle },
+      { labelKey: "mabiniAi", href: "/dashboard/ai", icon: Bot },
+      { labelKey: "drive", href: "/dashboard/drive", icon: HardDrive },
+      { labelKey: "publicPortal", href: "/dashboard/public-portal", icon: Globe },
+      { labelKey: "supportTickets", href: "/dashboard/support", icon: MessageCircle },
     ],
   },
   {
-    title: "OPERATIONS",
+    titleKey: "operations",
     collapsible: true,
     items: [
-      { label: "Tanod", href: "/dashboard/tanod", icon: Shield },
-      { label: "Finance", href: "/dashboard/finance", icon: Receipt },
-      { label: "Inventory", href: "/dashboard/inventory", icon: Package },
-      { label: "Disaster/DRRM", href: "/dashboard/disaster", icon: AlertTriangle },
-      { label: "GAD", href: "/dashboard/gad", icon: Heart },
-      { label: "HRIS", href: "/dashboard/hris", icon: UserCog },
+      { labelKey: "tanod", href: "/dashboard/tanod", icon: Shield },
+      { labelKey: "finance", href: "/dashboard/finance", icon: Receipt },
+      { labelKey: "inventory", href: "/dashboard/inventory", icon: Package },
+      { labelKey: "disasterDrrm", href: "/dashboard/disaster", icon: AlertTriangle },
+      { labelKey: "gad", href: "/dashboard/gad", icon: Heart },
+      { labelKey: "hris", href: "/dashboard/hris", icon: UserCog },
     ],
   },
   {
-    title: "",
+    titleKey: "",
     items: [
-      { label: "Settings", href: "/dashboard/settings", icon: Settings },
+      { labelKey: "settings", href: "/dashboard/settings", icon: Settings },
+      { labelKey: "helpManual", href: "/dashboard/help", icon: HelpCircle },
     ],
   },
 ];
@@ -108,6 +111,7 @@ const navGroups: NavGroup[] = [
 export function Sidebar() {
   const pathname = usePathname();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
   const barangay = user?.barangay;
@@ -119,8 +123,13 @@ export function Sidebar() {
   const isActive = (href: string) =>
     pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
 
-  const toggleGroup = (title: string) => {
-    setCollapsedGroups((prev) => ({ ...prev, [title]: !prev[title] }));
+  const toggleGroup = (titleKey: string) => {
+    setCollapsedGroups((prev) => ({ ...prev, [titleKey]: !prev[titleKey] }));
+  };
+
+  // Resolve translation key to label
+  const navLabel = (key: string): string => {
+    return (t.nav as Record<string, string>)[key] || key;
   };
 
   return (
@@ -158,20 +167,21 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-2 pb-3 mt-1">
-        {navGroups.map((group, gi) => {
-          const isCollapsed = group.collapsible && collapsedGroups[group.title];
+        {navGroupDefs.map((group, gi) => {
+          const isCollapsed = group.collapsible && collapsedGroups[group.titleKey];
+          const groupTitle = group.titleKey ? navLabel(group.titleKey) : "";
 
           return (
             <div key={gi} className="mb-1">
-              {group.title && (
+              {groupTitle && (
                 <button
-                  onClick={group.collapsible ? () => toggleGroup(group.title) : undefined}
+                  onClick={group.collapsible ? () => toggleGroup(group.titleKey) : undefined}
                   className={cn(
                     "flex items-center justify-between w-full px-2.5 py-1.5 text-[10px] font-semibold text-muted-foreground/70 tracking-widest uppercase",
                     group.collapsible && "hover:text-muted-foreground cursor-pointer transition-colors"
                   )}
                 >
-                  <span>{group.title}</span>
+                  <span>{groupTitle}</span>
                   {group.collapsible && (
                     <ChevronDown className={cn("w-3 h-3 transition-transform", isCollapsed && "-rotate-90")} />
                   )}
@@ -182,6 +192,7 @@ export function Sidebar() {
                   {group.items.map((item) => {
                     const Icon = item.icon;
                     const active = isActive(item.href);
+                    const label = navLabel(item.labelKey);
                     return (
                       <Link
                         key={item.href}
@@ -195,7 +206,7 @@ export function Sidebar() {
                         style={active ? { color: "var(--accent-primary)", background: "var(--accent-bg)" } : undefined}
                       >
                         <Icon className="w-4 h-4 shrink-0" />
-                        <span className="flex-1 truncate">{item.label}</span>
+                        <span className="flex-1 truncate">{label}</span>
                         {item.badge !== undefined && (
                           <span
                             className={cn(
