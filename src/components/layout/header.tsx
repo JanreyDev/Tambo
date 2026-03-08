@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Search, Moon, Sun, Bot, Menu, LogOut, ChevronDown, UserCog, Sparkles, X } from "lucide-react";
+import { Bell, Search, Moon, Sun, Menu, LogOut, ChevronDown, UserCog, Sparkles } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useState, useEffect, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
@@ -21,23 +21,26 @@ function formatRole(roles?: string[]): string {
   return roles[0].replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function formatPHTime(): string {
+  const now = new Date();
+  const ph = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Manila" }));
+  const hours = ph.getHours();
+  const minutes = ph.getMinutes();
+  const seconds = ph.getSeconds();
+  const ampm = hours >= 12 ? "PM" : "AM";
+  const h12 = hours % 12 || 12;
+  return `${h12}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")} ${ampm}`;
+}
+
 function usePhilippineTime() {
-  const [time, setTime] = useState<string>("");
+  const [time, setTime] = useState<string>(() =>
+    typeof window === "undefined" ? "" : formatPHTime()
+  );
 
   useEffect(() => {
-    function update() {
-      const now = new Date();
-      const ph = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Manila" }));
-      const hours = ph.getHours();
-      const minutes = ph.getMinutes();
-      const seconds = ph.getSeconds();
-      const ampm = hours >= 12 ? "PM" : "AM";
-      const h12 = hours % 12 || 12;
-      const timeStr = `${h12}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")} ${ampm}`;
-      setTime(timeStr);
-    }
-    update();
-    const interval = setInterval(update, 1000);
+    const interval = setInterval(() => {
+      setTime(formatPHTime());
+    }, 1000);
     return () => clearInterval(interval);
   }, []);
 
@@ -45,17 +48,16 @@ function usePhilippineTime() {
 }
 
 function usePhilippineDate() {
-  const [date, setDate] = useState<string>("");
-  useEffect(() => {
-    const now = new Date();
-    setDate(now.toLocaleDateString("en-PH", {
+  const [date] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    return new Date().toLocaleDateString("en-PH", {
       timeZone: "Asia/Manila",
       weekday: "short",
       year: "numeric",
       month: "short",
       day: "numeric",
-    }));
-  }, []);
+    });
+  });
   return date;
 }
 
