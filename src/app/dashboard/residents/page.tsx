@@ -568,7 +568,7 @@ export default function ResidentsPage() {
 
   // ── Photo Analysis (runs entirely in browser — zero cost) ──
   const analyzePhoto = useCallback(async (imageDataUrl: string): Promise<PhotoAnalysis> => {
-    const img = new Image();
+    const img = new globalThis.Image();
     const imgLoaded = await new Promise<boolean>((resolve) => { img.onload = () => resolve(true); img.onerror = () => resolve(false); img.src = imageDataUrl; });
     if (!imgLoaded || !img.width || !img.height) {
       return { status: "fair" as const, faceDetected: false, faceSupported: false, issues: [], notes: [], brightness: 128, sharpness: 100 };
@@ -679,7 +679,7 @@ export default function ResidentsPage() {
 
   const stampWatermark = useCallback(async (dataUrl: string): Promise<string> => {
     try {
-      const img = new Image();
+      const img = new globalThis.Image();
       const imgLoaded = await new Promise<boolean>((resolve) => {
         img.onload = () => resolve(true);
         img.onerror = () => resolve(false);
@@ -687,7 +687,7 @@ export default function ResidentsPage() {
       });
       if (!imgLoaded || !img.width || !img.height) return dataUrl;
 
-      const logo = new Image();
+      const logo = new globalThis.Image();
       logo.crossOrigin = "anonymous";
       const logoLoaded = await new Promise<boolean>((resolve) => {
         logo.onload = () => resolve(true);
@@ -1367,7 +1367,7 @@ export default function ResidentsPage() {
           </div>
 
           {/* Duplicate Match Modal */}
-          <Modal open={dupModal} onClose={() => setDupModal(false)} title="Possible Duplicate Found" maxWidth="lg">
+          <Modal open={dupModal} onClose={() => setDupModal(false)} title="Possible Duplicate Found" size="lg">
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
                 The following resident(s) in the database have similar information. Please verify before continuing.
