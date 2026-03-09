@@ -35,4 +35,26 @@ return [
         ],
     ],
 
+    'digitalocean' => [
+        'token' => env('DO_API_TOKEN'),
+    ],
+
+    'cloudflare' => [
+        'token' => env('CLOUDFLARE_TOKEN'),
+    ],
+
+    'gitlab' => [
+        'token' => env('GITLAB_TOKEN'),
+        'group_id' => env('GITLAB_GROUP_ID', '126196449'),
+    ],
+
+    'telegram' => [
+        'bot_token' => env('TELEGRAM_BOT_TOKEN'),
+        'chat_id' => env('TELEGRAM_CHAT_ID'),
+    ],
+
+    'anthropic' => [
+        'api_key' => env('ANTHROPIC_API_KEY'),
+    ],
+
 ];
