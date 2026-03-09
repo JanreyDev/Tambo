@@ -1,0 +1,70 @@
+stages:
+  - lint
+  - build
+  - deploy_production
+
+lint:
+  stage: lint
+  image: node:24-alpine
+  before_script:
+    - corepack enable && corepack prepare pnpm@latest --activate
+    - pnpm install --frozen-lockfile
+  script:
+    - pnpm lint
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
+build:
+  stage: build
+  image: node:24-alpine
+  before_script:
+    - corepack enable && corepack prepare pnpm@latest --activate
+    - pnpm install --frozen-lockfile
+  script:
+    - pnpm build
+  artifacts:
+    paths:
+      - .next/
+    expire_in: 1 hour
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
+deploy_production:
+  stage: deploy_production
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache openssh-client tar gzip
+    - mkdir -p ~/.ssh
+    - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+  script:
+    - tar -czf deploy.tar.gz .next/standalone .next/static public package.json .npmrc 2>/dev/null || tar -czf deploy.tar.gz .next/standalone .next/static package.json .npmrc
+    - scp deploy.tar.gz root@152.42.223.52:/tmp/command-center-deploy.tar.gz
+    - |
+      ssh root@152.42.223.52 << 'DEPLOY'
+        cd /var/www
+        mkdir -p command-center-web-new
+        tar -xzf /tmp/command-center-deploy.tar.gz -C command-center-web-new
+        cp command-center-web/.env command-center-web-new/.env 2>/dev/null || true
+        cd command-center-web-new/.next/standalone
+        npm install --omit=dev 2>/dev/null || true
+
+        # Atomic swap
+        rm -rf /var/www/command-center-web-old
+        mv /var/www/command-center-web /var/www/command-center-web-old 2>/dev/null || true
+        mv /var/www/command-center-web-new /var/www/command-center-web
+
+        # Copy static assets
+        cp -r /var/www/command-center-web/.next/static /var/www/command-center-web/.next/standalone/.next/static
+
+        # PM2 reload
+        cd /var/www/command-center-web/.next/standalone
+        pm2 describe command-center-web > /dev/null 2>&1 && pm2 reload command-center-web --update-env || PORT=3002 HOSTNAME=0.0.0.0 pm2 start server.js --name command-center-web --update-env
+        pm2 save
+
+        rm /tmp/command-center-deploy.tar.gz
+        rm -rf /var/www/command-center-web-old
+      DEPLOY
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
