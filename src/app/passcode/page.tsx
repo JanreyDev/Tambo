@@ -174,9 +174,16 @@ export default function PasscodePage() {
         </form>
 
         {/* Footer */}
-        <p className="mt-6 text-center text-[9px] text-muted-foreground/50">
-          PrimeX Ventures Inc. Founder Access Only.
-        </p>
+        <div className="mt-4 text-center text-[9px] leading-relaxed text-muted-foreground/40">
+          <p className="font-medium text-muted-foreground/50">
+            Founder Access Only.
+          </p>
+          <p>Developed by PrimeX Ventures Inc.</p>
+          <p>Copyright &copy; 2015&ndash;{new Date().getFullYear()} All Rights Reserved</p>
+          <p className="mt-1 font-metrics text-[8px] text-muted-foreground/30">
+            v1.0.0
+          </p>
+        </div>
       </div>
     </div>
   );

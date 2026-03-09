@@ -29,6 +29,7 @@ export default function RootLayout({
     <html lang="en-PH" className="dark" suppressHydrationWarning>
       <head>
         <meta name="robots" content="noindex, nofollow, noarchive" />
+        <link rel="icon" href="/favicon.ico" type="image/x-icon" />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-grid`}
