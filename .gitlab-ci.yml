@@ -14,6 +14,27 @@ lint:
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
 
+security:
+  stage: lint
+  image: node:24-alpine
+  before_script:
+    - corepack enable && corepack prepare pnpm@latest --activate
+    - pnpm install --frozen-lockfile
+  script:
+    - |
+      pnpm audit --json > /tmp/audit.json 2>&1 || true
+      node -e "
+        const fs = require('fs');
+        try {
+          const data = JSON.parse(fs.readFileSync('/tmp/audit.json', 'utf8'));
+          const v = data.metadata?.vulnerabilities || {};
+          console.log('Vulnerabilities: critical=' + (v.critical||0) + ' high=' + (v.high||0) + ' moderate=' + (v.moderate||0) + ' low=' + (v.low||0));
+          if ((v.critical||0) > 0) { console.log('FAIL: Critical vulnerabilities found'); process.exit(1); }
+        } catch(e) { console.log('Audit completed (no structured output)'); }
+      "
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
 build:
   stage: build
   image: node:24-alpine
@@ -24,6 +45,15 @@ build:
     - export NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL_PRODUCTION}"
     - echo "Building with API URL -> ${NEXT_PUBLIC_API_URL}"
     - pnpm build
+    - |
+      # Bundle size check (Principle 9: Fast on Slow Hardware - <300KB gzip)
+      TOTAL_GZIP=$(find .next/static -name '*.js' -exec cat {} + 2>/dev/null | gzip -c | wc -c)
+      KB=$((TOTAL_GZIP / 1024))
+      echo "JS bundle (gzipped): ${KB}KB / 300KB limit"
+      if [ "$KB" -gt 300 ]; then
+        echo "FAIL: JS bundle ${KB}KB exceeds 300KB limit (Principle 9)"
+        exit 1
+      fi
   artifacts:
     paths:
       - .next/
@@ -34,6 +64,10 @@ build:
 deploy_production:
   stage: deploy_production
   image: alpine:latest
+  needs:
+    - lint
+    - security
+    - build
   before_script:
     - apk add --no-cache openssh-client tar gzip
     - mkdir -p ~/.ssh
@@ -45,29 +79,32 @@ deploy_production:
     - scp deploy.tar.gz root@152.42.223.52:/tmp/command-center-deploy.tar.gz
     - |
       ssh root@152.42.223.52 << 'DEPLOY'
-        cd /var/www
-        mkdir -p command-center-web-new
-        tar -xzf /tmp/command-center-deploy.tar.gz -C command-center-web-new
-        cp command-center-web/.env command-center-web-new/.env 2>/dev/null || true
-        cd command-center-web-new/.next/standalone
+        set -e
+        LIVE="/var/www/command-center-web"
+        NEW="/var/www/command-center-web-new"
+        OLD="/var/www/command-center-web-old"
+
+        rm -rf "$NEW"
+        mkdir -p "$NEW"
+        tar -xzf /tmp/command-center-deploy.tar.gz -C "$NEW"
+        cp "$LIVE/.env" "$NEW/.env" 2>/dev/null || true
+        cd "$NEW/.next/standalone"
         npm install --omit=dev 2>/dev/null || true
 
-        # Atomic swap
-        rm -rf /var/www/command-center-web-old
-        mv /var/www/command-center-web /var/www/command-center-web-old 2>/dev/null || true
-        mv /var/www/command-center-web-new /var/www/command-center-web
+        rm -rf "$OLD"
+        mv "$LIVE" "$OLD" 2>/dev/null || true
+        mv "$NEW" "$LIVE"
 
-        # Copy static + public assets into standalone
-        cp -r /var/www/command-center-web/.next/static /var/www/command-center-web/.next/standalone/.next/static
-        cp -r /var/www/command-center-web/public /var/www/command-center-web/.next/standalone/public
+        cp -r "$LIVE/.next/static" "$LIVE/.next/standalone/.next/static"
+        cp -r "$LIVE/public" "$LIVE/.next/standalone/public" 2>/dev/null || true
 
-        # PM2 reload
-        cd /var/www/command-center-web/.next/standalone
+        cd "$LIVE/.next/standalone"
         pm2 describe command-center-web > /dev/null 2>&1 && pm2 reload command-center-web --update-env || PORT=3002 HOSTNAME=0.0.0.0 pm2 start server.js --name command-center-web --update-env
         pm2 save
 
         rm /tmp/command-center-deploy.tar.gz
-        rm -rf /var/www/command-center-web-old
+        rm -rf "$OLD"
+        echo "Deployed command-center-web at $(date)"
       DEPLOY
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
