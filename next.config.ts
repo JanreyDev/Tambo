@@ -34,7 +34,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob: https:",
               "font-src 'self' data:",
-              "connect-src 'self' https://api.pulitika.ph https://staging-api-pulitika.primex.ventures",
+              "connect-src 'self' https://api.pulitika.ph",
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",

@@ -26,17 +26,29 @@ export const mockAlerts: Alert[] = [
 
 export const mockInsight: MabiniInsight = {
   summary:
-    "All systems are operational. BCMP staging is healthy with 76 tests passing. PrimeXV4 RAM usage is elevated at 85% average -- this is expected with 50+ active barangays. Revenue is stable at ~83K MRR. No critical security incidents in the last 24 hours. The V5 migration from V4 is on track.",
+    "All systems operational on production. 5 apps running on pulitika-production (152.42.223.52): command-center-web, pulitika-web, bcmp-web, pulitika-api, bcmp-api. PrimeXV4 RAM at 85% -- expected with 50+ barangays. Staging infrastructure eliminated. Revenue stable at ~333K MRR. No critical security incidents.",
   analyzed_at: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
   highlights: [
-    "BCMP V5 staging API: 200+ routes, all tests passing",
+    "All 5 apps live on production: founder, pulitika, bcmp, 2 APIs",
     "PrimeXV4 cannot be downsized due to RAM constraints",
-    "DO monthly spend: ~255 PHP/month (optimized)",
-    "Next priority: wire New Resident form to bcmp-api",
+    "Staging infrastructure eliminated -- saves ~$32/mo",
+    "Next priority: Full Mabini AI integration with live data",
   ],
 };
 
 export const mockDroplets: DropletMetrics[] = [
+  {
+    id: "pulitika-production",
+    name: "pulitika-production",
+    ip: "152.42.223.52",
+    status: "active",
+    region: "SGP1",
+    spec: "2vCPU / 4GB",
+    cpu_percent: 12,
+    ram_percent: 19,
+    disk_percent: 6,
+    uptime_seconds: 604800,
+  },
   {
     id: "primexv4",
     name: "PrimeXV4",
@@ -48,30 +60,6 @@ export const mockDroplets: DropletMetrics[] = [
     ram_percent: 85,
     disk_percent: 42,
     uptime_seconds: 2592000,
-  },
-  {
-    id: "pulitika-staging",
-    name: "pulitika-staging",
-    ip: "159.89.207.105",
-    status: "active",
-    region: "SGP1",
-    spec: "1vCPU / 2GB",
-    cpu_percent: 8,
-    ram_percent: 28,
-    disk_percent: 15,
-    uptime_seconds: 604800,
-  },
-  {
-    id: "staging-server",
-    name: "Staging-Server",
-    ip: "152.42.252.6",
-    status: "active",
-    region: "SGP1",
-    spec: "2vCPU / 4GB",
-    cpu_percent: 5,
-    ram_percent: 35,
-    disk_percent: 30,
-    uptime_seconds: 1209600,
   },
   {
     id: "spa-call",
@@ -123,23 +111,13 @@ export const mockDatabases: DatabaseStatus[] = [
     host: "private",
   },
   {
-    id: "pulitika-staging-db",
-    name: "pulitika-staging-db",
+    id: "pulitika-production-db",
+    name: "pulitika-production-db",
     engine: "PostgreSQL",
     version: "17",
     status: "online",
-    connection_count: 8,
+    connection_count: 12,
     size_bytes: 134217728,
-    host: "private",
-  },
-  {
-    id: "primex-staging-db",
-    name: "primex-stagin-db",
-    engine: "PostgreSQL",
-    version: "18",
-    status: "online",
-    connection_count: 5,
-    size_bytes: 268435456,
     host: "private",
   },
   {
@@ -281,7 +259,7 @@ export const mockActivity: ActivityEvent[] = [
     action: "CI/CD Pipeline Passed",
     actor: "Claude",
     product: "bcmp",
-    description: "bcmp-web deployed to staging-bcmp.primex.ventures successfully",
+    description: "bcmp-web deployed to temp.kapitan.ph successfully",
     timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
   },
   {
