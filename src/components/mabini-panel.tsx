@@ -24,11 +24,41 @@ export function MabiniPanel({ isOpen, onClose }: MabiniPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const panelRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (isOpen && inputRef.current) {
       inputRef.current.focus();
     }
   }, [isOpen]);
+
+  // Escape key to close
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      // Focus trap
+      if (e.key === "Tab" && panelRef.current) {
+        const focusable = panelRef.current.querySelectorAll<HTMLElement>(
+          'button, input, [tabindex]:not([tabindex="-1"])',
+        );
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last?.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first?.focus();
+        }
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -60,9 +90,11 @@ export function MabiniPanel({ isOpen, onClose }: MabiniPanelProps) {
 
       {/* Panel */}
       <div
+        ref={panelRef}
         className="animate-slide-in-right fixed right-0 top-0 z-50 flex h-full w-full max-w-[420px] flex-col border-l border-card-border bg-background shadow-2xl"
         role="dialog"
         aria-label="Mabini AI Assistant"
+        aria-modal="true"
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-card-border px-4 py-3">

@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Zap, Eye, EyeOff, ShieldAlert, Loader2 } from "lucide-react";
+import { Eye, EyeOff, ShieldAlert, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { PrimeXLogo } from "@/components/primex-logo";
 import { cn } from "@/lib/utils";
 import { useFounderAuth } from "@/contexts/founder-auth-context";
 
@@ -37,10 +39,13 @@ export default function PasscodePage() {
     const result = await verifyPasscode(passphrase.trim());
 
     if (result.success) {
+      toast.success("Access granted. Welcome, Founder.");
       router.replace("/dashboard");
     } else {
       setAttempts((prev) => prev + 1);
-      setError(result.error || "Access denied");
+      const errorMsg = result.error || "Access denied";
+      setError(errorMsg);
+      toast.error(errorMsg);
       setIsShaking(true);
       setPassphrase("");
       setTimeout(() => setIsShaking(false), 500);
@@ -82,7 +87,7 @@ export default function PasscodePage() {
         {/* Logo */}
         <div className="mb-6 flex flex-col items-center">
           <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-accent/10 ring-1 ring-accent/20">
-            <Zap className="h-7 w-7 text-accent" />
+            <PrimeXLogo className="h-7 w-7 text-accent" />
           </div>
           <span className="text-[10px] font-semibold uppercase tracking-[0.3em] text-accent">
             Command Center

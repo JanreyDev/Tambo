@@ -21,17 +21,23 @@ interface FounderAuthContextType {
 
 const FounderAuthContext = createContext<FounderAuthContextType | null>(null);
 
+/**
+ * If no token exists on mount, we skip the checking phase entirely.
+ * isChecking only starts as true when there IS a token to validate.
+ */
+function getInitialChecking(): boolean {
+  if (typeof window === "undefined") return false;
+  return hasToken();
+}
+
 export function FounderAuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isChecking, setIsChecking] = useState(true);
+  const [isChecking, setIsChecking] = useState(getInitialChecking);
   const router = useRouter();
 
   useEffect(() => {
-    if (!hasToken()) {
-      // isAuthenticated already defaults to false, just mark checking done
-      setIsChecking(false);
-      return;
-    }
+    // Only run heartbeat check if we actually have a token
+    if (!hasToken()) return;
 
     const controller = new AbortController();
     let cancelled = false;
@@ -42,10 +48,7 @@ export function FounderAuthProvider({ children }: { children: ReactNode }) {
         if (!cancelled) setIsAuthenticated(true);
       })
       .catch(() => {
-        if (!cancelled) {
-          clearToken();
-          // isAuthenticated stays false (default)
-        }
+        if (!cancelled) clearToken();
       })
       .finally(() => {
         if (!cancelled) setIsChecking(false);

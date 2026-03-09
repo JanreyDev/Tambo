@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useSyncExternalStore } from "react";
 import { format } from "date-fns";
-import { LogOut, Sparkles, Zap } from "lucide-react";
+import { LogOut, Sparkles } from "lucide-react";
+import { toast } from "sonner";
+import { PrimeXLogo } from "./primex-logo";
 import { cn } from "@/lib/utils";
 import { ConnectionPulse } from "./connection-pulse";
 import { useFounderAuth } from "@/contexts/founder-auth-context";
@@ -43,7 +45,7 @@ export function HeaderBar({
     <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-card-border bg-background/95 px-6 backdrop-blur-sm">
       {/* Left: Logo + Title */}
       <div className="flex items-center gap-3">
-        <Zap className="h-5 w-5 text-accent" />
+        <PrimeXLogo className="h-5 w-5 text-accent" />
         <div className="flex items-center gap-2">
           <span className="text-sm font-bold text-foreground">PRIMEX</span>
           <span className="text-[10px] font-semibold uppercase tracking-[0.3em] text-accent">
@@ -90,7 +92,10 @@ export function HeaderBar({
         </button>
 
         <button
-          onClick={logout}
+          onClick={() => {
+            toast.info("Signing out...");
+            logout();
+          }}
           className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-red-950/50 hover:text-red-400"
           aria-label="Sign out"
         >
