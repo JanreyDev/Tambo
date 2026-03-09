@@ -82,9 +82,6 @@ deploy_production:
         composer install --no-dev --no-interaction --optimize-autoloader --no-progress 2>&1
 
         php artisan migrate --force
-        php artisan config:cache
-        php artisan route:cache
-        php artisan view:cache
         php artisan storage:link 2>/dev/null || true
 
         chown -R www-data:www-data "$NEW"
@@ -93,6 +90,12 @@ deploy_production:
         rm -rf "$OLD"
         mv "$LIVE" "$OLD"
         mv "$NEW" "$LIVE"
+
+        # Cache AFTER swap so paths resolve to final /var/www/pulitika-api
+        cd "$LIVE"
+        php artisan config:cache
+        php artisan route:cache
+        php artisan view:cache
 
         systemctl reload php8.4-fpm
 
