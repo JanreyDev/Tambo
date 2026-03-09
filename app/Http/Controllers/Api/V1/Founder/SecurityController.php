@@ -67,12 +67,15 @@ class SecurityController extends Controller
 
         return response()->json([
             'data' => [
-                'period' => '24h',
-                'failed_logins' => $failedLogins->all(),
-                'failed_login_count' => $failedLogins->count(),
-                'blocked_request_count' => $blockedRequests,
-                'suspicious_ips' => $suspiciousIps->all(),
-                'founder_activity' => $founderActivity->all(),
+                'failed_logins_24h' => $failedLogins->count(),
+                'blocked_requests_24h' => $blockedRequests,
+                'suspicious_ips' => $suspiciousIps->map(fn ($row) => [
+                    'ip' => $row['ip_address'],
+                    'attempts' => $row['attempt_count'],
+                    'last_seen' => now()->toIso8601String(),
+                    'country' => 'Unknown',
+                ])->all(),
+                'last_updated_at' => now()->toIso8601String(),
             ],
         ]);
     }

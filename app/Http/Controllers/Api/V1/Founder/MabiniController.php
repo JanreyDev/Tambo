@@ -38,26 +38,38 @@ class MabiniController extends Controller
     }
 
     /**
-     * Get the latest AI-generated insights from system alerts.
+     * Get the latest AI-generated insight summary.
+     * Returns MabiniInsight format: summary, analyzed_at, highlights[].
      */
     public function insights(): JsonResponse
     {
         $insights = SystemAlert::fromSource('mabini')
             ->orderByDesc('created_at')
-            ->limit(20)
-            ->get()
-            ->map(fn (SystemAlert $alert) => [
-                'id' => $alert->id,
-                'severity' => $alert->severity,
-                'title' => $alert->title,
-                'description' => $alert->description,
-                'recommendation' => $alert->metadata['recommendation'] ?? null,
-                'resolved' => $alert->resolved_at !== null,
-                'created_at' => $alert->created_at?->toIso8601String(),
+            ->limit(5)
+            ->get();
+
+        if ($insights->isEmpty()) {
+            return response()->json([
+                'data' => [
+                    'summary' => 'No automated insights generated yet. Mabini AI will analyze your infrastructure periodically and provide actionable recommendations.',
+                    'analyzed_at' => now()->toIso8601String(),
+                    'highlights' => [
+                        'Mabini AI is active and monitoring your infrastructure',
+                        'Use the chat panel to ask questions about your systems',
+                    ],
+                ],
             ]);
+        }
+
+        $latest = $insights->first();
+        $highlights = $insights->map(fn (SystemAlert $alert) => $alert->title)->all();
 
         return response()->json([
-            'data' => $insights->all(),
+            'data' => [
+                'summary' => $latest->description ?? 'System analysis complete.',
+                'analyzed_at' => $latest->created_at?->toIso8601String() ?? now()->toIso8601String(),
+                'highlights' => $highlights,
+            ],
         ]);
     }
 

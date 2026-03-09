@@ -46,14 +46,18 @@ class AlertController extends Controller
         $perPage = (int) ($validated['per_page'] ?? 20);
         $alerts = $query->paginate($perPage);
 
+        $transformed = collect($alerts->items())->map(fn (SystemAlert $alert) => [
+            'id' => $alert->id,
+            'severity' => $alert->severity,
+            'title' => $alert->title,
+            'description' => $alert->description,
+            'source' => $alert->source,
+            'created_at' => $alert->created_at?->toIso8601String(),
+            'acknowledged' => $alert->acknowledged_at !== null,
+        ]);
+
         return response()->json([
-            'data' => $alerts->items(),
-            'meta' => [
-                'current_page' => $alerts->currentPage(),
-                'last_page' => $alerts->lastPage(),
-                'per_page' => $alerts->perPage(),
-                'total' => $alerts->total(),
-            ],
+            'data' => $transformed->all(),
         ]);
     }
 

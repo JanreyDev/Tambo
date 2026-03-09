@@ -63,17 +63,27 @@ class DeploymentController extends Controller
 
                     if ($pipelinesResponse->successful()) {
                         foreach ($pipelinesResponse->json() as $pipeline) {
+                            $durationSeconds = null;
+                            if (! empty($pipeline['created_at']) && ! empty($pipeline['updated_at'])) {
+                                try {
+                                    $start = \Carbon\Carbon::parse($pipeline['created_at']);
+                                    $end = \Carbon\Carbon::parse($pipeline['updated_at']);
+                                    $durationSeconds = (int) $start->diffInSeconds($end);
+                                } catch (\Exception) {
+                                    // Ignore parse errors.
+                                }
+                            }
+
                             $allPipelines[] = [
-                                'id' => $pipeline['id'],
-                                'project_id' => $project['id'],
+                                'id' => (string) $pipeline['id'],
                                 'project_name' => $project['name'],
-                                'project_path' => $project['path_with_namespace'],
-                                'ref' => $pipeline['ref'],
-                                'status' => $pipeline['status'],
-                                'source' => $pipeline['source'] ?? null,
+                                'branch' => $pipeline['ref'] ?? 'main',
+                                'status' => $this->mapPipelineStatus($pipeline['status'] ?? 'unknown'),
+                                'commit_message' => $pipeline['ref'] ?? 'Pipeline run',
+                                'triggered_by' => $pipeline['source'] ?? 'push',
                                 'created_at' => $pipeline['created_at'],
-                                'updated_at' => $pipeline['updated_at'],
-                                'web_url' => $pipeline['web_url'],
+                                'duration_seconds' => $durationSeconds,
+                                'web_url' => $pipeline['web_url'] ?? null,
                             ];
                         }
                     }
@@ -93,10 +103,7 @@ class DeploymentController extends Controller
             $allPipelines = array_slice($allPipelines, 0, 20);
 
             return response()->json([
-                'data' => [
-                    'pipelines' => $allPipelines,
-                    'project_count' => count($projects),
-                ],
+                'data' => $allPipelines,
             ]);
         } catch (\Exception $e) {
             Log::error('GitLab API: deployment fetch exception', [
@@ -108,5 +115,20 @@ class DeploymentController extends Controller
                 'data' => [],
             ], 502);
         }
+    }
+
+    /**
+     * Map GitLab pipeline status to frontend Deployment status.
+     */
+    private function mapPipelineStatus(string $status): string
+    {
+        return match ($status) {
+            'success' => 'success',
+            'failed' => 'failed',
+            'running' => 'running',
+            'pending', 'waiting_for_resource', 'preparing', 'created' => 'pending',
+            'canceled', 'skipped', 'manual', 'scheduled' => 'failed',
+            default => 'pending',
+        };
     }
 }

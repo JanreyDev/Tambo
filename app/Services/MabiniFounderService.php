@@ -214,7 +214,7 @@ PROMPT;
                 'description' => 'Get the current status and resource usage of all DigitalOcean droplets.',
                 'input_schema' => [
                     'type' => 'object',
-                    'properties' => new \stdClass,
+                    'properties' => (object) [],
                     'required' => [],
                 ],
             ],
@@ -223,7 +223,7 @@ PROMPT;
                 'description' => 'Check the health status of all PrimeX product API connections.',
                 'input_schema' => [
                     'type' => 'object',
-                    'properties' => new \stdClass,
+                    'properties' => (object) [],
                     'required' => [],
                 ],
             ],
@@ -251,7 +251,7 @@ PROMPT;
                 'description' => 'Get the status of all DigitalOcean managed databases.',
                 'input_schema' => [
                     'type' => 'object',
-                    'properties' => new \stdClass,
+                    'properties' => (object) [],
                     'required' => [],
                 ],
             ],

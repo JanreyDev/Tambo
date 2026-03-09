@@ -6,12 +6,14 @@ use App\Http\Controllers\Api\V1\AdminUserController;
 use App\Http\Controllers\Api\V1\AuditLogController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\DashboardController;
+use App\Http\Controllers\Api\V1\Founder\ActivityController;
 use App\Http\Controllers\Api\V1\Founder\AlertController;
 use App\Http\Controllers\Api\V1\Founder\DeploymentController;
 use App\Http\Controllers\Api\V1\Founder\FounderAuthController;
 use App\Http\Controllers\Api\V1\Founder\InfrastructureController;
 use App\Http\Controllers\Api\V1\Founder\MabiniController;
 use App\Http\Controllers\Api\V1\Founder\ProductHealthController;
+use App\Http\Controllers\Api\V1\Founder\RevenueController;
 use App\Http\Controllers\Api\V1\Founder\SecurityController;
 use App\Http\Controllers\Api\V1\PlatformSettingController;
 use App\Http\Controllers\Api\V1\ProductConnectionController;
@@ -88,5 +90,11 @@ Route::prefix('v1/founder')->group(function (): void {
 
         // Deployments
         Route::get('deployments/recent', [DeploymentController::class, 'recent']);
+
+        // Revenue
+        Route::get('revenue', [RevenueController::class, 'overview']);
+
+        // Activity timeline
+        Route::get('activity', [ActivityController::class, 'timeline']);
     });
 });

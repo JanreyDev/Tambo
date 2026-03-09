@@ -58,29 +58,18 @@ class ProductHealthController extends Controller
             ]);
 
             return [
-                'id' => $connection->id,
-                'product_slug' => $connection->product_slug,
-                'product_name' => $connection->product_name,
-                'api_base_url' => $connection->api_base_url,
-                'status' => $healthStatus,
-                'response_time_ms' => $responseTime,
-                'error' => $errorMessage,
-                'checked_at' => now()->toIso8601String(),
+                'product' => $connection->product_name,
+                'slug' => $connection->product_slug,
+                'api_status' => $healthStatus === 'healthy' ? 'healthy' : ($healthStatus === 'error' ? 'unhealthy' : 'unknown'),
+                'response_time_ms' => $responseTime ?? 0,
+                'error_rate' => 0,
+                'active_users' => 0,
+                'last_checked_at' => now()->toIso8601String(),
             ];
         });
 
-        $healthyCount = $results->where('status', 'healthy')->count();
-        $totalCount = $results->count();
-
         return response()->json([
-            'data' => [
-                'products' => $results->all(),
-                'summary' => [
-                    'healthy' => $healthyCount,
-                    'total' => $totalCount,
-                    'overall_status' => $healthyCount === $totalCount ? 'all_healthy' : 'degraded',
-                ],
-            ],
+            'data' => $results->all(),
         ]);
     }
 
