@@ -22,6 +22,17 @@ lint:
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
 
+security:
+  stage: lint
+  image: php:8.4-cli-alpine
+  before_script:
+    - apk add --no-cache git unzip
+    - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+  script:
+    - composer audit --locked --no-dev --format=plain
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
 test:
   stage: test
   image: php:8.4-cli-alpine
@@ -41,6 +52,7 @@ deploy_production:
   image: alpine:latest
   needs:
     - lint
+    - security
     - test
   before_script:
     - apk add --no-cache openssh-client tar
@@ -80,6 +92,18 @@ deploy_production:
         mkdir -p storage/logs storage/framework/{cache,sessions,views} bootstrap/cache
 
         composer install --no-dev --no-interaction --optimize-autoloader --no-progress 2>&1
+
+        # Pre-deploy database backup
+        DB_H=$(grep '^DB_HOST=' "$LIVE/.env" | sed 's/^DB_HOST=//')
+        DB_P=$(grep '^DB_PORT=' "$LIVE/.env" | sed 's/^DB_PORT=//')
+        DB_U=$(grep '^DB_USERNAME=' "$LIVE/.env" | sed 's/^DB_USERNAME=//')
+        DB_W=$(grep '^DB_PASSWORD=' "$LIVE/.env" | sed 's/^DB_PASSWORD=//')
+        DB_N=$(grep '^DB_DATABASE=' "$LIVE/.env" | sed 's/^DB_DATABASE=//')
+        mkdir -p /opt/backups/db
+        BACKUP="/opt/backups/db/${DB_N}-pre-deploy-$(date +%Y%m%d%H%M%S).sql.gz"
+        PGPASSWORD="$DB_W" pg_dump -h "$DB_H" -p "$DB_P" -U "$DB_U" --no-owner --no-privileges "$DB_N" 2>/dev/null | gzip > "$BACKUP" || echo "WARN: DB backup failed, continuing"
+        [ -s "$BACKUP" ] && echo "Backup: $BACKUP ($(du -h "$BACKUP" | cut -f1))" || echo "WARN: Backup empty"
+        unset DB_W
 
         php artisan migrate --force
         php artisan storage:link 2>/dev/null || true
