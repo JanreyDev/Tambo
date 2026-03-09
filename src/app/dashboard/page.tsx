@@ -49,10 +49,14 @@ import {
   GitBranch,
 } from "lucide-react";
 
-// Fetchers with mock fallback
+// Fetchers with mock fallback -- unwraps Laravel { data: T } envelope
 async function fetchWithFallback<T>(path: string, fallback: T, signal: AbortSignal): Promise<T> {
   try {
-    return await api.get<T>(path, { signal });
+    const response = await api.get<{ data: T } | T>(path, { signal });
+    if (response && typeof response === "object" && !Array.isArray(response) && "data" in response) {
+      return (response as { data: T }).data;
+    }
+    return response as T;
   } catch {
     return fallback;
   }
