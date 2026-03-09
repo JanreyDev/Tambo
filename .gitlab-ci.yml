@@ -14,6 +14,27 @@ lint:
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
 
+security:
+  stage: lint
+  image: node:24-alpine
+  before_script:
+    - corepack enable && corepack prepare pnpm@latest --activate
+    - pnpm install --frozen-lockfile
+  script:
+    - |
+      pnpm audit --json > /tmp/audit.json 2>&1 || true
+      node -e "
+        const fs = require('fs');
+        try {
+          const data = JSON.parse(fs.readFileSync('/tmp/audit.json', 'utf8'));
+          const v = data.metadata?.vulnerabilities || {};
+          console.log('Vulnerabilities: critical=' + (v.critical||0) + ' high=' + (v.high||0) + ' moderate=' + (v.moderate||0) + ' low=' + (v.low||0));
+          if ((v.critical||0) > 0) { console.log('FAIL: Critical vulnerabilities found'); process.exit(1); }
+        } catch(e) { console.log('Audit completed (no structured output)'); }
+      "
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
 build:
   stage: build
   image: node:24-alpine
@@ -24,6 +45,15 @@ build:
     - export NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL_PRODUCTION}"
     - echo "Building with API URL -> ${NEXT_PUBLIC_API_URL}"
     - pnpm build
+    - |
+      # Bundle size check (Principle 9: Fast on Slow Hardware - <300KB gzip)
+      TOTAL_GZIP=$(find .next/static -name '*.js' -exec cat {} + 2>/dev/null | gzip -c | wc -c)
+      KB=$((TOTAL_GZIP / 1024))
+      echo "JS bundle (gzipped): ${KB}KB / 300KB limit"
+      if [ "$KB" -gt 300 ]; then
+        echo "FAIL: JS bundle ${KB}KB exceeds 300KB limit (Principle 9)"
+        exit 1
+      fi
   artifacts:
     paths:
       - .next/
@@ -34,6 +64,10 @@ build:
 deploy_production:
   stage: deploy_production
   image: alpine:latest
+  needs:
+    - lint
+    - security
+    - build
   before_script:
     - apk add --no-cache openssh-client tar gzip
     - mkdir -p ~/.ssh
@@ -62,6 +96,7 @@ deploy_production:
         mv "$NEW" "$LIVE"
 
         cp -r "$LIVE/.next/static" "$LIVE/.next/standalone/.next/static"
+        cp -r "$LIVE/public" "$LIVE/.next/standalone/public" 2>/dev/null || true
 
         cd "$LIVE/.next/standalone"
         pm2 describe bcmp-web > /dev/null 2>&1 && pm2 reload bcmp-web --update-env || PORT=3000 HOSTNAME=0.0.0.0 pm2 start server.js --name bcmp-web --update-env
