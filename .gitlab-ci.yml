@@ -1,15 +1,8 @@
 stages:
   - lint
   - test
-  - deploy
+  - deploy_production
 
-variables:
-  PHP_VERSION: "8.4"
-  STAGING_HOST: "159.89.207.105"
-  STAGING_USER: "root"
-  STAGING_PATH: "/var/www/pulitika-api"
-
-# Cache composer dependencies between jobs
 cache:
   key:
     files:
@@ -17,12 +10,9 @@ cache:
   paths:
     - vendor/
 
-# ---------------------
-# Lint Stage — Pint
-# ---------------------
 lint:
   stage: lint
-  image: php:${PHP_VERSION}-cli-alpine
+  image: php:8.4-cli-alpine
   before_script:
     - apk add --no-cache git unzip
     - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
@@ -30,16 +20,11 @@ lint:
   script:
     - ./vendor/bin/pint --test
   rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == "main"
-    - if: $CI_COMMIT_BRANCH == "production"
 
-# ---------------------
-# Test Stage — Pest
-# ---------------------
 test:
   stage: test
-  image: php:${PHP_VERSION}-cli-alpine
+  image: php:8.4-cli-alpine
   before_script:
     - apk add --no-cache git unzip
     - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
@@ -49,29 +34,21 @@ test:
   script:
     - php artisan test --parallel
   rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == "main"
-    - if: $CI_COMMIT_BRANCH == "production"
 
-# ---------------------
-# Deploy to Staging
-# ---------------------
-deploy_staging:
-  stage: deploy
+deploy_production:
+  stage: deploy_production
   image: alpine:latest
   needs:
     - lint
     - test
   before_script:
     - apk add --no-cache openssh-client tar
-    - eval $(ssh-agent -s)
-    - chmod 600 "$SSH_PRIVATE_KEY"
-    - ssh-add "$SSH_PRIVATE_KEY"
     - mkdir -p ~/.ssh
-    - echo "$SSH_KNOWN_HOSTS" >> ~/.ssh/known_hosts
-    - chmod 644 ~/.ssh/known_hosts
+    - cp "$SSH_PRIVATE_KEY" ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
   script:
-    # Create deploy archive
     - tar -czf /tmp/deploy.tar.gz
         --exclude=".git"
         --exclude=".env"
@@ -85,54 +62,46 @@ deploy_staging:
         --exclude="docker-compose.yml"
         --exclude=".editorconfig"
         .
-    - scp /tmp/deploy.tar.gz ${STAGING_USER}@${STAGING_HOST}:/tmp/pulitika-api-deploy.tar.gz
+    - scp /tmp/deploy.tar.gz root@152.42.223.52:/tmp/pulitika-api-deploy.tar.gz
     - |
-      ssh ${STAGING_USER}@${STAGING_HOST} << 'DEPLOY'
+      ssh root@152.42.223.52 << 'DEPLOY'
         set -e
+        LIVE="/var/www/pulitika-api"
+        NEW="/var/www/pulitika-api-new"
+        OLD="/var/www/pulitika-api-old"
 
-        # Back up .env
-        cp /var/www/pulitika-api/.env /tmp/pulitika-api-env-backup
-
-        # Clean and extract new code
-        rm -rf /var/www/pulitika-api/*
-        cd /var/www/pulitika-api
+        rm -rf "$NEW"
+        mkdir -p "$NEW"
+        cd "$NEW"
         tar -xzf /tmp/pulitika-api-deploy.tar.gz
 
-        # Restore .env
-        cp /tmp/pulitika-api-env-backup .env
-
-        # Ensure storage directories exist
+        cp "$LIVE/.env" "$NEW/.env"
+        cp -a "$LIVE/storage/logs" "$NEW/storage/logs" 2>/dev/null || true
         mkdir -p storage/logs storage/framework/{cache,sessions,views} bootstrap/cache
 
-        # Install production dependencies
         composer install --no-dev --no-interaction --optimize-autoloader --no-progress 2>&1
 
-        # Laravel post-deploy
         php artisan migrate --force
         php artisan config:cache
         php artisan route:cache
         php artisan view:cache
         php artisan storage:link 2>/dev/null || true
 
-        # Fix permissions
-        chown -R www-data:www-data /var/www/pulitika-api
-        chmod -R 775 /var/www/pulitika-api/storage /var/www/pulitika-api/bootstrap/cache
+        chown -R www-data:www-data "$NEW"
+        chmod -R 775 "$NEW/storage" "$NEW/bootstrap/cache"
 
-        # Restart PHP-FPM (also resets OPcache)
-        systemctl restart php8.4-fpm
+        rm -rf "$OLD"
+        mv "$LIVE" "$OLD"
+        mv "$NEW" "$LIVE"
 
-        # Flush OPcache from within FPM
-        echo "<?php opcache_reset(); echo 'ok';" > /var/www/pulitika-api/public/opcache_reset.php
-        curl -sk https://staging-api-pulitika.primex.ventures/opcache_reset.php --resolve staging-api-pulitika.primex.ventures:443:127.0.0.1 || true
-        rm -f /var/www/pulitika-api/public/opcache_reset.php
+        systemctl reload php8.4-fpm
 
-        # Cleanup
-        rm -f /tmp/pulitika-api-deploy.tar.gz /tmp/pulitika-api-env-backup
+        echo "<?php opcache_reset(); echo 'ok';" > "$LIVE/public/opcache_reset.php"
+        curl -sk https://api.pulitika.ph/opcache_reset.php --resolve api.pulitika.ph:443:127.0.0.1 || true
+        rm -f "$LIVE/public/opcache_reset.php"
 
+        rm -rf "$OLD" /tmp/pulitika-api-deploy.tar.gz
         echo "Deployed pulitika-api at $(date)"
       DEPLOY
-  environment:
-    name: staging
-    url: https://staging-api-pulitika.primex.ventures
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
