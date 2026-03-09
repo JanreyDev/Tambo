@@ -65,9 +65,9 @@ export function FounderAuthProvider({ children }: { children: ReactNode }) {
       try {
         const response = await api.post<FounderVerifyResponse>(
           "/founder/verify-passcode",
-          { passphrase },
+          { passcode: passphrase },
         );
-        setToken(response.token);
+        setToken(response.data.token);
         setIsAuthenticated(true);
         return { success: true };
       } catch (err) {

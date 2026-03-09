@@ -3,8 +3,12 @@
    ------------------------------------------------------- */
 
 export interface FounderVerifyResponse {
-  token: string;
   message: string;
+  data: {
+    token: string;
+    expires_at: string;
+    session_id: string;
+  };
 }
 
 export interface Alert {
