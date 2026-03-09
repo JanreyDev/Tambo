@@ -57,8 +57,9 @@ deploy_production:
         mv /var/www/command-center-web /var/www/command-center-web-old 2>/dev/null || true
         mv /var/www/command-center-web-new /var/www/command-center-web
 
-        # Copy static assets
+        # Copy static + public assets into standalone
         cp -r /var/www/command-center-web/.next/static /var/www/command-center-web/.next/standalone/.next/static
+        cp -r /var/www/command-center-web/public /var/www/command-center-web/.next/standalone/public
 
         # PM2 reload
         cd /var/www/command-center-web/.next/standalone
