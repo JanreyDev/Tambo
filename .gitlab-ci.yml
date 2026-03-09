@@ -1,160 +1,75 @@
 stages:
   - lint
   - build
-  - deploy
+  - deploy_production
 
-variables:
-  NODE_VERSION: "24"
-  STAGING_HOST: "159.89.207.105"
-  STAGING_USER: "root"
-  STAGING_PATH: "/var/www/bcmp-web"
-
-# Cache node_modules between jobs
-cache:
-  key:
-    files:
-      - pnpm-lock.yaml
-  paths:
-    - node_modules/
-    - .pnpm-store/
-
-# ---------------------
-# Lint Stage
-# ---------------------
 lint:
   stage: lint
-  image: node:${NODE_VERSION}-alpine
+  image: node:24-alpine
   before_script:
     - corepack enable && corepack prepare pnpm@latest --activate
     - pnpm install --frozen-lockfile
   script:
     - pnpm lint
   rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_BRANCH == "main"
-    - if: $CI_COMMIT_BRANCH == "production"
-
-# ---------------------
-# Build Stage — Staging
-# ---------------------
-build_staging:
-  stage: build
-  image: node:${NODE_VERSION}-alpine
-  before_script:
-    - corepack enable && corepack prepare pnpm@latest --activate
-    - pnpm install --frozen-lockfile
-  script:
-    - export NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL_STAGING}"
-    - echo "Building with API URL → ${NEXT_PUBLIC_API_URL}"
-    - pnpm build
-    - cp package.json .next/standalone/
-    - cp -r public .next/standalone/public
-    - cp -r .next/static .next/standalone/.next/static
-    - cd .next/standalone && tar -czf ../../deploy.tar.gz --exclude="node_modules" .
-  artifacts:
-    paths:
-      - deploy.tar.gz
-    expire_in: 1 hour
-  rules:
     - if: $CI_COMMIT_BRANCH == "main"
 
-# ---------------------
-# Build Stage — Production
-# ---------------------
-build_production:
+build:
   stage: build
-  image: node:${NODE_VERSION}-alpine
+  image: node:24-alpine
   before_script:
     - corepack enable && corepack prepare pnpm@latest --activate
     - pnpm install --frozen-lockfile
   script:
     - export NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL_PRODUCTION}"
-    - echo "Building with API URL → ${NEXT_PUBLIC_API_URL}"
+    - echo "Building with API URL -> ${NEXT_PUBLIC_API_URL}"
     - pnpm build
-    - cp package.json .next/standalone/
-    - cp -r public .next/standalone/public
-    - cp -r .next/static .next/standalone/.next/static
-    - cd .next/standalone && tar -czf ../../deploy.tar.gz --exclude="node_modules" .
   artifacts:
     paths:
-      - deploy.tar.gz
+      - .next/
     expire_in: 1 hour
-  rules:
-    - if: $CI_COMMIT_BRANCH == "production"
-
-# ---------------------
-# Deploy to Staging
-# ---------------------
-deploy_staging:
-  stage: deploy
-  image: alpine:latest
-  needs:
-    - build_staging
-  before_script:
-    - which apk && apk add --no-cache openssh-client || true
-    - eval $(ssh-agent -s)
-    - chmod 600 "$SSH_PRIVATE_KEY"
-    - ssh-add "$SSH_PRIVATE_KEY"
-    - mkdir -p ~/.ssh
-    - echo "$SSH_KNOWN_HOSTS" >> ~/.ssh/known_hosts
-    - chmod 644 ~/.ssh/known_hosts
-  script:
-    - scp deploy.tar.gz ${STAGING_USER}@${STAGING_HOST}:/tmp/deploy.tar.gz
-    - |
-      ssh ${STAGING_USER}@${STAGING_HOST} << 'DEPLOY'
-        set -e
-        rm -rf /var/www/bcmp-web/*
-        cd /var/www/bcmp-web
-        tar -xzf /tmp/deploy.tar.gz
-        cp /tmp/deploy.tar.gz /var/www/bcmp-web-backup.tar.gz
-        npm install --omit=dev
-        pm2 delete bcmp-web 2>/dev/null || true
-        PORT=3000 HOSTNAME=0.0.0.0 NODE_ENV=production pm2 start server.js --name bcmp-web
-        pm2 save
-        rm -f /tmp/deploy.tar.gz
-        echo "Deployed at $(date)"
-      DEPLOY
-  environment:
-    name: staging
-    url: https://staging-bcmp.primex.ventures
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
 
-# ---------------------
-# Deploy to Production (when ready)
-# ---------------------
 deploy_production:
-  stage: deploy
+  stage: deploy_production
   image: alpine:latest
-  needs:
-    - build_production
   before_script:
-    - which apk && apk add --no-cache openssh-client || true
-    - eval $(ssh-agent -s)
-    - chmod 600 "$SSH_PRIVATE_KEY"
-    - ssh-add "$SSH_PRIVATE_KEY"
+    - apk add --no-cache openssh-client tar gzip
     - mkdir -p ~/.ssh
-    - echo "$SSH_KNOWN_HOSTS" >> ~/.ssh/known_hosts
-    - chmod 644 ~/.ssh/known_hosts
+    - cp "$SSH_PRIVATE_KEY" ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
   script:
-    - scp deploy.tar.gz ${PRODUCTION_USER}@${PRODUCTION_HOST}:/tmp/deploy.tar.gz
+    - tar -czf deploy.tar.gz .next/standalone .next/static public package.json .npmrc 2>/dev/null || tar -czf deploy.tar.gz .next/standalone .next/static package.json .npmrc
+    - scp deploy.tar.gz root@152.42.223.52:/tmp/bcmp-web-deploy.tar.gz
     - |
-      ssh ${PRODUCTION_USER}@${PRODUCTION_HOST} << 'DEPLOY'
+      ssh root@152.42.223.52 << 'DEPLOY'
         set -e
-        rm -rf /var/www/bcmp-web/*
-        cd /var/www/bcmp-web
-        tar -xzf /tmp/deploy.tar.gz
-        cp /tmp/deploy.tar.gz /var/www/bcmp-web-backup.tar.gz
-        npm install --omit=dev
-        pm2 delete bcmp-web 2>/dev/null || true
-        PORT=3000 HOSTNAME=0.0.0.0 NODE_ENV=production pm2 start server.js --name bcmp-web
+        LIVE="/var/www/bcmp-web"
+        NEW="/var/www/bcmp-web-new"
+        OLD="/var/www/bcmp-web-old"
+
+        rm -rf "$NEW"
+        mkdir -p "$NEW"
+        tar -xzf /tmp/bcmp-web-deploy.tar.gz -C "$NEW"
+        cp "$LIVE/.env" "$NEW/.env" 2>/dev/null || true
+        cd "$NEW/.next/standalone"
+        npm install --omit=dev 2>/dev/null || true
+
+        rm -rf "$OLD"
+        mv "$LIVE" "$OLD" 2>/dev/null || true
+        mv "$NEW" "$LIVE"
+
+        cp -r "$LIVE/.next/static" "$LIVE/.next/standalone/.next/static"
+
+        cd "$LIVE/.next/standalone"
+        pm2 describe bcmp-web > /dev/null 2>&1 && pm2 reload bcmp-web --update-env || PORT=3000 HOSTNAME=0.0.0.0 pm2 start server.js --name bcmp-web --update-env
         pm2 save
-        rm -f /tmp/deploy.tar.gz
-        echo "Deployed at $(date)"
+
+        rm /tmp/bcmp-web-deploy.tar.gz
+        rm -rf "$OLD"
+        echo "Deployed bcmp-web at $(date)"
       DEPLOY
-  environment:
-    name: production
-    url: https://kapitan.ph
   rules:
-    - if: $CI_COMMIT_BRANCH == "production"
-      when: manual
+    - if: $CI_COMMIT_BRANCH == "main"
