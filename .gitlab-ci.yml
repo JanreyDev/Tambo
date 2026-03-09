@@ -21,6 +21,8 @@ build:
     - corepack enable && corepack prepare pnpm@latest --activate
     - pnpm install --frozen-lockfile
   script:
+    - export NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL_PRODUCTION}"
+    - echo "Building with API URL -> ${NEXT_PUBLIC_API_URL}"
     - pnpm build
   artifacts:
     paths:
