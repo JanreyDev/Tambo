@@ -77,17 +77,17 @@ deploy_production:
     - echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
   script:
     - tar -czf deploy.tar.gz .next/standalone .next/static public package.json .npmrc 2>/dev/null || tar -czf deploy.tar.gz .next/standalone .next/static package.json .npmrc
-    - scp deploy.tar.gz root@152.42.223.52:/tmp/command-center-deploy.tar.gz
+    - scp deploy.tar.gz root@152.42.223.52:/tmp/primex-founder-deploy.tar.gz
     - |
       ssh root@152.42.223.52 << 'DEPLOY'
         set -e
-        LIVE="/var/www/command-center-web"
-        NEW="/var/www/command-center-web-new"
-        OLD="/var/www/command-center-web-old"
+        LIVE="/var/www/primex-founder-web"
+        NEW="/var/www/primex-founder-web-new"
+        OLD="/var/www/primex-founder-web-old"
 
         rm -rf "$NEW"
         mkdir -p "$NEW"
-        tar -xzf /tmp/command-center-deploy.tar.gz -C "$NEW"
+        tar -xzf /tmp/primex-founder-deploy.tar.gz -C "$NEW"
         cp "$LIVE/.env" "$NEW/.env" 2>/dev/null || true
         cd "$NEW/.next/standalone"
         npm install --omit=dev 2>/dev/null || true
@@ -100,12 +100,12 @@ deploy_production:
         cp -r "$LIVE/public" "$LIVE/.next/standalone/public" 2>/dev/null || true
 
         cd "$LIVE/.next/standalone"
-        pm2 describe command-center-web > /dev/null 2>&1 && pm2 reload command-center-web --update-env || PORT=3002 HOSTNAME=0.0.0.0 pm2 start server.js --name command-center-web --update-env
+        pm2 describe primex-founder-web > /dev/null 2>&1 && pm2 reload primex-founder-web --update-env || PORT=3002 HOSTNAME=0.0.0.0 pm2 start server.js --name primex-founder-web --update-env
         pm2 save
 
-        rm /tmp/command-center-deploy.tar.gz
+        rm /tmp/primex-founder-deploy.tar.gz
         rm -rf "$OLD"
-        echo "Deployed command-center-web at $(date)"
+        echo "Deployed primex-founder-web at $(date)"
       DEPLOY
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
