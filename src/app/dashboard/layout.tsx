@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useFounderAuth } from "@/contexts/founder-auth-context";
 import { api } from "@/lib/api";
+import { Sidebar } from "@/components/sidebar";
 import type { HeartbeatResponse } from "@/lib/types";
 
 export default function DashboardLayout({
@@ -49,5 +50,19 @@ export default function DashboardLayout({
     return null;
   }
 
-  return <>{children}</>;
+  return (
+    <div className="flex min-h-screen bg-background">
+      <Sidebar />
+      <div className="flex-1 flex flex-col min-w-0">
+        <main className="flex-1">{children}</main>
+        <footer className="border-t border-border px-6 py-3 text-[11px] text-muted-foreground/60 flex items-center justify-between">
+          <span>Copyright 2015-{new Date().getFullYear()} All Rights Reserved | PrimeX Ventures Inc.</span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
+            v1.0.0
+          </span>
+        </footer>
+      </div>
+    </div>
+  );
 }

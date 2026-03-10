@@ -35,7 +35,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob: https:",
               "font-src 'self' data:",
-              "connect-src 'self' https://api.pulitika.ph https://*.ingest.us.sentry.io",
+              `connect-src 'self' ${process.env.NODE_ENV === 'development' ? 'http://localhost:8001' : ''} https://api.primex.ventures https://*.ingest.us.sentry.io`,
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",

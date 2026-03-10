@@ -117,7 +117,7 @@ export interface ActivityEvent {
   id: string;
   action: string;
   actor: string;
-  product: "bcmp" | "lgmp" | "pdmp" | "pulitika" | "system";
+  product: "bcmp" | "lgmp" | "pdmp" | "primex" | "system";
   description: string;
   timestamp: string;
 }

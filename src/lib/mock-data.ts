@@ -26,10 +26,10 @@ export const mockAlerts: Alert[] = [
 
 export const mockInsight: MabiniInsight = {
   summary:
-    "All systems operational on production. 5 apps running on pulitika-production (152.42.223.52): command-center-web, pulitika-web, bcmp-web, pulitika-api, bcmp-api. PrimeXV4 RAM at 85% -- expected with 50+ barangays. Staging infrastructure eliminated. Revenue stable at ~333K MRR. No critical security incidents.",
+    "All systems operational on production. 5 apps running on primex-production (152.42.223.52): primex-founder-web, primex-admin-web, bcmp-web, primex-api, bcmp-api. PrimeXV4 RAM at 85% -- expected with 50+ barangays. Staging infrastructure eliminated. Revenue stable at ~333K MRR. No critical security incidents.",
   analyzed_at: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
   highlights: [
-    "All 5 apps live on production: founder, pulitika, bcmp, 2 APIs",
+    "All 5 apps live on production: founder, admin, bcmp, 2 APIs",
     "PrimeXV4 cannot be downsized due to RAM constraints",
     "Staging infrastructure eliminated -- saves ~$32/mo",
     "Next priority: Full Mabini AI integration with live data",
@@ -38,8 +38,8 @@ export const mockInsight: MabiniInsight = {
 
 export const mockDroplets: DropletMetrics[] = [
   {
-    id: "pulitika-production",
-    name: "pulitika-production",
+    id: "primex-production",
+    name: "primex-production",
     ip: "152.42.223.52",
     status: "active",
     region: "SGP1",
@@ -111,8 +111,8 @@ export const mockDatabases: DatabaseStatus[] = [
     host: "private",
   },
   {
-    id: "pulitika-production-db",
-    name: "pulitika-production-db",
+    id: "primex-production-db",
+    name: "primex-production-db",
     engine: "PostgreSQL",
     version: "17",
     status: "online",
@@ -185,7 +185,6 @@ export const mockDomains: DomainStatus[] = [
   { domain: "kapitan.ph", ssl_status: "active", proxy_status: "proxied", plan: "Free", product_group: "BCMP" },
   { domain: "kabataan.ph", ssl_status: "active", proxy_status: "proxied", plan: "Free", product_group: "BCMP" },
   { domain: "barangay.org.ph", ssl_status: "active", proxy_status: "proxied", plan: "Free", product_group: "BCMP" },
-  { domain: "pulitika.ph", ssl_status: "active", proxy_status: "proxied", plan: "Free", product_group: "Admin" },
   { domain: "primex.ventures", ssl_status: "active", proxy_status: "proxied", plan: "Free", product_group: "Corporate" },
   { domain: "tarlac.ph", ssl_status: "active", proxy_status: "proxied", plan: "Free", product_group: "LGMP" },
   { domain: "spacall.ph", ssl_status: "active", proxy_status: "proxied", plan: "Free", product_group: "SPACALL" },
@@ -222,7 +221,7 @@ export const mockDeployments: Deployment[] = [
   },
   {
     id: "deploy-3",
-    project_name: "pulitika-web",
+    project_name: "primex-founder-web",
     branch: "main",
     status: "success",
     commit_message: "Orange accent color scheme applied, Command Center landing",
@@ -232,7 +231,7 @@ export const mockDeployments: Deployment[] = [
   },
   {
     id: "deploy-4",
-    project_name: "pulitika-api",
+    project_name: "primex-api",
     branch: "main",
     status: "success",
     commit_message: "Deploy staging with PHP-FPM + Nginx, 80 Pest tests passing",
@@ -274,7 +273,7 @@ export const mockActivity: ActivityEvent[] = [
     id: "act-3",
     action: "Documentation Updated",
     actor: "Claude",
-    product: "pulitika",
+    product: "primex",
     description: "BCMP Master Doc updated with 29 pages across 5 sections",
     timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
   },

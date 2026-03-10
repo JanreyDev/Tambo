@@ -9,13 +9,19 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import { api, setToken, clearToken, hasToken } from "@/lib/api";
+import { api, ApiError, setToken, clearToken, hasToken } from "@/lib/api";
 import type { FounderVerifyResponse, HeartbeatResponse } from "@/lib/types";
+
+interface VerifyResult {
+  success: boolean;
+  error?: string;
+  retryAfter?: number;
+}
 
 interface FounderAuthContextType {
   isAuthenticated: boolean;
   isChecking: boolean;
-  verifyPasscode: (passphrase: string) => Promise<{ success: boolean; error?: string }>;
+  verifyPasscode: (passphrase: string) => Promise<VerifyResult>;
   logout: () => void;
 }
 
@@ -42,6 +48,8 @@ export function FounderAuthProvider({ children }: { children: ReactNode }) {
     const controller = new AbortController();
     let cancelled = false;
 
+    // Heartbeat is silent -- no error toasts, no error states.
+    // If stale token, just clear it and show passcode form.
     api
       .get<HeartbeatResponse>("/founder/heartbeat", { signal: controller.signal })
       .then(() => {
@@ -61,7 +69,7 @@ export function FounderAuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const verifyPasscode = useCallback(
-    async (passphrase: string): Promise<{ success: boolean; error?: string }> => {
+    async (passphrase: string): Promise<VerifyResult> => {
       try {
         const response = await api.post<FounderVerifyResponse>(
           "/founder/verify-passcode",
@@ -71,11 +79,18 @@ export function FounderAuthProvider({ children }: { children: ReactNode }) {
         setIsAuthenticated(true);
         return { success: true };
       } catch (err) {
-        const message =
-          err && typeof err === "object" && "message" in err
-            ? (err as { message: string }).message
-            : "Invalid passcode";
-        return { success: false, error: message };
+        if (err instanceof ApiError) {
+          return {
+            success: false,
+            error: err.message,
+            retryAfter: err.retryAfter ?? undefined,
+          };
+        }
+
+        return {
+          success: false,
+          error: "Unable to connect to server. Please check your connection and try again.",
+        };
       }
     },
     [],

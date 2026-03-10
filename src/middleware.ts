@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const PUBLIC_PATHS = ["/passcode", "/favicon.ico"];
+const PUBLIC_PATHS = ["/passcode", "/favicon.ico", "/vault"];
+const VAULT_PROTECTED_PATHS = ["/vault/guide"];
 const STATIC_PREFIXES = ["/_next/", "/static/", "/api/"];
 
 export function middleware(request: NextRequest) {
@@ -11,7 +12,16 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Allow public paths
+  // Vault protected routes -- require vault_auth cookie
+  if (VAULT_PROTECTED_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
+    const vaultCookie = request.cookies.get("vault_auth");
+    if (!vaultCookie?.value) {
+      return NextResponse.redirect(new URL("/vault", request.url));
+    }
+    return NextResponse.next();
+  }
+
+  // Allow public paths (includes /vault keyphrase entry page)
   if (PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
     return NextResponse.next();
   }
@@ -21,7 +31,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check for founder_auth cookie on protected routes
+  // Check for founder_auth cookie on dashboard routes
   const authCookie = request.cookies.get("founder_auth");
 
   if (!authCookie?.value) {

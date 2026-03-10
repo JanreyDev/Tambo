@@ -1,20 +1,22 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, ShieldAlert, Loader2 } from "lucide-react";
+import { Eye, EyeOff, ShieldAlert, Shield, Loader2, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { PrimeXLogo } from "@/components/primex-logo";
 import { cn } from "@/lib/utils";
 import { useFounderAuth } from "@/contexts/founder-auth-context";
+import { ApiError } from "@/lib/api";
 
 export default function PasscodePage() {
   const [passphrase, setPassphrase] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isShaking, setIsShaking] = useState(false);
-  const [attempts, setAttempts] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [lockedUntil, setLockedUntil] = useState<number | null>(null);
+  const [countdown, setCountdown] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const { verifyPasscode, isAuthenticated, isChecking } = useFounderAuth();
@@ -29,31 +31,68 @@ export default function PasscodePage() {
     inputRef.current?.focus();
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!passphrase.trim() || isSubmitting) return;
-
-    setIsSubmitting(true);
-    setError(null);
-
-    const result = await verifyPasscode(passphrase.trim());
-
-    if (result.success) {
-      toast.success("Access granted. Welcome, Founder.");
-      router.replace("/dashboard");
-    } else {
-      setAttempts((prev) => prev + 1);
-      const errorMsg = result.error || "Access denied";
-      setError(errorMsg);
-      toast.error(errorMsg);
-      setIsShaking(true);
-      setPassphrase("");
-      setTimeout(() => setIsShaking(false), 500);
-      inputRef.current?.focus();
+  // Countdown timer for rate limiting
+  useEffect(() => {
+    if (!lockedUntil) {
+      setCountdown(0);
+      return;
     }
 
-    setIsSubmitting(false);
-  };
+    const tick = () => {
+      const remaining = Math.ceil((lockedUntil - Date.now()) / 1000);
+      if (remaining <= 0) {
+        setLockedUntil(null);
+        setCountdown(0);
+        setError(null);
+        inputRef.current?.focus();
+      } else {
+        setCountdown(remaining);
+      }
+    };
+
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [lockedUntil]);
+
+  const isLocked = lockedUntil !== null && countdown > 0;
+
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!passphrase.trim() || isSubmitting || isLocked) return;
+
+      setIsSubmitting(true);
+      setError(null);
+
+      const result = await verifyPasscode(passphrase.trim());
+
+      if (result.success) {
+        toast.success("Access granted. Welcome, Founder.");
+        router.replace("/dashboard");
+      } else {
+        const errorMsg = result.error || "Invalid passphrase. Please try again.";
+
+        // Check if rate limited
+        if (result.retryAfter) {
+          setLockedUntil(Date.now() + result.retryAfter * 1000);
+        }
+
+        setError(errorMsg);
+        toast.error(errorMsg);
+        setIsShaking(true);
+        setPassphrase("");
+        setTimeout(() => setIsShaking(false), 500);
+
+        if (!result.retryAfter) {
+          inputRef.current?.focus();
+        }
+      }
+
+      setIsSubmitting(false);
+    },
+    [passphrase, isSubmitting, isLocked, verifyPasscode, router],
+  );
 
   if (isChecking) {
     return (
@@ -111,7 +150,7 @@ export default function PasscodePage() {
               value={passphrase}
               onChange={(e) => setPassphrase(e.target.value)}
               placeholder="Enter passphrase"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isLocked}
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="off"
@@ -139,7 +178,7 @@ export default function PasscodePage() {
           </div>
 
           {/* Error */}
-          {error && (
+          {error && !isLocked && (
             <p
               id="passcode-error"
               className="text-center text-xs font-medium text-red-400"
@@ -149,17 +188,25 @@ export default function PasscodePage() {
             </p>
           )}
 
-          {/* Rate limit warning */}
-          {attempts >= 2 && (
-            <p className="text-center text-[10px] text-amber-400/80">
-              Multiple failed attempts detected. Further attempts may be rate limited.
-            </p>
+          {/* Rate limit countdown */}
+          {isLocked && (
+            <div className="flex flex-col items-center gap-1.5" role="alert">
+              <div className="flex items-center gap-1.5 text-amber-400">
+                <Clock className="h-3.5 w-3.5" />
+                <span className="text-xs font-semibold">
+                  Try again in {countdown}s
+                </span>
+              </div>
+              <p className="text-center text-[10px] text-muted-foreground">
+                Too many attempts. Please wait before trying again.
+              </p>
+            </div>
           )}
 
           {/* Submit */}
           <button
             type="submit"
-            disabled={!passphrase.trim() || isSubmitting}
+            disabled={!passphrase.trim() || isSubmitting || isLocked}
             className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-accent to-orange-400 px-4 py-3 text-sm font-bold uppercase tracking-wider text-white transition-all hover:from-accent-hover hover:to-accent disabled:opacity-50"
           >
             {isSubmitting ? (
@@ -167,11 +214,27 @@ export default function PasscodePage() {
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Verifying...
               </>
+            ) : isLocked ? (
+              <>
+                <Clock className="h-4 w-4" />
+                Locked ({countdown}s)
+              </>
             ) : (
               "Access"
             )}
           </button>
         </form>
+
+        {/* Family Vault Link */}
+        <div className="mt-6 flex justify-center">
+          <a
+            href="/vault"
+            className="group flex items-center gap-1.5 text-[10px] text-amber-500/60 transition-colors hover:text-amber-400"
+          >
+            <Shield className="h-3 w-3" />
+            <span>Family Vault</span>
+          </a>
+        </div>
 
         {/* Footer */}
         <div className="mt-4 text-center text-[9px] leading-relaxed text-muted-foreground/40">

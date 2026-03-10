@@ -13,7 +13,7 @@ const productColors: Record<string, string> = {
   bcmp: "#3b82f6",
   lgmp: "#22c55e",
   pdmp: "#f59e0b",
-  pulitika: "#ea580c",
+  primex: "#ea580c",
   system: "#94a3b8",
 };
 
@@ -21,7 +21,7 @@ const productLabels: Record<string, string> = {
   bcmp: "BCMP",
   lgmp: "LGMP",
   pdmp: "PDMP",
-  pulitika: "Pulitika",
+  primex: "PrimeX",
   system: "System",
 };
 
