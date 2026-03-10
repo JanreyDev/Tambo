@@ -74,18 +74,18 @@ deploy_production:
         --exclude="docker-compose.yml"
         --exclude=".editorconfig"
         .
-    - scp /tmp/deploy.tar.gz root@152.42.223.52:/tmp/pulitika-api-deploy.tar.gz
+    - scp /tmp/deploy.tar.gz root@152.42.223.52:/tmp/primex-api-deploy.tar.gz
     - |
       ssh root@152.42.223.52 << 'DEPLOY'
         set -e
-        LIVE="/var/www/pulitika-api"
-        NEW="/var/www/pulitika-api-new"
-        OLD="/var/www/pulitika-api-old"
+        LIVE="/var/www/primex-api"
+        NEW="/var/www/primex-api-new"
+        OLD="/var/www/primex-api-old"
 
         rm -rf "$NEW"
         mkdir -p "$NEW"
         cd "$NEW"
-        tar -xzf /tmp/pulitika-api-deploy.tar.gz
+        tar -xzf /tmp/primex-api-deploy.tar.gz
 
         cp "$LIVE/.env" "$NEW/.env"
         cp -a "$LIVE/storage/logs" "$NEW/storage/logs" 2>/dev/null || true
@@ -115,7 +115,7 @@ deploy_production:
         mv "$LIVE" "$OLD"
         mv "$NEW" "$LIVE"
 
-        # Cache AFTER swap so paths resolve to final /var/www/pulitika-api
+        # Cache AFTER swap so paths resolve to final /var/www/primex-api
         cd "$LIVE"
         php artisan config:cache
         php artisan route:cache
@@ -124,11 +124,11 @@ deploy_production:
         systemctl reload php8.4-fpm
 
         echo "<?php opcache_reset(); echo 'ok';" > "$LIVE/public/opcache_reset.php"
-        curl -sk https://api.pulitika.ph/opcache_reset.php --resolve api.pulitika.ph:443:127.0.0.1 || true
+        curl -sk https://api.primex.ventures/opcache_reset.php --resolve api.primex.ventures:443:127.0.0.1 || true
         rm -f "$LIVE/public/opcache_reset.php"
 
-        rm -rf "$OLD" /tmp/pulitika-api-deploy.tar.gz
-        echo "Deployed pulitika-api at $(date)"
+        rm -rf "$OLD" /tmp/primex-api-deploy.tar.gz
+        echo "Deployed primex-api at $(date)"
       DEPLOY
   rules:
     - if: $CI_COMMIT_BRANCH == "main"

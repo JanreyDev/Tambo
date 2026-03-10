@@ -42,7 +42,7 @@ class ActivityController extends Controller
         $action = $log->action ?? '';
 
         if (str_starts_with($action, 'founder_')) {
-            return 'pulitika';
+            return 'primex';
         }
 
         if (str_contains($action, 'bcmp') || str_contains($action, 'barangay') || str_contains($action, 'resident')) {

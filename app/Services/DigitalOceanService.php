@@ -158,7 +158,7 @@ class DigitalOceanService
                     ['name' => 'kphs32', 'region' => 'sgp1'],
                     ['name' => 'mmbrshps31', 'region' => 'sgp1'],
                     ['name' => 'primex-storage', 'region' => 'sgp1'],
-                    ['name' => 'pulitika', 'region' => 'sgp1'],
+                    ['name' => 'primex-drive', 'region' => 'sgp1'],
                     ['name' => 'tarlac-assets', 'region' => 'sgp1'],
                     ['name' => 'spacall', 'region' => 'sgp1'],
                 ],

@@ -10,7 +10,7 @@ return [
     |--------------------------------------------------------------------------
     |
     | The bcrypt hash of the founder's passcode. Used by the Command Center
-    | at founder.pulitika.ph for passcode-based authentication (not Sanctum).
+    | at founder.primex.ventures for passcode-based authentication (not Sanctum).
     |
     | Generate with: php artisan tinker --execute="echo bcrypt('your-passcode');"
     |

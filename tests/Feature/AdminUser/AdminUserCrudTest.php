@@ -68,7 +68,7 @@ test('can filter admin users by role', function () {
 test('can create admin user', function () {
     $response = $this->postJson('/api/v1/admin-users', [
         'username' => 'newadmin',
-        'email' => 'newadmin@pulitika.ph',
+        'email' => 'newadmin@primex.ventures',
         'password' => 'securePass123!',
         'first_name' => 'New',
         'last_name' => 'Admin',
@@ -76,20 +76,20 @@ test('can create admin user', function () {
 
     $response->assertCreated()
         ->assertJsonPath('data.username', 'newadmin')
-        ->assertJsonPath('data.email', 'newadmin@pulitika.ph')
+        ->assertJsonPath('data.email', 'newadmin@primex.ventures')
         ->assertJsonPath('data.first_name', 'New')
         ->assertJsonPath('data.last_name', 'Admin');
 
     $this->assertDatabaseHas('admin_users', [
         'username' => 'newadmin',
-        'email' => 'newadmin@pulitika.ph',
+        'email' => 'newadmin@primex.ventures',
     ]);
 });
 
 test('can create admin user with role', function () {
     $response = $this->postJson('/api/v1/admin-users', [
         'username' => 'superadmin',
-        'email' => 'super@pulitika.ph',
+        'email' => 'super@primex.ventures',
         'password' => 'securePass123!',
         'first_name' => 'Super',
         'last_name' => 'Admin',
@@ -108,11 +108,11 @@ test('create admin user validates required fields', function () {
 });
 
 test('create admin user validates unique email', function () {
-    $existing = AdminUser::factory()->create(['email' => 'taken@pulitika.ph']);
+    $existing = AdminUser::factory()->create(['email' => 'taken@primex.ventures']);
 
     $response = $this->postJson('/api/v1/admin-users', [
         'username' => 'another',
-        'email' => 'taken@pulitika.ph',
+        'email' => 'taken@primex.ventures',
         'password' => 'securePass123!',
         'first_name' => 'Another',
         'last_name' => 'User',
@@ -127,7 +127,7 @@ test('create admin user validates unique username', function () {
 
     $response = $this->postJson('/api/v1/admin-users', [
         'username' => 'taken',
-        'email' => 'new@pulitika.ph',
+        'email' => 'new@primex.ventures',
         'password' => 'securePass123!',
         'first_name' => 'New',
         'last_name' => 'User',
@@ -140,7 +140,7 @@ test('create admin user validates unique username', function () {
 test('create admin user validates minimum password length', function () {
     $response = $this->postJson('/api/v1/admin-users', [
         'username' => 'short',
-        'email' => 'short@pulitika.ph',
+        'email' => 'short@primex.ventures',
         'password' => 'abc',
         'first_name' => 'Short',
         'last_name' => 'Pass',
@@ -153,7 +153,7 @@ test('create admin user validates minimum password length', function () {
 test('create admin user tracks created_by', function () {
     $response = $this->postJson('/api/v1/admin-users', [
         'username' => 'tracked',
-        'email' => 'tracked@pulitika.ph',
+        'email' => 'tracked@primex.ventures',
         'password' => 'securePass123!',
         'first_name' => 'Tracked',
         'last_name' => 'User',
@@ -218,30 +218,30 @@ test('can update admin user email', function () {
     $user = AdminUser::factory()->create();
 
     $response = $this->putJson("/api/v1/admin-users/{$user->id}", [
-        'email' => 'updated@pulitika.ph',
+        'email' => 'updated@primex.ventures',
     ], $this->headers);
 
     $response->assertOk()
-        ->assertJsonPath('data.email', 'updated@pulitika.ph');
+        ->assertJsonPath('data.email', 'updated@primex.ventures');
 });
 
 test('update admin user validates unique email excludes self', function () {
-    $user = AdminUser::factory()->create(['email' => 'self@pulitika.ph']);
+    $user = AdminUser::factory()->create(['email' => 'self@primex.ventures']);
 
     // Updating with own email should succeed
     $response = $this->putJson("/api/v1/admin-users/{$user->id}", [
-        'email' => 'self@pulitika.ph',
+        'email' => 'self@primex.ventures',
     ], $this->headers);
 
     $response->assertOk();
 });
 
 test('update admin user rejects duplicate email from another user', function () {
-    $userA = AdminUser::factory()->create(['email' => 'a@pulitika.ph']);
-    $userB = AdminUser::factory()->create(['email' => 'b@pulitika.ph']);
+    $userA = AdminUser::factory()->create(['email' => 'a@primex.ventures']);
+    $userB = AdminUser::factory()->create(['email' => 'b@primex.ventures']);
 
     $response = $this->putJson("/api/v1/admin-users/{$userB->id}", [
-        'email' => 'a@pulitika.ph',
+        'email' => 'a@primex.ventures',
     ], $this->headers);
 
     $response->assertUnprocessable()
@@ -296,7 +296,7 @@ test('delete revokes target user tokens', function () {
 test('create admin user creates audit log', function () {
     $this->postJson('/api/v1/admin-users', [
         'username' => 'audited',
-        'email' => 'audited@pulitika.ph',
+        'email' => 'audited@primex.ventures',
         'password' => 'securePass123!',
         'first_name' => 'Audited',
         'last_name' => 'User',

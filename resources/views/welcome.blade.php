@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pulitika API | pulitika.ph</title>
+    <title>PrimeX API | api.primex.ventures</title>
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
     <meta name="robots" content="noindex, nofollow">
     <style>
@@ -129,7 +129,7 @@
             Admin API
         </div>
 
-        <h1>Pulitika API</h1>
+        <h1>PrimeX API</h1>
         <p class="subtitle">
             Centralized Admin Dashboard Backend<br>
             Command center for <strong>BCMP</strong> &middot; <strong>LGMP</strong> &middot; <strong>PDMP</strong>
@@ -181,7 +181,7 @@
         </div>
 
         <div class="footer">
-            <a href="https://pulitika.ph">pulitika.ph</a> &middot; <a href="https://primex.ventures">PrimeX Ventures Inc.</a><br>
+            <a href="https://primex.ventures">PrimeX Ventures Inc.</a><br>
             &copy; 2015&ndash;{{ date('Y') }} All Rights Reserved
         </div>
     </div>

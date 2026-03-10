@@ -17,7 +17,10 @@ use App\Http\Controllers\Api\V1\Founder\RevenueController;
 use App\Http\Controllers\Api\V1\Founder\SecurityController;
 use App\Http\Controllers\Api\V1\PlatformSettingController;
 use App\Http\Controllers\Api\V1\ProductConnectionController;
+use App\Http\Controllers\Api\V1\Vault\VaultAuthController;
+use App\Http\Controllers\Api\V1\Vault\VaultController;
 use App\Http\Middleware\FounderAuth;
+use App\Http\Middleware\VaultAuth;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function (): void {
@@ -57,12 +60,11 @@ Route::prefix('v1')->group(function (): void {
 
 // Founder Command Center routes (passcode auth, not Sanctum).
 Route::prefix('v1/founder')->group(function (): void {
-    Route::post('verify-passcode', [FounderAuthController::class, 'verifyPasscode'])
-        ->middleware('throttle:3,1');
+    Route::post('verify-passcode', [FounderAuthController::class, 'verifyPasscode']);
 
     Route::middleware(FounderAuth::class)->group(function (): void {
         // Session management
-        Route::post('heartbeat', [FounderAuthController::class, 'heartbeat']);
+        Route::get('heartbeat', [FounderAuthController::class, 'heartbeat']);
         Route::post('logout', [FounderAuthController::class, 'logout']);
 
         // Infrastructure monitoring
@@ -96,5 +98,23 @@ Route::prefix('v1/founder')->group(function (): void {
 
         // Activity timeline
         Route::get('activity', [ActivityController::class, 'timeline']);
+    });
+});
+
+// Family Vault routes (keyphrase auth, separate from Sanctum and Founder).
+Route::prefix('v1/vault')->group(function (): void {
+    Route::post('verify-keyphrase', [VaultAuthController::class, 'verifyKeyphrase'])
+        ->middleware('throttle:3,60');
+
+    Route::middleware(VaultAuth::class)->group(function (): void {
+        // Session management
+        Route::get('heartbeat', [VaultAuthController::class, 'heartbeat']);
+        Route::post('logout', [VaultAuthController::class, 'logout']);
+
+        // Vault content
+        Route::get('categories', [VaultController::class, 'categories']);
+        Route::get('categories/{category}', [VaultController::class, 'entriesByCategory']);
+        Route::get('guide', [VaultController::class, 'guide']);
+        Route::get('entries/{id}', [VaultController::class, 'show']);
     });
 });

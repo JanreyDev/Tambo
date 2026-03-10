@@ -22,8 +22,10 @@ return [
     'allowed_origins' => [
         'http://localhost:3001',
         'http://localhost:3002',
-        'https://pulitika.ph',
-        'https://founder.pulitika.ph',
+        'http://localhost:3003',
+        'https://primex.ventures',
+        'https://founder.primex.ventures',
+        'https://api.primex.ventures',
     ],
 
     'allowed_origins_patterns' => [],

@@ -192,7 +192,7 @@ class InfrastructureController extends Controller
         return match ($domain) {
             'kapitan.ph', 'kabataan.ph', 'barangay.org.ph' => 'BCMP',
             'tarlac.ph' => 'LGMP',
-            'pulitika.ph' => 'Pulitika',
+            'primex.ventures' => 'PrimeX',
             'spacall.ph' => 'SPACALL',
             'barangaymo.com' => 'Barangaymo',
             'robes.ph' => 'PDMP',

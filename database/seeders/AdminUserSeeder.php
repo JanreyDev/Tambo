@@ -17,7 +17,7 @@ class AdminUserSeeder extends Seeder
         $admin = AdminUser::firstOrCreate(
             ['username' => 'admin'],
             [
-                'email' => 'admin@pulitika.ph',
+                'email' => 'admin@primex.ventures',
                 'password' => 'password',
                 'first_name' => 'System',
                 'last_name' => 'Administrator',

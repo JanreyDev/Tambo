@@ -47,7 +47,7 @@ class AuthController extends Controller
             ], 403);
         }
 
-        $deviceName = $validated['device_name'] ?? 'pulitika-admin';
+        $deviceName = $validated['device_name'] ?? 'primex-admin';
 
         $token = $adminUser->createToken(
             name: $deviceName,

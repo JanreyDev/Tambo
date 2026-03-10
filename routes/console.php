@@ -16,7 +16,7 @@ Artisan::command('inspire', function () {
 |--------------------------------------------------------------------------
 |
 | These tasks power the automated monitoring, alerting, and cleanup
-| for the PrimeX Command Center at founder.pulitika.ph.
+| for the PrimeX Command Center at founder.primex.ventures.
 |
 */
 
