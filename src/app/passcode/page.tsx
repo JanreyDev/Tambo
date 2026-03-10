@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { PrimeXLogo } from "@/components/primex-logo";
 import { cn } from "@/lib/utils";
 import { useFounderAuth } from "@/contexts/founder-auth-context";
-import { ApiError } from "@/lib/api";
+
 
 export default function PasscodePage() {
   const [passphrase, setPassphrase] = useState("");
@@ -33,10 +33,7 @@ export default function PasscodePage() {
 
   // Countdown timer for rate limiting
   useEffect(() => {
-    if (!lockedUntil) {
-      setCountdown(0);
-      return;
-    }
+    if (!lockedUntil) return;
 
     const tick = () => {
       const remaining = Math.ceil((lockedUntil - Date.now()) / 1000);

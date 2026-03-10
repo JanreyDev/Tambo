@@ -6,7 +6,7 @@ import { Eye, EyeOff, KeyRound, Loader2, Clock, Heart } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useVaultAuth } from "@/contexts/vault-auth-context";
-import { VaultApiError } from "@/lib/vault-api";
+
 
 export default function VaultPage() {
   const [keyphrase, setKeyphrase] = useState("");
@@ -32,10 +32,7 @@ export default function VaultPage() {
 
   // Countdown timer for rate limiting
   useEffect(() => {
-    if (!lockedUntil) {
-      setCountdown(0);
-      return;
-    }
+    if (!lockedUntil) return;
 
     const tick = () => {
       const remaining = Math.ceil((lockedUntil - Date.now()) / 1000);
