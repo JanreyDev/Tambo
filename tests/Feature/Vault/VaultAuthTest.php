@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Models\Vault\VaultAccessLog;
 use App\Models\Vault\VaultSession;
 use Illuminate\Support\Facades\Hash;
 
