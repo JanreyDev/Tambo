@@ -75,7 +75,7 @@ class AuthController extends Controller
         $token = $user->createToken(
             $validated['device_name'] ?? 'web',
             ['*'],
-            now()->addDays(30) // Token expires in 30 days
+            now()->addHours(12) // Token expires in 12 hours (daily login for gov offices)
         );
 
         // Store device info in the token for session tracking

@@ -144,10 +144,10 @@ test('login issues a token with 30-day expiry', function () {
     $expiresAt = $response->json('expires_at');
     expect($expiresAt)->not->toBeNull();
 
-    // Token should expire approximately 30 days from now
+    // Token should expire approximately 12 hours from now
     $expiry = \Carbon\Carbon::parse($expiresAt);
-    $daysUntilExpiry = now()->diffInDays($expiry, false);
-    expect($daysUntilExpiry)->toBeBetween(29, 31);
+    $hoursUntilExpiry = now()->diffInHours($expiry, false);
+    expect($hoursUntilExpiry)->toBeBetween(11, 13);
 });
 
 test('login records last login timestamp and IP', function () {

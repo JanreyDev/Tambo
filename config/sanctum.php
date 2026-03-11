@@ -45,9 +45,9 @@ return [
     |
     */
 
-    // 30 days = 43200 minutes. Safety net for the per-token expires_at set at login.
-    // If a token is created without an explicit expires_at, this global config catches it.
-    'expiration' => 43200,
+    // 12 hours = 720 minutes. Government office hours: login every morning.
+    // Token dies ~12h after login (7am login expires at 7pm).
+    'expiration' => 720,
 
     /*
     |--------------------------------------------------------------------------
