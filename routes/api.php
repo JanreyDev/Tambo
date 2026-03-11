@@ -157,6 +157,7 @@ Route::prefix('v1')->group(function () {
             });
 
             // ── Records ──
+            Route::post('residents/check-duplicate', [ResidentController::class, 'checkDuplicate']);
             Route::apiResource('residents', ResidentController::class);
             Route::apiResource('establishments', EstablishmentController::class);
             Route::apiResource('lots-buildings', LotBuildingController::class);

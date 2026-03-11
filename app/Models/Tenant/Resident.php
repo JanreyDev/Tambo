@@ -59,6 +59,8 @@ class Resident extends Model
         'street',
         'subdivision_village',
         'zip_code',
+        'latitude',
+        'longitude',
 
         // Voter
         'is_voter',
@@ -68,19 +70,46 @@ class Resident extends Model
 
         // Government IDs (encrypted)
         'philhealth_number_encrypted',
+        'philhealth_expiry',
         'sss_gsis_number_encrypted',
+        'sss_gsis_expiry',
         'pagibig_number_encrypted',
+        'pagibig_expiry',
         'tin_number_encrypted',
+        'tin_expiry',
+        'pwd_id_encrypted',
+        'pwd_id_expiry',
+        'senior_citizen_id_encrypted',
 
-        // Education
+        // Education & Employment
         'highest_education',
         'education_details',
-
-        // Employment
+        'work_history',
+        'business_details',
         'occupation',
         'employer',
         'monthly_income_range',
         'source_of_income',
+        'livelihood_type',
+        'skills',
+
+        // Health
+        'health_history',
+        'is_organ_donor',
+
+        // Barangay role
+        'barangay_position',
+        'barangay_role_start',
+        'barangay_role_end',
+
+        // JSONB structured data
+        'pet_records',
+        'assistance_history',
+        'relative_links',
+
+        // Sectors
+        'sector_other',
+        'other_remarks',
 
         // Biometric file references
         'photo_file_id',
@@ -112,12 +141,27 @@ class Resident extends Model
             'date_of_birth' => 'date',
             'registration_date' => 'date',
             'transfer_date' => 'date',
+            'barangay_role_start' => 'date',
+            'barangay_role_end' => 'date',
+            'philhealth_expiry' => 'date',
+            'sss_gsis_expiry' => 'date',
+            'pagibig_expiry' => 'date',
+            'tin_expiry' => 'date',
+            'pwd_id_expiry' => 'date',
             'is_voter' => 'boolean',
             'is_resident_voter' => 'boolean',
             'is_head_of_household' => 'boolean',
+            'is_organ_donor' => 'boolean',
             'height_cm' => 'decimal:1',
             'weight_kg' => 'decimal:1',
+            'latitude' => 'decimal:8',
+            'longitude' => 'decimal:8',
             'education_details' => 'array',
+            'work_history' => 'array',
+            'business_details' => 'array',
+            'pet_records' => 'array',
+            'assistance_history' => 'array',
+            'relative_links' => 'array',
             'profile_completion_pct' => 'integer',
             'approved_at' => 'datetime',
         ];
@@ -139,6 +183,11 @@ class Resident extends Model
     {
         return $this->hasMany(\App\Models\Tenant\IssuedDocument::class, 'constituent_id')
             ->where('constituent_type', 'resident');
+    }
+
+    public function crossBarangayFlags(): HasMany
+    {
+        return $this->hasMany(Records\ResidentCrossBarangayFlag::class);
     }
 
     // ── Meilisearch ──
@@ -213,5 +262,24 @@ class Resident extends Model
         $filled = collect($fields)->filter(fn ($field) => ! empty($this->$field))->count();
 
         return (int) round(($filled / count($fields)) * 100);
+    }
+
+    /**
+     * Generate RES-{PSGC}-{XXXX} format resident number.
+     */
+    public static function generateResidentNumber(string $barangayId, string $psgcCode): string
+    {
+        $lastResident = static::where('barangay_id', $barangayId)
+            ->where('resident_number', 'like', "RES-{$psgcCode}-%")
+            ->orderBy('resident_number', 'desc')
+            ->first();
+
+        $nextSeq = 1;
+        if ($lastResident) {
+            $parts = explode('-', $lastResident->resident_number);
+            $nextSeq = ((int) end($parts)) + 1;
+        }
+
+        return sprintf('RES-%s-%04d', $psgcCode, $nextSeq);
     }
 }

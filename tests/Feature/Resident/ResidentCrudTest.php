@@ -203,13 +203,16 @@ test('can create a resident with required fields', function () {
         'last_name' => 'Santos',
         'date_of_birth' => '1990-01-15',
         'sex' => 'female',
+        'place_of_birth' => 'Olongapo City, Zambales',
+        'civil_status' => 'single',
+        'resident_type' => 'permanent',
     ], $this->headers);
 
     $response->assertCreated()
         ->assertJsonPath('resident.first_name', 'Maria')
         ->assertJsonPath('resident.last_name', 'Santos')
         ->assertJsonPath('resident.sex', 'female')
-        ->assertJsonPath('message', 'Resident created.');
+        ->assertJsonPath('message', 'Resident registered successfully.');
 
     // Verify persisted in database
     $this->assertDatabaseHas('residents', [
@@ -229,6 +232,7 @@ test('can create a resident with all fields', function () {
         'place_of_birth' => 'Olongapo City, Zambales',
         'sex' => 'male',
         'civil_status' => 'married',
+        'resident_type' => 'permanent',
         'citizenship' => 'Filipino',
         'religion' => 'Catholic',
         'blood_type' => 'O+',
@@ -255,16 +259,21 @@ test('create resident auto-generates resident number', function () {
         'last_name' => 'Santos',
         'date_of_birth' => '1990-01-15',
         'sex' => 'female',
+        'place_of_birth' => 'Olongapo City, Zambales',
+        'civil_status' => 'single',
+        'resident_type' => 'permanent',
     ], $this->headers);
 
     $response->assertCreated();
-    expect($response->json('resident.resident_number'))->toBe('000001');
+    $psgc = $this->barangay->psgc_code;
+    expect($response->json('resident.resident_number'))->toBe("RES-{$psgc}-0001");
 });
 
 test('create resident increments resident number', function () {
+    $psgc = $this->barangay->psgc_code;
     Resident::factory()->create([
         'barangay_id' => $this->barangay->id,
-        'resident_number' => '000005',
+        'resident_number' => "RES-{$psgc}-0005",
     ]);
 
     $response = $this->postJson('/api/v1/residents', [
@@ -272,10 +281,13 @@ test('create resident increments resident number', function () {
         'last_name' => 'Santos',
         'date_of_birth' => '1990-01-15',
         'sex' => 'female',
+        'place_of_birth' => 'Olongapo City, Zambales',
+        'civil_status' => 'single',
+        'resident_type' => 'permanent',
     ], $this->headers);
 
     $response->assertCreated();
-    expect($response->json('resident.resident_number'))->toBe('000006');
+    expect($response->json('resident.resident_number'))->toBe("RES-{$psgc}-0006");
 });
 
 test('create resident sets registration date to today', function () {
@@ -284,6 +296,9 @@ test('create resident sets registration date to today', function () {
         'last_name' => 'Santos',
         'date_of_birth' => '1990-01-15',
         'sex' => 'female',
+        'place_of_birth' => 'Olongapo City, Zambales',
+        'civil_status' => 'single',
+        'resident_type' => 'permanent',
     ], $this->headers);
 
     $response->assertCreated();
@@ -299,6 +314,9 @@ test('create resident sets status to active', function () {
         'last_name' => 'Santos',
         'date_of_birth' => '1990-01-15',
         'sex' => 'female',
+        'place_of_birth' => 'Olongapo City, Zambales',
+        'civil_status' => 'single',
+        'resident_type' => 'permanent',
     ], $this->headers);
 
     $response->assertCreated();
@@ -311,6 +329,9 @@ test('create resident calculates profile completion', function () {
         'last_name' => 'Santos',
         'date_of_birth' => '1990-01-15',
         'sex' => 'female',
+        'place_of_birth' => 'Olongapo City, Zambales',
+        'civil_status' => 'single',
+        'resident_type' => 'permanent',
     ], $this->headers);
 
     $response->assertCreated();
@@ -321,7 +342,7 @@ test('create resident validates required fields', function () {
     $response = $this->postJson('/api/v1/residents', [], $this->headers);
 
     $response->assertUnprocessable()
-        ->assertJsonValidationErrors(['first_name', 'last_name', 'date_of_birth', 'sex']);
+        ->assertJsonValidationErrors(['first_name', 'last_name', 'date_of_birth', 'sex', 'place_of_birth', 'civil_status', 'resident_type']);
 });
 
 test('create resident rejects invalid sex value', function () {
@@ -330,6 +351,9 @@ test('create resident rejects invalid sex value', function () {
         'last_name' => 'Santos',
         'date_of_birth' => '1990-01-15',
         'sex' => 'invalid',
+        'place_of_birth' => 'Olongapo City, Zambales',
+        'civil_status' => 'single',
+        'resident_type' => 'permanent',
     ], $this->headers);
 
     $response->assertUnprocessable()
@@ -342,6 +366,9 @@ test('create resident rejects future date of birth', function () {
         'last_name' => 'Santos',
         'date_of_birth' => now()->addDay()->toDateString(),
         'sex' => 'female',
+        'place_of_birth' => 'Olongapo City, Zambales',
+        'civil_status' => 'single',
+        'resident_type' => 'permanent',
     ], $this->headers);
 
     $response->assertUnprocessable()
@@ -354,6 +381,9 @@ test('create resident rejects invalid email', function () {
         'last_name' => 'Santos',
         'date_of_birth' => '1990-01-15',
         'sex' => 'female',
+        'place_of_birth' => 'Olongapo City, Zambales',
+        'civil_status' => 'single',
+        'resident_type' => 'permanent',
         'email' => 'not-an-email',
     ], $this->headers);
 
@@ -367,6 +397,9 @@ test('create resident assigns to current user barangay', function () {
         'last_name' => 'Santos',
         'date_of_birth' => '1990-01-15',
         'sex' => 'female',
+        'place_of_birth' => 'Olongapo City, Zambales',
+        'civil_status' => 'single',
+        'resident_type' => 'permanent',
     ], $this->headers);
 
     $response->assertCreated();
