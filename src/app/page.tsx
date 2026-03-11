@@ -292,7 +292,7 @@ export default function LoginPage() {
       {/* ── Version Selection Modal ── */}
       {showVersionModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md bg-background rounded-2xl border border-border shadow-2xl overflow-hidden">
+          <div className="w-full max-w-md bg-[#0c1230] rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
             {/* Header */}
             <div className="px-6 pt-6 pb-4 text-center">
               <Image
@@ -302,8 +302,8 @@ export default function LoginPage() {
                 height={38}
                 className="h-8 w-auto mx-auto mb-4"
               />
-              <h3 className="text-lg font-bold text-foreground">Welcome to kapitan.ph</h3>
-              <p className="text-sm text-muted-foreground mt-1.5">
+              <h3 className="text-lg font-bold text-white">Welcome to kapitan.ph</h3>
+              <p className="text-sm text-gray-400 mt-1.5">
                 Select the version your barangay is currently using.
               </p>
             </div>
@@ -312,27 +312,27 @@ export default function LoginPage() {
             <div className="px-6 pb-3 space-y-3">
               <a
                 href="https://v4.kapitan.ph"
-                className="flex items-center gap-4 w-full px-5 py-4 rounded-xl border border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 transition-all group"
+                className="flex items-center gap-4 w-full px-5 py-4 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/15 transition-all group"
               >
                 <div className="w-11 h-11 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0">
-                  <span className="text-amber-600 dark:text-amber-400 font-bold text-sm">V4</span>
+                  <span className="text-amber-400 font-bold text-sm">V4</span>
                 </div>
                 <div className="text-left min-w-0">
-                  <p className="text-sm font-semibold text-foreground group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">Kapitan V4</p>
-                  <p className="text-xs text-muted-foreground">Current version for most barangays</p>
+                  <p className="text-sm font-semibold text-white group-hover:text-amber-400 transition-colors">Kapitan V4</p>
+                  <p className="text-xs text-gray-400">Current version for most barangays</p>
                 </div>
               </a>
 
               <a
                 href="https://v3.kapitan.ph"
-                className="flex items-center gap-4 w-full px-5 py-4 rounded-xl border border-border bg-muted/30 hover:bg-muted/50 transition-all group"
+                className="flex items-center gap-4 w-full px-5 py-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all group"
               >
-                <div className="w-11 h-11 rounded-xl bg-muted flex items-center justify-center shrink-0">
-                  <span className="text-muted-foreground font-bold text-sm">V3</span>
+                <div className="w-11 h-11 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
+                  <span className="text-gray-400 font-bold text-sm">V3</span>
                 </div>
                 <div className="text-left min-w-0">
-                  <p className="text-sm font-semibold text-foreground group-hover:text-muted-foreground transition-colors">Kapitan V3</p>
-                  <p className="text-xs text-muted-foreground">Legacy version</p>
+                  <p className="text-sm font-semibold text-white group-hover:text-gray-300 transition-colors">Kapitan V3</p>
+                  <p className="text-xs text-gray-500">Legacy version</p>
                 </div>
               </a>
             </div>
@@ -340,9 +340,9 @@ export default function LoginPage() {
             {/* Divider + V5 Continue */}
             <div className="px-6 pb-6 pt-2">
               <div className="flex items-center gap-3 mb-4">
-                <div className="flex-1 h-px bg-border" />
-                <span className="text-[11px] text-muted-foreground font-medium">or</span>
-                <div className="flex-1 h-px bg-border" />
+                <div className="flex-1 h-px bg-white/10" />
+                <span className="text-[11px] text-gray-500 font-medium">or</span>
+                <div className="flex-1 h-px bg-white/10" />
               </div>
               <button
                 onClick={() => {
@@ -354,7 +354,7 @@ export default function LoginPage() {
               >
                 Continue to V5 (New Version)
               </button>
-              <p className="text-center text-[10px] text-muted-foreground mt-2">
+              <p className="text-center text-[10px] text-gray-500 mt-2">
                 V5 is the latest version with AI, offline mode, and modern features.
               </p>
             </div>
