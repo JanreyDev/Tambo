@@ -101,7 +101,8 @@ deploy_production:
         cp -r "$LIVE/public" "$LIVE/.next/standalone/public" 2>/dev/null || true
 
         cd "$LIVE/.next/standalone"
-        pm2 describe bcmp-web > /dev/null 2>&1 && pm2 reload bcmp-web --update-env || PORT=3000 HOSTNAME=0.0.0.0 pm2 start server.js --name bcmp-web --update-env
+        pm2 delete bcmp-web 2>/dev/null || true
+        PORT=3000 HOSTNAME=0.0.0.0 pm2 start server.js --name bcmp-web --cwd "$LIVE/.next/standalone"
         pm2 save
 
         rm /tmp/bcmp-web-deploy.tar.gz
