@@ -41,7 +41,7 @@ class SetTenantContext
                 abort(403, 'User is not assigned to any barangay.');
             }
 
-            // SET LOCAL scopes to the current transaction
+            // SET scopes to the current database session (connection lifetime = request)
             $this->setTenantSession($barangayId);
             app()->instance('current_barangay_id', $barangayId);
         }
@@ -51,14 +51,16 @@ class SetTenantContext
 
     /**
      * Set the tenant context in the database session.
-     * PostgreSQL uses SET LOCAL for RLS; other drivers (SQLite in tests) skip.
+     * PostgreSQL uses SET (session-scoped) for RLS; SET LOCAL only persists within a transaction.
+     * Each PHP-FPM request gets its own connection, so session scope = request scope.
+     * Other drivers (SQLite in tests) skip.
      */
     private function setTenantSession(string $barangayId): void
     {
         if (DB::getDriverName() === 'pgsql') {
             // SET doesn't support parameterized queries in PostgreSQL.
             // Safe: barangay_id is a UUID from the authenticated user record, not user input.
-            DB::statement("SET LOCAL app.current_barangay_id = '{$barangayId}'");
+            DB::statement("SET app.current_barangay_id = '{$barangayId}'");
         }
     }
 }
