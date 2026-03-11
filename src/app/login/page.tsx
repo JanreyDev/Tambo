@@ -27,7 +27,6 @@ import {
   Gavel,
   AlertTriangle,
   XCircle,
-  Sparkles,
 } from "lucide-react";
 import { APP_VERSION_LABEL } from "@/lib/version";
 import { useToast } from "@/components/ui/toast";
@@ -161,6 +160,15 @@ export default function LoginPage() {
 
   const [securityInfo, setSecurityInfo] = useState<SecurityInfo | null>(null);
   const [connectionSecure, setConnectionSecure] = useState(true);
+  const [showVersionModal, setShowVersionModal] = useState(false);
+
+  // Show version guide modal on first visit (Principle 2: Tanga-Proof)
+  useEffect(() => {
+    const dismissed = localStorage.getItem("bcmp_version_dismissed");
+    if (!dismissed) {
+      setShowVersionModal(true);
+    }
+  }, []);
 
   // Check if the form has both fields filled
   const isFormValid = username.trim().length > 0 && password.trim().length > 0;
@@ -281,6 +289,79 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
+      {/* ── Version Selection Modal ── */}
+      {showVersionModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md bg-background rounded-2xl border border-border shadow-2xl overflow-hidden">
+            {/* Header */}
+            <div className="px-6 pt-6 pb-4 text-center">
+              <Image
+                src="/kapitanph_logo.png"
+                alt="kapitan.ph"
+                width={140}
+                height={38}
+                className="h-8 w-auto mx-auto mb-4"
+              />
+              <h3 className="text-lg font-bold text-foreground">Welcome to kapitan.ph</h3>
+              <p className="text-sm text-muted-foreground mt-1.5">
+                Select the version your barangay is currently using.
+              </p>
+            </div>
+
+            {/* Version Buttons */}
+            <div className="px-6 pb-3 space-y-3">
+              <a
+                href="https://v4.kapitan.ph"
+                className="flex items-center gap-4 w-full px-5 py-4 rounded-xl border border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 transition-all group"
+              >
+                <div className="w-11 h-11 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0">
+                  <span className="text-amber-600 dark:text-amber-400 font-bold text-sm">V4</span>
+                </div>
+                <div className="text-left min-w-0">
+                  <p className="text-sm font-semibold text-foreground group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">Kapitan V4</p>
+                  <p className="text-xs text-muted-foreground">Current version for most barangays</p>
+                </div>
+              </a>
+
+              <a
+                href="https://v3.kapitan.ph"
+                className="flex items-center gap-4 w-full px-5 py-4 rounded-xl border border-border bg-muted/30 hover:bg-muted/50 transition-all group"
+              >
+                <div className="w-11 h-11 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                  <span className="text-muted-foreground font-bold text-sm">V3</span>
+                </div>
+                <div className="text-left min-w-0">
+                  <p className="text-sm font-semibold text-foreground group-hover:text-muted-foreground transition-colors">Kapitan V3</p>
+                  <p className="text-xs text-muted-foreground">Legacy version</p>
+                </div>
+              </a>
+            </div>
+
+            {/* Divider + V5 Continue */}
+            <div className="px-6 pb-6 pt-2">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex-1 h-px bg-border" />
+                <span className="text-[11px] text-muted-foreground font-medium">or</span>
+                <div className="flex-1 h-px bg-border" />
+              </div>
+              <button
+                onClick={() => {
+                  localStorage.setItem("bcmp_version_dismissed", "1");
+                  setShowVersionModal(false);
+                }}
+                className="w-full py-3 rounded-xl text-white font-medium text-sm transition-all shadow-lg shadow-blue-500/20 active:scale-[0.99]"
+                style={{ background: "linear-gradient(135deg, #2563eb 0%, #3b82f6 100%)" }}
+              >
+                Continue to V5 (New Version)
+              </button>
+              <p className="text-center text-[10px] text-muted-foreground mt-2">
+                V5 is the latest version with AI, offline mode, and modern features.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Left Panel ── */}
       <div className="relative overflow-hidden flex flex-col lg:w-[55%] p-5 sm:p-7 lg:p-10 xl:p-12">
         {/* Background */}
@@ -449,19 +530,6 @@ export default function LoginPage() {
               <div className="mb-5">
                 <h2 className="text-2xl font-bold text-foreground">{greeting}</h2>
                 <p className="text-muted-foreground text-sm mt-1.5">Sign in to your barangay dashboard</p>
-              </div>
-
-              {/* Mabini AI Tip (Principle 1: AI First) */}
-              <div className="mb-6 flex items-start gap-3 px-3.5 py-3 rounded-xl bg-accent-bg/30 border border-accent-primary/20">
-                <div className="w-7 h-7 rounded-lg bg-accent-primary/15 flex items-center justify-center shrink-0 mt-0.5">
-                  <Sparkles className="w-3.5 h-3.5 text-accent-primary" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[11px] font-semibold text-accent-primary">Mabini AI</p>
-                  <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5">
-                    Your AI assistant is ready. After signing in, ask Mabini anything about your barangay data, reports, or operations.
-                  </p>
-                </div>
               </div>
 
               {/* Login Form */}
@@ -679,6 +747,12 @@ export default function LoginPage() {
             <p className="text-center text-[10px] text-muted-foreground/30">
               {APP_VERSION_LABEL}
             </p>
+            <button
+              onClick={() => setShowVersionModal(true)}
+              className="block mx-auto mt-1 text-[10px] text-muted-foreground/40 hover:text-blue-500 transition-colors"
+            >
+              Using an older version?
+            </button>
           </div>
         </div>
       </div>
