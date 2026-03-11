@@ -29,7 +29,7 @@ function SettingsInput({ label, value, onChange, placeholder, icon: Icon, disabl
       <div className="relative">
         {Icon && <Icon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />}
         <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} disabled={disabled}
-          className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 transition-colors",
+          className={cn("w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 transition-colors",
             error ? "border-red-500 focus:ring-red-500/30" : "border-border",
             Icon && "pl-9", disabled && "opacity-50 cursor-not-allowed")}
           style={!error ? { "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties : undefined} />
@@ -302,7 +302,7 @@ export default function SettingsPage() {
                   <div>
                     <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Fiscal Year Start</label>
                     <select value={fiscalYear} onChange={(e) => setFiscalYear(e.target.value)}
-                      className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2"
+                      className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2"
                       style={{ "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties}>
                       <option>January - December</option>
                       <option>July - June</option>

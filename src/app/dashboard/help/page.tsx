@@ -293,7 +293,7 @@ export default function HelpPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={help.searchPlaceholder}
-              className="w-full pl-9 pr-3 py-2 rounded-lg border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-accent-ring"
+              className="w-full pl-9 pr-3 py-2 rounded-xl glass-input text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-accent-ring"
             />
           </div>
 

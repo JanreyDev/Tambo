@@ -187,3 +187,101 @@ export type AiStreamEvent =
   | { event: "content_delta"; data: { text: string } }
   | { event: "message_complete"; data: { conversation_id: string; title: string; tokens_used: number; input_tokens: number; output_tokens: number; credit_cost: number; remaining_balance: number } }
   | { event: "error"; data: { message: string } };
+
+// ── Resident Types ──
+
+export interface ResidentSummary {
+  id: string;
+  resident_number: string;
+  first_name: string;
+  last_name: string;
+  middle_name: string | null;
+  extension_name: string | null;
+  date_of_birth: string;
+  sex: "male" | "female";
+  civil_status: string | null;
+  purok: string | null;
+  street: string | null;
+  house_block_lot: string | null;
+  mobile_number: string | null;
+  email: string | null;
+  status: string;
+  is_voter: boolean;
+  is_head_of_household: boolean;
+  occupation: string | null;
+  resident_type: string;
+  profile_completion_pct: number;
+  photo_file_id: string | null;
+  registration_date: string | null;
+  created_at: string;
+  sectoral_tags?: Array<{ id: string; sector: string }>;
+  cross_barangay_flags?: Array<{ id: string; other_barangay_id: string; match_confidence: string; other_barangay_name?: string }>;
+}
+
+export interface ResidentDetail extends ResidentSummary {
+  place_of_birth: string | null;
+  citizenship: string | null;
+  religion: string | null;
+  blood_type: string | null;
+  height_cm: string | null;
+  weight_kg: string | null;
+  complexion: string | null;
+  ethnicity: string | null;
+  mothers_maiden_name: string | null;
+  resident_type: string;
+  email: string | null;
+  street: string | null;
+  house_block_lot: string | null;
+  subdivision_village: string | null;
+  sitio: string | null;
+  zip_code: string | null;
+  latitude: string | null;
+  longitude: string | null;
+  is_voter: boolean;
+  is_resident_voter: boolean;
+  voter_precinct_number: string | null;
+  occupation: string | null;
+  employer: string | null;
+  monthly_income_range: string | null;
+  source_of_income: string | null;
+  livelihood_type: string | null;
+  skills: string | null;
+  highest_education: string | null;
+  education_details: unknown[] | null;
+  work_history: unknown[] | null;
+  business_details: unknown[] | null;
+  pet_records: unknown[] | null;
+  assistance_history: unknown[] | null;
+  relative_links: unknown[] | null;
+  health_history: string | null;
+  is_organ_donor: boolean;
+  barangay_position: string | null;
+  barangay_role_start: string | null;
+  barangay_role_end: string | null;
+  sector_other: string | null;
+  other_remarks: string | null;
+  emergency_contact_name: string | null;
+  emergency_contact_phone: string | null;
+  emergency_contact_address: string | null;
+  emergency_contact_relationship: string | null;
+  is_head_of_household: boolean;
+  household_id: string | null;
+  household?: { id: string; household_number: string } | null;
+  updated_at: string;
+}
+
+export interface DuplicateMatch {
+  id: string;
+  resident_number: string;
+  full_name: string;
+  first_name: string;
+  middle_name: string | null;
+  last_name: string;
+  date_of_birth: string;
+  age: number | null;
+  sex: string;
+  purok: string | null;
+  status: string;
+  photo_file_id: string | null;
+  mobile_number: string | null;
+}

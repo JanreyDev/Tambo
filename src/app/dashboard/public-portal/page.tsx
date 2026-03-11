@@ -75,7 +75,7 @@ function FormInput({ label, value, name, placeholder, required, onChange }: { la
     <div>
       <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
       <input type="text" value={value} onChange={(e) => onChange(name, e.target.value)} placeholder={placeholder}
-        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2" style={{ "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties} />
+        className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2" style={{ "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties} />
     </div>
   );
 }
@@ -85,7 +85,7 @@ function FormSelect({ label, value, name, options, required, onChange }: { label
     <div>
       <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
       <select value={value} onChange={(e) => onChange(name, e.target.value)}
-        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2" style={{ "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties}>
+        className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2" style={{ "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties}>
         {options.map((o) => <option key={o} value={o}>{o}</option>)}
       </select>
     </div>
@@ -394,7 +394,7 @@ export default function PublicPortalPage() {
                   onChange={(e) => { setAnnouncementForm((f) => ({ ...f, content: e.target.value })); setFormErrors((prev) => ({ ...prev, content: undefined })); }}
                   placeholder="Write the announcement content here..."
                   rows={6}
-                  className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 resize-none", formErrors.content ? "border-red-500" : "border-border")}
+                  className={cn("w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 resize-none", formErrors.content && "border-red-500")}
                   style={{ "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties} />
                 {formErrors.content
                   ? <p className="text-[11px] text-red-500 mt-1">{formErrors.content}</p>

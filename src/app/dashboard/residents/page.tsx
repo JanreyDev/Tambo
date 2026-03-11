@@ -17,6 +17,8 @@ import { Badge, StatusBadge } from "@/components/ui/badge";
 import { Modal, ModalButton } from "@/components/ui/modal";
 import { SortableHeader } from "@/components/ui/sortable-header";
 import { cn } from "@/lib/utils";
+import { api } from "@/lib/api";
+import type { ApiError, DuplicateMatch, ResidentSummary, ResidentDetail, PaginatedResponse } from "@/lib/types";
 
 // ── Types ──
 interface Resident {
@@ -79,22 +81,7 @@ const tenantConfig = {
   logo_url: "", // Production: uploaded via Settings > Branding, fetched from API
 };
 
-// ── Barangay ID (resident_number) Auto-Generation ──
-// Format: RES-{PSGC_CODE}-{SEQUENTIAL_PADDED}
-// Example: RES-1376040160-0001
-// - PSGC_CODE = Philippine Standard Geographic Code of the barangay (assigned during onboarding in Pulitika)
-// - SEQUENTIAL = auto-incrementing per barangay, zero-padded to 4 digits (expandable)
-// - Generated server-side on submit (bcmp-api), NOT editable by user
-// - Primary key in residents table, unique constraint, indexed
-// - In production: POST /api/residents returns the generated resident_number
-// - Frontend displays it AFTER successful creation (confirmation modal)
-const generateMockResidentNumber = () => {
-  const maxNum = mockResidents.reduce((max, r) => {
-    const num = parseInt(r.resident_number.split("-").pop() || "0", 10);
-    return num > max ? num : max;
-  }, 0);
-  return `RES-1376040160-${String(maxNum + 1).padStart(4, "0")}`;
-};
+// Resident number generated server-side: RES-{PSGC_CODE}-{SEQUENTIAL_4DIGIT}
 
 // ── Validation Helpers ──
 const isValidPHMobile = (v: string) => /^09\d{9}$/.test(v.replace(/\s/g, ""));
@@ -186,10 +173,10 @@ function FInput({ label, name, required, type = "text", placeholder = "", value,
       <label className="block text-xs font-medium text-muted-foreground mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
       <input type={type} name={name} value={value} maxLength={maxLength}
         onChange={(e) => onChange(name, forceUpper ? e.target.value.toUpperCase() : e.target.value)} placeholder={placeholder}
-        className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 transition-colors",
+        className={cn("w-full px-3 py-2.5 text-sm rounded-xl focus:outline-none transition-all duration-200",
           forceUpper && "uppercase",
-          error ? "border-red-500 focus:ring-red-300 bg-red-50 dark:bg-red-950/20" :
-          valid ? "border-green-500 focus:ring-green-300 bg-green-50 dark:bg-green-950/20" : "border-border focus:ring-accent-ring")} />
+          error ? "border border-red-500 focus:ring-2 focus:ring-red-300 bg-red-50 dark:bg-red-950/20" :
+          valid ? "border border-green-500 focus:ring-2 focus:ring-green-300 bg-green-50 dark:bg-green-950/20" : "glass-input")} />
       {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
     </div>
   );
@@ -206,9 +193,11 @@ function FDatePicker({ label, name, required, value, onChange, className, valid,
   const ref = useRef<HTMLDivElement>(null);
   const today = new Date();
   // Parse current value or default to a sensible view date
+  // Birth date fields default 25 years back; all other date fields default to current year
   const parsed = value ? new Date(value + "T00:00:00") : null;
+  const isBirthField = name.toLowerCase().includes("birth") || name.toLowerCase().includes("date_of_birth");
   const [viewMonth, setViewMonth] = useState(parsed ? parsed.getMonth() : today.getMonth());
-  const [viewYear, setViewYear] = useState(parsed ? parsed.getFullYear() : today.getFullYear() - 25);
+  const [viewYear, setViewYear] = useState(parsed ? parsed.getFullYear() : (isBirthField ? today.getFullYear() - 25 : today.getFullYear()));
 
   // Close on outside click
   useEffect(() => {
@@ -275,9 +264,9 @@ function FDatePicker({ label, name, required, value, onChange, className, valid,
       {/* Trigger button */}
       <button type="button" name={name} onClick={() => setOpen(!open)}
         className={cn(
-          "w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg border bg-background text-left focus:outline-none focus:ring-2 transition-colors",
-          error ? "border-red-500 focus:ring-red-300 bg-red-50 dark:bg-red-950/20" :
-          valid ? "border-green-500 focus:ring-green-300 bg-green-50 dark:bg-green-950/20" : "border-border focus:ring-accent-ring"
+          "w-full flex items-center gap-2 px-3 py-2.5 text-sm rounded-xl text-left focus:outline-none transition-all duration-200",
+          error ? "border border-red-500 focus:ring-2 focus:ring-red-300 bg-red-50 dark:bg-red-950/20" :
+          valid ? "border border-green-500 focus:ring-2 focus:ring-green-300 bg-green-50 dark:bg-green-950/20" : "glass-input"
         )}>
         <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
         <span className={cn("flex-1 truncate", !displayValue && "text-muted-foreground")}>
@@ -361,8 +350,8 @@ function FSelect({ label, name, options, required, value, onChange, className, e
     <div className={className}>
       <label className="block text-xs font-medium text-muted-foreground mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
       <select name={name} value={value} onChange={(e) => onChange(name, e.target.value)}
-        className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 transition-colors",
-          error ? "border-red-500 focus:ring-red-300 bg-red-50 dark:bg-red-950/20" : "border-border focus:ring-accent-ring")}>
+        className={cn("w-full px-3 py-2.5 text-sm rounded-xl focus:outline-none transition-all duration-200",
+          error ? "border border-red-500 focus:ring-2 focus:ring-red-300 bg-red-50 dark:bg-red-950/20" : "glass-input")}>
         {options.map((o) => <option key={o} value={o === options[0] && o === "" ? "" : o}>{o || `Select ${label.toLowerCase()}`}</option>)}
       </select>
       {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
@@ -483,10 +472,11 @@ function FCombobox({ label, name, entries, required, value, onChange, onSubmit, 
   return (
     <div ref={wrapperRef} className="relative">
       <label className="block text-xs font-medium text-muted-foreground mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <div className={cn("flex items-center w-full rounded-lg border bg-background transition-colors",
-        open ? "ring-2 ring-accent-ring border-accent-primary/50" : "border-border")}>
+      <div className={cn("flex items-center w-full rounded-xl transition-all duration-200",
+        open ? "glass-input" : "glass-input")}
+        style={open ? { borderColor: "var(--accent-primary)", boxShadow: "0 0 0 3px rgba(37, 99, 235, 0.12)" } : undefined}>
         <input type="text" value={open ? query : value} placeholder={value || customPlaceholder || `Type to search or add...`}
-          className="flex-1 px-3 py-2 text-sm bg-transparent focus:outline-none min-w-0 uppercase"
+          className="flex-1 px-3 py-2.5 text-sm bg-transparent focus:outline-none min-w-0 uppercase"
           onFocus={() => { setOpen(true); setQuery(""); }}
           onChange={(e) => { setQuery(e.target.value.toUpperCase()); if (!open) setOpen(true); }}
           onKeyDown={(e) => { if (e.key === "Enter" && trimmed) { e.preventDefault(); fuzzyMatch ? handleSelect(fuzzyMatch.canonical) : handleNew(); } }} />
@@ -499,7 +489,7 @@ function FCombobox({ label, name, entries, required, value, onChange, onSubmit, 
         <ChevronDown className={cn("h-4 w-4 mr-2 text-muted-foreground transition-transform shrink-0", open && "rotate-180")} />
       </div>
       {open && (
-        <div className="absolute z-50 mt-1 w-full rounded-lg border border-border bg-background shadow-lg max-h-56 overflow-y-auto">
+        <div className="absolute z-50 mt-1.5 w-full rounded-xl glass-section shadow-xl max-h-56 overflow-y-auto">
           {/* "Did you mean" suggestion */}
           {fuzzyMatch && (
             <button type="button" onClick={() => handleSelect(fuzzyMatch.canonical)}
@@ -542,17 +532,16 @@ function FRadio({ label, name, options, value, onChange }: { label: string; name
   return (
     <div>
       <label className="block text-xs font-medium text-muted-foreground mb-1.5">{label}</label>
-      <div className="flex items-center rounded-lg border border-border overflow-hidden">
+      <div className="flex items-center rounded-xl glass-input overflow-hidden">
         {options.map((o, i) => (
           <button key={o.value} type="button" onClick={() => onChange(name, o.value)}
             className={cn(
-              "flex-1 px-4 py-2 text-sm font-medium transition-colors",
-              i > 0 && "border-l border-border",
+              "flex-1 px-4 py-2.5 text-sm font-medium transition-all duration-200",
+              i > 0 && "border-l border-white/20 dark:border-white/10",
               value === o.value
-                ? "text-white shadow-sm"
-                : "bg-background text-foreground hover:bg-muted"
-            )}
-            style={value === o.value ? { background: "var(--accent-primary)" } : undefined}>
+                ? "glass-accordion text-white shadow-md"
+                : "text-foreground hover:bg-white/30 dark:hover:bg-white/5"
+            )}>
             {o.label}
           </button>
         ))}
@@ -566,20 +555,20 @@ function Section({ icon, title, open, onToggle, children }: {
   icon: React.ReactNode; title: string; open: boolean; onToggle: () => void; children: React.ReactNode;
 }) {
   return (
-    <div>
+    <div className="group">
       <button type="button" onClick={onToggle}
-        className={cn("w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg transition-colors",
+        className={cn("w-full flex items-center gap-3 px-4 py-3.5 text-left rounded-xl transition-all duration-200",
           open
-            ? "text-white shadow-sm"
-            : "bg-blue-50 dark:bg-slate-800 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-slate-700")}
-        style={open ? { background: "var(--accent-primary)" } : undefined}>
+            ? "glass-accordion text-white shadow-lg"
+            : "glass-accordion-closed text-blue-700 dark:text-blue-300 hover:shadow-md")}
+        >
         <span className="shrink-0 [&>svg]:h-4.5 [&>svg]:w-4.5">{icon}</span>
         <span className="flex-1 text-sm font-bold uppercase tracking-wider">{title}</span>
         <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform duration-200", open && "rotate-180")} />
       </button>
-      <div className={cn("grid transition-all duration-200", open ? "grid-rows-[1fr]" : "grid-rows-[0fr]")}>
+      <div className={cn("grid transition-all duration-300", open ? "grid-rows-[1fr]" : "grid-rows-[0fr]")}>
         <div className="overflow-hidden">
-          <div className="pt-5 pb-3 px-1">
+          <div className="glass-section rounded-b-xl mt-px px-5 pt-5 pb-4">
             {children}
           </div>
         </div>
@@ -945,17 +934,72 @@ export default function ResidentsPage() {
   const [voterFilter, setVoterFilter] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
-  const [viewResident, setViewResident] = useState<Resident | null>(null);
+  const [viewResident, setViewResident] = useState<ResidentDetail | null>(null);
+  const [viewLoading, setViewLoading] = useState(false);
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [showDelete, setShowDelete] = useState(false);
   const [actionMenu, setActionMenu] = useState<string | null>(null);
   const [archiveModal, setArchiveModal] = useState(false);
   const [archiveReason, setArchiveReason] = useState("");
-  const pageSize = 10;
+  const pageSize = 25;
+
+  // ── API List State ──
+  const [residents, setResidents] = useState<ResidentSummary[]>([]);
+  const [listTotal, setListTotal] = useState(0);
+  const [listLastPage, setListLastPage] = useState(1);
+  const [listLoading, setListLoading] = useState(false);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const fetchResidents = useCallback(async (opts?: { searchOverride?: string; pageOverride?: number }) => {
+    setListLoading(true);
+    try {
+      const params: Record<string, unknown> = {
+        page: opts?.pageOverride ?? page,
+        per_page: pageSize,
+      };
+      const q = opts?.searchOverride ?? search;
+      if (q) params.search = q;
+      if (purokFilter !== "All Puroks") params.purok = purokFilter;
+      if (statusFilter !== "All Status") params.status = statusFilter.toLowerCase();
+      if (sexFilter !== "All") params.sex = sexFilter.toLowerCase();
+      if (voterFilter === "voter") params.is_voter = true;
+      if (voterFilter === "non-voter") params.is_voter = false;
+      if (sortKey) {
+        // Map frontend sort keys to backend column names
+        const sortMap: Record<string, string> = { age: "date_of_birth", resident_number: "resident_number", last_name: "last_name", created_at: "created_at" };
+        params.sort_by = sortMap[sortKey] || sortKey;
+        // age sort is inverted (older DOB = younger age)
+        params.sort_dir = sortKey === "age" ? (sortDir === "asc" ? "desc" : "asc") : sortDir;
+      }
+      const res = await api.residents.list(params as Parameters<typeof api.residents.list>[0]);
+      setResidents(res.data);
+      setListTotal(res.total);
+      setListLastPage(res.last_page);
+    } catch {
+      // silently fail -- user sees empty state
+    } finally {
+      setListLoading(false);
+    }
+  }, [page, search, purokFilter, statusFilter, sexFilter, voterFilter, sortKey, sortDir]);
 
   // ── Form State ──
   const [mode, setMode] = useState<"list" | "create" | "edit">("list");
+
+  // Fetch residents on mount and when filters/page/sort/mode change
+  useEffect(() => {
+    if (mode === "list") fetchResidents();
+  }, [mode, fetchResidents]);
+
+  // Debounced search
+  const handleSearchChange = useCallback((value: string) => {
+    setSearch(value);
+    setPage(1);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      fetchResidents({ searchOverride: value, pageOverride: 1 });
+    }, 400);
+  }, [fetchResidents]);
   const [form, setForm] = useState<Record<string, string | boolean>>({});
   const [sectors, setSectors] = useState<string[]>([]);
   const [eduEntries, setEduEntries] = useState<EduEntry[]>([{ ...emptyEdu }]);
@@ -1309,40 +1353,34 @@ export default function ResidentsPage() {
   };
 
   // ── Duplicate Detection State ──
-  interface DupMatch { resident: Resident; score: number; matchedFields: string[] }
-  const [dupMatches, setDupMatches] = useState<DupMatch[]>([]);
+  const [dupMatches, setDupMatches] = useState<DuplicateMatch[]>([]);
   const [dupModal, setDupModal] = useState(false);
   const [dupChecked, setDupChecked] = useState(false);
+  const [dupDismissed, setDupDismissed] = useState(false);
   const dupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const checkDuplicates = useCallback((formData: Record<string, string | boolean>) => {
-    const firstName = String(formData.first_name || "").trim().toLowerCase();
-    const lastName = String(formData.last_name || "").trim().toLowerCase();
-    const middleName = String(formData.middle_name || "").trim().toLowerCase();
+    const firstName = String(formData.first_name || "").trim();
+    const lastName = String(formData.last_name || "").trim();
+    const middleName = String(formData.middle_name || "").trim();
     const dob = String(formData.date_of_birth || "");
 
-    if (!firstName || !lastName) { setDupMatches([]); setDupChecked(false); return; }
+    if (!firstName || !lastName || !dob) { setDupMatches([]); setDupChecked(false); return; }
 
-    const scored: DupMatch[] = [];
-    for (const r of mockResidents) {
-      const rFirst = r.first_name.toLowerCase();
-      const rLast = r.last_name.toLowerCase();
-      const rMiddle = r.middle_name.toLowerCase();
-      const rDob = r.date_of_birth;
-      let score = 0;
-      const matched: string[] = [];
-      if (rFirst === firstName) { score += 30; matched.push("First Name"); }
-      if (rLast === lastName) { score += 30; matched.push("Last Name"); }
-      if (middleName && rMiddle === middleName) { score += 15; matched.push("Middle Name"); }
-      if (dob && rDob === dob) { score += 25; matched.push("Date of Birth"); }
-      if (score >= 55) scored.push({ resident: r, score, matchedFields: matched });
-    }
-    scored.sort((a, b) => b.score - a.score);
-
-    setDupMatches(scored);
-    setDupChecked(true);
-    if (scored.length > 0) setDupModal(true);
-  }, []);
+    api.residents.checkDuplicate({
+      first_name: firstName,
+      last_name: lastName,
+      middle_name: middleName || undefined,
+      date_of_birth: dob,
+    }).then((res) => {
+      setDupMatches(res.matches);
+      setDupChecked(true);
+      if (res.has_duplicates && !dupDismissed) setDupModal(true);
+    }).catch(() => {
+      // Silently fail -- duplicate check is advisory, not blocking
+      setDupChecked(true);
+    });
+  }, [dupDismissed]);
 
   const toggleSection = (key: string) => setOpenSections((s) => ({ ...s, [key]: !s[key] }));
   const updateForm = (key: string, value: string | boolean) => {
@@ -1380,7 +1418,7 @@ export default function ResidentsPage() {
   const dupOk = (key: string) => dupChecked && dupMatches.length === 0 && !!f(key);
 
   // ── Submit Handler ──
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const errors: Record<string, string> = {};
     // Required fields
     if (!f("first_name").trim()) errors.first_name = "First name is required";
@@ -1439,13 +1477,111 @@ export default function ResidentsPage() {
       return;
     }
 
+    // Block if duplicate detected and not dismissed
+    if (dupMatches.length > 0 && !dupDismissed) {
+      setDupModal(true);
+      return;
+    }
+
     setSubmitting(true);
-    const residentNumber = generateMockResidentNumber();
-    setTimeout(() => {
+
+    // Build API payload
+    const payload: Record<string, unknown> = {};
+
+    // Flat string/boolean fields -> map directly
+    const directFields = [
+      "first_name", "last_name", "middle_name", "extension_name",
+      "mothers_maiden_name", "date_of_birth", "place_of_birth", "sex",
+      "civil_status", "citizenship", "religion", "ethnicity", "blood_type",
+      "complexion", "email", "mobile_number",
+      "purok", "sitio", "house_block_lot", "street", "subdivision_village",
+      "zip_code", "latitude", "longitude",
+      "occupation", "employer", "monthly_income_range", "source_of_income",
+      "livelihood_type", "skills", "highest_education",
+      "health_history", "barangay_position", "barangay_role_start", "barangay_role_end",
+      "sector_other", "other_remarks",
+      "emergency_contact_name", "emergency_contact_phone",
+      "emergency_contact_address", "emergency_contact_relationship",
+      "photo_file_id",
+      // Gov IDs (plain names -- backend encrypts them)
+      "philhealth_number", "philhealth_expiry",
+      "sss_gsis_number", "sss_gsis_expiry",
+      "pagibig_number", "pagibig_expiry",
+      "tin_number", "tin_expiry",
+      "pwd_id", "pwd_id_expiry",
+      "senior_citizen_id",
+    ];
+    for (const key of directFields) {
+      const val = f(key);
+      if (val) payload[key] = val;
+    }
+
+    // Resident type: normalize to lowercase
+    const residentType = f("resident_type").toLowerCase();
+    if (residentType) payload.resident_type = residentType === "permanent" ? "permanent" : residentType === "transient" ? "transient" : "transferee";
+
+    // Boolean fields
+    if (form.is_voter !== undefined) payload.is_voter = !!form.is_voter;
+    if (form.is_resident_voter !== undefined) payload.is_resident_voter = !!form.is_resident_voter;
+    if (form.is_head_of_household !== undefined) payload.is_head_of_household = !!form.is_head_of_household;
+    if (form.is_organ_donor !== undefined) payload.is_organ_donor = !!form.is_organ_donor;
+
+    // Numeric fields
+    const hCm = f("height_cm");
+    if (hCm) payload.height_cm = parseFloat(hCm);
+    const wKg = f("weight_kg");
+    if (wKg) payload.weight_kg = parseFloat(wKg);
+
+    // JSONB arrays from entry states
+    const validEdu = eduEntries.filter((e) => e.level);
+    if (validEdu.length > 0) payload.education_entries = validEdu;
+
+    const validWork = workEntries.filter((e) => e.position);
+    if (validWork.length > 0) payload.work_entries = validWork;
+
+    const validBiz = businessEntries.filter((e) => e.business_name);
+    if (validBiz.length > 0) payload.business_entries = validBiz;
+
+    const validPets = petEntries.filter((e) => e.name);
+    if (validPets.length > 0) payload.pet_entries = validPets;
+
+    const validAssist = assistanceEntries.filter((e) => e.date);
+    if (validAssist.length > 0) payload.assistance_entries = validAssist;
+
+    const validRelatives = relativeEntries.filter((e) => e.relationship);
+    if (validRelatives.length > 0) payload.relative_entries = validRelatives;
+
+    // Sectors
+    if (sectors.length > 0) payload.sectors = sectors;
+
+    try {
+      const result = await api.residents.create(payload);
       setSubmitting(false);
       setMode("list");
-      addToast({ type: "success", title: "Resident Registered Successfully", message: `Barangay ID: ${residentNumber}`, duration: 8000 });
-    }, 800);
+      addToast({
+        type: "success",
+        title: "Resident Registered Successfully",
+        message: `Barangay ID: ${result.resident_number}`,
+        duration: 8000,
+      });
+    } catch (err) {
+      setSubmitting(false);
+      const apiErr = err as ApiError;
+      if (apiErr.errors) {
+        // Map API validation errors to form field errors
+        const mapped: Record<string, string> = {};
+        for (const [field, messages] of Object.entries(apiErr.errors)) {
+          mapped[field] = messages[0];
+        }
+        setFormErrors(mapped);
+        addToast({ type: "error", title: "Validation Failed", message: apiErr.message || "Please fix the errors.", duration: 5000 });
+      } else if (apiErr.message?.includes("already exists")) {
+        // Duplicate blocked by backend
+        addToast({ type: "error", title: "Duplicate Detected", message: apiErr.message, duration: 6000 });
+      } else {
+        addToast({ type: "error", title: "Registration Failed", message: apiErr.message || "Something went wrong.", duration: 5000 });
+      }
+    }
   };
 
   const openCreate = () => {
@@ -1460,15 +1596,31 @@ export default function ResidentsPage() {
     setDupMatches([]);
     setDupChecked(false);
     setDupModal(false);
+    setDupDismissed(false);
     setMode("create");
   };
 
-  const openEdit = (r: Resident) => {
+  const openViewResident = useCallback(async (id: string) => {
+    setViewLoading(true);
+    try {
+      const detail = await api.residents.get(id);
+      setViewResident(detail);
+    } catch {
+      addToast({ type: "error", title: "Failed to load resident details" });
+    } finally {
+      setViewLoading(false);
+    }
+  }, [addToast]);
+
+  const openEdit = (r: ResidentDetail) => {
     setForm({ ...r } as unknown as Record<string, string | boolean>);
-    setSectors([]);
-    setEduEntries([{ ...emptyEdu }]);
-    setWorkEntries([{ ...emptyWork }]);
-    setBusinessEntries([]);
+    setSectors(r.sectoral_tags?.map(t => t.sector) || []);
+    setEduEntries((r.education_details as EduEntry[])?.length ? (r.education_details as EduEntry[]) : [{ ...emptyEdu }]);
+    setWorkEntries((r.work_history as WorkEntry[])?.length ? (r.work_history as WorkEntry[]) : [{ ...emptyWork }]);
+    setBusinessEntries((r.business_details as BusinessEntry[]) || []);
+    setPetEntries((r.pet_records as PetEntry[]) || []);
+    setAssistanceEntries((r.assistance_history as AssistanceEntry[]) || []);
+    setRelativeEntries((r.relative_links as RelativeEntry[]) || []);
     setOpenSections({ other: true, education: true, work: true, govinfo: true, emergency: true, biometric: true });
     setMode("edit");
     setViewResident(null);
@@ -1549,20 +1701,24 @@ export default function ResidentsPage() {
     return suggestions;
   })();
 
-  // ── Relative Search (mock — in production, API call to /api/residents/search) ──
+  // ── Relative Search (API call to /api/residents?search=...) ──
+  const relativeSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchResidents = useCallback((query: string) => {
     setRelativeSearch(query);
     if (query.length < 2) { setRelativeResults([]); return; }
-    const q = query.toLowerCase();
-    const results = mockResidents
-      .filter((r) => {
-        const name = `${r.last_name}, ${r.first_name} ${r.middle_name}`.toLowerCase();
-        return name.includes(q) || r.resident_number.toLowerCase().includes(q);
-      })
-      .filter((r) => !relativeEntries.some((rel) => rel.resident_id === r.id))
-      .slice(0, 5)
-      .map((r) => ({ id: r.id, name: `${r.last_name}, ${r.first_name} ${r.middle_name} ${r.extension_name}`.trim().replace(/\s+/g, " "), purok: r.purok }));
-    setRelativeResults(results);
+    if (relativeSearchTimerRef.current) clearTimeout(relativeSearchTimerRef.current);
+    relativeSearchTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await api.residents.list({ search: query, per_page: 10 });
+        const results = res.data
+          .filter((r) => !relativeEntries.some((rel) => rel.resident_id === r.id))
+          .slice(0, 5)
+          .map((r) => ({ id: r.id, name: `${r.last_name}, ${r.first_name} ${r.middle_name || ""} ${r.extension_name || ""}`.trim().replace(/\s+/g, " "), purok: r.purok || "" }));
+        setRelativeResults(results);
+      } catch {
+        setRelativeResults([]);
+      }
+    }, 300);
   }, [relativeEntries]);
 
   const addRelative = (resident: { id: string; name: string }) => {
@@ -1778,42 +1934,20 @@ export default function ResidentsPage() {
     }
   }, [mode, initLeafletMap]);
 
-  // ── Filtering / Sorting / Pagination ──
-  const filtered = mockResidents.filter((r) => {
-    if (search) {
-      const q = search.toLowerCase();
-      const fullName = `${r.last_name} ${r.first_name} ${r.middle_name}`.toLowerCase();
-      if (!fullName.includes(q) && !r.resident_number.toLowerCase().includes(q) && !r.mobile_number.includes(q)) return false;
-    }
-    if (purokFilter !== "All Puroks" && r.purok !== purokFilter) return false;
-    if (statusFilter !== "All Status" && r.status !== statusFilter.toLowerCase()) return false;
-    if (sexFilter !== "All" && r.sex !== sexFilter.toLowerCase()) return false;
-    if (voterFilter === "voter" && !r.is_voter) return false;
-    if (voterFilter === "non-voter" && r.is_voter) return false;
-    return true;
-  });
-
-  const sorted = [...filtered].sort((a, b) => {
-    if (!sortKey) return 0;
-    const aVal = a[sortKey as keyof Resident];
-    const bVal = b[sortKey as keyof Resident];
-    if (aVal === bVal) return 0;
-    const cmp = String(aVal).localeCompare(String(bVal), undefined, { numeric: true });
-    return sortDir === "asc" ? cmp : -cmp;
-  });
-
-  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+  // ── Sorting / Pagination (server-side — residents already filtered by API) ──
+  const totalPages = Math.max(1, listLastPage);
   const safePage = Math.min(page, totalPages);
-  const start = (safePage - 1) * pageSize;
-  const paged = sorted.slice(start, start + pageSize);
+  const paged = residents;
   const toggleSort = (key: string) => {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     else { setSortKey(key); setSortDir("asc"); }
+    setPage(1);
   };
 
-  const householdCount = mockResidents.filter((r) => r.is_head_of_household).length;
-  const voterCount = mockResidents.filter((r) => r.is_voter).length;
-  const maleCount = mockResidents.filter((r) => r.sex === "male").length;
+  // Compute stats from current page data (approximation — full stats come from dashboard API later)
+  const householdCount = residents.filter((r) => r.is_head_of_household).length;
+  const voterCount = residents.filter((r) => r.is_voter).length;
+  const maleCount = residents.filter((r) => r.sex === "male").length;
 
   // ══════════════════════════════════════════════════════════
   // ── REGISTRATION FORM (V3-style collapsible + V4 fields)
@@ -1838,14 +1972,14 @@ export default function ResidentsPage() {
         </div>
 
         {/* Accordion Sections */}
-        <div className="space-y-2">
+        <div className="form-gradient-bg rounded-2xl p-6 space-y-3 relative">
           {/* 1. Personal Information and Photo (always visible, not collapsible) */}
-          <div>
-            <div className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-white shadow-sm" style={{ background: "var(--accent-primary)" }}>
+          <div className="relative z-[1]">
+            <div className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-white glass-accordion shadow-lg">
               <User className="h-4.5 w-4.5 shrink-0" />
               <span className="flex-1 text-sm font-bold uppercase tracking-wider">Personal Information and Photo</span>
             </div>
-            <div className="pt-5 pb-3 px-1">
+            <div className="glass-section rounded-b-xl mt-px px-5 pt-5 pb-4">
               <div className="space-y-5">
                 <div className="flex items-start gap-6">
                   <div className="flex-1 space-y-4">
@@ -2046,12 +2180,8 @@ export default function ResidentsPage() {
 
               {/* Match cards */}
               <div className="space-y-3 max-h-80 overflow-y-auto">
-                {dupMatches.map(({ resident: r, score, matchedFields }) => (
-                  <div key={r.id} className={cn("rounded-xl border-2 p-4 transition-colors",
-                    score >= 90 ? "border-red-300 dark:border-red-800 bg-red-50/50 dark:bg-red-950/20" :
-                    score >= 70 ? "border-amber-300 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20" :
-                    "border-yellow-200 dark:border-yellow-900 bg-yellow-50/50 dark:bg-yellow-950/20"
-                  )}>
+                {dupMatches.map((r) => (
+                  <div key={r.id} className="rounded-xl border-2 border-red-300 dark:border-red-800 bg-red-50/50 dark:bg-red-950/20 p-4 transition-colors">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className={cn("w-11 h-11 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0",
@@ -2059,35 +2189,18 @@ export default function ResidentsPage() {
                           {r.first_name[0]}{r.last_name[0]}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-sm font-bold text-foreground truncate">{r.last_name.toUpperCase()}, {r.first_name.toUpperCase()} {r.middle_name ? r.middle_name[0].toUpperCase() + "." : ""} {r.extension_name}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">{r.resident_number} &middot; {r.sex} &middot; DOB: {r.date_of_birth} &middot; Purok {r.purok}</p>
+                          <p className="text-sm font-bold text-foreground truncate">{r.full_name}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{r.resident_number} &middot; {r.sex} &middot; Age {r.age} &middot; DOB: {r.date_of_birth} &middot; Purok {r.purok || "N/A"}</p>
+                          {r.mobile_number && <p className="text-xs text-muted-foreground">{r.mobile_number}</p>}
                         </div>
                       </div>
-                      {/* Match % badge */}
-                      <div className={cn("shrink-0 px-2.5 py-1 rounded-full text-xs font-bold",
-                        score >= 90 ? "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300" :
-                        score >= 70 ? "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300" :
-                        "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300"
-                      )}>
-                        {score}% match
-                      </div>
-                    </div>
-                    {/* Matched fields pills */}
-                    <div className="flex flex-wrap gap-1.5 mt-3">
-                      {matchedFields.map((field) => (
-                        <span key={field} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-black/5 dark:bg-white/10 text-muted-foreground">
-                          <CheckCircle className="h-3 w-3 text-emerald-500" /> {field}
-                        </span>
-                      ))}
+                      <StatusBadge status={r.status} />
                     </div>
                     {/* Actions */}
                     <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/50">
-                      <button onClick={() => { setDupModal(false); setViewResident(r); setMode("list"); }}
+                      <button onClick={() => { setDupModal(false); setMode("list"); }}
                         className="px-3 py-1.5 text-xs font-medium rounded-lg text-white transition-colors hover:opacity-90 flex items-center gap-1.5" style={{ background: "var(--accent-primary)" }}>
                         <Eye className="h-3.5 w-3.5" /> View Profile
-                      </button>
-                      <button className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted transition-colors flex items-center gap-1.5">
-                        <ScrollText className="h-3.5 w-3.5" /> Documents
                       </button>
                     </div>
                   </div>
@@ -2097,16 +2210,16 @@ export default function ResidentsPage() {
               {/* Footer actions */}
               <div className="flex items-center justify-between pt-2 border-t border-border">
                 <p className="text-[11px] text-muted-foreground">
-                  {dupMatches.some((d) => d.score >= 90) ? "High confidence match found. Verify carefully before continuing." : "Partial match detected. Review and decide."}
+                  A resident with the same name already exists. In a barangay, one person cannot have multiple records.
                 </p>
                 <div className="flex gap-3">
                   <button onClick={() => { setDupModal(false); setMode("list"); }}
                     className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors">
-                    Cancel
+                    Cancel Registration
                   </button>
-                  <button onClick={() => setDupModal(false)}
+                  <button onClick={() => { setDupDismissed(true); setDupModal(false); }}
                     className="px-4 py-2 text-sm font-semibold rounded-lg bg-amber-500 hover:bg-amber-600 text-white transition-colors">
-                    Not a Duplicate — Continue
+                    Not the Same Person — Continue
                   </button>
                 </div>
               </div>
@@ -2114,12 +2227,12 @@ export default function ResidentsPage() {
           </Modal>
 
           {/* 2. Current Address (always visible, not collapsible) */}
-          <div>
-            <div className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-white shadow-sm" style={{ background: "var(--accent-primary)" }}>
+          <div className="relative z-[1]">
+            <div className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-white glass-accordion shadow-lg">
               <MapPin className="h-4.5 w-4.5 shrink-0" />
               <span className="flex-1 text-sm font-bold uppercase tracking-wider">Current Address</span>
             </div>
-            <div className="pt-5 pb-3 px-1">
+            <div className="glass-section rounded-b-xl mt-px px-5 pt-5 pb-4">
             <div className="space-y-4">
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <FInput label="Unit / Floor / House / Block / Lot No." name="house_block_lot" placeholder="e.g. Unit 4B, Blk 5 Lot 12" value={f("house_block_lot")} onChange={updateForm} />
@@ -2269,12 +2382,12 @@ export default function ResidentsPage() {
                     <div>
                       <label className="block text-xs font-medium text-muted-foreground mb-1.5">Health History</label>
                       <textarea value={f("health_history")} onChange={(e) => updateForm("health_history", e.target.value.toUpperCase())} placeholder="e.g. Past illnesses, allergies, disabilities"
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-20 uppercase" />
+                        className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-20 uppercase" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-muted-foreground mb-1.5">Skills</label>
                       <textarea value={f("skills")} onChange={(e) => updateForm("skills", e.target.value.toUpperCase())} placeholder="e.g. Carpentry, Cooking, Sewing, Driving"
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-20 uppercase" />
+                        className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-20 uppercase" />
                     </div>
                   </div>
                 </div>
@@ -2284,7 +2397,7 @@ export default function ResidentsPage() {
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5">Other Remarks</label>
                 <textarea value={f("other_remarks")} onChange={(e) => updateForm("other_remarks", e.target.value.toUpperCase())} placeholder="e.g. Any additional notes about this resident"
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-16 uppercase" />
+                  className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-16 uppercase" />
               </div>
             </div>
           </Section>
@@ -2377,7 +2490,7 @@ export default function ResidentsPage() {
                         <label className="block text-xs font-medium text-muted-foreground mb-1.5">Job Description</label>
                         <textarea value={entry.description} onChange={(e) => setWorkEntries((es) => es.map((x, i) => i === idx ? { ...x, description: e.target.value.toUpperCase() } : x))}
                           placeholder="Brief summary of responsibilities and achievements"
-                          className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-16 uppercase" />
+                          className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-16 uppercase" />
                       </div>
                     </div>
                   ))}
@@ -2427,7 +2540,7 @@ export default function ResidentsPage() {
                         <label className="block text-xs font-medium text-muted-foreground mb-1.5">Description / Notes</label>
                         <textarea value={entry.description} onChange={(e) => setBusinessEntries((es) => { const arr = es.length === 0 ? [{ ...emptyBusiness }] : [...es]; return arr.map((x, i) => i === idx ? { ...x, description: e.target.value.toUpperCase() } : x); })}
                           placeholder="e.g. Operates daily, 2 employees, sells snacks and household items"
-                          className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-16 uppercase" />
+                          className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-16 uppercase" />
                       </div>
                     </div>
                   ))}
@@ -2526,7 +2639,7 @@ export default function ResidentsPage() {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <input type="text" value={relativeSearch} onChange={(e) => searchResidents(e.target.value)}
                     placeholder="Type resident name or ID to search..."
-                    className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+                    className="w-full pl-9 pr-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring" />
                 </div>
                 {relativeResults.length > 0 && (
                   <div className="absolute z-20 w-full mt-1 bg-background border border-border rounded-lg shadow-lg overflow-hidden">
@@ -2556,7 +2669,7 @@ export default function ResidentsPage() {
                         <p className="text-sm font-medium text-foreground truncate">{rel.resident_name}</p>
                       </div>
                       <select value={rel.relationship} onChange={(e) => setRelativeEntries((es) => es.map((x, i) => i === idx ? { ...x, relationship: e.target.value } : x))}
-                        className="px-3 py-1.5 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring w-44">
+                        className="px-3 py-1.5 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring w-44">
                         {relativeRelationships.map((o) => <option key={o} value={o}>{o || "Select relationship"}</option>)}
                       </select>
                       <button onClick={() => setRelativeEntries((es) => es.filter((_, i) => i !== idx))}
@@ -2623,7 +2736,7 @@ export default function ResidentsPage() {
                     <label className="block text-xs font-medium text-muted-foreground mb-1.5">Remarks</label>
                     <textarea value={pet.remarks} onChange={(e) => setPetEntries((es) => es.map((x, i) => i === idx ? { ...x, remarks: e.target.value.toUpperCase() } : x))}
                       placeholder="e.g. Breed, color, vaccination status, special notes"
-                      className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-14 uppercase" />
+                      className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-14 uppercase" />
                   </div>
                   {/* Attachments */}
                   <div>
@@ -2702,13 +2815,13 @@ export default function ResidentsPage() {
                       <label className="block text-xs font-medium text-muted-foreground mb-1.5">Description</label>
                       <textarea value={entry.description} onChange={(e) => setAssistanceEntries((es) => es.map((x, i) => i === idx ? { ...x, description: e.target.value.toUpperCase() } : x))}
                         placeholder="Details of assistance received"
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-16 uppercase" />
+                        className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-16 uppercase" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-muted-foreground mb-1.5">Remarks</label>
                       <textarea value={entry.remarks} onChange={(e) => setAssistanceEntries((es) => es.map((x, i) => i === idx ? { ...x, remarks: e.target.value.toUpperCase() } : x))}
                         placeholder="e.g. Received by spouse, partial amount, etc."
-                        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-16 uppercase" />
+                        className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-16 uppercase" />
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
@@ -2796,18 +2909,18 @@ export default function ResidentsPage() {
         </div>
 
         {/* Sticky Bottom Action Bar */}
-        <div className="sticky bottom-0 z-30 -mx-6 px-6 py-4 bg-card/95 backdrop-blur-sm border-t border-border shadow-[0_-4px_16px_rgba(0,0,0,0.06)] dark:shadow-[0_-4px_16px_rgba(0,0,0,0.25)]">
+        <div className="sticky bottom-0 z-30 -mx-6 px-6 py-4 glass-header backdrop-blur-xl shadow-[0_-4px_24px_rgba(0,0,0,0.08)] dark:shadow-[0_-4px_24px_rgba(0,0,0,0.3)]">
           <div className="flex items-center justify-between">
             <p className="text-xs text-muted-foreground">
               <span className="text-red-500">*</span> Required fields must be filled before submitting
             </p>
             <div className="flex items-center gap-3">
               <button onClick={() => setMode("list")}
-                className="px-5 py-2.5 text-sm font-medium rounded-lg border border-border hover:bg-muted transition-all hover:shadow-sm">
+                className="px-5 py-2.5 text-sm font-medium rounded-xl glass-input hover:shadow-md transition-all">
                 Cancel
               </button>
               <button onClick={handleSubmit} disabled={submitting}
-                className="group relative px-7 py-2.5 text-sm font-bold rounded-lg text-white transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+                className="group relative px-7 py-2.5 text-sm font-bold rounded-xl text-white transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]"
                 style={{ background: submitting ? "var(--accent-primary)" : "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>
                 {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
                 {submitting ? "Registering..." : "Register Resident"}
@@ -2836,7 +2949,7 @@ export default function ResidentsPage() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Total Population</p>
-              <p className="text-3xl font-bold text-foreground">{mockResidents.length.toLocaleString()}</p>
+              <p className="text-3xl font-bold text-foreground">{listTotal.toLocaleString()}</p>
             </div>
             <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1 rounded-full">
               <TrendingUp className="h-3.5 w-3.5" /> +8% vs last month
@@ -2850,7 +2963,7 @@ export default function ResidentsPage() {
               <div>
                 <p className="text-[11px] font-medium text-blue-600/70 dark:text-blue-400/70 uppercase tracking-wider">Male</p>
                 <p className="text-xl font-bold text-blue-700 dark:text-blue-300">{maleCount}</p>
-                <p className="text-[11px] text-blue-500/70 dark:text-blue-400/50">{mockResidents.length > 0 ? Math.round((maleCount / mockResidents.length) * 100) : 0}% of total</p>
+                <p className="text-[11px] text-blue-500/70 dark:text-blue-400/50">{listTotal > 0 ? Math.round((maleCount / listTotal) * 100) : 0}% of total</p>
               </div>
             </div>
             <div className="flex items-center gap-3 rounded-lg bg-pink-50 dark:bg-pink-950/20 border border-pink-100 dark:border-pink-900/30 p-3.5">
@@ -2859,18 +2972,18 @@ export default function ResidentsPage() {
               </div>
               <div>
                 <p className="text-[11px] font-medium text-pink-600/70 dark:text-pink-400/70 uppercase tracking-wider">Female</p>
-                <p className="text-xl font-bold text-pink-700 dark:text-pink-300">{mockResidents.length - maleCount}</p>
-                <p className="text-[11px] text-pink-500/70 dark:text-pink-400/50">{mockResidents.length > 0 ? Math.round(((mockResidents.length - maleCount) / mockResidents.length) * 100) : 0}% of total</p>
+                <p className="text-xl font-bold text-pink-700 dark:text-pink-300">{listTotal - maleCount}</p>
+                <p className="text-[11px] text-pink-500/70 dark:text-pink-400/50">{listTotal > 0 ? Math.round(((listTotal - maleCount) / listTotal) * 100) : 0}% of total</p>
               </div>
             </div>
           </div>
           <div className="space-y-1.5">
             <div className="flex justify-between text-[10px] font-medium text-muted-foreground">
               <span>Gender Distribution</span>
-              <span>{maleCount}M / {mockResidents.length - maleCount}F</span>
+              <span>{maleCount}M / {listTotal - maleCount}F</span>
             </div>
             <div className="h-2.5 rounded-full bg-muted overflow-hidden flex">
-              <div className="h-full bg-blue-500 dark:bg-blue-400 rounded-l-full transition-all" style={{ width: `${mockResidents.length > 0 ? (maleCount / mockResidents.length) * 100 : 50}%` }} />
+              <div className="h-full bg-blue-500 dark:bg-blue-400 rounded-l-full transition-all" style={{ width: `${listTotal > 0 ? (maleCount / listTotal) * 100 : 50}%` }} />
               <div className="h-full bg-pink-500 dark:bg-pink-400 rounded-r-full flex-1" />
             </div>
           </div>
@@ -2897,7 +3010,7 @@ export default function ResidentsPage() {
               <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Registered Voters</p>
               <div className="flex items-baseline gap-2">
                 <p className="text-xl font-bold text-foreground">{voterCount}</p>
-                <span className="text-[11px] text-muted-foreground font-medium">{mockResidents.length > 0 ? Math.round((voterCount / mockResidents.length) * 100) : 0}% of population</span>
+                <span className="text-[11px] text-muted-foreground font-medium">{listTotal > 0 ? Math.round((voterCount / listTotal) * 100) : 0}% of population</span>
               </div>
             </div>
           </div>
@@ -2908,8 +3021,8 @@ export default function ResidentsPage() {
             <div className="flex-1 min-w-0">
               <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Active Residents</p>
               <div className="flex items-baseline gap-2">
-                <p className="text-xl font-bold text-foreground">{mockResidents.filter(r => r.status === "active").length}</p>
-                <span className="text-[11px] text-muted-foreground font-medium">{mockResidents.filter(r => r.status === "inactive").length} inactive, {mockResidents.filter(r => r.status === "deceased").length} deceased</span>
+                <p className="text-xl font-bold text-foreground">{residents.filter(r => r.status === "active").length}</p>
+                <span className="text-[11px] text-muted-foreground font-medium">{residents.filter(r => r.status === "inactive").length} inactive, {residents.filter(r => r.status === "deceased").length} deceased</span>
               </div>
             </div>
           </div>
@@ -2921,9 +3034,9 @@ export default function ResidentsPage() {
         <div className="flex items-center gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-            <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            <input type="text" value={search} onChange={(e) => handleSearchChange(e.target.value)}
               placeholder="Search residents..."
-              className="w-full pl-9 pr-4 py-2.5 text-sm rounded-xl border border-border bg-background placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent transition-shadow" />
+              className="w-full pl-9 pr-4 py-2.5 text-sm rounded-xl glass-input placeholder:text-muted-foreground/60 focus:outline-none transition-all duration-200" />
           </div>
           <div className="flex items-center gap-1.5">
             <button onClick={() => setShowFilters(!showFilters)}
@@ -2995,7 +3108,16 @@ export default function ResidentsPage() {
               </tr>
             </thead>
             <tbody>
-              {paged.length === 0 ? (
+              {listLoading ? (
+                <tr>
+                  <td colSpan={9} className="px-4 py-16 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
+                      <p className="text-sm text-muted-foreground">Loading residents...</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : paged.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="px-4 py-16 text-center">
                     <div className="flex flex-col items-center gap-3">
@@ -3004,25 +3126,29 @@ export default function ResidentsPage() {
                       </div>
                       <div>
                         <p className="text-sm font-medium text-foreground">No residents found</p>
-                        <p className="text-xs text-muted-foreground mt-1">Register your first resident or import records from BIMS to get started.</p>
+                        <p className="text-xs text-muted-foreground mt-1">{search || purokFilter !== "All Puroks" || statusFilter !== "All Status" ? "Try adjusting your search or filters." : "Register your first resident or import records from BIMS to get started."}</p>
                       </div>
-                      <button onClick={openCreate} className="mt-1 px-4 py-2 text-xs font-semibold rounded-lg text-white transition-all hover:opacity-90" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>
-                        + New Resident
-                      </button>
+                      {!search && purokFilter === "All Puroks" && statusFilter === "All Status" && (
+                        <button onClick={openCreate} className="mt-1 px-4 py-2 text-xs font-semibold rounded-lg text-white transition-all hover:opacity-90" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>
+                          + New Resident
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
               ) : (
                 paged.map((r) => {
-                  const initials = `${r.first_name[0]}${r.last_name[0]}`;
-                  const fullName = `${r.last_name.toUpperCase()}, ${r.first_name.toUpperCase()} ${r.middle_name ? r.middle_name[0].toUpperCase() + "." : ""}${r.extension_name ? " " + r.extension_name : ""}`.trim();
-                  const address = [r.house_number, r.street, r.purok ? `Purok ${r.purok}` : "", "Tambo", "City of Paranaque"].filter(Boolean).join(", ").toUpperCase();
+                  const initials = `${(r.first_name || "")[0] || "?"}${(r.last_name || "")[0] || "?"}`;
+                  const fullName = `${(r.last_name || "").toUpperCase()}, ${(r.first_name || "").toUpperCase()} ${r.middle_name ? r.middle_name[0].toUpperCase() + "." : ""}${r.extension_name ? " " + r.extension_name : ""}`.trim();
+                  const address = [r.house_block_lot, r.street, r.purok ? `Purok ${r.purok}` : ""].filter(Boolean).join(", ").toUpperCase() || "—";
+                  const age = r.date_of_birth ? Math.floor((Date.now() - new Date(r.date_of_birth).getTime()) / 31557600000) : null;
                   const daysAgo = Math.floor((Date.now() - new Date(r.created_at).getTime()) / 86400000);
                   const createdLabel = daysAgo === 0 ? "Today" : daysAgo === 1 ? "Yesterday" : daysAgo < 7 ? `${daysAgo} days ago` : daysAgo < 30 ? `${Math.floor(daysAgo / 7)} weeks ago` : daysAgo < 365 ? `${Math.floor(daysAgo / 30)} months ago` : `${Math.floor(daysAgo / 365)} years ago`;
-                  const hasGreyFlag = r.flags.some((f) => f.type === "grey");
-                  const hasRedFlag = r.flags.some((f) => f.type === "red");
+                  const greyFlags = r.cross_barangay_flags || [];
+                  const hasGreyFlag = greyFlags.length > 0;
+                  const hasRedFlag = false; // Red flags come from blotter module (future)
                   return (
-                    <tr key={r.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => setViewResident(r)}>
+                    <tr key={r.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => openViewResident(r.id)}>
                       {/* Barangay ID */}
                       <td className="px-4 py-3.5">
                         <p className="text-xs text-muted-foreground font-mono">{r.resident_number}</p>
@@ -3040,28 +3166,14 @@ export default function ResidentsPage() {
                               {r.is_head_of_household && <span title="Head of Household"><Home className="h-3 w-3 text-amber-500 shrink-0" /></span>}
                             </div>
                             <p className="text-[11px] text-muted-foreground">Last Transaction: {createdLabel}</p>
-                            {(hasGreyFlag || hasRedFlag) && (() => {
-                              const greyFlags = r.flags.filter((f) => f.type === "grey");
-                              const redFlags = r.flags.filter((f) => f.type === "red");
-                              const greyTooltip = greyFlags.length > 0 ? greyFlags.map((f) => f.label).join("\n\n") : "";
-                              const greyBadgeLabel = greyFlags.length > 1 ? `${greyFlags.length} Other Brgy.` : "Other Brgy.";
-                              return (
-                                <div className="flex items-center gap-1 mt-1">
-                                  {greyFlags.length > 0 && (
-                                    <span title={greyTooltip} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-                                      <Flag className="h-2.5 w-2.5" />
-                                      {greyBadgeLabel}
-                                    </span>
-                                  )}
-                                  {redFlags.map((fl, i) => (
-                                    <span key={i} title={fl.label} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400">
-                                      <Flag className="h-2.5 w-2.5" />
-                                      Case Record
-                                    </span>
-                                  ))}
-                                </div>
-                              );
-                            })()}
+                            {hasGreyFlag && (
+                              <div className="flex items-center gap-1 mt-1">
+                                <span title={`Cross-barangay records detected (${greyFlags.length} other barangay${greyFlags.length > 1 ? "s" : ""})`} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+                                  <Flag className="h-2.5 w-2.5" />
+                                  {greyFlags.length > 1 ? `${greyFlags.length} Other Brgy.` : "Other Brgy."}
+                                </span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -3071,7 +3183,7 @@ export default function ResidentsPage() {
                       </td>
                       {/* Age */}
                       <td className="px-4 py-3.5 text-center">
-                        <span className="text-sm text-foreground">{r.age}</span>
+                        <span className="text-sm text-foreground">{age ?? "—"}</span>
                       </td>
                       {/* Gender */}
                       <td className="px-4 py-3.5">
@@ -3079,7 +3191,7 @@ export default function ResidentsPage() {
                       </td>
                       {/* Civil Status */}
                       <td className="px-4 py-3.5">
-                        <span className="text-sm text-foreground uppercase">{r.civil_status.toUpperCase()}</span>
+                        <span className="text-sm text-foreground uppercase">{(r.civil_status || "—").toUpperCase()}</span>
                       </td>
                       {/* Voter */}
                       <td className="px-4 py-3.5 text-center">
@@ -3098,7 +3210,7 @@ export default function ResidentsPage() {
                       {/* Actions */}
                       <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-center gap-0.5">
-                          <button onClick={() => setViewResident(r)} className="p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors group" title="View Profile">
+                          <button onClick={() => openViewResident(r.id)} className="p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors group" title="View Profile">
                             <Eye className="h-4 w-4 text-muted-foreground group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" />
                           </button>
                           <button onClick={() => {}} className="p-1.5 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors group" title="Generate Document">
@@ -3116,10 +3228,10 @@ export default function ResidentsPage() {
                             </button>
                             {actionMenu === r.id && (
                               <div className="absolute right-0 top-8 z-20 w-44 glass rounded-xl shadow-lg py-1.5">
-                                <button onClick={() => { openEdit(r); setActionMenu(null); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-muted text-left transition-colors"><Edit className="h-3.5 w-3.5 text-muted-foreground" /> Edit Profile</button>
+                                <button onClick={async () => { setActionMenu(null); try { const detail = await api.residents.get(r.id); openEdit(detail); } catch { addToast({ type: "error", title: "Failed to load resident" }); } }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-muted text-left transition-colors"><Edit className="h-3.5 w-3.5 text-muted-foreground" /> Edit Profile</button>
                                 <button onClick={() => { setActionMenu(null); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-muted text-left transition-colors"><Printer className="h-3.5 w-3.5 text-muted-foreground" /> Print Record</button>
                                 <div className="border-t border-border my-1" />
-                                <button onClick={() => { setViewResident(r); setArchiveModal(true); setActionMenu(null); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-amber-50 dark:hover:bg-amber-950/20 text-left text-amber-600 dark:text-amber-400 transition-colors"><Archive className="h-3.5 w-3.5" /> Archive Record</button>
+                                <button onClick={async () => { setActionMenu(null); await openViewResident(r.id); setArchiveModal(true); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-amber-50 dark:hover:bg-amber-950/20 text-left text-amber-600 dark:text-amber-400 transition-colors"><Archive className="h-3.5 w-3.5" /> Archive Record</button>
                               </div>
                             )}
                           </div>
@@ -3134,7 +3246,7 @@ export default function ResidentsPage() {
         </div>
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-border">
-            <p className="text-sm text-muted-foreground">Showing {start + 1}--{Math.min(start + pageSize, sorted.length)} of {sorted.length} residents</p>
+            <p className="text-sm text-muted-foreground">Showing {((safePage - 1) * pageSize) + 1}--{Math.min(safePage * pageSize, listTotal)} of {listTotal} residents</p>
             <div className="flex items-center gap-1">
               <button onClick={() => setPage(1)} disabled={safePage <= 1} className="p-1.5 rounded hover:bg-muted disabled:opacity-30"><ChevronsLeft className="h-4 w-4" /></button>
               <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage <= 1} className="p-1.5 rounded hover:bg-muted disabled:opacity-30"><ChevronLeft className="h-4 w-4" /></button>
@@ -3159,13 +3271,12 @@ export default function ResidentsPage() {
         }>
         {viewResident && (
           <div className="space-y-6">
-            {viewResident.flags.length > 0 && (
+            {(viewResident.cross_barangay_flags?.length ?? 0) > 0 && (
               <div className="space-y-2">
-                {viewResident.flags.map((fl, i) => (
-                  <div key={i} className={cn("flex items-center gap-2 p-3 rounded-lg text-sm",
-                    fl.type === "red" ? "bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-900" : "bg-gray-50 dark:bg-gray-900/20 text-gray-700 dark:text-gray-400 border border-gray-200 dark:border-gray-800")}>
-                    {fl.type === "red" ? <AlertTriangle className="h-4 w-4 shrink-0" /> : <Flag className="h-4 w-4 shrink-0" />}
-                    {fl.label}
+                {viewResident.cross_barangay_flags?.map((fl, i) => (
+                  <div key={i} className="flex items-center gap-2 p-3 rounded-lg text-sm bg-gray-50 dark:bg-gray-900/20 text-gray-700 dark:text-gray-400 border border-gray-200 dark:border-gray-800">
+                    <Flag className="h-4 w-4 shrink-0" />
+                    Cross-barangay record detected. Verification recommended before issuing documents.
                   </div>
                 ))}
               </div>
@@ -3185,13 +3296,13 @@ export default function ResidentsPage() {
               <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Personal Information</h4>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-3">
                 <InfoItem icon={<User className="h-4 w-4" />} label="Sex" value={viewResident.sex} />
-                <InfoItem icon={<Calendar className="h-4 w-4" />} label="Date of Birth" value={`${viewResident.date_of_birth} (${viewResident.age} yrs)`} />
-                <InfoItem icon={<Heart className="h-4 w-4" />} label="Civil Status" value={viewResident.civil_status} />
+                <InfoItem icon={<Calendar className="h-4 w-4" />} label="Date of Birth" value={viewResident.date_of_birth ? `${viewResident.date_of_birth} (${Math.floor((Date.now() - new Date(viewResident.date_of_birth).getTime()) / 31557600000)} yrs)` : "\u2014"} />
+                <InfoItem icon={<Heart className="h-4 w-4" />} label="Civil Status" value={viewResident.civil_status || "\u2014"} />
                 <InfoItem label="Blood Type" value={viewResident.blood_type || "\u2014"} />
                 <InfoItem label="Place of Birth" value={viewResident.place_of_birth || "\u2014"} />
-                <InfoItem label="Nationality" value={viewResident.nationality || "\u2014"} />
+                <InfoItem label="Citizenship" value={viewResident.citizenship || "\u2014"} />
                 <InfoItem label="Religion" value={viewResident.religion || "\u2014"} />
-                <InfoItem label="Resident Type" value={viewResident.resident_type} />
+                <InfoItem label="Resident Type" value={viewResident.resident_type || "\u2014"} />
               </div>
             </div>
 
@@ -3200,8 +3311,8 @@ export default function ResidentsPage() {
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-3">
                 <InfoItem icon={<Phone className="h-4 w-4" />} label="Mobile" value={viewResident.mobile_number || "\u2014"} />
                 <InfoItem icon={<Mail className="h-4 w-4" />} label="Email" value={viewResident.email || "\u2014"} />
-                <InfoItem icon={<MapPin className="h-4 w-4" />} label="Address" value={`${viewResident.house_number} ${viewResident.street}, ${viewResident.purok}`} />
-                <InfoItem label="Telephone" value={viewResident.telephone || "\u2014"} />
+                <InfoItem icon={<MapPin className="h-4 w-4" />} label="Address" value={[viewResident.house_block_lot, viewResident.street, viewResident.purok ? `Purok ${viewResident.purok}` : ""].filter(Boolean).join(", ") || "\u2014"} />
+                <InfoItem label="Telephone" value={"\u2014"} />
               </div>
             </div>
 
@@ -3210,28 +3321,28 @@ export default function ResidentsPage() {
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-3">
                 <InfoItem icon={<FileText className="h-4 w-4" />} label="Occupation" value={viewResident.occupation || "\u2014"} />
                 <InfoItem label="Employer" value={viewResident.employer || "\u2014"} />
-                <InfoItem label="Monthly Income" value={viewResident.monthly_income ? `\u20B1${Number(viewResident.monthly_income).toLocaleString()}` : "\u2014"} />
-                <InfoItem label="Education" value={viewResident.educational_attainment || "\u2014"} />
+                <InfoItem label="Monthly Income" value={viewResident.monthly_income_range || "\u2014"} />
+                <InfoItem label="Education" value={viewResident.highest_education || "\u2014"} />
               </div>
             </div>
 
             <div>
               <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Government IDs</h4>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-3">
-                <InfoItem label="PhilHealth" value={viewResident.philhealth_number || "\u2014"} />
-                <InfoItem label="SSS/GSIS" value={viewResident.sss_gsis_number || "\u2014"} />
-                <InfoItem label="Pag-IBIG" value={viewResident.pagibig_number || "\u2014"} />
-                <InfoItem label="TIN" value={viewResident.tin_number || "\u2014"} />
+                <InfoItem label="PhilHealth" value="\u2014" />
+                <InfoItem label="SSS/GSIS" value="\u2014" />
+                <InfoItem label="Pag-IBIG" value="\u2014" />
+                <InfoItem label="TIN" value="\u2014" />
               </div>
             </div>
 
             <div>
               <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Voter & Household</h4>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-3">
-                <InfoItem label="Voter ID" value={viewResident.voter_id || "\u2014"} />
-                <InfoItem label="Precinct" value={viewResident.precinct_number || "\u2014"} />
-                <InfoItem label="Household" value={viewResident.household_number || "\u2014"} />
-                <InfoItem label="Relationship" value={viewResident.relationship_to_head || "\u2014"} />
+                <InfoItem label="Voter" value={viewResident.is_voter ? "Yes" : "No"} />
+                <InfoItem label="Precinct" value={viewResident.voter_precinct_number || "\u2014"} />
+                <InfoItem label="Household" value={viewResident.household?.household_number || "\u2014"} />
+                <InfoItem label="Head of Household" value={viewResident.is_head_of_household ? "Yes" : "No"} />
               </div>
             </div>
 
@@ -3239,9 +3350,9 @@ export default function ResidentsPage() {
               <StatusBadge status={viewResident.status} />
               {viewResident.is_voter && <Badge variant="success" dot>Registered Voter</Badge>}
               {viewResident.is_head_of_household && <Badge variant="warning" dot>Head of Household</Badge>}
-              {viewResident.is_pwd && <Badge variant="info" dot>PWD ({viewResident.pwd_type})</Badge>}
-              {viewResident.is_4ps && <Badge variant="accent" dot>4Ps Beneficiary</Badge>}
-              {viewResident.is_solo_parent && <Badge variant="danger" dot>Solo Parent</Badge>}
+              {viewResident.sectoral_tags?.map(t => (
+                <Badge key={t.id} variant="info" dot>{t.sector}</Badge>
+              ))}
             </div>
           </div>
         )}

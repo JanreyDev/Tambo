@@ -797,22 +797,22 @@ export default function AccountPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5">First Name</label>
-                <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value.toUpperCase().replace(/[^A-Z\s\u00D1-]/g, ""))} className="w-full px-3 py-2 rounded-lg border border-input-border bg-input-bg text-sm text-foreground uppercase focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
+                <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value.toUpperCase().replace(/[^A-Z\s\u00D1-]/g, ""))} className="w-full px-3 py-2 rounded-xl glass-input text-sm text-foreground uppercase focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
                 <p className="text-[10px] text-muted-foreground/60 mt-1">Capital letters only</p>
               </div>
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5">Last Name</label>
-                <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value.toUpperCase().replace(/[^A-Z\s\u00D1-]/g, ""))} className="w-full px-3 py-2 rounded-lg border border-input-border bg-input-bg text-sm text-foreground uppercase focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
+                <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value.toUpperCase().replace(/[^A-Z\s\u00D1-]/g, ""))} className="w-full px-3 py-2 rounded-xl glass-input text-sm text-foreground uppercase focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
                 <p className="text-[10px] text-muted-foreground/60 mt-1">Capital letters only</p>
               </div>
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5">Middle Name</label>
-                <input type="text" value={middleName} onChange={(e) => setMiddleName(e.target.value.toUpperCase().replace(/[^A-Z\s\u00D1-]/g, ""))} placeholder="Optional" className="w-full px-3 py-2 rounded-lg border border-input-border bg-input-bg text-sm text-foreground uppercase placeholder:text-muted-foreground/50 placeholder:normal-case focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
+                <input type="text" value={middleName} onChange={(e) => setMiddleName(e.target.value.toUpperCase().replace(/[^A-Z\s\u00D1-]/g, ""))} placeholder="Optional" className="w-full px-3 py-2 rounded-xl glass-input text-sm text-foreground uppercase placeholder:text-muted-foreground/50 placeholder:normal-case focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
                 <p className="text-[10px] text-muted-foreground/60 mt-1">Capital letters only</p>
               </div>
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5">Extension Name</label>
-                <select value={extensionName} onChange={(e) => setExtensionName(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-input-border bg-input-bg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent">
+                <select value={extensionName} onChange={(e) => setExtensionName(e.target.value)} className="w-full px-3 py-2 rounded-xl glass-input text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent">
                   <option value="">None</option>
                   <option value="JR.">Jr.</option>
                   <option value="SR.">Sr.</option>
@@ -837,7 +837,7 @@ export default function AccountPage() {
                   <span className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" /> Email Address</span>
                 </label>
                 <div className="flex gap-2">
-                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="your@email.com" className="flex-1 px-3 py-2 rounded-lg border border-input-border bg-input-bg text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
+                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="your@email.com" className="flex-1 px-3 py-2 rounded-xl glass-input text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
                   {email && (
                     <button
                       onClick={() => { setEmailToVerify(email); setShowEmailVerify(true); }}
@@ -863,7 +863,7 @@ export default function AccountPage() {
                   <span className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" /> Phone Number</span>
                 </label>
                 <div className="flex gap-2">
-                  <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+63 9XX XXX XXXX" className="flex-1 px-3 py-2 rounded-lg border border-input-border bg-input-bg text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
+                  <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+63 9XX XXX XXXX" className="flex-1 px-3 py-2 rounded-xl glass-input text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
                   {phone && (
                     <button
                       onClick={() => { setPhoneToVerify(phone); setShowPhoneVerify(true); }}
@@ -896,7 +896,7 @@ export default function AccountPage() {
             <p className="text-xs text-muted-foreground mb-4">Your login credential. Changing this will require you to use the new username on next login.</p>
             {usernameCooldown.locked ? (
               <div className="max-w-sm">
-                <input type="text" value={username} disabled className="w-full px-3 py-2 rounded-lg border border-input-border bg-muted text-sm text-muted-foreground cursor-not-allowed" />
+                <input type="text" value={username} disabled className="w-full px-3 py-2 rounded-xl glass-input bg-muted/50 text-sm text-muted-foreground cursor-not-allowed" />
                 <div className="flex items-start gap-2 mt-2 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
                   <Lock className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" />
                   <p className="text-[11px] text-amber-700 dark:text-amber-300">
@@ -908,7 +908,7 @@ export default function AccountPage() {
               <>
                 <div className="max-w-sm">
                   <div className="relative">
-                    <input type="text" value={username} onChange={(e) => handleCheckUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))} className="w-full px-3 py-2 pr-10 rounded-lg border border-input-border bg-input-bg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
+                    <input type="text" value={username} onChange={(e) => handleCheckUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))} className="w-full px-3 py-2 pr-10 rounded-xl glass-input text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
                     {usernameCheckLoading && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />}
                     {!usernameCheckLoading && usernameAvailable === true && username !== user?.username && (
                       <Check className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500" />
@@ -1011,7 +1011,7 @@ export default function AccountPage() {
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-1.5">Current Password</label>
                     <div className="relative">
-                      <input type={showCurrentPassword ? "text" : "password"} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="Enter current password" className="w-full px-3 py-2 pr-10 rounded-lg border border-input-border bg-input-bg text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
+                      <input type={showCurrentPassword ? "text" : "password"} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="Enter current password" className="w-full px-3 py-2 pr-10 rounded-xl glass-input text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
                       <button type="button" onClick={() => setShowCurrentPassword(!showCurrentPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                         {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
@@ -1020,7 +1020,7 @@ export default function AccountPage() {
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-1.5">New Password</label>
                     <div className="relative">
-                      <input type={showNewPassword ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Enter new password" className="w-full px-3 py-2 pr-10 rounded-lg border border-input-border bg-input-bg text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
+                      <input type={showNewPassword ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Enter new password" className="w-full px-3 py-2 pr-10 rounded-xl glass-input text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
                       <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                         {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
@@ -1030,7 +1030,7 @@ export default function AccountPage() {
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-1.5">Confirm New Password</label>
                     <div className="relative">
-                      <input type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirm new password" className="w-full px-3 py-2 pr-10 rounded-lg border border-input-border bg-input-bg text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
+                      <input type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirm new password" className="w-full px-3 py-2 pr-10 rounded-xl glass-input text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
                       <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                         {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
@@ -1201,7 +1201,7 @@ export default function AccountPage() {
 
           {/* 2FA Setup Flow (inline) */}
           {twoFASetupStep === "qr" && (
-            <div className="bg-card border-2 border-dashed rounded-xl p-6" style={{ borderColor: "var(--accent-primary)" }}>
+            <div className="glass border-2 border-dashed rounded-xl p-6" style={{ borderColor: "var(--accent-primary)" }}>
               <h3 className="text-lg font-semibold text-card-foreground mb-1">Step 1: Scan QR Code</h3>
               <p className="text-xs text-muted-foreground mb-4">Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)</p>
               <div className="flex flex-col items-center gap-4">
@@ -1227,7 +1227,7 @@ export default function AccountPage() {
           )}
 
           {twoFASetupStep === "verify" && (
-            <div className="bg-card border-2 border-dashed rounded-xl p-6" style={{ borderColor: "var(--accent-primary)" }}>
+            <div className="glass border-2 border-dashed rounded-xl p-6" style={{ borderColor: "var(--accent-primary)" }}>
               <h3 className="text-lg font-semibold text-card-foreground mb-1">Step 2: Verify Code</h3>
               <p className="text-xs text-muted-foreground mb-4">Enter the 6-digit code from your authenticator app to confirm setup.</p>
               <div className="max-w-xs mx-auto space-y-3">
@@ -1237,7 +1237,7 @@ export default function AccountPage() {
                   onChange={(e) => setTwoFACode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                   placeholder="000000"
                   maxLength={6}
-                  className="w-full px-3 py-3 rounded-lg border border-input-border bg-input-bg text-lg text-foreground text-center tracking-[0.5em] font-mono focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent"
+                  className="w-full px-3 py-3 rounded-xl glass-input text-lg text-foreground text-center tracking-[0.5em] font-mono focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent"
                   autoFocus
                 />
                 <button
@@ -1273,7 +1273,7 @@ export default function AccountPage() {
           )}
 
           {twoFASetupStep === "done" && (
-            <div className="bg-card border-2 border-emerald-200 dark:border-emerald-800 rounded-xl p-6">
+            <div className="glass border-2 border-emerald-200 dark:border-emerald-800 rounded-xl p-6">
               <div className="flex items-center gap-2 mb-1">
                 <Check className="w-5 h-5 text-emerald-500" />
                 <h3 className="text-lg font-semibold text-emerald-600 dark:text-emerald-400">2FA Enabled Successfully</h3>
@@ -1387,7 +1387,7 @@ export default function AccountPage() {
           </div>
 
           {/* Sign Out All Devices */}
-          <div className="bg-card border border-red-200 dark:border-red-900 rounded-xl p-6">
+          <div className="glass border border-red-200 dark:border-red-900 rounded-xl p-6">
             <div className="flex items-start justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-red-600 dark:text-red-400 mb-1">Sign Out All Devices</h2>
@@ -1667,7 +1667,7 @@ export default function AccountPage() {
                                   "max-w-[80%] rounded-lg px-3 py-2 text-sm",
                                   msg.role === "user"
                                     ? "bg-[var(--accent-primary)] text-white"
-                                    : "bg-card border border-border"
+                                    : "glass-subtle"
                                 )}>
                                   {msg.role === "assistant" ? (
                                     <Markdown content={msg.content} className="text-xs text-justify" />
@@ -1821,7 +1821,7 @@ export default function AccountPage() {
                     type="time"
                     defaultValue={(user?.preferences as Record<string, unknown>)?.quiet_hours_start as string ?? "22:00"}
                     onChange={(e) => handleSaveNotificationPreference("quiet_hours_start", e.target.value)}
-                    className="px-2.5 py-1.5 rounded-lg border border-input-border bg-input-bg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent"
+                    className="px-2.5 py-1.5 rounded-xl glass-input text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent"
                   />
                 </div>
                 <span className="text-muted-foreground mt-5">-</span>
@@ -1831,7 +1831,7 @@ export default function AccountPage() {
                     type="time"
                     defaultValue={(user?.preferences as Record<string, unknown>)?.quiet_hours_end as string ?? "06:00"}
                     onChange={(e) => handleSaveNotificationPreference("quiet_hours_end", e.target.value)}
-                    className="px-2.5 py-1.5 rounded-lg border border-input-border bg-input-bg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent"
+                    className="px-2.5 py-1.5 rounded-xl glass-input text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent"
                   />
                 </div>
               </div>
@@ -1981,7 +1981,7 @@ export default function AccountPage() {
           </div>
 
           {/* Delete Account */}
-          <div className="bg-card border border-red-200 dark:border-red-900 rounded-xl p-6">
+          <div className="glass border border-red-200 dark:border-red-900 rounded-xl p-6">
             <div className="flex items-start gap-4">
               <div className="w-10 h-10 rounded-lg bg-red-50 dark:bg-red-950/30 flex items-center justify-center flex-shrink-0">
                 <Trash2 className="w-5 h-5 text-red-500" />
@@ -2061,7 +2061,7 @@ export default function AccountPage() {
                     onChange={(e) => setPhoneOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
                     placeholder="000000"
                     maxLength={6}
-                    className="w-full px-3 py-2 rounded-lg border border-input-border bg-input-bg text-sm text-foreground text-center tracking-[0.5em] font-mono focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent"
+                    className="w-full px-3 py-2 rounded-xl glass-input text-sm text-foreground text-center tracking-[0.5em] font-mono focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent"
                     autoFocus
                   />
                 </div>
@@ -2147,7 +2147,7 @@ export default function AccountPage() {
                     onChange={(e) => setEmailOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
                     placeholder="000000"
                     maxLength={6}
-                    className="w-full px-3 py-2 rounded-lg border border-input-border bg-input-bg text-sm text-foreground text-center tracking-[0.5em] font-mono focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent"
+                    className="w-full px-3 py-2 rounded-xl glass-input text-sm text-foreground text-center tracking-[0.5em] font-mono focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent"
                     autoFocus
                   />
                 </div>
@@ -2203,7 +2203,7 @@ export default function AccountPage() {
                 value={disable2FAPassword}
                 onChange={(e) => setDisable2FAPassword(e.target.value)}
                 placeholder="Enter your password"
-                className="w-full px-3 py-2 rounded-lg border border-input-border bg-input-bg text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-transparent"
+                className="w-full px-3 py-2 rounded-xl glass-input text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-transparent"
                 autoFocus
               />
               <button
@@ -2285,7 +2285,7 @@ export default function AccountPage() {
       {/* ═══════════════════════════════════════════ */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowDeleteConfirm(false)}>
-          <div className="bg-card border border-red-200 dark:border-red-900 rounded-xl p-6 w-full max-w-sm mx-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="glass border border-red-200 dark:border-red-900 rounded-xl p-6 w-full max-w-sm mx-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-2 mb-3">
               <div className="w-10 h-10 rounded-lg bg-red-50 dark:bg-red-950/30 flex items-center justify-center">
                 <Trash2 className="w-5 h-5 text-red-500" />

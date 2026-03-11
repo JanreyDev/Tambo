@@ -357,7 +357,7 @@ export default function AiAssistantPage() {
                 placeholder={isDepleted ? "Mabini AI credits depleted" : "Ask Mabini anything..."}
                 rows={1}
                 disabled={isStreaming || isDepleted}
-                className="flex-1 px-4 py-2.5 text-sm rounded-lg border border-border bg-background resize-none focus:outline-none focus:ring-2 focus:ring-accent-ring disabled:opacity-50"
+                className="flex-1 px-4 py-2.5 text-sm rounded-xl glass-input resize-none focus:outline-none focus:ring-2 focus:ring-accent-ring disabled:opacity-50"
                 style={{ minHeight: "42px", maxHeight: "120px" }}
               />
               {isStreaming ? (

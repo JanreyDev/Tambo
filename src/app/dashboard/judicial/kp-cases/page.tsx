@@ -82,7 +82,7 @@ function FormInput({ label, value, onChange, required, type = "text", placeholde
     <div>
       <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
       <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-        className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", error ? "border-red-500" : "border-border")} />
+        className={cn("w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring", error && "border-red-500")} />
       {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
     </div>
   );
@@ -93,7 +93,7 @@ function FormSelect({ label, value, onChange, options, required, error }: { labe
     <div>
       <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
       <select value={value} onChange={(e) => onChange(e.target.value)}
-        className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", error ? "border-red-500" : "border-border")}>
+        className={cn("w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring", error && "border-red-500")}>
         <option value="">Select {label}</option>
         {options.map((o) => <option key={o} value={o}>{o}</option>)}
       </select>
@@ -107,7 +107,7 @@ function FormTextarea({ label, value, onChange, required, rows = 3, placeholder 
     <div>
       <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
       <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={rows} placeholder={placeholder}
-        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
+        className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
     </div>
   );
 }
@@ -329,7 +329,7 @@ export default function KpCasesPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               placeholder="Search by case number, title, or party names..."
-              className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+              className="w-full pl-9 pr-4 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring" />
           </div>
           <button onClick={() => setShowFilters(!showFilters)}
             className={cn("flex items-center gap-2 px-3 py-2 text-sm rounded-lg border transition-colors",
@@ -340,11 +340,11 @@ export default function KpCasesPage() {
         {showFilters && (
           <div className="flex flex-wrap items-center gap-3 p-4 rounded-lg glass-subtle">
             <select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}
-              className="px-3 py-1.5 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+              className="px-3 py-1.5 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring">
               {caseTypes.map((t) => <option key={t}>{t}</option>)}
             </select>
             <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-              className="px-3 py-1.5 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+              className="px-3 py-1.5 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring">
               {caseStatuses.map((s) => <option key={s}>{s}</option>)}
             </select>
             <button onClick={() => { setTypeFilter("All Types"); setStatusFilter("All Status"); }}
@@ -561,23 +561,23 @@ export default function KpCasesPage() {
             <div>
               <label className="block text-xs font-medium text-muted-foreground mb-1">Hearing Date<span className="text-red-500 ml-0.5">*</span></label>
               <input type="date" value={hearingForm.date} onChange={(e) => setHearingForm((p) => ({ ...p, date: e.target.value }))}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+                className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring" />
             </div>
             <div>
               <label className="block text-xs font-medium text-muted-foreground mb-1">Time<span className="text-red-500 ml-0.5">*</span></label>
               <input type="time" value={hearingForm.time} onChange={(e) => setHearingForm((p) => ({ ...p, time: e.target.value }))}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+                className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring" />
             </div>
           </div>
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">Venue</label>
             <input type="text" value={hearingForm.venue} onChange={(e) => setHearingForm((p) => ({ ...p, venue: e.target.value }))} placeholder="e.g. Barangay Hall"
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+              className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring" />
           </div>
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">Notes</label>
             <textarea value={hearingForm.notes} onChange={(e) => setHearingForm((p) => ({ ...p, notes: e.target.value }))} rows={2} placeholder="Any notes for this hearing..."
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
+              className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
           </div>
         </div>
       </Modal>
@@ -613,7 +613,7 @@ export default function KpCasesPage() {
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">New Status<span className="text-red-500 ml-0.5">*</span></label>
             <select value={statusForm.status} onChange={(e) => setStatusForm((p) => ({ ...p, status: e.target.value }))}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+              className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring">
               <option value="">Select Status</option>
               {statusUpdateOptions.map((s) => <option key={s} value={s.toLowerCase().replace(" ", "_")}>{s}</option>)}
             </select>
@@ -621,7 +621,7 @@ export default function KpCasesPage() {
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">Remarks</label>
             <textarea value={statusForm.remarks} onChange={(e) => setStatusForm((p) => ({ ...p, remarks: e.target.value }))} rows={3} placeholder="Reason for status change or additional remarks..."
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
+              className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
           </div>
         </div>
       </Modal>

@@ -185,14 +185,6 @@ export default function LoginPage() {
       setConnectionSecure(false);
     }
 
-    // Restore remember me preference
-    if (typeof window !== "undefined") {
-      const savedRemember = localStorage.getItem("bcmp_remember");
-      if (savedRemember === "true") {
-        setRememberMe(true);
-      }
-    }
-
     const baseInfo: Omit<SecurityInfo, "ip"> = {
       browser: browser.name,
       browserVersion: browser.version,
@@ -541,10 +533,10 @@ export default function LoginPage() {
                     onChange={(e) => { setUsername(e.target.value); if (formErrors.username) setFormErrors(prev => { const { username: _, ...rest } = prev; return rest; }); }}
                     placeholder="Enter your username"
                     autoComplete="username"
-                    className={`w-full px-4 py-2.5 rounded-xl border bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 transition-all ${
+                    className={`w-full px-4 py-2.5 rounded-xl glass-input text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 transition-all ${
                       formErrors.username
-                        ? "border-red-500 focus:ring-red-500/20 focus:border-red-500"
-                        : "border-border focus:ring-blue-500/20 focus:border-blue-500"
+                        ? "!border-red-500 focus:ring-red-500/20"
+                        : "focus:ring-blue-500/20"
                     }`}
                   />
                   {formErrors.username && (
@@ -565,10 +557,10 @@ export default function LoginPage() {
                       onChange={(e) => { setPassword(e.target.value); if (formErrors.password) setFormErrors(prev => { const { password: _, ...rest } = prev; return rest; }); }}
                       placeholder="Enter your password"
                       autoComplete="current-password"
-                      className={`w-full px-4 pr-10 py-2.5 rounded-xl border bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 transition-all ${
+                      className={`w-full px-4 pr-10 py-2.5 rounded-xl glass-input text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 transition-all ${
                         formErrors.password
-                          ? "border-red-500 focus:ring-red-500/20 focus:border-red-500"
-                          : "border-border focus:ring-blue-500/20 focus:border-blue-500"
+                          ? "!border-red-500 focus:ring-red-500/20"
+                          : "focus:ring-blue-500/20"
                       }`}
                     />
                     <button

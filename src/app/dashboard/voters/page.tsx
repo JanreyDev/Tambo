@@ -81,7 +81,7 @@ function FormInput({ label, name, value, placeholder, required, type, onChange, 
   return (
     <div>
       <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <input type={type || "text"} value={value} onChange={(e) => onChange(name, e.target.value)} placeholder={placeholder} max={max} className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", error ? "border-red-500" : "border-border")} />
+      <input type={type || "text"} value={value} onChange={(e) => onChange(name, e.target.value)} placeholder={placeholder} max={max} className={cn("w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring", error ? "border-red-500" : "border-border")} />
       {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
     </div>
   );
@@ -91,7 +91,7 @@ function FormSelect({ label, name, value, options, required, onChange, error }: 
   return (
     <div>
       <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <select value={value} onChange={(e) => onChange(name, e.target.value)} className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", error ? "border-red-500" : "border-border")}>
+      <select value={value} onChange={(e) => onChange(name, e.target.value)} className={cn("w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring", error ? "border-red-500" : "border-border")}>
         {options.map((o) => <option key={o} value={o}>{o || "\u2014 Select \u2014"}</option>)}
       </select>
       {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
@@ -219,7 +219,7 @@ export default function VotersPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               placeholder="Search by name, voter ID, or precinct..."
-              className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+              className="w-full pl-9 pr-4 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring" />
           </div>
           <button onClick={() => setShowFilters(!showFilters)}
             className={cn("flex items-center gap-2 px-3 py-2 text-sm rounded-lg border transition-colors",
@@ -230,11 +230,11 @@ export default function VotersPage() {
         {showFilters && (
           <div className="flex flex-wrap items-center gap-3 p-4 rounded-lg glass-subtle">
             <select value={precinctFilter} onChange={(e) => { setPrecinctFilter(e.target.value); setPage(1); }}
-              className="px-3 py-1.5 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+              className="px-3 py-1.5 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring">
               {precincts.map((p) => <option key={p}>{p}</option>)}
             </select>
             <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-              className="px-3 py-1.5 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+              className="px-3 py-1.5 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring">
               {registrationStatuses.map((s) => <option key={s}>{s}</option>)}
             </select>
             <button onClick={() => { setPrecinctFilter("All Precincts"); setStatusFilter("All Status"); }}

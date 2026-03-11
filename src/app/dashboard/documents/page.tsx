@@ -107,7 +107,7 @@ function FormInput({ label, value, onChange, required, type = "text", placeholde
     <div>
       <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
       <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} disabled={disabled}
-        className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", error ? "border-red-500" : "border-border", disabled && "opacity-60 cursor-not-allowed bg-muted")} />
+        className={cn("w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring", error ? "border-red-500" : "border-border", disabled && "opacity-60 cursor-not-allowed bg-muted")} />
       {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
     </div>
   );
@@ -118,7 +118,7 @@ function FormSelect({ label, value, onChange, options, required, disabled = fals
     <div>
       <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
       <select value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled}
-        className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", error ? "border-red-500" : "border-border", disabled && "opacity-60 cursor-not-allowed bg-muted")}>
+        className={cn("w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring", error ? "border-red-500" : "border-border", disabled && "opacity-60 cursor-not-allowed bg-muted")}>
         <option value="" disabled>Select {label}</option>
         {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
@@ -367,7 +367,7 @@ export default function DocumentsPage() {
                 onChange={(e) => handleResidentSearch(e.target.value)}
                 onFocus={() => { if (residentSearchResults.length > 0) setShowResidentDropdown(true); }}
                 placeholder="Type resident name or number (e.g. Dela Cruz, RES-2026-0001)"
-                className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring"
+                className="w-full pl-9 pr-4 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring"
                 disabled={!!form.selected_resident_id}
               />
               {form.selected_resident_id && (
@@ -470,7 +470,7 @@ export default function DocumentsPage() {
             <label className="block text-xs font-medium text-muted-foreground mb-1">Notes</label>
             <textarea value={form.notes} onChange={(e) => updateForm("notes", e.target.value)}
               placeholder="Optional notes about this document issuance..."
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-y min-h-[80px]" />
+              className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring resize-y min-h-[80px]" />
           </div>
 
           {/* Summary Card */}
@@ -542,7 +542,7 @@ export default function DocumentsPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               placeholder="Search by resident, document number, or type..."
-              className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+              className="w-full pl-9 pr-4 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring" />
           </div>
           <button onClick={() => setShowFilters(!showFilters)}
             className={cn("flex items-center gap-2 px-3 py-2 text-sm rounded-lg border transition-colors",
@@ -553,11 +553,11 @@ export default function DocumentsPage() {
         {showFilters && (
           <div className="flex flex-wrap items-center gap-3 p-4 rounded-lg glass-subtle">
             <select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}
-              className="px-3 py-1.5 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+              className="px-3 py-1.5 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring">
               {documentTypes.map((t) => <option key={t}>{t}</option>)}
             </select>
             <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-              className="px-3 py-1.5 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+              className="px-3 py-1.5 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring">
               {statusOptions.map((s) => <option key={s}>{s}</option>)}
             </select>
             <button onClick={() => { setTypeFilter("All Types"); setStatusFilter("All Status"); }}

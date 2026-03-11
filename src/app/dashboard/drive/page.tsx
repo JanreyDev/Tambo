@@ -146,7 +146,7 @@ export default function DrivePage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
             placeholder="Search files and folders..."
-            className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+            className="w-full pl-9 pr-4 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring" />
         </div>
         <div className="flex items-center gap-1 p-1 rounded-lg border border-border">
           <button onClick={() => setViewMode("list")} className={cn("p-1.5 rounded", viewMode === "list" ? "bg-muted" : "hover:bg-muted/50")}><List className="h-4 w-4" /></button>
@@ -295,7 +295,7 @@ export default function DrivePage() {
           <div>
             <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Upload to Folder</label>
             <select value={uploadForm.folder} onChange={(e) => setUploadForm({ ...uploadForm, folder: e.target.value })}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+              className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring">
               <option value="/">My Drive (Root)</option>
               <option value="/Barangay Ordinances">Barangay Ordinances</option>
               <option value="/Council Resolutions">Council Resolutions</option>
@@ -308,7 +308,7 @@ export default function DrivePage() {
             <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Description (Optional)</label>
             <input type="text" value={uploadForm.description} onChange={(e) => setUploadForm({ ...uploadForm, description: e.target.value })}
               placeholder="Brief description of uploaded files"
-              className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+              className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring" />
           </div>
         </div>
       </Modal>
@@ -320,7 +320,7 @@ export default function DrivePage() {
           <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Folder Name<span className="text-red-500 ml-0.5">*</span></label>
           <input type="text" value={folderName} onChange={(e) => { setFolderName(e.target.value); if (e.target.value.trim()) setFormErrors((prev) => { const { folderName, ...rest } = prev; return rest; }); }}
             placeholder="Enter folder name"
-            className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", formErrors.folderName ? "border-red-500" : "border-border")} autoFocus />
+            className={cn("w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring", formErrors.folderName ? "border-red-500" : "border-border")} autoFocus />
           {formErrors.folderName && <p className="text-xs text-red-500 mt-1">{formErrors.folderName}</p>}
         </div>
       </Modal>
@@ -331,7 +331,7 @@ export default function DrivePage() {
         <div>
           <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">New Name<span className="text-red-500 ml-0.5">*</span></label>
           <input type="text" value={renameName} onChange={(e) => { setRenameName(e.target.value); if (e.target.value.trim()) setFormErrors((prev) => { const { renameName, ...rest } = prev; return rest; }); }}
-            className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", formErrors.renameName ? "border-red-500" : "border-border")} autoFocus />
+            className={cn("w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring", formErrors.renameName ? "border-red-500" : "border-border")} autoFocus />
           {formErrors.renameName && <p className="text-xs text-red-500 mt-1">{formErrors.renameName}</p>}
         </div>
       </Modal>

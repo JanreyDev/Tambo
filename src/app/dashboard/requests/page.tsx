@@ -102,7 +102,7 @@ function RequestInput({ label, field, required, type = "text", placeholder = "",
     <div>
       <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
       <input type={type} value={value} onChange={(e) => onChange(field, e.target.value)} placeholder={placeholder} disabled={disabled}
-        className={cn("w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", disabled && "opacity-50 cursor-not-allowed")} />
+        className={cn("w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring", disabled && "opacity-50 cursor-not-allowed")} />
     </div>
   );
 }
@@ -112,7 +112,7 @@ function RequestSelect({ label, field, options, required, value, onChange }: { l
     <div>
       <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
       <select value={value} onChange={(e) => onChange(field, e.target.value)}
-        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+        className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring">
         <option value="">Select {label}</option>
         {options.map((o) => <option key={o} value={o}>{o}</option>)}
       </select>
@@ -125,7 +125,7 @@ function RequestTextarea({ label, field, placeholder = "", rows = 3, value, onCh
     <div>
       <label className="block text-xs font-medium text-muted-foreground mb-1">{label}</label>
       <textarea value={value} onChange={(e) => onChange(field, e.target.value)} placeholder={placeholder} rows={rows}
-        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
+        className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
     </div>
   );
 }
@@ -373,7 +373,7 @@ export default function RequestsPage() {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <input type="text" value={residentSearch} onChange={(e) => setResidentSearch(e.target.value)}
                       placeholder="Type name or resident number..."
-                      className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+                      className="w-full pl-9 pr-4 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring" />
                   </div>
                   {filteredResidents.length > 0 && (
                     <div className="mt-1 rounded-lg glass shadow-lg max-h-48 overflow-y-auto">
@@ -432,7 +432,7 @@ export default function RequestsPage() {
                 <button onClick={() => updateForm("copies", String(Math.max(1, parseInt(form.copies || "1") - 1)))}
                   className="w-9 h-9 flex items-center justify-center rounded-lg border border-border hover:bg-muted transition-colors text-foreground font-medium">-</button>
                 <input type="number" min="1" max="20" value={form.copies || "1"} onChange={(e) => updateForm("copies", e.target.value)}
-                  className="w-16 text-center px-2 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+                  className="w-16 text-center px-2 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring" />
                 <button onClick={() => updateForm("copies", String(Math.min(20, parseInt(form.copies || "1") + 1)))}
                   className="w-9 h-9 flex items-center justify-center rounded-lg border border-border hover:bg-muted transition-colors text-foreground font-medium">+</button>
               </div>
@@ -569,7 +569,7 @@ export default function RequestsPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               placeholder="Search by request number, name, or document type..."
-              className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+              className="w-full pl-9 pr-4 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring" />
           </div>
           <button onClick={() => setShowFilters(!showFilters)}
             className={cn("flex items-center gap-2 px-3 py-2 text-sm rounded-lg border transition-colors",
@@ -583,11 +583,11 @@ export default function RequestsPage() {
         {showFilters && (
           <div className="flex flex-wrap items-center gap-3 p-4 rounded-lg glass-subtle">
             <select value={docFilter} onChange={(e) => { setDocFilter(e.target.value); setPage(1); }}
-              className="px-3 py-1.5 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+              className="px-3 py-1.5 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring">
               {docFilterOptions.map((d) => <option key={d}>{d}</option>)}
             </select>
             <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-              className="px-3 py-1.5 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+              className="px-3 py-1.5 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring">
               {statusOptions.map((s) => <option key={s}>{s}</option>)}
             </select>
             <button onClick={() => { setDocFilter("All Documents"); setStatusFilter("All Status"); }}

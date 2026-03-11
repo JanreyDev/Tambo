@@ -1,4 +1,4 @@
-import type { AiConversation, AiConversationSummary, AiCredits, AiStreamEvent, ApiError, LoginResponse, PaginatedResponse, User } from "./types";
+import type { AiConversation, AiConversationSummary, AiCredits, AiStreamEvent, ApiError, DuplicateMatch, LoginResponse, PaginatedResponse, ResidentDetail, ResidentSummary, User } from "./types";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
@@ -378,6 +378,48 @@ const api = {
 
     regenerateRecoveryCodes: () =>
       api.post<{ recovery_codes: string[] }>("/account/2fa/recovery-codes/regenerate"),
+  },
+
+  residents: {
+    list: (params?: {
+      page?: number;
+      per_page?: number;
+      search?: string;
+      status?: string;
+      purok?: string;
+      sex?: string;
+      is_voter?: boolean;
+      sort_by?: string;
+      sort_dir?: string;
+    }) => {
+      const query = new URLSearchParams();
+      if (params?.page) query.set("page", String(params.page));
+      if (params?.per_page) query.set("per_page", String(params.per_page));
+      if (params?.search) query.set("search", params.search);
+      if (params?.status) query.set("status", params.status);
+      if (params?.purok) query.set("purok", params.purok);
+      if (params?.sex) query.set("sex", params.sex);
+      if (params?.is_voter !== undefined) query.set("is_voter", String(params.is_voter));
+      if (params?.sort_by) query.set("sort_by", params.sort_by);
+      if (params?.sort_dir) query.set("sort_dir", params.sort_dir);
+      const qs = query.toString();
+      return api.get<PaginatedResponse<ResidentSummary>>(`/residents${qs ? `?${qs}` : ""}`);
+    },
+
+    get: (id: string) =>
+      api.get<{ resident: ResidentDetail }>(`/residents/${id}`).then(r => r.resident),
+
+    create: (data: Record<string, unknown>) =>
+      api.post<{ message: string; resident: ResidentDetail; resident_number: string }>("/residents", data),
+
+    update: (id: string, data: Record<string, unknown>) =>
+      api.put<{ message: string; resident: ResidentDetail }>(`/residents/${id}`, data),
+
+    delete: (id: string) =>
+      api.delete<{ message: string }>(`/residents/${id}`),
+
+    checkDuplicate: (data: { first_name: string; last_name: string; middle_name?: string; date_of_birth: string }) =>
+      api.post<{ has_duplicates: boolean; matches: DuplicateMatch[] }>("/residents/check-duplicate", data),
   },
 };
 

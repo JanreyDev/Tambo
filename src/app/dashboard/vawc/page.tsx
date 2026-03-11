@@ -96,7 +96,7 @@ function FormInput({ label, value, onChange, required, type = "text", placeholde
     <div>
       <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
       <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-        className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", error ? "border-red-500" : "border-border")} />
+        className={cn("w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring", error && "border-red-500")} />
       {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
     </div>
   );
@@ -107,7 +107,7 @@ function FormSelect({ label, value, onChange, options, required, error }: { labe
     <div>
       <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
       <select value={value} onChange={(e) => onChange(e.target.value)}
-        className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring", error ? "border-red-500" : "border-border")}>
+        className={cn("w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring", error && "border-red-500")}>
         <option value="">-- Select --</option>
         {options.map((o) => <option key={o} value={o}>{o}</option>)}
       </select>
@@ -121,7 +121,7 @@ function FormTextarea({ label, value, onChange, required, rows = 3, placeholder 
     <div className={colSpan2 ? "col-span-2" : undefined}>
       <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
       <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={rows} placeholder={placeholder}
-        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
+        className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
     </div>
   );
 }
@@ -401,7 +401,7 @@ export default function VawcPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               placeholder="Search by case number or type..."
-              className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+              className="w-full pl-9 pr-4 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring" />
           </div>
           <button onClick={() => setShowFilters(!showFilters)}
             className={cn("flex items-center gap-2 px-3 py-2 text-sm rounded-lg border transition-colors",
@@ -412,11 +412,11 @@ export default function VawcPage() {
         {showFilters && (
           <div className="flex flex-wrap items-center gap-3 p-4 rounded-lg glass-subtle">
             <select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}
-              className="px-3 py-1.5 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+              className="px-3 py-1.5 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring">
               {caseTypes.map((t) => <option key={t}>{t}</option>)}
             </select>
             <select value={riskFilter} onChange={(e) => { setRiskFilter(e.target.value); setPage(1); }}
-              className="px-3 py-1.5 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+              className="px-3 py-1.5 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring">
               {riskLevels.map((r) => <option key={r}>{r}</option>)}
             </select>
             <button onClick={() => { setTypeFilter("All Types"); setRiskFilter("All Risk"); }}

@@ -167,7 +167,7 @@ export function Header({ onToggleSidebar, onToggleAI }: HeaderProps) {
           placeholder={t.header.search}
           onFocus={() => setSearchFocused(true)}
           onBlur={() => setSearchFocused(false)}
-          className="w-full pl-9 pr-16 py-1.5 rounded-lg border border-border bg-muted/40 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-accent-ring focus:border-accent-ring focus:bg-card transition-all"
+          className="w-full pl-9 pr-16 py-1.5 rounded-xl glass-input text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-accent-ring transition-all"
           aria-label={t.common.search}
         />
         <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">

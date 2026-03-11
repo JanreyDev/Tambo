@@ -77,7 +77,7 @@ function SupportInput({ label, name, value, placeholder, required, error, onChan
     <div>
       <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
       <input type="text" value={value} onChange={(e) => onChange(name, e.target.value)} placeholder={placeholder}
-        className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2", error ? "border-red-500 focus:ring-red-300" : "border-border focus:ring-accent-ring")} />
+        className={cn("w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2", error ? "border-red-500 focus:ring-red-300" : "border-border focus:ring-accent-ring")} />
       {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
     </div>
   );
@@ -88,7 +88,7 @@ function SupportSelect({ label, name, value, options, required, error, onChange 
     <div>
       <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
       <select value={value} onChange={(e) => onChange(name, e.target.value)}
-        className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2", error ? "border-red-500 focus:ring-red-300" : "border-border focus:ring-accent-ring")}>
+        className={cn("w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2", error ? "border-red-500 focus:ring-red-300" : "border-border focus:ring-accent-ring")}>
         {options.map((o) => <option key={o} value={o}>{o || "-- Select --"}</option>)}
       </select>
       {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
@@ -201,7 +201,7 @@ export default function SupportPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               placeholder="Search tickets..."
-              className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+              className="w-full pl-9 pr-4 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring" />
           </div>
           <button onClick={() => setShowFilters(!showFilters)}
             className={cn("flex items-center gap-2 px-3 py-2 text-sm rounded-lg border transition-colors",
@@ -212,11 +212,11 @@ export default function SupportPage() {
         {showFilters && (
           <div className="flex flex-wrap items-center gap-3 p-4 rounded-lg glass-subtle">
             <select value={categoryFilter} onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}
-              className="px-3 py-1.5 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+              className="px-3 py-1.5 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring">
               {categories.map((c) => <option key={c}>{c}</option>)}
             </select>
             <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-              className="px-3 py-1.5 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+              className="px-3 py-1.5 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring">
               {statusOptions.map((s) => <option key={s}>{s}</option>)}
             </select>
             <button onClick={() => { setCategoryFilter("All"); setStatusFilter("All Status"); }}
@@ -310,7 +310,7 @@ export default function SupportPage() {
               <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Describe Your Issue<span className="text-red-500 ml-0.5">*</span></label>
               <textarea value={form.description} onChange={(e) => { setForm((f) => ({ ...f, description: e.target.value })); setFormErrors((prev) => { const next = { ...prev }; delete next.description; return next; }); }}
                 placeholder="Please describe the issue in detail. Include steps to reproduce if applicable."
-                rows={5} className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 resize-none", formErrors.description ? "border-red-500 focus:ring-red-300" : "border-border focus:ring-accent-ring")} />
+                rows={5} className={cn("w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 resize-none", formErrors.description ? "border-red-500 focus:ring-red-300" : "border-border focus:ring-accent-ring")} />
               {formErrors.description && <p className="text-[11px] text-red-500 mt-1">{formErrors.description}</p>}
             </div>
             <div className="p-4 rounded-lg glass-subtle">
@@ -332,7 +332,7 @@ export default function SupportPage() {
             <div className="w-full space-y-1">
               <div className="flex items-center gap-2 w-full">
                 <input type="text" value={replyText} onChange={(e) => { setReplyText(e.target.value); setReplyError(""); }} placeholder="Type your reply..."
-                  className={cn("flex-1 px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2", replyError ? "border-red-500 focus:ring-red-300" : "border-border focus:ring-accent-ring")} />
+                  className={cn("flex-1 px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2", replyError ? "border-red-500 focus:ring-red-300" : "border-border focus:ring-accent-ring")} />
                 <ModalButton variant="primary" onClick={() => { if (!replyText.trim()) { setReplyError("Reply cannot be empty"); return; } showToast("Reply Sent"); setReplyText(""); setReplyError(""); }}><Send className="h-4 w-4" /></ModalButton>
               </div>
               {replyError && <p className="text-[11px] text-red-500">{replyError}</p>}

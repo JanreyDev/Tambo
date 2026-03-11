@@ -69,7 +69,7 @@ function ReportSelect({ label, value, onChange, options }: { label: string; valu
     <div>
       <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}</label>
       <select value={value} onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2" style={{ "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties}>
+        className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2" style={{ "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties}>
         {options.map((o) => <option key={o} value={o}>{o}</option>)}
       </select>
     </div>
@@ -378,13 +378,13 @@ export default function ReportsPage() {
                     <div>
                       <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">From</label>
                       <input type="date" value={genDateFrom} onChange={(e) => { setGenDateFrom(e.target.value); setFormErrors((prev) => { const { dateFrom, dateRange, ...rest } = prev; return rest; }); }}
-                        className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2", formErrors.dateFrom || formErrors.dateRange ? "border-red-500" : "border-border")} style={{ "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties} />
+                        className={cn("w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2", formErrors.dateFrom || formErrors.dateRange ? "border-red-500" : "border-border")} style={{ "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties} />
                       {formErrors.dateFrom && <p className="text-[11px] text-red-500 mt-1">{formErrors.dateFrom}</p>}
                     </div>
                     <div>
                       <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">To</label>
                       <input type="date" value={genDateTo} onChange={(e) => { setGenDateTo(e.target.value); setFormErrors((prev) => { const { dateTo, dateRange, ...rest } = prev; return rest; }); }}
-                        className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2", formErrors.dateTo || formErrors.dateRange ? "border-red-500" : "border-border")} style={{ "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties} />
+                        className={cn("w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2", formErrors.dateTo || formErrors.dateRange ? "border-red-500" : "border-border")} style={{ "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties} />
                       {formErrors.dateTo && <p className="text-[11px] text-red-500 mt-1">{formErrors.dateTo}</p>}
                     </div>
                   </div>
