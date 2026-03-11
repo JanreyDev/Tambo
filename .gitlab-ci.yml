@@ -65,7 +65,6 @@ build:
 deploy_production:
   stage: deploy_production
   image: alpine:latest
-  when: manual
   needs:
     - lint
     - security

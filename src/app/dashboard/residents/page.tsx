@@ -567,7 +567,7 @@ function Section({ icon, title, open, onToggle, children }: {
         <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform duration-200", open && "rotate-180")} />
       </button>
       <div className={cn("grid transition-all duration-300", open ? "grid-rows-[1fr]" : "grid-rows-[0fr]")}>
-        <div className="overflow-hidden">
+        <div className={cn(open ? "overflow-visible" : "overflow-hidden")}>
           <div className="glass-section rounded-b-xl mt-px px-5 pt-5 pb-4">
             {children}
           </div>
@@ -2601,7 +2601,6 @@ export default function ResidentsPage() {
                 <FSelect label="Last Voted Year" name="last_voted_year" options={["", ...Array.from({ length: 10 }, (_, i) => String(2025 - i))]} value={f("last_voted_year")} onChange={updateForm} />
               </div>
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                <FInput label="Household Number" name="household_number" placeholder="HH-XXX" value={f("household_number")} onChange={updateForm} />
                 <FSelect label="Relationship to Head" name="relationship_to_head" options={["", ...relationships]} value={f("relationship_to_head")} onChange={updateForm} />
               </div>
 
