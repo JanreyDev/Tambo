@@ -26,7 +26,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob: https:",
               "font-src 'self' data:",
-              "connect-src 'self' https://v5-api.kapitan.ph https://api.ipify.org https://*.ingest.us.sentry.io",
+              "connect-src 'self' https://api.kapitan.ph https://api.ipify.org https://*.ingest.us.sentry.io",
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",
