@@ -151,7 +151,6 @@ export default function LoginPage() {
   const isNonProd = typeof window !== "undefined" && (process.env.NODE_ENV === "development" || window.location.hostname.includes("staging"));
   const [username, setUsername] = useState(isNonProd ? "kap_tambo" : "");
   const [password, setPassword] = useState(isNonProd ? "Tambo@2026!" : "");
-  const [rememberMe, setRememberMe] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
   const router = useRouter();
@@ -247,7 +246,7 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      await login(username, password, rememberMe);
+      await login(username, password);
       toast("success", "Login successful", "Redirecting to your dashboard...", 3000);
       const isMobile = window.matchMedia("(max-width: 767px)").matches;
       router.push(isMobile ? "/census" : "/dashboard");
@@ -586,22 +585,6 @@ export default function LoginPage() {
                   <p className="text-[10px] text-muted-foreground mt-1">Case-sensitive. Contact admin if forgotten.</p>
                 </div>
 
-                {/* Remember + Forgot */}
-                <div className="flex items-center justify-between">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
-                      className="w-4 h-4 rounded border-border text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-muted-foreground">Remember me</span>
-                  </label>
-                  <a href="/forgot-password" className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors">
-                    Forgot password?
-                  </a>
-                </div>
-
                 {/* Submit — accent gradient (Principle 3: Modern & Minimalist) */}
                 <button
                   type="submit"
@@ -612,6 +595,12 @@ export default function LoginPage() {
                   {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
                   {isSubmitting ? "Signing in..." : "Sign in"}
                 </button>
+
+                <div className="text-center">
+                  <a href="/forgot-password" className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors">
+                    Forgot password?
+                  </a>
+                </div>
               </form>
             </>
           )}
