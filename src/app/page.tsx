@@ -160,15 +160,7 @@ export default function LoginPage() {
 
   const [securityInfo, setSecurityInfo] = useState<SecurityInfo | null>(null);
   const [connectionSecure, setConnectionSecure] = useState(true);
-  const [showVersionModal, setShowVersionModal] = useState(false);
-
-  // Show version guide modal on first visit (Principle 2: Tanga-Proof)
-  useEffect(() => {
-    const dismissed = localStorage.getItem("bcmp_version_dismissed");
-    if (!dismissed) {
-      setShowVersionModal(true);
-    }
-  }, []);
+  const [showVersionModal, setShowVersionModal] = useState(true);
 
   // Check if the form has both fields filled
   const isFormValid = username.trim().length > 0 && password.trim().length > 0;
@@ -346,7 +338,6 @@ export default function LoginPage() {
               </div>
               <button
                 onClick={() => {
-                  localStorage.setItem("bcmp_version_dismissed", "1");
                   setShowVersionModal(false);
                 }}
                 className="w-full py-3 rounded-xl text-white font-medium text-sm transition-all shadow-lg shadow-blue-500/20 active:scale-[0.99]"
@@ -747,12 +738,6 @@ export default function LoginPage() {
             <p className="text-center text-[10px] text-muted-foreground/30">
               {APP_VERSION_LABEL}
             </p>
-            <button
-              onClick={() => setShowVersionModal(true)}
-              className="block mx-auto mt-1 text-[10px] text-muted-foreground/40 hover:text-blue-500 transition-colors"
-            >
-              Using an older version?
-            </button>
           </div>
         </div>
       </div>
