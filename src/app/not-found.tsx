@@ -11,7 +11,7 @@ export default function NotFound() {
     if (hasAuth) {
       router.replace("/dashboard");
     } else {
-      router.replace("/login");
+      router.replace("/");
     }
   }, [router]);
 

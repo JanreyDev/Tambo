@@ -289,7 +289,7 @@ export default function ForgotPasswordPage() {
               type="button"
               onClick={() => {
                 if (step === "username") {
-                  router.push("/login");
+                  router.push("/");
                 } else if (step === "otp") {
                   setStep("username");
                   setOtp("");
@@ -619,7 +619,7 @@ export default function ForgotPasswordPage() {
               </p>
               <button
                 type="button"
-                onClick={() => router.push("/login")}
+                onClick={() => router.push("/")}
                 className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium text-sm hover:from-blue-700 hover:to-blue-800 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50"
               >
                 Sign In

@@ -508,7 +508,7 @@ export default function AccountPage() {
     try {
       await api.auth.logoutAll();
       api.clearToken();
-      window.location.href = "/login";
+      window.location.href = "/";
     } catch {
       setSignOutAllLoading(false);
     }

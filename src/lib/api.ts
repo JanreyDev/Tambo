@@ -74,8 +74,8 @@ async function request<T>(
 
   if (res.status === 401) {
     clearToken();
-    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
-      window.location.href = "/login";
+    if (typeof window !== "undefined" && window.location.pathname !== "/") {
+      window.location.href = "/";
     }
     const error: ApiError = { message: "Unauthorized" };
     throw error;
@@ -116,8 +116,8 @@ async function uploadFile<T>(
 
   if (res.status === 401) {
     clearToken();
-    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
-      window.location.href = "/login";
+    if (typeof window !== "undefined" && window.location.pathname !== "/") {
+      window.location.href = "/";
     }
     const error: ApiError = { message: "Unauthorized" };
     throw error;
@@ -158,8 +158,8 @@ async function streamRequest(
 
   if (res.status === 401) {
     clearToken();
-    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
-      window.location.href = "/login";
+    if (typeof window !== "undefined" && window.location.pathname !== "/") {
+      window.location.href = "/";
     }
     throw { message: "Unauthorized" } as ApiError;
   }
