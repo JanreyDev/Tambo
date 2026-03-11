@@ -258,7 +258,7 @@ export const mockActivity: ActivityEvent[] = [
     action: "CI/CD Pipeline Passed",
     actor: "Claude",
     product: "bcmp",
-    description: "bcmp-web deployed to temp.kapitan.ph successfully",
+    description: "bcmp-web deployed to kapitan.ph successfully",
     timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
   },
   {
