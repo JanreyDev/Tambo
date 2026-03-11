@@ -19,9 +19,6 @@ return [
     'allowed_origins' => [
         'https://kapitan.ph',
         'https://www.kapitan.ph',
-        'https://staging-bcmp.primex.ventures',
-        'https://pulitika.ph',
-        'https://staging-pulitika.primex.ventures',
         'http://localhost:3000',
         'http://localhost:3001',
     ],
