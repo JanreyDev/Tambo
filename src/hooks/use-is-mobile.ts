@@ -1,24 +1,28 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useSyncExternalStore } from "react";
+
+const MOBILE_MQ = "(max-width: 767px)";
+
+function subscribe(callback: () => void) {
+  const mq = window.matchMedia(MOBILE_MQ);
+  mq.addEventListener("change", callback);
+  return () => mq.removeEventListener("change", callback);
+}
+
+function getSnapshot() {
+  return window.matchMedia(MOBILE_MQ).matches;
+}
+
+function getServerSnapshot() {
+  return false; // SSR: assume desktop (server can't detect viewport)
+}
 
 /**
  * Detects phone-sized viewport (< 768px / below md breakpoint).
- * Returns { isMobile, isLoading } where isLoading is true during SSR/hydration.
+ * Uses useSyncExternalStore for SSR-safe, lint-clean media query tracking.
  */
 export function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(max-width: 767px)");
-    setIsMobile(mq.matches);
-    setIsLoading(false);
-
-    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
-
-  return { isMobile, isLoading };
+  const isMobile = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  return { isMobile, isLoading: false };
 }
