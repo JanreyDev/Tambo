@@ -12,7 +12,7 @@ beforeEach(function () {
 });
 
 test('can list settings', function () {
-    PlatformSetting::set('general', 'app_name', 'Pulitika', 'string', 'Application name');
+    PlatformSetting::set('general', 'app_name', 'PrimeX', 'string', 'Application name');
     PlatformSetting::set('general', 'maintenance_mode', 'false', 'boolean', 'Maintenance toggle');
 
     $response = $this->getJson('/api/v1/settings', $this->headers);
@@ -26,7 +26,7 @@ test('can list settings', function () {
 });
 
 test('settings are grouped by category', function () {
-    PlatformSetting::set('general', 'app_name', 'Pulitika');
+    PlatformSetting::set('general', 'app_name', 'PrimeX');
     PlatformSetting::set('email', 'smtp_host', 'localhost');
 
     $response = $this->getJson('/api/v1/settings', $this->headers);
@@ -38,19 +38,20 @@ test('settings are grouped by category', function () {
 });
 
 test('can update a setting', function () {
-    PlatformSetting::set('general', 'app_name', 'Pulitika', 'string', 'Application name');
+    PlatformSetting::set('general', 'app_name', 'PrimeX', 'string', 'Application name');
 
     $response = $this->putJson('/api/v1/settings/general/app_name', [
-        'value' => 'Pulitika Admin',
+        'value' => 'PrimeX Admin',
     ], $this->headers);
 
     $response->assertOk()
-        ->assertJsonPath('data.value', 'Pulitika Admin')
+        ->assertJsonPath('data.value', 'PrimeX Admin')
+
         ->assertJsonPath('message', 'Setting updated successfully.');
 });
 
 test('update setting creates audit log', function () {
-    PlatformSetting::set('general', 'app_name', 'Pulitika');
+    PlatformSetting::set('general', 'app_name', 'PrimeX');
 
     $this->putJson('/api/v1/settings/general/app_name', [
         'value' => 'Changed',
@@ -86,7 +87,7 @@ test('settings requires authentication', function () {
 });
 
 test('update settings requires authentication', function () {
-    PlatformSetting::set('general', 'app_name', 'Pulitika');
+    PlatformSetting::set('general', 'app_name', 'PrimeX');
 
     $this->putJson('/api/v1/settings/general/app_name', [
         'value' => 'test',

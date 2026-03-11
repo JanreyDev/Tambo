@@ -46,7 +46,7 @@ test('dashboard overview returns product connections', function () {
     ProductConnection::create([
         'product_slug' => 'bcmp',
         'product_name' => 'BCMP',
-        'api_base_url' => 'https://staging-api-bcmp.primex.ventures',
+        'api_base_url' => 'https://v5-api.kapitan.ph',
         'api_token' => 'test-token',
         'status' => 'active',
     ]);

@@ -19,7 +19,7 @@ class PlatformSettingSeeder extends Seeder
             [
                 'group' => 'general',
                 'key' => 'app_name',
-                'value' => 'Pulitika Admin',
+                'value' => 'PrimeX Admin',
                 'type' => 'string',
                 'description' => 'Application display name',
             ],

@@ -11,7 +11,7 @@ use Spatie\Permission\Models\Role;
 class RolePermissionSeeder extends Seeder
 {
     /**
-     * Seed roles and permissions for the Pulitika admin system.
+     * Seed roles and permissions for the PrimeX admin system.
      */
     public function run(): void
     {

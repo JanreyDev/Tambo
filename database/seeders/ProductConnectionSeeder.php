@@ -18,18 +18,18 @@ class ProductConnectionSeeder extends Seeder
             [
                 'product_slug' => 'bcmp',
                 'product_name' => 'BCMP (Kapitan)',
-                'api_base_url' => 'https://staging-api-bcmp.primex.ventures',
+                'api_base_url' => 'https://v5-api.kapitan.ph',
                 'api_token' => 'placeholder-token-bcmp',
                 'status' => 'active',
                 'settings' => [
                     'description' => 'Barangay Comprehensive Management Platform',
-                    'production_url' => 'https://api.kapitan.ph',
+                    'production_url' => 'https://v5-api.kapitan.ph',
                 ],
             ],
             [
                 'product_slug' => 'lgmp',
                 'product_name' => 'LGMP (Tarlac)',
-                'api_base_url' => 'https://staging-api-lgmp.primex.ventures',
+                'api_base_url' => 'https://api.tarlac.ph',
                 'api_token' => 'placeholder-token-lgmp',
                 'status' => 'active',
                 'settings' => [
@@ -40,7 +40,7 @@ class ProductConnectionSeeder extends Seeder
             [
                 'product_slug' => 'pdmp',
                 'product_name' => 'PDMP (Political Data)',
-                'api_base_url' => 'https://staging-api-pdmp.primex.ventures',
+                'api_base_url' => 'https://api.pdmp.primex.ventures',
                 'api_token' => 'placeholder-token-pdmp',
                 'status' => 'inactive',
                 'settings' => [
@@ -51,7 +51,7 @@ class ProductConnectionSeeder extends Seeder
             [
                 'product_slug' => 'spacall',
                 'product_name' => 'SPACALL',
-                'api_base_url' => 'https://staging-api-spacall.primex.ventures',
+                'api_base_url' => 'https://api.spacall.ph',
                 'api_token' => 'placeholder-token-spacall',
                 'status' => 'active',
                 'settings' => [
@@ -62,7 +62,7 @@ class ProductConnectionSeeder extends Seeder
             [
                 'product_slug' => 'barangaymo',
                 'product_name' => 'Barangaymo',
-                'api_base_url' => 'https://staging-api-barangaymo.primex.ventures',
+                'api_base_url' => 'https://api.barangaymo.com',
                 'api_token' => 'placeholder-token-barangaymo',
                 'status' => 'active',
                 'settings' => [

@@ -15,7 +15,7 @@ test('can list product connections', function () {
     ProductConnection::create([
         'product_slug' => 'bcmp',
         'product_name' => 'BCMP',
-        'api_base_url' => 'https://staging-api-bcmp.primex.ventures',
+        'api_base_url' => 'https://v5-api.kapitan.ph',
         'api_token' => 'test-token',
         'status' => 'active',
     ]);
@@ -36,7 +36,7 @@ test('product connections do not expose api_token directly', function () {
     ProductConnection::create([
         'product_slug' => 'bcmp',
         'product_name' => 'BCMP',
-        'api_base_url' => 'https://staging-api-bcmp.primex.ventures',
+        'api_base_url' => 'https://v5-api.kapitan.ph',
         'api_token' => 'secret-token-value',
         'status' => 'active',
     ]);
@@ -54,7 +54,7 @@ test('can view single product connection', function () {
     $connection = ProductConnection::create([
         'product_slug' => 'lgmp',
         'product_name' => 'LGMP',
-        'api_base_url' => 'https://staging-api-lgmp.primex.ventures',
+        'api_base_url' => 'https://api.tarlac.ph',
         'api_token' => 'test-token',
         'status' => 'active',
     ]);
@@ -87,7 +87,7 @@ test('can update product connection status', function () {
     $connection = ProductConnection::create([
         'product_slug' => 'pdmp',
         'product_name' => 'PDMP',
-        'api_base_url' => 'https://staging-api-pdmp.primex.ventures',
+        'api_base_url' => 'https://api.pdmp.primex.ventures',
         'api_token' => 'test-token',
         'status' => 'active',
     ]);
@@ -104,7 +104,7 @@ test('update product connection validates status values', function () {
     $connection = ProductConnection::create([
         'product_slug' => 'bcmp',
         'product_name' => 'BCMP',
-        'api_base_url' => 'https://staging-api-bcmp.primex.ventures',
+        'api_base_url' => 'https://v5-api.kapitan.ph',
         'api_token' => 'test-token',
         'status' => 'active',
     ]);
@@ -121,7 +121,7 @@ test('update product connection validates url format', function () {
     $connection = ProductConnection::create([
         'product_slug' => 'bcmp',
         'product_name' => 'BCMP',
-        'api_base_url' => 'https://staging-api-bcmp.primex.ventures',
+        'api_base_url' => 'https://v5-api.kapitan.ph',
         'api_token' => 'test-token',
         'status' => 'active',
     ]);
@@ -138,7 +138,7 @@ test('update product connection creates audit log', function () {
     $connection = ProductConnection::create([
         'product_slug' => 'bcmp',
         'product_name' => 'BCMP',
-        'api_base_url' => 'https://staging-api-bcmp.primex.ventures',
+        'api_base_url' => 'https://v5-api.kapitan.ph',
         'api_token' => 'test-token',
         'status' => 'active',
     ]);
@@ -176,7 +176,7 @@ test('product connections do not have destroy endpoint', function () {
     $connection = ProductConnection::create([
         'product_slug' => 'bcmp',
         'product_name' => 'BCMP',
-        'api_base_url' => 'https://staging-api-bcmp.primex.ventures',
+        'api_base_url' => 'https://v5-api.kapitan.ph',
         'api_token' => 'test-token',
         'status' => 'active',
     ]);
