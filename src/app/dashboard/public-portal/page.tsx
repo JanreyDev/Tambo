@@ -249,7 +249,7 @@ export default function PublicPortalPage() {
                   {categoryModules.map((m) => {
                     const Icon = m.icon;
                     return (
-                      <div key={m.id} className="flex items-center justify-between p-4 rounded-xl border border-border bg-card">
+                      <div key={m.id} className="flex items-center justify-between p-4 rounded-xl glass">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: m.enabled ? "var(--accent-bg)" : "var(--muted)" }}>
                             <Icon className="h-5 w-5" style={{ color: m.enabled ? "var(--accent-primary)" : "var(--muted-foreground)" }} />
@@ -283,7 +283,7 @@ export default function PublicPortalPage() {
             </button>
           </div>
           {mockAnnouncements.map((a) => (
-            <div key={a.id} className="p-4 rounded-xl border border-border bg-card">
+            <div key={a.id} className="p-4 rounded-xl glass">
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
@@ -303,7 +303,7 @@ export default function PublicPortalPage() {
                       <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
                     </button>
                     {actionMenu === a.id && (
-                      <div className="absolute right-0 top-full mt-1 w-44 bg-card border border-border rounded-lg shadow-lg z-20 py-1">
+                      <div className="absolute right-0 top-full mt-1 w-44 glass rounded-lg shadow-lg z-20 py-1">
                         <button onClick={() => openView(a)}
                           className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors text-left">
                           <Eye className="h-4 w-4 text-muted-foreground" /> View Details
@@ -340,7 +340,7 @@ export default function PublicPortalPage() {
       )}
 
       {activeTab === "preview" && (
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="rounded-xl glass overflow-hidden">
           <div className="p-6 bg-muted/30 border-b border-border text-center">
             <div className="w-16 h-16 mx-auto mb-3 rounded-full flex items-center justify-center" style={{ background: "var(--accent-bg)" }}>
               <Globe className="h-8 w-8" style={{ color: "var(--accent-primary)" }} />
@@ -406,7 +406,7 @@ export default function PublicPortalPage() {
 
           {formTab === 1 && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 rounded-lg border border-border">
+              <div className="flex items-center justify-between p-4 rounded-lg glass-subtle">
                 <div>
                   <p className="text-sm font-medium text-foreground">Publish Immediately</p>
                   <p className="text-[11px] text-muted-foreground">Make this announcement visible on the public portal right away</p>
@@ -426,7 +426,7 @@ export default function PublicPortalPage() {
               {/* Preview */}
               <div>
                 <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Preview</p>
-                <div className="p-4 rounded-lg border border-border bg-muted/20">
+                <div className="p-4 rounded-lg glass-subtle">
                   <div className="flex items-center gap-2 mb-2">
                     <h4 className="text-sm font-semibold text-foreground">{announcementForm.title || "Untitled Announcement"}</h4>
                     {announcementForm.published ? <Badge variant="success">Published</Badge> : <Badge variant="muted">Draft</Badge>}
@@ -437,7 +437,7 @@ export default function PublicPortalPage() {
               </div>
 
               {!announcementForm.published && (
-                <div className="p-3 rounded-lg bg-muted/30 border border-border">
+                <div className="p-3 rounded-lg glass-subtle">
                   <p className="text-xs text-muted-foreground">
                     This announcement will be saved as a draft. You can publish it later from the announcements list using the action menu.
                   </p>
@@ -463,7 +463,7 @@ export default function PublicPortalPage() {
               <Badge variant="muted">{viewTarget.category}</Badge>
               {viewTarget.published_at && <span className="text-[11px] text-muted-foreground">{viewTarget.published_at}</span>}
             </div>
-            <div className="p-4 rounded-lg bg-muted/20 border border-border">
+            <div className="p-4 rounded-lg glass-subtle">
               <p className="text-sm text-foreground whitespace-pre-wrap">{viewTarget.content}</p>
             </div>
           </div>
@@ -481,7 +481,7 @@ export default function PublicPortalPage() {
             <p className="text-sm text-muted-foreground">
               Are you sure you want to delete <span className="font-semibold text-foreground">&ldquo;{deleteTarget.title}&rdquo;</span>? This action cannot be undone.
             </p>
-            <div className="p-3 rounded-lg bg-muted/30 border border-border">
+            <div className="p-3 rounded-lg glass-subtle">
               <p className="text-sm font-medium text-foreground">{deleteTarget.title}</p>
               <p className="text-xs text-muted-foreground mt-1">{deleteTarget.category}</p>
             </div>

@@ -56,7 +56,7 @@ function MiniLineChart({ data, color, height = 40, width = 120 }: { data: number
 
 function Widget({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`bg-card border border-border rounded-xl overflow-hidden ${className}`}>
+    <div className={`glass rounded-xl overflow-hidden ${className}`}>
       {children}
     </div>
   );
@@ -90,7 +90,7 @@ function CreditCard({ icon: Icon, label, amount, color, trend }: {
   icon: React.ElementType; label: string; amount: string; color: string; trend: number[];
 }) {
   return (
-    <div className="relative flex items-center gap-3 bg-card border border-border rounded-xl px-4 py-3 overflow-hidden group hover:border-blue-500/30 transition-colors">
+    <div className="relative flex items-center gap-3 glass-subtle rounded-xl px-4 py-3 overflow-hidden group hover:border-white/30 dark:hover:border-white/12 transition-colors">
       <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${color}15` }}>
         <Icon className="w-4.5 h-4.5" style={{ color }} />
       </div>
@@ -112,7 +112,7 @@ function DashStatCard({ label, value, trend, trendUp, icon: Icon, borderColor, i
   icon: React.ElementType; borderColor: string; iconBg: string;
 }) {
   return (
-    <div className="bg-card border border-border rounded-xl p-4 relative overflow-hidden hover:shadow-lg hover:shadow-black/5 transition-all"
+    <div className="glass-subtle rounded-xl p-4 relative overflow-hidden hover:shadow-lg hover:shadow-black/5 transition-all"
       style={{ borderLeftWidth: "3px", borderLeftColor: borderColor }}
     >
       <div className="flex items-start justify-between">
@@ -208,7 +208,7 @@ export default function DashboardPage() {
       <PageHeader title="Dashboard" description="Barangay management overview and quick actions" />
 
       {/* Mabini AI Insights */}
-      <div className="flex items-start gap-3 px-4 py-3 rounded-xl border border-accent-primary/20 bg-accent-bg/30">
+      <div className="flex items-start gap-3 px-4 py-3 rounded-xl glass-subtle" style={{ borderColor: "color-mix(in srgb, var(--accent-primary) 20%, transparent)" }}>
         <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: "var(--accent-primary)", opacity: 0.15 }}>
           <Bot className="w-4 h-4" style={{ color: "var(--accent-primary)" }} />
         </div>

@@ -198,7 +198,7 @@ export default function GadPage() {
       </div>
 
       {/* Budget Utilization Bar */}
-      <div className="p-4 rounded-xl border border-border bg-card">
+      <div className="p-4 rounded-xl glass">
         <div className="flex items-center justify-between mb-2">
           <p className="text-sm font-medium text-foreground">GAD Budget Utilization (5% of AIP Required)</p>
           <p className="text-sm text-muted-foreground">{Math.round((totalSpent / totalBudget) * 100)}%</p>
@@ -209,7 +209,7 @@ export default function GadPage() {
         <p className="text-[11px] text-muted-foreground mt-1">{"\u20B1"}{totalSpent.toLocaleString()} spent of {"\u20B1"}{totalBudget.toLocaleString()} allocated</p>
       </div>
 
-      <div className="flex items-center gap-1 p-1 rounded-lg bg-muted/50 border border-border w-fit">
+      <div className="flex items-center gap-1 p-1 rounded-lg glass-subtle w-fit">
         {[{ id: "all", label: "All" }, { id: "ongoing", label: "Ongoing" }, { id: "planned", label: "Planned" }, { id: "completed", label: "Completed" }].map((tab) => (
           <button key={tab.id} onClick={() => setStatusFilter(tab.id)}
             className={cn("px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
@@ -239,7 +239,7 @@ export default function GadPage() {
           filtered.map((p) => {
             const pct = p.budget > 0 ? Math.round((p.spent / p.budget) * 100) : 0;
             return (
-              <div key={p.id} className="p-5 rounded-xl border border-border bg-card hover:shadow-md transition-all cursor-pointer" onClick={() => setViewProgram(p)}>
+              <div key={p.id} className="p-5 rounded-xl glass hover:shadow-md transition-all cursor-pointer" onClick={() => setViewProgram(p)}>
                 <div className="flex items-start justify-between mb-2">
                   <div>
                     <h3 className="text-sm font-semibold text-foreground">{p.name}</h3>
@@ -250,7 +250,7 @@ export default function GadPage() {
                     <div className="relative" onClick={(e) => e.stopPropagation()}>
                       <button onClick={() => setActionMenu(actionMenu === p.id ? null : p.id)} className="p-1.5 rounded hover:bg-muted"><MoreHorizontal className="h-4 w-4 text-muted-foreground" /></button>
                       {actionMenu === p.id && (
-                        <div className="absolute right-0 top-8 z-20 w-44 bg-card border border-border rounded-lg shadow-lg py-1">
+                        <div className="absolute right-0 top-8 z-20 w-44 glass rounded-lg shadow-lg py-1">
                           <button onClick={() => { setViewProgram(p); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Eye className="h-3.5 w-3.5" /> View</button>
                           <button onClick={() => openEdit(p)} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Edit className="h-3.5 w-3.5" /> Edit</button>
                           <button onClick={() => { setDeleteTarget(p); setShowDelete(true); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-muted flex items-center gap-2"><Trash2 className="h-3.5 w-3.5" /> Delete</button>

@@ -396,7 +396,7 @@ export default function BlotterPage() {
           </button>
         </div>
         {showFilters && (
-          <div className="flex flex-wrap items-center gap-3 p-4 rounded-lg border border-border bg-card">
+          <div className="flex flex-wrap items-center gap-3 p-4 rounded-lg glass-subtle">
             <select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}
               className="px-3 py-1.5 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
               {incidentTypes.map((t) => <option key={t}>{t}</option>)}
@@ -414,7 +414,7 @@ export default function BlotterPage() {
       {/* Blotter Cards */}
       <div className="space-y-3">
         {paged.length === 0 ? (
-          <div className="p-16 text-center rounded-xl border border-border bg-card">
+          <div className="p-16 text-center rounded-xl glass">
             <div className="flex flex-col items-center gap-3">
               <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center"><Shield className="w-6 h-6 text-muted-foreground" /></div>
               <div>
@@ -426,7 +426,7 @@ export default function BlotterPage() {
           </div>
         ) : (
           paged.map((b) => (
-            <div key={b.id} className="p-5 rounded-xl border bg-card hover:shadow-md transition-all"
+            <div key={b.id} className="p-5 rounded-xl glass hover:shadow-md transition-all"
               style={{ borderLeftWidth: "4px", borderLeftColor: statusColor(b.status) }}>
               <div className="flex items-start justify-between">
                 <div className="flex items-start gap-4 flex-1 cursor-pointer" onClick={() => setViewBlotter(b)}>
@@ -462,7 +462,7 @@ export default function BlotterPage() {
                     {actionMenuOpen === b.id && (
                       <>
                         <div className="fixed inset-0 z-40" onClick={() => setActionMenuOpen(null)} />
-                        <div className="absolute right-0 top-8 z-50 w-48 py-1 rounded-lg border border-border bg-card shadow-lg">
+                        <div className="absolute right-0 top-8 z-50 w-48 py-1 rounded-lg glass shadow-lg">
                           <button onClick={() => openViewFromAction(b)}
                             className="flex items-center gap-2 w-full px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors">
                             <Eye className="h-4 w-4" /> View Details
@@ -586,20 +586,20 @@ export default function BlotterPage() {
               )}
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="p-4 rounded-lg border border-border">
+              <div className="p-4 rounded-lg glass-subtle">
                 <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Complainant</p>
                 <p className="text-sm text-foreground font-medium">{viewBlotter.complainant_name}</p>
                 {viewBlotter.complainant_contact && <p className="text-xs text-muted-foreground mt-1">{viewBlotter.complainant_contact}</p>}
                 {viewBlotter.complainant_address && <p className="text-xs text-muted-foreground">{viewBlotter.complainant_address}</p>}
               </div>
-              <div className="p-4 rounded-lg border border-border">
+              <div className="p-4 rounded-lg glass-subtle">
                 <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Respondent</p>
                 <p className="text-sm text-foreground font-medium">{viewBlotter.respondent_name}</p>
                 {viewBlotter.respondent_contact && <p className="text-xs text-muted-foreground mt-1">{viewBlotter.respondent_contact}</p>}
                 {viewBlotter.respondent_address && <p className="text-xs text-muted-foreground">{viewBlotter.respondent_address}</p>}
               </div>
             </div>
-            <div className="p-4 rounded-lg bg-muted/50 border border-border">
+            <div className="p-4 rounded-lg glass-subtle">
               <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Incident Narrative</p>
               <p className="text-sm text-foreground leading-relaxed">{viewBlotter.narrative}</p>
             </div>
@@ -622,7 +622,7 @@ export default function BlotterPage() {
       {/* Toast Notifications */}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
         {toasts.map((t) => (
-          <div key={t.id} className="flex items-center gap-2 px-4 py-3 rounded-lg border border-border bg-card shadow-lg animate-in slide-in-from-bottom-2 fade-in duration-200">
+          <div key={t.id} className="flex items-center gap-2 px-4 py-3 rounded-lg glass shadow-lg animate-in slide-in-from-bottom-2 fade-in duration-200">
             <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
             <span className="text-sm font-medium text-foreground">{t.message}</span>
             <button onClick={() => removeToast(t.id)} className="ml-2 text-muted-foreground hover:text-foreground"><X className="w-3.5 h-3.5" /></button>

@@ -130,7 +130,7 @@ export default function DrivePage() {
       </div>
 
       {/* Storage Bar */}
-      <div className="p-4 rounded-xl border border-border bg-card">
+      <div className="p-4 rounded-xl glass">
         <div className="flex items-center justify-between mb-2">
           <p className="text-sm text-foreground font-medium">Storage Used</p>
           <p className="text-sm text-muted-foreground">{usedSize} of {totalSize}</p>
@@ -165,7 +165,7 @@ export default function DrivePage() {
           {folders.length > 0 && (
             <div>
               <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Folders</p>
-              <div className="rounded-xl border border-border bg-card overflow-hidden">
+              <div className="rounded-xl glass overflow-hidden">
                 {folders.map((f, i) => (
                   <div key={f.id} className={cn("flex items-center justify-between px-4 py-3 hover:bg-muted/30 cursor-pointer transition-colors", i < folders.length - 1 && "border-b border-border")}>
                     <div className="flex items-center gap-3">
@@ -180,7 +180,7 @@ export default function DrivePage() {
                       <div className="relative" onClick={(e) => e.stopPropagation()}>
                         <button onClick={() => setActionMenu(actionMenu === f.id ? null : f.id)} className="p-1.5 rounded hover:bg-muted"><MoreHorizontal className="h-4 w-4 text-muted-foreground" /></button>
                         {actionMenu === f.id && (
-                          <div className="absolute right-0 top-8 z-20 w-44 bg-card border border-border rounded-lg shadow-lg py-1">
+                          <div className="absolute right-0 top-8 z-20 w-44 glass rounded-lg shadow-lg py-1">
                             <button onClick={() => { setRenameName(f.name); setViewItem(f); setFormErrors({}); setShowRename(true); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Edit className="h-3.5 w-3.5" /> Rename</button>
                             <button onClick={() => { setViewItem(f); setShowDelete(true); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-muted flex items-center gap-2"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
                           </div>
@@ -197,7 +197,7 @@ export default function DrivePage() {
           {files.length > 0 && (
             <div>
               <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Files</p>
-              <div className="rounded-xl border border-border bg-card overflow-hidden">
+              <div className="rounded-xl glass overflow-hidden">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border bg-muted/50">
@@ -224,7 +224,7 @@ export default function DrivePage() {
                           <div className="relative">
                             <button onClick={() => setActionMenu(actionMenu === f.id ? null : f.id)} className="p-1 rounded hover:bg-muted"><MoreHorizontal className="h-4 w-4 text-muted-foreground" /></button>
                             {actionMenu === f.id && (
-                              <div className="absolute right-0 top-8 z-20 w-44 bg-card border border-border rounded-lg shadow-lg py-1">
+                              <div className="absolute right-0 top-8 z-20 w-44 glass rounded-lg shadow-lg py-1">
                                 <button onClick={() => { setViewItem(f); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Eye className="h-3.5 w-3.5" /> View Details</button>
                                 <button onClick={() => setActionMenu(null)} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Download className="h-3.5 w-3.5" /> Download</button>
                                 <button onClick={() => { setRenameName(f.name); setViewItem(f); setFormErrors({}); setShowRename(true); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Edit className="h-3.5 w-3.5" /> Rename</button>
@@ -245,12 +245,12 @@ export default function DrivePage() {
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-3">
           {filtered.map((f) => (
-            <div key={f.id} className="p-4 rounded-xl border border-border bg-card hover:shadow-md transition-all cursor-pointer text-center group relative"
+            <div key={f.id} className="p-4 rounded-xl glass hover:shadow-md transition-all cursor-pointer text-center group relative"
               onClick={() => f.type !== "folder" && setViewItem(f)}>
               <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
                 <button onClick={() => setActionMenu(actionMenu === f.id ? null : f.id)} className="p-1 rounded hover:bg-muted"><MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" /></button>
                 {actionMenu === f.id && (
-                  <div className="absolute right-0 top-6 z-20 w-40 bg-card border border-border rounded-lg shadow-lg py-1">
+                  <div className="absolute right-0 top-6 z-20 w-40 glass rounded-lg shadow-lg py-1">
                     <button onClick={() => { setRenameName(f.name); setViewItem(f); setFormErrors({}); setShowRename(true); setActionMenu(null); }} className="w-full px-3 py-1.5 text-left text-xs hover:bg-muted flex items-center gap-2"><Edit className="h-3 w-3" /> Rename</button>
                     {f.type !== "folder" && <button onClick={() => setActionMenu(null)} className="w-full px-3 py-1.5 text-left text-xs hover:bg-muted flex items-center gap-2"><Download className="h-3 w-3" /> Download</button>}
                     <button onClick={() => { setViewItem(f); setShowDelete(true); setActionMenu(null); }} className="w-full px-3 py-1.5 text-left text-xs text-red-600 hover:bg-muted flex items-center gap-2"><Trash2 className="h-3 w-3" /> Delete</button>
@@ -268,7 +268,7 @@ export default function DrivePage() {
       )}
 
       {filtered.length === 0 && (
-        <div className="p-12 text-center rounded-xl border border-border bg-card flex flex-col items-center gap-3">
+        <div className="p-12 text-center rounded-xl glass flex flex-col items-center gap-3">
           <FolderOpen className="h-10 w-10 text-muted-foreground/50" />
           <div>
             <p className="text-sm font-medium text-foreground">This folder is empty</p>
@@ -341,7 +341,7 @@ export default function DrivePage() {
         footer={<><ModalButton variant="secondary" onClick={() => setViewItem(null)}>Close</ModalButton>{viewItem?.type !== "folder" && <ModalButton variant="primary"><Download className="h-4 w-4 mr-1" />Download</ModalButton>}</>}>
         {viewItem && viewItem.type !== "folder" && (
           <div className="space-y-4">
-            <div className="p-4 rounded-lg bg-muted/50 border border-border flex items-center gap-4">
+            <div className="p-4 rounded-lg glass-subtle flex items-center gap-4">
               <div className="w-12 h-12 rounded-lg flex items-center justify-center bg-background">{fileIcon(viewItem.type)}</div>
               <div>
                 <p className="text-sm font-medium text-foreground">{viewItem.name}</p>

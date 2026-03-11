@@ -294,7 +294,7 @@ function FDatePicker({ label, name, required, value, onChange, className, valid,
 
       {/* Calendar dropdown */}
       {open && (
-        <div className="absolute z-50 mt-1 w-72 rounded-xl border border-border bg-card shadow-lg p-3 animate-in fade-in slide-in-from-top-1 duration-150">
+        <div className="absolute z-50 mt-1 w-72 rounded-xl glass shadow-lg p-3 animate-in fade-in slide-in-from-top-1 duration-150">
           {/* Month/Year header */}
           <div className="flex items-center justify-between mb-2">
             <button type="button" onClick={prevMonth} className="p-1 rounded-md hover:bg-muted transition-colors">
@@ -1051,6 +1051,7 @@ export default function ResidentsPage() {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [cameraLoading, setCameraLoading] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const photoCaptureRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -1870,8 +1871,10 @@ export default function ResidentsPage() {
                     </div>
                   </div>
                   {/* Smart Photo Area */}
-                  <div className="shrink-0 hidden md:flex flex-col items-center gap-2">
+                  <div className="shrink-0 flex flex-col items-center gap-2">
                     <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoSelect} />
+                    {/* Mobile camera input: capture="environment" opens back camera by default, user can flip to front */}
+                    <input ref={photoCaptureRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoSelect} />
                     <div className={cn(
                       "w-36 h-44 rounded-xl bg-muted border-2 flex flex-col items-center justify-center overflow-hidden relative",
                       photoAnalysis?.status === "good" ? "border-green-400" :
@@ -1943,10 +1946,16 @@ export default function ResidentsPage() {
                         </>
                       ) : (
                         <>
+                          {/* Desktop: getUserMedia webcam | Mobile: hidden (use native capture instead) */}
                           <button type="button" onClick={startCamera} disabled={cameraLoading}
-                            className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-semibold rounded-lg text-white transition-colors hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed" style={{ background: "var(--accent-primary)" }}>
+                            className="hidden md:flex flex-1 items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-semibold rounded-lg text-white transition-colors hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed" style={{ background: "var(--accent-primary)" }}>
                             {cameraLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />}
                             {cameraLoading ? "Opening..." : "Camera"}
+                          </button>
+                          {/* Mobile: opens native camera (back-facing default, user can flip to front) */}
+                          <button type="button" onClick={() => photoCaptureRef.current?.click()}
+                            className="flex md:hidden flex-1 items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-semibold rounded-lg text-white transition-colors hover:opacity-90" style={{ background: "var(--accent-primary)" }}>
+                            <Camera className="h-3 w-3" /> Take Photo
                           </button>
                           <button type="button" onClick={() => photoInputRef.current?.click()}
                             className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-medium rounded-lg border border-border hover:bg-muted transition-colors">
@@ -2823,7 +2832,7 @@ export default function ResidentsPage() {
 
       {/* Population Overview */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 rounded-xl border border-border bg-card p-5">
+        <div className="lg:col-span-2 rounded-xl glass p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Total Population</p>
@@ -2868,7 +2877,7 @@ export default function ResidentsPage() {
         </div>
 
         <div className="flex flex-col gap-3">
-          <div className="flex-1 rounded-xl border border-border bg-card p-4 flex items-center gap-4">
+          <div className="flex-1 rounded-xl glass p-4 flex items-center gap-4">
             <div className="w-11 h-11 rounded-xl bg-amber-50 dark:bg-amber-950/30 flex items-center justify-center shrink-0">
               <Home className="h-5 w-5 text-amber-600 dark:text-amber-400" />
             </div>
@@ -2880,7 +2889,7 @@ export default function ResidentsPage() {
               </div>
             </div>
           </div>
-          <div className="flex-1 rounded-xl border border-border bg-card p-4 flex items-center gap-4">
+          <div className="flex-1 rounded-xl glass p-4 flex items-center gap-4">
             <div className="w-11 h-11 rounded-xl bg-violet-50 dark:bg-violet-950/30 flex items-center justify-center shrink-0">
               <FileText className="h-5 w-5 text-violet-600 dark:text-violet-400" />
             </div>
@@ -2892,7 +2901,7 @@ export default function ResidentsPage() {
               </div>
             </div>
           </div>
-          <div className="flex-1 rounded-xl border border-border bg-card p-4 flex items-center gap-4">
+          <div className="flex-1 rounded-xl glass p-4 flex items-center gap-4">
             <div className="w-11 h-11 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center shrink-0">
               <MapPin className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
             </div>
@@ -2969,7 +2978,7 @@ export default function ResidentsPage() {
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border border-border overflow-hidden bg-card">
+      <div className="rounded-xl glass overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -3106,7 +3115,7 @@ export default function ResidentsPage() {
                               <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
                             </button>
                             {actionMenu === r.id && (
-                              <div className="absolute right-0 top-8 z-20 w-44 bg-card border border-border rounded-xl shadow-lg py-1.5">
+                              <div className="absolute right-0 top-8 z-20 w-44 glass rounded-xl shadow-lg py-1.5">
                                 <button onClick={() => { openEdit(r); setActionMenu(null); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-muted text-left transition-colors"><Edit className="h-3.5 w-3.5 text-muted-foreground" /> Edit Profile</button>
                                 <button onClick={() => { setActionMenu(null); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-muted text-left transition-colors"><Printer className="h-3.5 w-3.5 text-muted-foreground" /> Print Record</button>
                                 <div className="border-t border-border my-1" />
@@ -3162,7 +3171,7 @@ export default function ResidentsPage() {
               </div>
             )}
 
-            <div className="p-4 rounded-lg bg-muted/50 border border-border">
+            <div className="p-4 rounded-lg glass-subtle">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium text-foreground">Profile Completion</span>
                 <span className="text-sm font-bold" style={{ color: viewResident.profile_completion_pct >= 80 ? "#22c55e" : viewResident.profile_completion_pct >= 50 ? "#f59e0b" : "#ef4444" }}>{viewResident.profile_completion_pct}%</span>
@@ -3248,7 +3257,7 @@ export default function ResidentsPage() {
             <p className="text-sm text-amber-700 dark:text-amber-400">This record will be moved to the archive. All data is preserved and can be viewed in Settings &gt; Archived Records.</p>
           </div>
           {viewResident && (
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border border-border">
+            <div className="flex items-center gap-3 p-3 rounded-lg glass-subtle">
               <div className={cn("w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0", viewResident.sex === "female" ? "bg-pink-400" : "bg-blue-400")}>
                 {viewResident.last_name[0]}{viewResident.first_name[0]}
               </div>

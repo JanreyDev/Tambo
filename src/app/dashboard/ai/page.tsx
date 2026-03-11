@@ -216,7 +216,7 @@ export default function AiAssistantPage() {
 
       <div style={{ height: "calc(100vh - 220px)", minHeight: "500px" }}>
         {/* Main Chat Area */}
-        <div className="flex flex-col rounded-xl border border-border bg-card overflow-hidden h-full">
+        <div className="flex flex-col rounded-xl glass overflow-hidden h-full">
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
             {displayMessages.length === 0 && !isStreaming ? (
@@ -263,7 +263,7 @@ export default function AiAssistantPage() {
                         "max-w-[80%] rounded-xl px-4 py-3",
                         msg.role === "user"
                           ? "bg-accent-bg text-foreground"
-                          : "bg-muted/30 border border-border"
+                          : "glass-subtle"
                       )}
                     >
                       {msg.role === "assistant" ? (
@@ -301,7 +301,7 @@ export default function AiAssistantPage() {
                 {isStreaming && (
                   <div className="flex gap-3">
                     <MabiniLogo size="sm" />
-                    <div className="max-w-[80%] rounded-xl px-4 py-3 bg-muted/30 border border-border">
+                    <div className="max-w-[80%] rounded-xl px-4 py-3 glass-subtle">
                       {streamingContent ? (
                         <Markdown content={streamingContent} className="text-justify" />
                       ) : (

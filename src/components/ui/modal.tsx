@@ -64,7 +64,7 @@ export function Modal({
       {/* Dialog */}
       <div
         className={cn(
-          "relative w-full rounded-xl bg-card border border-border shadow-2xl",
+          "relative w-full rounded-xl glass shadow-2xl",
           "animate-in fade-in zoom-in-95 duration-200",
           sizeStyles[size]
         )}

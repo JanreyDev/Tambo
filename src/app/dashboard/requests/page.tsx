@@ -376,7 +376,7 @@ export default function RequestsPage() {
                       className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
                   </div>
                   {filteredResidents.length > 0 && (
-                    <div className="mt-1 border border-border rounded-lg bg-card shadow-lg max-h-48 overflow-y-auto">
+                    <div className="mt-1 rounded-lg glass shadow-lg max-h-48 overflow-y-auto">
                       {filteredResidents.map((r) => (
                         <button key={r.id} onClick={() => selectResident(r)}
                           className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-muted transition-colors border-b border-border last:border-0">
@@ -581,7 +581,7 @@ export default function RequestsPage() {
           </button>
         </div>
         {showFilters && (
-          <div className="flex flex-wrap items-center gap-3 p-4 rounded-lg border border-border bg-card">
+          <div className="flex flex-wrap items-center gap-3 p-4 rounded-lg glass-subtle">
             <select value={docFilter} onChange={(e) => { setDocFilter(e.target.value); setPage(1); }}
               className="px-3 py-1.5 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
               {docFilterOptions.map((d) => <option key={d}>{d}</option>)}
@@ -597,7 +597,7 @@ export default function RequestsPage() {
       </div>
 
       {/* Requests Table */}
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
+      <div className="rounded-xl glass overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -658,7 +658,7 @@ export default function RequestsPage() {
                           <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
                         </button>
                         {actionMenu === r.id && (
-                          <div className="absolute right-0 top-8 z-20 w-44 bg-card border border-border rounded-lg shadow-lg py-1">
+                          <div className="absolute right-0 top-8 z-20 w-44 glass rounded-lg shadow-lg py-1">
                             <button onClick={() => { setViewReq(r); setActionMenu(null); }} className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted text-left">
                               <Eye className="h-3.5 w-3.5" /> View Details
                             </button>
@@ -852,7 +852,7 @@ export default function RequestsPage() {
 
             {/* Notes */}
             {(viewReq.notes || viewReq.special_instructions) && (
-              <div className="p-4 rounded-lg bg-muted/50 border border-border">
+              <div className="p-4 rounded-lg glass-subtle">
                 {viewReq.notes && (
                   <div className="mb-2">
                     <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Processing Notes</p>

@@ -82,15 +82,15 @@ export default function MapPage() {
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
         {/* Map Area */}
         <div className="xl:col-span-3">
-          <div className="rounded-xl border border-border bg-card overflow-hidden" style={{ height: "calc(100vh - 280px)", minHeight: "500px" }}>
+          <div className="rounded-xl glass overflow-hidden" style={{ height: "calc(100vh - 280px)", minHeight: "500px" }}>
             {/* Map Placeholder */}
             <div className="relative w-full h-full bg-muted/30 flex items-center justify-center">
               {/* Map controls */}
               <div className="absolute top-4 right-4 flex flex-col gap-1">
-                <button className="p-2 rounded-lg bg-card border border-border shadow-sm hover:bg-muted"><ZoomIn className="h-4 w-4" /></button>
-                <button className="p-2 rounded-lg bg-card border border-border shadow-sm hover:bg-muted"><ZoomOut className="h-4 w-4" /></button>
-                <button className="p-2 rounded-lg bg-card border border-border shadow-sm hover:bg-muted"><Maximize2 className="h-4 w-4" /></button>
-                <button className="p-2 rounded-lg bg-card border border-border shadow-sm hover:bg-muted"><Navigation className="h-4 w-4" /></button>
+                <button className="p-2 rounded-lg glass shadow-sm hover:bg-muted"><ZoomIn className="h-4 w-4" /></button>
+                <button className="p-2 rounded-lg glass shadow-sm hover:bg-muted"><ZoomOut className="h-4 w-4" /></button>
+                <button className="p-2 rounded-lg glass shadow-sm hover:bg-muted"><Maximize2 className="h-4 w-4" /></button>
+                <button className="p-2 rounded-lg glass shadow-sm hover:bg-muted"><Navigation className="h-4 w-4" /></button>
               </div>
 
               {/* Placeholder content */}
@@ -102,7 +102,7 @@ export default function MapPage() {
               </div>
 
               {/* Legend */}
-              <div className="absolute bottom-4 left-4 p-3 rounded-lg bg-card/95 border border-border shadow-sm">
+              <div className="absolute bottom-4 left-4 p-3 rounded-lg glass shadow-sm">
                 <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Legend</p>
                 <div className="space-y-1">
                   {layers.filter((l) => l.enabled).map((l) => (
@@ -120,7 +120,7 @@ export default function MapPage() {
         {/* Sidebar */}
         <div className="space-y-4">
           {/* Layers */}
-          <div className="p-4 rounded-xl border border-border bg-card">
+          <div className="p-4 rounded-xl glass">
             <div className="flex items-center gap-2 mb-3">
               <Layers className="h-4 w-4 text-muted-foreground" />
               <h3 className="text-sm font-semibold text-foreground">Map Layers</h3>
@@ -143,7 +143,7 @@ export default function MapPage() {
           </div>
 
           {/* Purok Stats */}
-          <div className="p-4 rounded-xl border border-border bg-card">
+          <div className="p-4 rounded-xl glass">
             <h3 className="text-sm font-semibold text-foreground mb-3">Purok Statistics</h3>
             <div className="space-y-2">
               {purokStats.map((p) => (

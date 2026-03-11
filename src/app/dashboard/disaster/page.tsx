@@ -235,7 +235,7 @@ export default function DisasterPage() {
         </div>
       )}
 
-      <div className="flex items-center gap-1 p-1 rounded-lg bg-muted/50 border border-border w-fit">
+      <div className="flex items-center gap-1 p-1 rounded-lg glass-subtle w-fit">
         {(["events", "centers", "preparedness"] as const).map((tab) => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             className={cn("px-4 py-2 text-sm font-medium rounded-md transition-colors capitalize",
@@ -248,7 +248,7 @@ export default function DisasterPage() {
       {activeTab === "events" && (
         <div className="space-y-3">
           {mockEvents.length === 0 ? (
-            <div className="p-12 rounded-xl border border-border bg-card flex items-center justify-center">
+            <div className="p-12 rounded-xl glass flex items-center justify-center">
               <div className="flex flex-col items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
                   <CloudRain className="w-6 h-6 text-muted-foreground" />
@@ -263,7 +263,7 @@ export default function DisasterPage() {
               </div>
             </div>
           ) : mockEvents.map((e) => (
-            <div key={e.id} className={cn("p-5 rounded-xl border bg-card", e.status === "monitoring" && "border-amber-300 dark:border-amber-700")}>
+            <div key={e.id} className={cn("p-5 rounded-xl border glass", e.status === "monitoring" && "border-amber-300 dark:border-amber-700")}>
               <div className="flex items-start gap-4">
                 <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-muted/50 shrink-0">{eventIcon(e.event_type)}</div>
                 <div className="flex-1">
@@ -283,7 +283,7 @@ export default function DisasterPage() {
                 <div className="relative" onClick={(ev) => ev.stopPropagation()}>
                   <button onClick={() => setActionMenu(actionMenu === e.id ? null : e.id)} className="p-1.5 rounded hover:bg-muted"><MoreHorizontal className="h-4 w-4 text-muted-foreground" /></button>
                   {actionMenu === e.id && (
-                    <div className="absolute right-0 top-8 z-20 w-44 bg-card border border-border rounded-lg shadow-lg py-1">
+                    <div className="absolute right-0 top-8 z-20 w-44 glass rounded-lg shadow-lg py-1">
                       <button onClick={() => openEdit(e)} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Edit className="h-3.5 w-3.5" /> Edit</button>
                       <button onClick={() => { setSelectedEvent(e); setShowDelete(true); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-muted flex items-center gap-2"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
                     </div>
@@ -300,7 +300,7 @@ export default function DisasterPage() {
           {mockCenters.map((c) => {
             const occupancyPct = Math.round((c.current_occupancy / c.capacity) * 100);
             return (
-              <div key={c.id} className="p-5 rounded-xl border border-border bg-card">
+              <div key={c.id} className="p-5 rounded-xl glass">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-semibold text-foreground">{c.name}</h3>
                   <Badge variant={c.status === "in_use" ? "warning" : "success"}>{c.status === "in_use" ? "In Use" : "Available"}</Badge>
@@ -326,7 +326,7 @@ export default function DisasterPage() {
 
       {activeTab === "preparedness" && (
         <div className="space-y-4">
-          <div className="p-5 rounded-xl border border-border bg-card">
+          <div className="p-5 rounded-xl glass">
             <h3 className="text-sm font-semibold text-foreground mb-3">BDRRMC Readiness Checklist</h3>
             <div className="space-y-2">
               {[
@@ -350,7 +350,7 @@ export default function DisasterPage() {
             <p className="text-xs text-muted-foreground mt-3">4 of 7 items complete (57%)</p>
           </div>
 
-          <div className="p-5 rounded-xl border border-border bg-card">
+          <div className="p-5 rounded-xl glass">
             <h3 className="text-sm font-semibold text-foreground mb-3">Emergency Contacts</h3>
             <div className="space-y-2">
               {[

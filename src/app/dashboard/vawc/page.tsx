@@ -410,7 +410,7 @@ export default function VawcPage() {
           </button>
         </div>
         {showFilters && (
-          <div className="flex flex-wrap items-center gap-3 p-4 rounded-lg border border-border bg-card">
+          <div className="flex flex-wrap items-center gap-3 p-4 rounded-lg glass-subtle">
             <select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}
               className="px-3 py-1.5 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
               {caseTypes.map((t) => <option key={t}>{t}</option>)}
@@ -428,7 +428,7 @@ export default function VawcPage() {
       {/* Case Cards */}
       <div className="space-y-3">
         {paged.length === 0 ? (
-          <div className="p-12 text-center rounded-xl border border-border bg-card flex flex-col items-center gap-3">
+          <div className="p-12 text-center rounded-xl glass flex flex-col items-center gap-3">
             <ShieldAlert className="h-10 w-10 text-muted-foreground/50" />
             <div>
               <p className="text-sm font-medium text-foreground">No VAWC cases recorded</p>
@@ -437,7 +437,7 @@ export default function VawcPage() {
           </div>
         ) : (
           paged.map((c) => (
-            <div key={c.id} className="p-5 rounded-xl border bg-card hover:shadow-md transition-all"
+            <div key={c.id} className="p-5 rounded-xl glass hover:shadow-md transition-all"
               style={{ borderLeftWidth: "4px", borderLeftColor: riskBorderColor(c.risk_level) }}>
               <div className="flex items-start justify-between">
                 <div className="flex-1 cursor-pointer" onClick={() => setViewCase(c)}>
@@ -468,7 +468,7 @@ export default function VawcPage() {
                     {actionMenu === c.id && (
                       <>
                         <div className="fixed inset-0 z-40" onClick={() => setActionMenu(null)} />
-                        <div className="absolute right-0 top-8 z-50 w-48 py-1 rounded-lg border border-border bg-card shadow-lg">
+                        <div className="absolute right-0 top-8 z-50 w-48 py-1 rounded-lg glass shadow-lg">
                           <button onClick={() => openViewFromAction(c)}
                             className="flex items-center gap-2 w-full px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors">
                             <Eye className="h-4 w-4" /> View Details
@@ -596,14 +596,14 @@ export default function VawcPage() {
               <p className="text-sm text-red-800 dark:text-red-300">Party names are anonymized per RA 9262. Full details accessible to authorized case officers only.</p>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="p-4 rounded-lg border border-border">
+              <div className="p-4 rounded-lg glass-subtle">
                 <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Victim</p>
                 <p className="text-sm text-foreground font-medium">{viewCase.complainant_name}</p>
                 <p className="text-xs text-muted-foreground mt-1">Age: {viewCase.victim_age} | Sex: {viewCase.victim_sex}</p>
                 <p className="text-xs text-muted-foreground">Status: {viewCase.victim_civil_status}</p>
                 {viewCase.victim_address && <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1"><MapPin className="h-3 w-3" /> {viewCase.victim_address}</p>}
               </div>
-              <div className="p-4 rounded-lg border border-border">
+              <div className="p-4 rounded-lg glass-subtle">
                 <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Perpetrator</p>
                 <p className="text-sm text-foreground font-medium">{viewCase.respondent_name}</p>
                 <p className="text-xs text-muted-foreground mt-1">Age: {viewCase.perpetrator_age} | Sex: {viewCase.perpetrator_sex}</p>
@@ -611,7 +611,7 @@ export default function VawcPage() {
               </div>
             </div>
             {viewCase.narrative && (
-              <div className="p-4 rounded-lg bg-muted/50 border border-border">
+              <div className="p-4 rounded-lg glass-subtle">
                 <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Incident Narrative</p>
                 <p className="text-sm text-foreground leading-relaxed">{viewCase.narrative}</p>
               </div>

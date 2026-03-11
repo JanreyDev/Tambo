@@ -224,7 +224,7 @@ export default function InventoryPage() {
         </button>
       </div>
 
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
+      <div className="rounded-xl glass overflow-hidden">
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted/50">
@@ -277,7 +277,7 @@ export default function InventoryPage() {
                       <div className="relative" onClick={(e) => e.stopPropagation()}>
                         <button onClick={() => setActionMenu(actionMenu === item.id ? null : item.id)} className="p-1.5 rounded hover:bg-muted"><MoreHorizontal className="h-4 w-4 text-muted-foreground" /></button>
                         {actionMenu === item.id && (
-                          <div className="absolute right-0 top-8 z-20 w-44 bg-card border border-border rounded-lg shadow-lg py-1">
+                          <div className="absolute right-0 top-8 z-20 w-44 glass rounded-lg shadow-lg py-1">
                             <button onClick={() => { setViewItem(item); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Eye className="h-3.5 w-3.5" /> View</button>
                             <button onClick={() => openEdit(item)} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Edit className="h-3.5 w-3.5" /> Edit</button>
                             <button onClick={() => { setDeleteItem(item); setShowDelete(true); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-muted flex items-center gap-2"><Trash2 className="h-3.5 w-3.5" /> Delete</button>

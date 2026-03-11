@@ -41,7 +41,7 @@ function SettingsInput({ label, value, onChange, placeholder, icon: Icon, disabl
 
 function SettingsToggle({ label, description, checked, onChange }: { label: string; description: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
-    <div className="flex items-center justify-between p-4 rounded-lg border border-border">
+    <div className="flex items-center justify-between p-4 rounded-lg glass-subtle">
       <div>
         <p className="text-sm font-medium text-foreground">{label}</p>
         <p className="text-[11px] text-muted-foreground">{description}</p>
@@ -198,7 +198,7 @@ export default function SettingsPage() {
         <div className="flex-1 max-w-2xl space-y-6">
           {/* Barangay Info */}
           {activeSection === "info" && (
-            <div className="bg-card border border-border rounded-xl p-6">
+            <div className="glass rounded-xl p-6">
               <h2 className="text-lg font-semibold text-foreground mb-1">Barangay Information</h2>
               <p className="text-sm text-muted-foreground mb-5">Official barangay details used in documents and reports.</p>
               <div className="space-y-4">
@@ -222,7 +222,7 @@ export default function SettingsPage() {
 
           {/* Contact Details */}
           {activeSection === "contact" && (
-            <div className="bg-card border border-border rounded-xl p-6">
+            <div className="glass rounded-xl p-6">
               <h2 className="text-lg font-semibold text-foreground mb-1">Contact Details</h2>
               <p className="text-sm text-muted-foreground mb-5">Contact information displayed on documents and the public portal.</p>
               <div className="space-y-4">
@@ -239,7 +239,7 @@ export default function SettingsPage() {
 
           {/* Branding */}
           {activeSection === "branding" && (
-            <div className="bg-card border border-border rounded-xl p-6">
+            <div className="glass rounded-xl p-6">
               <h2 className="text-lg font-semibold text-foreground mb-1">Barangay Branding</h2>
               <p className="text-sm text-muted-foreground mb-5">Upload your barangay logo and seal. These appear on documents and the public portal.</p>
               <div className="grid grid-cols-2 gap-4 mb-4">
@@ -270,7 +270,7 @@ export default function SettingsPage() {
                   <p className="text-[11px] text-muted-foreground/70 mt-2 px-1">Official seal used for document authentication. PNG with transparent background recommended.</p>
                 </div>
               </div>
-              <div className="p-3 rounded-lg bg-muted/30 border border-border">
+              <div className="p-3 rounded-lg glass-subtle">
                 <p className="text-xs text-muted-foreground">
                   These images will appear on official documents (certificates, clearances), printed reports, and your barangay.org.ph public portal.
                 </p>
@@ -280,7 +280,7 @@ export default function SettingsPage() {
 
           {/* System Preferences */}
           {activeSection === "system" && (
-            <div className="bg-card border border-border rounded-xl p-6">
+            <div className="glass rounded-xl p-6">
               <h2 className="text-lg font-semibold text-foreground mb-1">System Preferences</h2>
               <p className="text-sm text-muted-foreground mb-5">Configure system-wide behavior and defaults.</p>
               <div className="space-y-3">
@@ -293,7 +293,7 @@ export default function SettingsPage() {
 
           {/* Document Settings */}
           {activeSection === "documents" && (
-            <div className="bg-card border border-border rounded-xl p-6">
+            <div className="glass rounded-xl p-6">
               <h2 className="text-lg font-semibold text-foreground mb-1">Document Settings</h2>
               <p className="text-sm text-muted-foreground mb-5">Configure document numbering, default values, and printing options.</p>
               <div className="space-y-4">
@@ -310,7 +310,7 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <SettingsInput label="Default Number of Copies" value={defaultCopies} onChange={setDefaultCopies} icon={Printer} />
-                <div className="p-3 rounded-lg bg-muted/30 border border-border">
+                <div className="p-3 rounded-lg glass-subtle">
                   <p className="text-xs text-muted-foreground">
                     Document IDs are auto-generated as: {documentPrefix}-YYYY-NNNNN (e.g., {documentPrefix}-2026-00001). This prefix applies to all documents issued by this barangay.
                   </p>
@@ -321,19 +321,19 @@ export default function SettingsPage() {
 
           {/* Notifications */}
           {activeSection === "notifications" && (
-            <div className="bg-card border border-border rounded-xl p-6">
+            <div className="glass rounded-xl p-6">
               <h2 className="text-lg font-semibold text-foreground mb-1">Notifications</h2>
               <p className="text-sm text-muted-foreground mb-5">Configure how you receive alerts and updates.</p>
               <div className="space-y-3">
                 <SettingsToggle label="Email Notifications" description="Receive email alerts for new requests, approvals, and system events" checked={emailNotif} onChange={setEmailNotif} />
-                <div className="flex items-center justify-between p-4 rounded-lg border border-border">
+                <div className="flex items-center justify-between p-4 rounded-lg glass-subtle">
                   <div>
                     <p className="text-sm font-medium text-foreground">SMS Notifications</p>
                     <p className="text-[11px] text-muted-foreground">Receive SMS alerts for urgent events (requires SMS credits)</p>
                   </div>
                   <span className="text-xs text-muted-foreground px-2 py-1 rounded bg-muted">Coming Soon</span>
                 </div>
-                <div className="flex items-center justify-between p-4 rounded-lg border border-border">
+                <div className="flex items-center justify-between p-4 rounded-lg glass-subtle">
                   <div>
                     <p className="text-sm font-medium text-foreground">Push Notifications</p>
                     <p className="text-[11px] text-muted-foreground">Browser push notifications for real-time updates</p>
@@ -345,7 +345,7 @@ export default function SettingsPage() {
           )}
 
           {/* Info Notice */}
-          <div className="bg-muted/50 border border-border rounded-xl p-4">
+          <div className="glass-subtle rounded-xl p-4">
             <p className="text-xs text-muted-foreground">
               Looking for theme and accent color settings? Those are now in{" "}
               <a href="/dashboard/account" className="font-medium underline hover:text-foreground transition-colors" style={{ color: "var(--accent-primary)" }}>

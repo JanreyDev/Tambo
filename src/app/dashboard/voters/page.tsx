@@ -228,7 +228,7 @@ export default function VotersPage() {
           </button>
         </div>
         {showFilters && (
-          <div className="flex flex-wrap items-center gap-3 p-4 rounded-lg border border-border bg-card">
+          <div className="flex flex-wrap items-center gap-3 p-4 rounded-lg glass-subtle">
             <select value={precinctFilter} onChange={(e) => { setPrecinctFilter(e.target.value); setPage(1); }}
               className="px-3 py-1.5 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
               {precincts.map((p) => <option key={p}>{p}</option>)}
@@ -244,7 +244,7 @@ export default function VotersPage() {
       </div>
 
       {/* Voters Table */}
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
+      <div className="rounded-xl glass overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -296,7 +296,7 @@ export default function VotersPage() {
                             <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
                           </button>
                           {actionMenu === v.id && (
-                            <div className="absolute right-0 top-8 z-20 w-44 bg-card border border-border rounded-lg shadow-lg py-1">
+                            <div className="absolute right-0 top-8 z-20 w-44 glass rounded-lg shadow-lg py-1">
                               <button onClick={() => { setViewVoter(v); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Eye className="h-3.5 w-3.5" /> View</button>
                               <button onClick={() => { openEdit(v); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Edit className="h-3.5 w-3.5" /> Edit</button>
                               <button onClick={() => { setViewVoter(v); setShowDelete(true); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-muted flex items-center gap-2"><Trash2 className="h-3.5 w-3.5" /> Delete</button>

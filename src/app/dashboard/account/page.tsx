@@ -734,7 +734,7 @@ export default function AccountPage() {
       {activeTab === "profile" && (
         <div className="space-y-6">
           {/* Profile Photo */}
-          <div className="bg-card border border-border rounded-xl p-6">
+          <div className="glass rounded-xl p-6">
             <h2 className="text-lg font-semibold text-card-foreground mb-4">Profile Photo</h2>
             <div className="flex items-center gap-6">
               <div className="relative group">
@@ -792,7 +792,7 @@ export default function AccountPage() {
           </div>
 
           {/* Personal Information */}
-          <div className="bg-card border border-border rounded-xl p-6">
+          <div className="glass rounded-xl p-6">
             <h2 className="text-lg font-semibold text-card-foreground mb-4">Personal Information</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -829,7 +829,7 @@ export default function AccountPage() {
           </div>
 
           {/* Contact Information */}
-          <div className="bg-card border border-border rounded-xl p-6">
+          <div className="glass rounded-xl p-6">
             <h2 className="text-lg font-semibold text-card-foreground mb-4">Contact Information</h2>
             <div className="space-y-4">
               <div>
@@ -891,7 +891,7 @@ export default function AccountPage() {
           </div>
 
           {/* Username */}
-          <div className="bg-card border border-border rounded-xl p-6">
+          <div className="glass rounded-xl p-6">
             <h2 className="text-lg font-semibold text-card-foreground mb-1">Username</h2>
             <p className="text-xs text-muted-foreground mb-4">Your login credential. Changing this will require you to use the new username on next login.</p>
             {usernameCooldown.locked ? (
@@ -938,7 +938,7 @@ export default function AccountPage() {
 
           {/* Appearance */}
           {mounted && (
-            <div className="bg-card border border-border rounded-xl p-6">
+            <div className="glass rounded-xl p-6">
               <div className="flex items-center gap-2 mb-1">
                 <Palette className="w-5 h-5 text-muted-foreground" />
                 <h2 className="text-lg font-semibold text-card-foreground">Appearance</h2>
@@ -993,7 +993,7 @@ export default function AccountPage() {
       {activeTab === "security" && (
         <div className="space-y-6">
           {/* Change Password */}
-          <div className="bg-card border border-border rounded-xl p-6">
+          <div className="glass rounded-xl p-6">
             <h2 className="text-lg font-semibold text-card-foreground mb-1">Change Password</h2>
             <p className="text-xs text-muted-foreground mb-4">Update your password regularly for better security.</p>
             {passwordCooldown.locked ? (
@@ -1049,7 +1049,7 @@ export default function AccountPage() {
           </div>
 
           {/* Two-Factor Authentication */}
-          <div className="bg-card border border-border rounded-xl p-6">
+          <div className="glass rounded-xl p-6">
             <div className="flex items-start justify-between mb-4">
               <div>
                 <div className="flex items-center gap-2 mb-1">
@@ -1279,7 +1279,7 @@ export default function AccountPage() {
                 <h3 className="text-lg font-semibold text-emerald-600 dark:text-emerald-400">2FA Enabled Successfully</h3>
               </div>
               <p className="text-xs text-muted-foreground mb-4">Save these recovery codes in a safe place. You will need them if you lose access to your authenticator app.</p>
-              <div className="grid grid-cols-2 gap-2 p-4 rounded-lg bg-muted/50 border border-border mb-4">
+              <div className="grid grid-cols-2 gap-2 p-4 rounded-lg glass-subtle mb-4">
                 {twoFARecoveryCodes.map((code, i) => (
                   <code key={i} className="text-xs font-mono text-foreground">{code}</code>
                 ))}
@@ -1299,7 +1299,7 @@ export default function AccountPage() {
           )}
 
           {/* Active Sessions */}
-          <div className="bg-card border border-border rounded-xl p-6">
+          <div className="glass rounded-xl p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-lg font-semibold text-card-foreground">Active Sessions</h2>
@@ -1411,7 +1411,7 @@ export default function AccountPage() {
       {/* ═══════════════════════════════════════════ */}
       {activeTab === "activity" && (
         <div className="space-y-6">
-          <div className="bg-card border border-border rounded-xl p-6">
+          <div className="glass rounded-xl p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-lg font-semibold text-card-foreground">Activity Log</h2>
@@ -1553,7 +1553,7 @@ export default function AccountPage() {
         <div className="space-y-6">
           {/* Credit Summary Card */}
           {aiCredits && (
-            <div className="bg-card border border-border rounded-xl p-6">
+            <div className="glass rounded-xl p-6">
               <div className="flex items-start gap-4">
                 <MabiniIcon size={48} />
                 <div className="flex-1 min-w-0">
@@ -1595,7 +1595,7 @@ export default function AccountPage() {
           )}
 
           {/* Conversation History */}
-          <div className="bg-card border border-border rounded-xl overflow-hidden">
+          <div className="glass rounded-xl overflow-hidden">
             <div className="px-6 py-4 border-b border-border">
               <h3 className="text-sm font-semibold text-card-foreground">Conversation History</h3>
               <p className="text-[11px] text-muted-foreground mt-0.5">All your Mabini AI sessions with full chat logs and cost breakdown</p>
@@ -1724,7 +1724,7 @@ export default function AccountPage() {
       {activeTab === "notifications" && (
         <div className="space-y-6">
           {/* Email Notifications */}
-          <div className="bg-card border border-border rounded-xl p-6">
+          <div className="glass rounded-xl p-6">
             <div className="flex items-center gap-2 mb-1">
               <Mail className="w-5 h-5 text-muted-foreground" />
               <h2 className="text-lg font-semibold text-card-foreground">Email Notifications</h2>
@@ -1750,7 +1750,7 @@ export default function AccountPage() {
           </div>
 
           {/* SMS Notifications */}
-          <div className="bg-card border border-border rounded-xl p-6">
+          <div className="glass rounded-xl p-6">
             <div className="flex items-center gap-2 mb-1">
               <MessageSquare className="w-5 h-5 text-muted-foreground" />
               <h2 className="text-lg font-semibold text-card-foreground">SMS Notifications</h2>
@@ -1782,7 +1782,7 @@ export default function AccountPage() {
           </div>
 
           {/* In-App Notifications */}
-          <div className="bg-card border border-border rounded-xl p-6">
+          <div className="glass rounded-xl p-6">
             <div className="flex items-center gap-2 mb-1">
               <Bell className="w-5 h-5 text-muted-foreground" />
               <h2 className="text-lg font-semibold text-card-foreground">In-App Notifications</h2>
@@ -1807,7 +1807,7 @@ export default function AccountPage() {
           </div>
 
           {/* Quiet Hours */}
-          <div className="bg-card border border-border rounded-xl p-6">
+          <div className="glass rounded-xl p-6">
             <div className="flex items-center gap-2 mb-1">
               <BellOff className="w-5 h-5 text-muted-foreground" />
               <h2 className="text-lg font-semibold text-card-foreground">Quiet Hours</h2>
@@ -1850,7 +1850,7 @@ export default function AccountPage() {
       {activeTab === "privacy" && (
         <div className="space-y-6">
           {/* RA 10173 Compliance Banner */}
-          <div className="bg-card border border-border rounded-xl p-6">
+          <div className="glass rounded-xl p-6">
             <div className="flex items-start gap-4">
               <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "var(--accent-bg)" }}>
                 <ShieldCheck className="w-6 h-6" style={{ color: "var(--accent-primary)" }} />
@@ -1873,7 +1873,7 @@ export default function AccountPage() {
           </div>
 
           {/* Your Data */}
-          <div className="bg-card border border-border rounded-xl p-6">
+          <div className="glass rounded-xl p-6">
             <h2 className="text-lg font-semibold text-card-foreground mb-1">Your Data</h2>
             <p className="text-xs text-muted-foreground mb-4">Information stored about you in this system.</p>
             <div className="space-y-3">
@@ -1899,7 +1899,7 @@ export default function AccountPage() {
           </div>
 
           {/* Data Export */}
-          <div className="bg-card border border-border rounded-xl p-6">
+          <div className="glass rounded-xl p-6">
             <div className="flex items-center gap-2 mb-1">
               <Download className="w-5 h-5 text-muted-foreground" />
               <h2 className="text-lg font-semibold text-card-foreground">Download Your Data</h2>
@@ -1923,7 +1923,7 @@ export default function AccountPage() {
           </div>
 
           {/* Data Retention */}
-          <div className="bg-card border border-border rounded-xl p-6">
+          <div className="glass rounded-xl p-6">
             <div className="flex items-center gap-2 mb-1">
               <Clock className="w-5 h-5 text-muted-foreground" />
               <h2 className="text-lg font-semibold text-card-foreground">Data Retention</h2>
@@ -1948,7 +1948,7 @@ export default function AccountPage() {
           </div>
 
           {/* Consent & Agreements */}
-          <div className="bg-card border border-border rounded-xl p-6">
+          <div className="glass rounded-xl p-6">
             <div className="flex items-center gap-2 mb-1">
               <FileText className="w-5 h-5 text-muted-foreground" />
               <h2 className="text-lg font-semibold text-card-foreground">Consent & Agreements</h2>
@@ -2020,7 +2020,7 @@ export default function AccountPage() {
       {/* ═══════════════════════════════════════════ */}
       {showPhoneVerify && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowPhoneVerify(false)}>
-          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-sm mx-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="glass rounded-xl p-6 w-full max-w-sm mx-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-card-foreground mb-1">Verify Phone Number</h3>
             <p className="text-xs text-muted-foreground mb-4">
               We will send a 6-digit verification code to <span className="font-medium text-foreground">{phoneToVerify}</span>
@@ -2040,7 +2040,7 @@ export default function AccountPage() {
               <div className="space-y-3">
                 {/* Expiry timer */}
                 {phoneOtpExpiry > 0 ? (
-                  <div className="flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg bg-muted/50 border border-border">
+                  <div className="flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg glass-subtle">
                     <Clock className="w-3.5 h-3.5 text-muted-foreground" />
                     <span className={`text-xs font-mono font-medium ${phoneOtpExpiry <= 60 ? "text-red-500" : "text-muted-foreground"}`}>
                       Code expires in {formatCountdown(phoneOtpExpiry)}
@@ -2106,7 +2106,7 @@ export default function AccountPage() {
       {/* ═══════════════════════════════════════════ */}
       {showEmailVerify && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowEmailVerify(false)}>
-          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-sm mx-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="glass rounded-xl p-6 w-full max-w-sm mx-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-card-foreground mb-1">Verify Email Address</h3>
             <p className="text-xs text-muted-foreground mb-4">
               We will send a 6-digit verification code to <span className="font-medium text-foreground">{emailToVerify}</span>
@@ -2126,7 +2126,7 @@ export default function AccountPage() {
               <div className="space-y-3">
                 {/* Expiry timer */}
                 {emailOtpExpiry > 0 ? (
-                  <div className="flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg bg-muted/50 border border-border">
+                  <div className="flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg glass-subtle">
                     <Clock className="w-3.5 h-3.5 text-muted-foreground" />
                     <span className={`text-xs font-mono font-medium ${emailOtpExpiry <= 60 ? "text-red-500" : "text-muted-foreground"}`}>
                       Code expires in {formatCountdown(emailOtpExpiry)}
@@ -2192,7 +2192,7 @@ export default function AccountPage() {
       {/* ═══════════════════════════════════════════ */}
       {showDisable2FA && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowDisable2FA(false)}>
-          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-sm mx-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="glass rounded-xl p-6 w-full max-w-sm mx-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-red-600 dark:text-red-400 mb-1">Disable Two-Factor Authentication</h3>
             <p className="text-xs text-muted-foreground mb-4">
               Enter your password to confirm. This will remove the extra security layer from your account.
@@ -2244,12 +2244,12 @@ export default function AccountPage() {
       {/* ═══════════════════════════════════════════ */}
       {showRecoveryCodes && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowRecoveryCodes(false)}>
-          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md mx-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="glass rounded-xl p-6 w-full max-w-md mx-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-card-foreground mb-1">Recovery Codes</h3>
             <p className="text-xs text-muted-foreground mb-4">
               Store these codes securely. Each code can only be used once. If you lose access to your authenticator, use a recovery code to sign in.
             </p>
-            <div className="grid grid-cols-2 gap-2 p-4 rounded-lg bg-muted/50 border border-border mb-4">
+            <div className="grid grid-cols-2 gap-2 p-4 rounded-lg glass-subtle mb-4">
               {twoFARecoveryCodes.map((code, i) => (
                 <code key={i} className="text-xs font-mono text-foreground">{code}</code>
               ))}

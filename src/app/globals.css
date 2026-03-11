@@ -80,8 +80,126 @@ body {
   outline-offset: 2px;
 }
 
+/* ── Glassmorphism Utilities ──────────────────────────────── */
+
+/* Glass card — primary surface (login card, dashboard widgets, modals) */
+.glass {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.dark .glass {
+  background: rgba(30, 41, 59, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Glass subtle — lighter effect for nested elements (stat cards, table rows) */
+.glass-subtle {
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.dark .glass-subtle {
+  background: rgba(30, 41, 59, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Glass header — for sticky header bar */
+.glass-header {
+  background: rgba(255, 255, 255, 0.78);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+}
+
+.dark .glass-header {
+  background: rgba(15, 23, 42, 0.82);
+  border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+}
+
+/* Glass sidebar */
+.glass-sidebar {
+  background: rgba(255, 255, 255, 0.68);
+  border-right: 1px solid rgba(226, 232, 240, 0.5);
+}
+
+.dark .glass-sidebar {
+  background: rgba(15, 23, 42, 0.75);
+  border-right: 1px solid rgba(51, 65, 85, 0.4);
+}
+
+/* Backdrop blur — applied via @supports for performance fallback */
+@supports (backdrop-filter: blur(12px)) {
+  .glass,
+  .glass-subtle {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  .glass-header {
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+  .glass-sidebar {
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+}
+
+/* Animated glow ring for login card */
+@keyframes glass-glow {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.7; }
+}
+
+.glass-glow {
+  position: relative;
+}
+
+.glass-glow::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, var(--accent-primary), transparent 40%, transparent 60%, var(--accent-ring));
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  -webkit-mask-composite: xor;
+  opacity: 0.5;
+  animation: glass-glow 4s ease-in-out infinite;
+  pointer-events: none;
+}
+
 /* Toast progress bar animation */
 @keyframes shrink {
   from { width: 100%; }
   to { width: 0%; }
+}
+
+/* ── Census Mobile Mode ──
+   When ResidentsPage renders inside the census layout, force single-column
+   grids and reduce padding for phone-sized screens. */
+@media (max-width: 767px) {
+  .census-mobile-view {
+    /* Force all grids to single column on phones */
+    & .grid-cols-2,
+    & .grid-cols-3,
+    & .grid-cols-4 {
+      grid-template-columns: 1fr !important;
+    }
+    /* Reduce page padding */
+    & > div { padding: 0.75rem !important; }
+    /* Make stat cards stack vertically */
+    & .grid.grid-cols-4 { grid-template-columns: repeat(2, 1fr) !important; }
+    /* Compact table for mobile */
+    & table { font-size: 0.75rem; }
+    & th, & td { padding: 0.5rem 0.375rem; }
+    /* Hide elements not needed on mobile census */
+    & .hidden-census { display: none !important; }
+    /* Full-width action buttons */
+    & button { min-height: 44px; } /* Principle 10: 44px touch targets */
+    /* Toast repositioning for mobile */
+    & ~ .fixed.bottom-6.right-6 { bottom: 1rem; right: 0.5rem; left: 0.5rem; }
+    & ~ .fixed.bottom-6.right-6 > div { width: 100%; }
+  }
 }

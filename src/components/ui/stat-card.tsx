@@ -15,7 +15,7 @@ export function StatCard({ label, value, icon, trend, className }: StatCardProps
   return (
     <div
       className={cn(
-        "flex items-start justify-between p-5 rounded-xl border border-border bg-card",
+        "flex items-start justify-between p-5 rounded-xl glass-subtle",
         className
       )}
     >

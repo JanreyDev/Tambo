@@ -225,7 +225,9 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      router.replace("/dashboard");
+      // Phone users go to census mode (residents-only mobile interface)
+      const isMobile = window.matchMedia("(max-width: 767px)").matches;
+      router.replace(isMobile ? "/census" : "/dashboard");
     }
   }, [isLoading, isAuthenticated, router]);
 
@@ -247,7 +249,8 @@ export default function LoginPage() {
     try {
       await login(username, password, rememberMe);
       toast("success", "Login successful", "Redirecting to your dashboard...", 3000);
-      router.push("/dashboard");
+      const isMobile = window.matchMedia("(max-width: 767px)").matches;
+      router.push(isMobile ? "/census" : "/dashboard");
     } catch (err) {
       if (isApiError(err)) {
         // API returned a structured error response
@@ -284,7 +287,7 @@ export default function LoginPage() {
       {/* ── Version Selection Modal ── */}
       {showVersionModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md bg-[#0c1230] rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
+          <div className="w-full max-w-md bg-[#0c1230]/80 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
             {/* Header */}
             <div className="px-6 pt-6 pb-4 text-center">
               <Image
@@ -456,7 +459,10 @@ export default function LoginPage() {
       </div>
 
       {/* ── Right Panel — Login Form + Security Intelligence ── */}
-      <div className="flex-1 flex items-center justify-center px-6 py-10 lg:py-12 bg-background relative">
+      <div className="flex-1 flex items-center justify-center px-6 py-10 lg:py-12 bg-background relative overflow-hidden">
+        {/* Glass background orbs */}
+        <div className="absolute top-[-15%] right-[-15%] w-[400px] h-[400px] rounded-full blur-[100px] opacity-[0.08]" style={{ background: "var(--accent-primary)" }} />
+        <div className="absolute bottom-[-10%] left-[-10%] w-[300px] h-[300px] rounded-full blur-[80px] opacity-[0.05]" style={{ background: "var(--accent-ring)" }} />
         {/* Staging indicator */}
         {process.env.NODE_ENV !== "production" && (
           <div className="absolute top-4 right-4 px-3 py-1 bg-amber-500 text-white text-[11px] font-bold rounded tracking-wide">
@@ -464,7 +470,7 @@ export default function LoginPage() {
           </div>
         )}
 
-        <div className="w-full max-w-[420px]">
+        <div className="w-full max-w-[420px] relative z-10">
           {/* ── Insecure Connection Warning ── */}
           {!connectionSecure ? (
             <div className="space-y-6">
@@ -523,8 +529,8 @@ export default function LoginPage() {
                 <p className="text-muted-foreground text-sm mt-1.5">Sign in to your barangay dashboard</p>
               </div>
 
-              {/* Login Form */}
-              <form onSubmit={handleLogin} noValidate className="space-y-4">
+              {/* Login Form — Glass Card */}
+              <form onSubmit={handleLogin} noValidate className="glass glass-glow rounded-2xl p-6 space-y-4">
                 {/* Username */}
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1.5">
@@ -610,7 +616,7 @@ export default function LoginPage() {
             </>
           )}
 
-          {/* ── Security Intelligence Panel ── */}
+          {/* ── Security Intelligence Panel — Glass ── */}
           {mounted && securityInfo && (
             <div className="mt-6">
               {/* Security header badge */}
@@ -623,7 +629,7 @@ export default function LoginPage() {
               </div>
 
               {/* Security grid */}
-              <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-0.5">
+              <div className="glass-subtle rounded-xl p-3 space-y-0.5">
                 <div className="grid grid-cols-2 gap-2">
                   <div className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-background/60">
                     <Lock className="w-3.5 h-3.5 text-emerald-500 shrink-0" />

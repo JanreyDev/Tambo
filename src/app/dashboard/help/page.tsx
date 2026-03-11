@@ -219,7 +219,7 @@ export default function HelpPage() {
             ))}
 
             {/* Need more help */}
-            <div className="mt-6 p-5 rounded-xl bg-muted/50 border border-border">
+            <div className="mt-6 p-5 rounded-xl glass-subtle">
               <div className="flex items-center gap-2 mb-3">
                 <MessageCircle className="w-5 h-5 text-muted-foreground" />
                 <h3 className="text-sm font-bold text-foreground">{help.needMoreHelp}</h3>
@@ -237,7 +237,7 @@ export default function HelpPage() {
           const subTitle = (help as Record<string, unknown>)[sub.titleKey] as string;
 
           return (
-            <div key={sub.id} className="rounded-xl border border-border bg-card overflow-hidden">
+            <div key={sub.id} className="rounded-xl glass overflow-hidden">
               <div className="flex items-center gap-3 px-5 py-4 bg-muted/30">
                 <SubIcon className="w-4.5 h-4.5 text-muted-foreground shrink-0" />
                 <h3 className="text-[15px] font-semibold text-foreground">{subTitle}</h3>
@@ -355,7 +355,7 @@ export default function HelpPage() {
           </nav>
 
           {/* Mabini AI help */}
-          <div className="mt-6 p-3 rounded-xl border border-border bg-card">
+          <div className="mt-6 p-3 rounded-xl glass">
             <div className="flex items-center gap-2 mb-2">
               <Bot className="w-4 h-4" style={{ color: "var(--accent-primary)" }} />
               <span className="text-xs font-semibold text-foreground">Mabini AI</span>

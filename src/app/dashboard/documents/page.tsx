@@ -378,7 +378,7 @@ export default function DocumentsPage() {
             </div>
             {/* Search Dropdown */}
             {showResidentDropdown && residentSearchResults.length > 0 && (
-              <div className="absolute z-20 w-full mt-1 bg-card border border-border rounded-lg shadow-lg max-h-60 overflow-y-auto">
+              <div className="absolute z-20 w-full mt-1 glass rounded-lg shadow-lg max-h-60 overflow-y-auto">
                 {residentSearchResults.map((r) => (
                   <button key={r.id} onClick={() => selectResident(r)}
                     className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted transition-colors border-b border-border last:border-0">
@@ -395,7 +395,7 @@ export default function DocumentsPage() {
               </div>
             )}
             {showResidentDropdown && form.resident_search.length >= 2 && residentSearchResults.length === 0 && (
-              <div className="absolute z-20 w-full mt-1 bg-card border border-border rounded-lg shadow-lg">
+              <div className="absolute z-20 w-full mt-1 glass rounded-lg shadow-lg">
                 <div className="px-4 py-6 text-center text-sm text-muted-foreground">No residents found matching your search.</div>
               </div>
             )}
@@ -407,7 +407,7 @@ export default function DocumentsPage() {
 
           {/* Selected Resident Info */}
           {form.selected_resident_id && (
-            <div className="p-4 rounded-lg border border-border bg-muted/30 space-y-3">
+            <div className="p-4 rounded-lg glass-subtle space-y-3">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-sm font-bold text-white shrink-0">
                   {form.selected_resident_name.split(",")[0][0]}{form.selected_resident_name.split(" ").pop()?.[0] || ""}
@@ -474,7 +474,7 @@ export default function DocumentsPage() {
           </div>
 
           {/* Summary Card */}
-          <div className="p-4 rounded-lg border border-border bg-muted/30 space-y-2">
+          <div className="p-4 rounded-lg glass-subtle space-y-2">
             <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Issuance Summary</h4>
             <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
               <div>
@@ -551,7 +551,7 @@ export default function DocumentsPage() {
           </button>
         </div>
         {showFilters && (
-          <div className="flex flex-wrap items-center gap-3 p-4 rounded-lg border border-border bg-card">
+          <div className="flex flex-wrap items-center gap-3 p-4 rounded-lg glass-subtle">
             <select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}
               className="px-3 py-1.5 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
               {documentTypes.map((t) => <option key={t}>{t}</option>)}
@@ -566,7 +566,7 @@ export default function DocumentsPage() {
         )}
       </div>
 
-      <div className="rounded-xl border border-border overflow-hidden bg-card">
+      <div className="rounded-xl glass overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -640,7 +640,7 @@ export default function DocumentsPage() {
                             <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
                           </button>
                           {actionMenu === d.id && (
-                            <div className="absolute right-0 top-8 z-20 w-44 bg-card border border-border rounded-lg shadow-lg py-1">
+                            <div className="absolute right-0 top-8 z-20 w-44 glass rounded-lg shadow-lg py-1">
                               <button onClick={() => { setViewDocument(d); setActionMenu(null); }}
                                 className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted text-left">
                                 <Eye className="h-3.5 w-3.5" /> View Details
@@ -885,7 +885,7 @@ export default function DocumentsPage() {
       {toasts.length > 0 && (
         <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
           {toasts.map((toast) => (
-            <div key={toast.id} className="flex items-start gap-3 px-4 py-3 rounded-lg border border-border bg-card shadow-lg animate-in slide-in-from-bottom-2 max-w-sm">
+            <div key={toast.id} className="flex items-start gap-3 px-4 py-3 rounded-lg glass shadow-lg animate-in slide-in-from-bottom-2 max-w-sm">
               <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
               <div className="min-w-0">
                 <p className="text-sm font-medium text-foreground">{toast.title}</p>

@@ -338,7 +338,7 @@ export default function KpCasesPage() {
           </button>
         </div>
         {showFilters && (
-          <div className="flex flex-wrap items-center gap-3 p-4 rounded-lg border border-border bg-card">
+          <div className="flex flex-wrap items-center gap-3 p-4 rounded-lg glass-subtle">
             <select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}
               className="px-3 py-1.5 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
               {caseTypes.map((t) => <option key={t}>{t}</option>)}
@@ -356,7 +356,7 @@ export default function KpCasesPage() {
       {/* Case Cards */}
       <div className="space-y-3">
         {paged.length === 0 ? (
-          <div className="p-16 text-center rounded-xl border border-border bg-card">
+          <div className="p-16 text-center rounded-xl glass">
             <div className="flex flex-col items-center gap-3">
               <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center"><Scale className="w-6 h-6 text-muted-foreground" /></div>
               <div>
@@ -368,7 +368,7 @@ export default function KpCasesPage() {
           </div>
         ) : (
           paged.map((c) => (
-            <div key={c.id} className="p-5 rounded-xl border border-border bg-card hover:shadow-md transition-all cursor-pointer" onClick={() => setViewCase(c)}>
+            <div key={c.id} className="p-5 rounded-xl glass hover:shadow-md transition-all cursor-pointer" onClick={() => setViewCase(c)}>
               <div className="flex items-start justify-between">
                 <div className="flex items-start gap-4">
                   <div className="w-10 h-10 rounded-lg bg-accent-bg flex items-center justify-center shrink-0">
@@ -401,7 +401,7 @@ export default function KpCasesPage() {
                       <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
                     </button>
                     {actionMenu === c.id && (
-                      <div className="absolute right-0 top-8 z-20 w-44 bg-card border border-border rounded-lg shadow-lg py-1">
+                      <div className="absolute right-0 top-8 z-20 w-44 glass rounded-lg shadow-lg py-1">
                         <button onClick={() => { setViewCase(c); setActionMenu(null); }} className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted text-left"><Eye className="h-3.5 w-3.5" /> View Case</button>
                         <button onClick={() => openEditCase(c)} className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted text-left"><Edit className="h-3.5 w-3.5" /> Edit</button>
                         <button onClick={() => { openScheduleHearing(c); setActionMenu(null); }} className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted text-left"><Calendar className="h-3.5 w-3.5" /> Schedule Hearing</button>
@@ -449,13 +449,13 @@ export default function KpCasesPage() {
               <Badge variant="muted">{viewCase.case_type}</Badge>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="p-4 rounded-lg border border-border">
+              <div className="p-4 rounded-lg glass-subtle">
                 <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Complainant(s)</p>
                 {viewCase.complainants.map((c, i) => <p key={i} className="text-sm text-foreground font-medium">{c}</p>)}
                 {viewCase.complainant_contact && <p className="text-[11px] text-muted-foreground mt-1">Contact: {viewCase.complainant_contact}</p>}
                 {viewCase.complainant_address && <p className="text-[11px] text-muted-foreground">Address: {viewCase.complainant_address}</p>}
               </div>
-              <div className="p-4 rounded-lg border border-border">
+              <div className="p-4 rounded-lg glass-subtle">
                 <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Respondent(s)</p>
                 {viewCase.respondents.map((r, i) => <p key={i} className="text-sm text-foreground font-medium">{r}</p>)}
                 {viewCase.respondent_contact && <p className="text-[11px] text-muted-foreground mt-1">Contact: {viewCase.respondent_contact}</p>}
@@ -463,7 +463,7 @@ export default function KpCasesPage() {
               </div>
             </div>
             {viewCase.description && (
-              <div className="p-4 rounded-lg bg-muted/50 border border-border">
+              <div className="p-4 rounded-lg glass-subtle">
                 <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Description / Facts</p>
                 <p className="text-sm text-foreground leading-relaxed">{viewCase.description}</p>
               </div>
@@ -480,7 +480,7 @@ export default function KpCasesPage() {
               <div><p className="text-[11px] text-muted-foreground uppercase">Hearings Held</p><p className="text-sm">{viewCase.hearing_count}</p></div>
               <div><p className="text-[11px] text-muted-foreground uppercase">Lupon Chairman</p><p className="text-sm">{viewCase.lupon_chairman}</p></div>
             </div>
-            <div className="p-4 rounded-lg bg-muted/50 border border-border">
+            <div className="p-4 rounded-lg glass-subtle">
               <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Remarks</p>
               <p className="text-sm text-foreground">{viewCase.remarks}</p>
             </div>
@@ -585,7 +585,7 @@ export default function KpCasesPage() {
       {/* Toast Notifications */}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
         {toasts.map((t) => (
-          <div key={t.id} className="flex items-center gap-2 px-4 py-3 rounded-lg border border-border bg-card shadow-lg animate-in slide-in-from-bottom-2 fade-in duration-200">
+          <div key={t.id} className="flex items-center gap-2 px-4 py-3 rounded-lg glass shadow-lg animate-in slide-in-from-bottom-2 fade-in duration-200">
             <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
             <span className="text-sm font-medium text-foreground">{t.message}</span>
             <button onClick={() => removeToast(t.id)} className="ml-2 text-muted-foreground hover:text-foreground"><X className="w-3.5 h-3.5" /></button>
@@ -605,7 +605,7 @@ export default function KpCasesPage() {
         }>
         <div className="space-y-4">
           {viewCase && (
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border">
+            <div className="flex items-center gap-2 p-3 rounded-lg glass-subtle">
               <span className="text-xs text-muted-foreground">Current status:</span>
               <StatusBadge status={viewCase.status} />
             </div>

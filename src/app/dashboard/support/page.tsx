@@ -210,7 +210,7 @@ export default function SupportPage() {
           </button>
         </div>
         {showFilters && (
-          <div className="flex flex-wrap items-center gap-3 p-4 rounded-lg border border-border bg-card">
+          <div className="flex flex-wrap items-center gap-3 p-4 rounded-lg glass-subtle">
             <select value={categoryFilter} onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}
               className="px-3 py-1.5 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
               {categories.map((c) => <option key={c}>{c}</option>)}
@@ -228,7 +228,7 @@ export default function SupportPage() {
       {/* Ticket List */}
       <div className="space-y-2">
         {paged.length === 0 ? (
-          <div className="p-12 text-center rounded-xl border border-border bg-card flex flex-col items-center gap-3">
+          <div className="p-12 text-center rounded-xl glass flex flex-col items-center gap-3">
             <Headphones className="h-10 w-10 text-muted-foreground/50" />
             <div>
               <p className="text-sm font-medium text-foreground">No support tickets</p>
@@ -237,7 +237,7 @@ export default function SupportPage() {
           </div>
         ) : (
           paged.map((t) => (
-            <div key={t.id} className="p-4 rounded-xl border border-border bg-card hover:shadow-md transition-all cursor-pointer" onClick={() => setViewTicket(t)}>
+            <div key={t.id} className="p-4 rounded-xl glass hover:shadow-md transition-all cursor-pointer" onClick={() => setViewTicket(t)}>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
@@ -257,7 +257,7 @@ export default function SupportPage() {
                   <div className="relative" onClick={(e) => e.stopPropagation()}>
                     <button onClick={() => setActionMenu(actionMenu === t.id ? null : t.id)} className="p-1.5 rounded hover:bg-muted"><MoreHorizontal className="h-4 w-4 text-muted-foreground" /></button>
                     {actionMenu === t.id && (
-                      <div className="absolute right-0 top-8 z-20 w-44 bg-card border border-border rounded-lg shadow-lg py-1">
+                      <div className="absolute right-0 top-8 z-20 w-44 glass rounded-lg shadow-lg py-1">
                         <button onClick={() => { setViewTicket(t); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Eye className="h-3.5 w-3.5" /> View</button>
                         {t.status === "open" && <button onClick={() => { showToast("Ticket Resolved"); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><CheckCircle2 className="h-3.5 w-3.5" /> Mark Resolved</button>}
                         <button onClick={() => { setViewTicket(t); setShowDelete(true); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-muted flex items-center gap-2"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
@@ -313,7 +313,7 @@ export default function SupportPage() {
                 rows={5} className={cn("w-full px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 resize-none", formErrors.description ? "border-red-500 focus:ring-red-300" : "border-border focus:ring-accent-ring")} />
               {formErrors.description && <p className="text-[11px] text-red-500 mt-1">{formErrors.description}</p>}
             </div>
-            <div className="p-4 rounded-lg bg-muted/50 border border-border">
+            <div className="p-4 rounded-lg glass-subtle">
               <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Ticket Summary</p>
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div><span className="text-muted-foreground">Subject:</span> <span className="font-medium">{form.subject || "--"}</span></div>

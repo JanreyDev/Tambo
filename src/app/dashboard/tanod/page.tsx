@@ -285,7 +285,7 @@ export default function TanodPage() {
         <StatCard label="Incidents This Week" value={mockSchedules.reduce((sum, s) => sum + s.incidents_reported, 0)} icon={<Shield className="h-5 w-5" />} />
       </div>
 
-      <div className="flex items-center gap-1 p-1 rounded-lg bg-muted/50 border border-border w-fit">
+      <div className="flex items-center gap-1 p-1 rounded-lg glass-subtle w-fit">
         <button onClick={() => setActiveTab("members")}
           className={cn("px-4 py-2 text-sm font-medium rounded-md transition-colors",
             activeTab === "members" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
@@ -306,7 +306,7 @@ export default function TanodPage() {
       </div>
 
       {activeTab === "members" && (
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="rounded-xl glass overflow-hidden">
           <table className="w-full">
             <thead>
               <tr className="border-b border-border bg-muted/50">
@@ -356,7 +356,7 @@ export default function TanodPage() {
                     <div className="relative" onClick={(e) => e.stopPropagation()}>
                       <button onClick={() => setActionMenu(actionMenu === m.id ? null : m.id)} className="p-1.5 rounded hover:bg-muted"><MoreHorizontal className="h-4 w-4 text-muted-foreground" /></button>
                       {actionMenu === m.id && (
-                        <div className="absolute right-0 top-8 z-20 w-44 bg-card border border-border rounded-lg shadow-lg py-1">
+                        <div className="absolute right-0 top-8 z-20 w-44 glass rounded-lg shadow-lg py-1">
                           <button onClick={() => { setViewMember(m); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Eye className="h-3.5 w-3.5" /> View</button>
                           <button onClick={() => openEdit(m)} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Edit className="h-3.5 w-3.5" /> Edit</button>
                           <button onClick={() => { setDeleteMember(m); setShowDelete(true); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-muted flex items-center gap-2"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
@@ -374,7 +374,7 @@ export default function TanodPage() {
       {activeTab === "schedule" && (
         <div className="space-y-3">
           {filteredSchedules.length === 0 && (
-            <div className="rounded-xl border border-border bg-card px-4 py-12">
+            <div className="rounded-xl glass px-4 py-12">
               <div className="flex flex-col items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
                   <Calendar className="w-6 h-6 text-muted-foreground" />
@@ -390,7 +390,7 @@ export default function TanodPage() {
             </div>
           )}
           {filteredSchedules.map((s) => (
-            <div key={s.id} className={cn("p-4 rounded-xl border bg-card", s.status === "ongoing" && "border-accent-primary/50 bg-accent-bg/30")}>
+            <div key={s.id} className={cn("p-4 rounded-xl border glass", s.status === "ongoing" && "border-accent-primary/50 bg-accent-bg/30")}>
               <div className="flex items-start justify-between">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
@@ -406,7 +406,7 @@ export default function TanodPage() {
                   <div className="relative" onClick={(e) => e.stopPropagation()}>
                     <button onClick={() => setScheduleActionMenu(scheduleActionMenu === s.id ? null : s.id)} className="p-1.5 rounded hover:bg-muted"><MoreHorizontal className="h-4 w-4 text-muted-foreground" /></button>
                     {scheduleActionMenu === s.id && (
-                      <div className="absolute right-0 top-8 z-20 w-44 bg-card border border-border rounded-lg shadow-lg py-1">
+                      <div className="absolute right-0 top-8 z-20 w-44 glass rounded-lg shadow-lg py-1">
                         <button onClick={() => openScheduleEdit(s)} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Edit className="h-3.5 w-3.5" /> Edit</button>
                         <button onClick={() => { setDeleteSchedule(s); setShowScheduleDelete(true); setScheduleActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-muted flex items-center gap-2"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
                       </div>

@@ -133,7 +133,7 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="hidden lg:flex flex-col w-[232px] border-r border-sidebar-border bg-sidebar-bg h-screen sticky top-0 shrink-0">
+    <aside className="hidden lg:flex flex-col w-[232px] glass-sidebar h-screen sticky top-0 shrink-0">
       {/* Barangay Identity */}
       <div className="px-3 pt-4 pb-2">
         <div className="relative rounded-xl p-3 overflow-hidden" style={{ background: "var(--accent-primary)" }}>

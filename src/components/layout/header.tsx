@@ -146,7 +146,7 @@ export function Header({ onToggleSidebar, onToggleAI }: HeaderProps) {
   const notifCount = unreadCount;
 
   return (
-    <header className="sticky top-0 z-30 flex items-center h-14 px-3 md:px-5 border-b border-border bg-card/95 backdrop-blur-md">
+    <header className="sticky top-0 z-30 flex items-center h-14 px-3 md:px-5 glass-header">
       {/* Mobile menu button */}
       <button
         onClick={onToggleSidebar}
@@ -234,7 +234,7 @@ export function Header({ onToggleSidebar, onToggleAI }: HeaderProps) {
           {notifOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setNotifOpen(false)} />
-              <div className="absolute right-0 top-full mt-1.5 w-80 sm:w-96 rounded-2xl border border-border bg-card shadow-2xl z-50 overflow-hidden">
+              <div className="absolute right-0 top-full mt-1.5 w-80 sm:w-96 rounded-2xl glass shadow-2xl z-50 overflow-hidden">
                 {/* Header */}
                 <div className="flex items-center justify-between px-4 py-3 border-b border-border">
                   <div className="flex items-center gap-2">
@@ -342,7 +342,7 @@ export function Header({ onToggleSidebar, onToggleAI }: HeaderProps) {
           {userMenuOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
-              <div className="absolute right-0 top-full mt-1.5 w-72 rounded-2xl border border-border bg-card shadow-2xl z-50 overflow-hidden">
+              <div className="absolute right-0 top-full mt-1.5 w-72 rounded-2xl glass shadow-2xl z-50 overflow-hidden">
                 {/* Accent header */}
                 <div className="relative px-4 pt-5 pb-4 overflow-hidden">
                   <div className="absolute inset-0 opacity-[0.07]" style={{ background: "var(--accent-primary)" }} />

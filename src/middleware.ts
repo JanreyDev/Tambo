@@ -26,9 +26,12 @@ export function middleware(request: NextRequest) {
 
   // Security headers on ALL responses
   const response = (() => {
-    // Authenticated user on public pages -> redirect to dashboard
+    // Authenticated user on public pages -> redirect to dashboard (or census for phones)
     if (isPublicPath && hasAuth) {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
+      // Use User-Agent heuristic for phone detection (client-side layouts also handle this)
+      const ua = request.headers.get("user-agent") || "";
+      const isPhone = /iPhone|Android.*Mobile|webOS|BlackBerry|Opera Mini|IEMobile/i.test(ua);
+      return NextResponse.redirect(new URL(isPhone ? "/census" : "/dashboard", request.url));
     }
 
     // Unauthenticated user trying to access protected route -> redirect to root (login)
@@ -47,7 +50,7 @@ export function middleware(request: NextRequest) {
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("X-XSS-Protection", "1; mode=block");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-  response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
+  response.headers.set("Permissions-Policy", "camera=(self), microphone=(), geolocation=(), payment=()");
   response.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
 
   return response;

@@ -182,15 +182,15 @@ export default function ReportsPage() {
 
       {/* Quick Stats */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="p-4 rounded-xl border border-border bg-card">
+        <div className="p-4 rounded-xl glass">
           <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Total Templates</p>
           <p className="text-2xl font-bold text-foreground mt-1">{reportTemplates.length}</p>
         </div>
-        <div className="p-4 rounded-xl border border-border bg-card">
+        <div className="p-4 rounded-xl glass">
           <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">DILG Required</p>
           <p className="text-2xl font-bold text-foreground mt-1">{dilgCount}</p>
         </div>
-        <div className="p-4 rounded-xl border border-border bg-card">
+        <div className="p-4 rounded-xl glass">
           <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Categories</p>
           <p className="text-2xl font-bold text-foreground mt-1">{categories.length - 1}</p>
         </div>
@@ -198,7 +198,7 @@ export default function ReportsPage() {
 
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-1 p-1 rounded-lg bg-muted/50 border border-border">
+        <div className="flex items-center gap-1 p-1 rounded-lg glass-subtle">
           {categories.map((c) => (
             <button key={c} onClick={() => setCategoryFilter(c)}
               className={cn("px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
@@ -219,7 +219,7 @@ export default function ReportsPage() {
         {filtered.map((r) => {
           const Icon = r.icon;
           return (
-            <div key={r.id} className="p-5 rounded-xl border border-border bg-card hover:shadow-md transition-all group cursor-pointer"
+            <div key={r.id} className="p-5 rounded-xl glass hover:shadow-md transition-all group cursor-pointer"
               onClick={() => openView(r)}>
               <div className="flex items-start justify-between mb-3">
                 <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: "var(--accent-bg)" }}>
@@ -254,7 +254,7 @@ export default function ReportsPage() {
       </div>
 
       {filtered.length === 0 && (
-        <div className="p-12 text-center rounded-xl border border-border bg-card">
+        <div className="p-12 text-center rounded-xl glass">
           <div className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center bg-muted">
             <FileBarChart className="h-8 w-8 text-muted-foreground" />
           </div>
@@ -284,16 +284,16 @@ export default function ReportsPage() {
               </div>
             </div>
 
-            <div className="p-4 rounded-lg bg-muted/30 border border-border">
+            <div className="p-4 rounded-lg glass-subtle">
               <p className="text-sm text-foreground">{viewTarget.description}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="p-3 rounded-lg border border-border">
+              <div className="p-3 rounded-lg glass-subtle">
                 <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Frequency</p>
                 <p className="text-sm font-medium text-foreground mt-1">{viewTarget.frequency}</p>
               </div>
-              <div className="p-3 rounded-lg border border-border">
+              <div className="p-3 rounded-lg glass-subtle">
                 <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Last Generated</p>
                 <p className="text-sm font-medium text-foreground mt-1">{viewTarget.last_generated}</p>
               </div>
@@ -313,7 +313,7 @@ export default function ReportsPage() {
                   { date: "2025-12-01", format: "Excel", size: "180 KB", by: "Sec. Ana Cruz" },
                   { date: "2025-11-01", format: "PDF", size: "220 KB", by: "Kap. Maria Santos" },
                 ].map((h, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-border">
+                  <div key={i} className="flex items-center justify-between p-3 rounded-lg glass-subtle">
                     <div className="flex items-center gap-3">
                       <FileText className="h-4 w-4 text-muted-foreground" />
                       <div>
@@ -344,7 +344,7 @@ export default function ReportsPage() {
             {/* Report Period */}
             <div>
               <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Report Period</p>
-              <div className="flex items-center gap-1 p-1 rounded-lg bg-muted/50 border border-border mb-3">
+              <div className="flex items-center gap-1 p-1 rounded-lg glass-subtle mb-3">
                 {["monthly", "quarterly", "annually", "custom"].map((p) => (
                   <button key={p} onClick={() => { setGenPeriod(p); setFormErrors({}); }}
                     className={cn("flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors capitalize",
@@ -417,7 +417,7 @@ export default function ReportsPage() {
             {/* Options */}
             <div>
               <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Options</p>
-              <div className="flex items-center justify-between p-3 rounded-lg border border-border">
+              <div className="flex items-center justify-between p-3 rounded-lg glass-subtle">
                 <div>
                   <p className="text-sm font-medium text-foreground">Include Charts & Graphs</p>
                   <p className="text-[11px] text-muted-foreground">Add visual data representations to the report</p>
@@ -436,7 +436,7 @@ export default function ReportsPage() {
             </div>
 
             {/* Summary */}
-            <div className="p-3 rounded-lg bg-muted/30 border border-border">
+            <div className="p-3 rounded-lg glass-subtle">
               <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Summary</p>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <span className="text-muted-foreground">Report:</span>
@@ -475,7 +475,7 @@ export default function ReportsPage() {
             <p className="text-sm text-muted-foreground mb-4">
               {generateTarget.name} has been generated successfully.
             </p>
-            <div className="p-3 rounded-lg bg-muted/30 border border-border text-left">
+            <div className="p-3 rounded-lg glass-subtle text-left">
               <div className="grid grid-cols-2 gap-1 text-xs">
                 <span className="text-muted-foreground">File:</span>
                 <span className="text-foreground font-medium">{generateTarget.name.replace(/\s+/g, "_")}.{genFormat}</span>
