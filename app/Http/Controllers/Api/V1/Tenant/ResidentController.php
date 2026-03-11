@@ -356,7 +356,7 @@ class ResidentController extends Controller
                     $inner->where('first_name', 'ilike', $firstName)
                         ->where('last_name', 'ilike', $lastName)
                         ->where('date_of_birth', $dob);
-                })->orWhere(function ($inner) use ($firstName, $lastName, $middleName, $dob) {
+                })->orWhere(function ($inner) use ($firstName, $lastName, $middleName) {
                     // Fuzzy match: similar first + last + DOB (catches typos)
                     $inner->whereRaw('LOWER(first_name) = LOWER(?)', [$firstName])
                         ->whereRaw('LOWER(last_name) = LOWER(?)', [$lastName]);
