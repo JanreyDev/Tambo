@@ -304,27 +304,27 @@ export default function LoginPage() {
             <div className="px-6 pb-3 space-y-3">
               <a
                 href="https://v4.kapitan.ph"
-                className="flex items-center gap-4 w-full px-5 py-4 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/15 transition-all group"
+                className="flex items-center gap-4 w-full px-5 py-4 rounded-xl border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/15 transition-all group"
               >
-                <div className="w-11 h-11 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0">
-                  <span className="text-amber-400 font-bold text-sm">V4</span>
+                <div className="w-11 h-11 rounded-xl bg-blue-500/15 flex items-center justify-center shrink-0">
+                  <span className="text-blue-400 font-bold text-sm">V4</span>
                 </div>
                 <div className="text-left min-w-0">
-                  <p className="text-sm font-semibold text-white group-hover:text-amber-400 transition-colors">Kapitan V4</p>
-                  <p className="text-xs text-gray-400">Current version for most barangays</p>
+                  <p className="text-sm font-semibold text-white group-hover:text-blue-400 transition-colors">Kapitan V4</p>
+                  <p className="text-xs text-gray-400">Blue login page — newer barangays</p>
                 </div>
               </a>
 
               <a
                 href="https://v3.kapitan.ph"
-                className="flex items-center gap-4 w-full px-5 py-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all group"
+                className="flex items-center gap-4 w-full px-5 py-4 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/15 transition-all group"
               >
-                <div className="w-11 h-11 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
-                  <span className="text-gray-400 font-bold text-sm">V3</span>
+                <div className="w-11 h-11 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0">
+                  <span className="text-amber-400 font-bold text-sm">V3</span>
                 </div>
                 <div className="text-left min-w-0">
-                  <p className="text-sm font-semibold text-white group-hover:text-gray-300 transition-colors">Kapitan V3</p>
-                  <p className="text-xs text-gray-500">Legacy version</p>
+                  <p className="text-sm font-semibold text-white group-hover:text-amber-400 transition-colors">Kapitan V3</p>
+                  <p className="text-xs text-gray-400">Dark login page — most barangays</p>
                 </div>
               </a>
             </div>
