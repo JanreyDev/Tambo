@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { useFounderAuth } from "@/contexts/founder-auth-context";
 import { api } from "@/lib/api";
 import { Sidebar } from "@/components/sidebar";
 import type { HeartbeatResponse } from "@/lib/types";
+
+const emptySubscribe = () => () => {};
 
 export default function DashboardLayout({
   children,
@@ -14,11 +16,7 @@ export default function DashboardLayout({
 }) {
   const { isAuthenticated, isChecking } = useFounderAuth();
   const router = useRouter();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
 
   // Redirect to passcode if not authenticated
   useEffect(() => {
