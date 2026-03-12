@@ -9,7 +9,6 @@ use App\Models\PlatformSetting;
 use App\Services\BcmpService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 /**
  * Proxy controller for BCMP tenant (barangay) management.

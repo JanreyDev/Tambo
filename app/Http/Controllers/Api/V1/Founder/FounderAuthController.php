@@ -33,8 +33,8 @@ class FounderAuthController extends Controller
         ]);
 
         $ip = $request->ip() ?? 'unknown';
-        $cacheKey = 'founder_attempts:' . $ip;
-        $lockKey = 'founder_locked:' . $ip;
+        $cacheKey = 'founder_attempts:'.$ip;
+        $lockKey = 'founder_locked:'.$ip;
 
         // Check if currently locked out
         $lockedUntil = Cache::get($lockKey);
@@ -72,7 +72,7 @@ class FounderAuthController extends Controller
                 adminUserId: null,
                 action: 'founder_passcode_failed',
                 resourceType: 'founder_session',
-                description: "Invalid founder passcode attempt ({$attempts}/" . self::MAX_ATTEMPTS . ')',
+                description: "Invalid founder passcode attempt ({$attempts}/".self::MAX_ATTEMPTS.')',
                 metadata: ['attempt_ip' => $ip, 'attempt_count' => $attempts],
                 ipAddress: $ip,
                 userAgent: $request->userAgent(),
