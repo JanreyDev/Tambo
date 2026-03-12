@@ -118,7 +118,8 @@ class BcmpService
         try {
             $pending = Http::timeout(15)
                 ->withToken($this->token())
-                ->withUserAgent('PrimeX-API/1.0')
+                ->withUserAgent('PrimeX-API/1.0 (internal)')
+                ->withoutVerifying()
                 ->acceptJson();
 
             /** @var Response $response */
