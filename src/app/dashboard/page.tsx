@@ -1,7 +1,10 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
+import { api } from "@/lib/api";
+import type { DashboardCredits } from "@/lib/types";
 import {
   Users,
   FileText,
@@ -11,6 +14,7 @@ import {
   FileCheck2,
   Bot,
   Phone,
+  Map,
   UserPlus,
   Gavel,
   Receipt,
@@ -152,8 +156,21 @@ interface RecentResident {
 
 // ── Main Dashboard ────────────────────────────────────────────────
 
+function formatPeso(amount: number): string {
+  return `₱${amount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
+  const [credits, setCredits] = useState<DashboardCredits | null>(null);
+  const [creditsLoading, setCreditsLoading] = useState(true);
+
+  useEffect(() => {
+    api.dashboard.getCredits()
+      .then(setCredits)
+      .catch(() => {/* silently fail -- cards show skeleton */})
+      .finally(() => setCreditsLoading(false));
+  }, []);
 
   const activities: ActivityRow[] = [
     { initials: "MM", name: "Resurreccion, Malvin M.", residentId: "RES-1381000006-0501", document: "Brgy Clearance", documentColor: "#3b82f6", status: "Generated", statusColor: "#22c55e", time: "2 hours ago" },
@@ -225,10 +242,28 @@ export default function DashboardPage() {
 
       {/* Credits Bar */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        <CreditCard icon={MessageSquare} label="SMS Credits" amount="₱700.00" color="#8b5cf6" trend={[650, 680, 720, 700, 690, 710, 700]} />
-        <CreditCard icon={FileText} label="Document Credits" amount="₱678.00" color="#3b82f6" trend={[750, 730, 710, 695, 688, 682, 678]} />
-        <CreditCard icon={Bot} label="AI Credits" amount="₱691.68" color="#f59e0b" trend={[700, 698, 696, 695, 694, 693, 691]} />
-        <CreditCard icon={Phone} label="Call Credits" amount="₱700.00" color="#22c55e" trend={[700, 700, 700, 700, 700, 700, 700]} />
+        {creditsLoading ? (
+          <>
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="glass-subtle rounded-xl px-4 py-3 animate-pulse">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-muted" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-2.5 w-16 bg-muted rounded" />
+                    <div className="h-4 w-20 bg-muted rounded" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </>
+        ) : (
+          <>
+            <CreditCard icon={MessageSquare} label="SMS Credits" amount={credits ? formatPeso(credits.credits.sms.balance) : "₱0.00"} color="#8b5cf6" trend={[0]} />
+            <CreditCard icon={Map} label="Map Credits" amount={credits ? formatPeso(credits.credits.map.balance) : "₱0.00"} color="#3b82f6" trend={[0]} />
+            <CreditCard icon={Bot} label="AI Credits" amount={credits ? formatPeso(credits.credits.ai.balance) : "₱0.00"} color="#f59e0b" trend={[0]} />
+            <CreditCard icon={Phone} label="Call Credits" amount={credits ? formatPeso(credits.credits.call.balance) : "₱0.00"} color="#22c55e" trend={[0]} />
+          </>
+        )}
       </div>
 
       {/* Stat Cards */}

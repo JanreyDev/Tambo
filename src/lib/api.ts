@@ -1,7 +1,8 @@
-import type { AiConversation, AiConversationSummary, AiCredits, AiStreamEvent, ApiError, DuplicateMatch, LoginResponse, PaginatedResponse, ResidentDetail, ResidentSummary, User } from "./types";
+import type { AiConversation, AiConversationSummary, AiCredits, AiStreamEvent, ApiError, BarangaySettings, BarangayUsage, DashboardCredits, DuplicateMatch, LoginResponse, PaginatedResponse, ResidentDetail, ResidentSummary, User } from "./types";
 
-const BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+// In dev, requests go through Next.js rewrite proxy (/api/v1 -> bcmp-api:8000/api/v1)
+// In production, NEXT_PUBLIC_API_URL points directly to the API domain
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
 
 const TOKEN_KEY = "bcmp_token";
 const REMEMBER_KEY = "bcmp_remember";
@@ -378,6 +379,34 @@ const api = {
 
     regenerateRecoveryCodes: () =>
       api.post<{ recovery_codes: string[] }>("/account/2fa/recovery-codes/regenerate"),
+  },
+
+  dashboard: {
+    getCredits: () =>
+      api.get<DashboardCredits>("/dashboard/credits"),
+  },
+
+  settings: {
+    get: () =>
+      api.get<{ data: BarangaySettings }>("/settings").then(r => r.data),
+
+    update: (data: Partial<BarangaySettings>) =>
+      api.patch<{ message: string; data: BarangaySettings }>("/settings", data),
+
+    uploadLogo: (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      return uploadFile<{ message: string; url: string; file_id: string }>("/settings/logo", formData);
+    },
+
+    uploadSeal: (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      return uploadFile<{ message: string; url: string; file_id: string }>("/settings/seal", formData);
+    },
+
+    getUsage: () =>
+      api.get<{ data: BarangayUsage }>("/settings/usage").then(r => r.data),
   },
 
   residents: {

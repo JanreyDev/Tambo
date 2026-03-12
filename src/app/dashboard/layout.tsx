@@ -2,7 +2,8 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { AlertTriangle, Loader2 } from "lucide-react";
+import Link from "next/link";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { useAccentColor } from "@/hooks/use-theme-store";
@@ -17,7 +18,7 @@ export default function DashboardLayout({
 }) {
   useAccentColor();
 
-  const { isLoading, isAuthenticated } = useAuth();
+  const { isLoading, isAuthenticated, user } = useAuth();
   const { isMobile, isLoading: mobileLoading } = useIsMobile();
   const router = useRouter();
 
@@ -56,6 +57,18 @@ export default function DashboardLayout({
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0 relative z-10">
         <Header />
+        {user?.barangay && !user.barangay.setup_complete && (
+          <div className="mx-6 mt-4 flex items-center gap-3 px-4 py-3 rounded-xl border border-amber-500/30 bg-amber-500/10">
+            <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" />
+            <p className="text-sm text-amber-600 flex-1">
+              Complete your barangay setup before using the system.
+            </p>
+            <Link href="/dashboard/settings"
+              className="shrink-0 px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors">
+              Go to Settings
+            </Link>
+          </div>
+        )}
         <main className="flex-1 p-6">{children}</main>
         {/* Footer */}
         <footer className="border-t border-border px-6 py-3 text-[11px] text-muted-foreground/60 flex items-center justify-between">

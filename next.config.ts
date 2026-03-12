@@ -1,11 +1,25 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api/v1";
+// Extract origin (e.g., "http://127.0.0.1:8000") from full API URL for rewrite proxy
+const apiOrigin = API_URL.replace(/\/api\/v1$/, "");
+
 const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
   compress: true,
   reactStrictMode: true,
+
+  // Proxy /api/* requests to bcmp-api so the browser never needs to reach port 8000 directly
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination: `${apiOrigin}/api/:path*`,
+      },
+    ];
+  },
 
   async headers() {
     return [

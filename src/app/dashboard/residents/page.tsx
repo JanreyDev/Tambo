@@ -18,6 +18,7 @@ import { Modal, ModalButton } from "@/components/ui/modal";
 import { SortableHeader } from "@/components/ui/sortable-header";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
+import { useAuth } from "@/contexts/auth-context";
 import type { ApiError, DuplicateMatch, ResidentSummary, ResidentDetail, PaginatedResponse } from "@/lib/types";
 
 // ── Types ──
@@ -72,14 +73,7 @@ const defaultStreetEntries: SmartEntry[] = [
 ];
 const defaultPuroks = defaultPurokEntries.map((e) => e.canonical);
 
-// Mock tenant data — in production, fetched from API (set during Pulitika onboarding)
-const tenantConfig = {
-  barangay: "TAMBO",
-  city_municipality: "OLONGAPO CITY",
-  province: "ZAMBALES",
-  zip_code: "2200",
-  logo_url: "", // Production: uploaded via Settings > Branding, fetched from API
-};
+// tenantConfig derived from auth context inside component (useAuth hook)
 
 // Resident number generated server-side: RES-{PSGC_CODE}-{SEQUENTIAL_4DIGIT}
 
@@ -927,6 +921,14 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
 // ══════════════════════════════════════════════════════════════
 
 export default function ResidentsPage() {
+  const { user } = useAuth();
+  const tenantConfig = {
+    barangay: user?.barangay?.name?.toUpperCase() || "",
+    city_municipality: user?.barangay?.city_municipality?.toUpperCase() || "",
+    province: user?.barangay?.province?.toUpperCase() || "",
+    zip_code: user?.barangay?.zip_code || "",
+    logo_url: user?.barangay?.logo_url || "",
+  };
   const [search, setSearch] = useState("");
   const [purokFilter, setPurokFilter] = useState("All Puroks");
   const [statusFilter, setStatusFilter] = useState("All Status");
@@ -1490,9 +1492,9 @@ export default function ResidentsPage() {
 
     // Flat string/boolean fields -> map directly
     const directFields = [
-      "first_name", "last_name", "middle_name", "extension_name",
-      "mothers_maiden_name", "date_of_birth", "place_of_birth", "sex",
-      "civil_status", "citizenship", "religion", "ethnicity", "blood_type",
+      "first_name", "last_name", "middle_name", "extension_name", "alias",
+      "mothers_maiden_name", "date_of_birth", "place_of_birth",
+      "citizenship", "religion", "ethnicity", "blood_type",
       "complexion", "email", "mobile_number",
       "purok", "sitio", "house_block_lot", "street", "subdivision_village",
       "zip_code", "latitude", "longitude",
@@ -1510,11 +1512,23 @@ export default function ResidentsPage() {
       "tin_number", "tin_expiry",
       "pwd_id", "pwd_id_expiry",
       "senior_citizen_id",
+      // Contact
+      "telephone",
+      // Voter & Household
+      "voter_precinct_number", "last_voted_year", "relationship_to_head",
     ];
     for (const key of directFields) {
       const val = f(key);
       if (val) payload[key] = val;
     }
+
+    // Sex: normalize to lowercase (backend expects male/female)
+    const sexVal = f("sex").toLowerCase();
+    if (sexVal) payload.sex = sexVal;
+
+    // Civil status: normalize to lowercase (backend CivilStatus enum expects lowercase)
+    const civilVal = f("civil_status").toLowerCase();
+    if (civilVal) payload.civil_status = civilVal;
 
     // Resident type: normalize to lowercase
     const residentType = f("resident_type").toLowerCase();
@@ -1585,7 +1599,7 @@ export default function ResidentsPage() {
   };
 
   const openCreate = () => {
-    setForm({ nationality: "Filipino", resident_type: "Permanent", status: "active" });
+    setForm({ citizenship: "Filipino", resident_type: "Permanent", status: "active" });
     setSectors([]);
     setEduEntries([{ ...emptyEdu }]);
     setWorkEntries([{ ...emptyWork }]);
@@ -1764,14 +1778,18 @@ export default function ResidentsPage() {
     if (!mapContainerRef.current || leafletMapRef.current) return;
     const L = (await import("leaflet")).default;
 
-    // Default center: Olongapo City, Zambales
-    const defaultLat = parseFloat(String(f("latitude"))) || 14.8386;
-    const defaultLng = parseFloat(String(f("longitude"))) || 120.2842;
-    const hasCoords = !!f("latitude") && !!f("longitude");
+    // Center on resident's pin if editing, otherwise barangay center from auth context
+    const barangayLat = user?.barangay?.latitude || 14.5995;
+    const barangayLng = user?.barangay?.longitude || 120.9842;
+    const residentLat = parseFloat(String(f("latitude")));
+    const residentLng = parseFloat(String(f("longitude")));
+    const hasResidentCoords = !isNaN(residentLat) && !isNaN(residentLng);
+    const defaultLat = hasResidentCoords ? residentLat : barangayLat;
+    const defaultLng = hasResidentCoords ? residentLng : barangayLng;
 
     const map = L.map(mapContainerRef.current, {
       center: [defaultLat, defaultLng],
-      zoom: hasCoords ? 18 : 15,
+      zoom: hasResidentCoords ? 18 : 16,
       zoomControl: true,
     });
 
@@ -1779,6 +1797,18 @@ export default function ResidentsPage() {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       maxZoom: 19,
     }).addTo(map);
+
+    // Render barangay boundary if available
+    const boundaryGeoJson = user?.barangay?.boundary_geojson;
+    if (boundaryGeoJson) {
+      try {
+        const geoJsonData = typeof boundaryGeoJson === "string" ? JSON.parse(boundaryGeoJson) : boundaryGeoJson;
+        const boundaryLayer = L.geoJSON(geoJsonData, {
+          style: { color: "#3b82f6", weight: 2, dashArray: "6 4", fillColor: "#3b82f6", fillOpacity: 0.05 },
+        }).addTo(map);
+        if (!hasResidentCoords) map.fitBounds(boundaryLayer.getBounds(), { padding: [20, 20] });
+      } catch { /* ignore invalid geojson */ }
+    }
 
     leafletMapRef.current = map;
 
@@ -2945,47 +2975,56 @@ export default function ResidentsPage() {
       {/* Population Overview */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 rounded-xl glass p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Total Population</p>
-              <p className="text-3xl font-bold text-foreground">{listTotal.toLocaleString()}</p>
-            </div>
-            <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1 rounded-full">
-              <TrendingUp className="h-3.5 w-3.5" /> +8% vs last month
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <div className="flex items-center gap-3 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/30 p-3.5">
-              <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center shrink-0">
-                <User className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          {listTotal === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
+                <Users className="h-8 w-8 text-muted-foreground/40" />
               </div>
-              <div>
-                <p className="text-[11px] font-medium text-blue-600/70 dark:text-blue-400/70 uppercase tracking-wider">Male</p>
-                <p className="text-xl font-bold text-blue-700 dark:text-blue-300">{maleCount}</p>
-                <p className="text-[11px] text-blue-500/70 dark:text-blue-400/50">{listTotal > 0 ? Math.round((maleCount / listTotal) * 100) : 0}% of total</p>
+              <p className="text-lg font-semibold text-foreground mb-1">No residents registered yet</p>
+              <p className="text-sm text-muted-foreground max-w-sm">Register your first resident to see population demographics, gender distribution, and household statistics.</p>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Total Population</p>
+                  <p className="text-3xl font-bold text-foreground">{listTotal.toLocaleString()}</p>
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-3 rounded-lg bg-pink-50 dark:bg-pink-950/20 border border-pink-100 dark:border-pink-900/30 p-3.5">
-              <div className="w-10 h-10 rounded-lg bg-pink-100 dark:bg-pink-900/40 flex items-center justify-center shrink-0">
-                <User className="h-5 w-5 text-pink-600 dark:text-pink-400" />
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="flex items-center gap-3 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/30 p-3.5">
+                  <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center shrink-0">
+                    <User className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-medium text-blue-600/70 dark:text-blue-400/70 uppercase tracking-wider">Male</p>
+                    <p className="text-xl font-bold text-blue-700 dark:text-blue-300">{maleCount}</p>
+                    <p className="text-[11px] text-blue-500/70 dark:text-blue-400/50">{Math.round((maleCount / listTotal) * 100)}% of total</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 rounded-lg bg-pink-50 dark:bg-pink-950/20 border border-pink-100 dark:border-pink-900/30 p-3.5">
+                  <div className="w-10 h-10 rounded-lg bg-pink-100 dark:bg-pink-900/40 flex items-center justify-center shrink-0">
+                    <User className="h-5 w-5 text-pink-600 dark:text-pink-400" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-medium text-pink-600/70 dark:text-pink-400/70 uppercase tracking-wider">Female</p>
+                    <p className="text-xl font-bold text-pink-700 dark:text-pink-300">{listTotal - maleCount}</p>
+                    <p className="text-[11px] text-pink-500/70 dark:text-pink-400/50">{Math.round(((listTotal - maleCount) / listTotal) * 100)}% of total</p>
+                  </div>
+                </div>
               </div>
-              <div>
-                <p className="text-[11px] font-medium text-pink-600/70 dark:text-pink-400/70 uppercase tracking-wider">Female</p>
-                <p className="text-xl font-bold text-pink-700 dark:text-pink-300">{listTotal - maleCount}</p>
-                <p className="text-[11px] text-pink-500/70 dark:text-pink-400/50">{listTotal > 0 ? Math.round(((listTotal - maleCount) / listTotal) * 100) : 0}% of total</p>
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-[10px] font-medium text-muted-foreground">
+                  <span>Gender Distribution</span>
+                  <span>{maleCount}M / {listTotal - maleCount}F</span>
+                </div>
+                <div className="h-2.5 rounded-full bg-muted overflow-hidden flex">
+                  <div className="h-full bg-blue-500 dark:bg-blue-400 rounded-l-full transition-all" style={{ width: `${(maleCount / listTotal) * 100}%` }} />
+                  <div className="h-full bg-pink-500 dark:bg-pink-400 rounded-r-full flex-1" />
+                </div>
               </div>
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <div className="flex justify-between text-[10px] font-medium text-muted-foreground">
-              <span>Gender Distribution</span>
-              <span>{maleCount}M / {listTotal - maleCount}F</span>
-            </div>
-            <div className="h-2.5 rounded-full bg-muted overflow-hidden flex">
-              <div className="h-full bg-blue-500 dark:bg-blue-400 rounded-l-full transition-all" style={{ width: `${listTotal > 0 ? (maleCount / listTotal) * 100 : 50}%` }} />
-              <div className="h-full bg-pink-500 dark:bg-pink-400 rounded-r-full flex-1" />
-            </div>
-          </div>
+            </>
+          )}
         </div>
 
         <div className="flex flex-col gap-3">
@@ -2995,10 +3034,7 @@ export default function ResidentsPage() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Households</p>
-              <div className="flex items-baseline gap-2">
-                <p className="text-xl font-bold text-foreground">{householdCount}</p>
-                <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">+3%</span>
-              </div>
+              <p className="text-xl font-bold text-foreground">{householdCount}</p>
             </div>
           </div>
           <div className="flex-1 rounded-xl glass p-4 flex items-center gap-4">

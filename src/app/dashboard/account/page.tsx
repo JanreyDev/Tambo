@@ -797,17 +797,17 @@ export default function AccountPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5">First Name</label>
-                <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value.toUpperCase().replace(/[^A-Z\s\u00D1-]/g, ""))} className="w-full px-3 py-2 rounded-xl glass-input text-sm text-foreground uppercase focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
+                <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value.toUpperCase().replace(/[^A-ZÑ\s\-'.]/g, ""))} className="w-full px-3 py-2 rounded-xl glass-input text-sm text-foreground uppercase focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
                 <p className="text-[10px] text-muted-foreground/60 mt-1">Capital letters only</p>
               </div>
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5">Last Name</label>
-                <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value.toUpperCase().replace(/[^A-Z\s\u00D1-]/g, ""))} className="w-full px-3 py-2 rounded-xl glass-input text-sm text-foreground uppercase focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
+                <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value.toUpperCase().replace(/[^A-ZÑ\s\-'.]/g, ""))} className="w-full px-3 py-2 rounded-xl glass-input text-sm text-foreground uppercase focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
                 <p className="text-[10px] text-muted-foreground/60 mt-1">Capital letters only</p>
               </div>
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5">Middle Name</label>
-                <input type="text" value={middleName} onChange={(e) => setMiddleName(e.target.value.toUpperCase().replace(/[^A-Z\s\u00D1-]/g, ""))} placeholder="Optional" className="w-full px-3 py-2 rounded-xl glass-input text-sm text-foreground uppercase placeholder:text-muted-foreground/50 placeholder:normal-case focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
+                <input type="text" value={middleName} onChange={(e) => setMiddleName(e.target.value.toUpperCase().replace(/[^A-ZÑ\s\-'.]/g, ""))} placeholder="Optional" className="w-full px-3 py-2 rounded-xl glass-input text-sm text-foreground uppercase placeholder:text-muted-foreground/50 placeholder:normal-case focus:outline-none focus:ring-2 focus:ring-accent-ring focus:border-transparent" />
                 <p className="text-[10px] text-muted-foreground/60 mt-1">Capital letters only</p>
               </div>
               <div>

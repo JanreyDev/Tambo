@@ -150,7 +150,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const isNonProd = typeof window !== "undefined" && (process.env.NODE_ENV === "development" || window.location.hostname.includes("staging"));
   const [username, setUsername] = useState(isNonProd ? "kap_tambo" : "");
-  const [password, setPassword] = useState(isNonProd ? "Tambo@2026!" : "");
+  const [password, setPassword] = useState(isNonProd ? "hE77gp7aX2" : "");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
   const router = useRouter();
@@ -238,7 +238,7 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      await login(username, password);
+      await login(username, password, true);
       toast("success", "Login successful", "Redirecting to your dashboard...", 3000);
       const isMobile = window.matchMedia("(max-width: 767px)").matches;
       router.push(isMobile ? "/census" : "/dashboard");

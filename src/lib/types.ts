@@ -23,8 +23,24 @@ export interface User {
 export interface Barangay {
   id: string;
   name: string;
+  psgc_code: string | null;
   full_address: string;
+  city_municipality: string | null;
+  province: string | null;
+  zip_code: string | null;
   logo_url: string | null;
+  seal_url: string | null;
+  contact_phone: string | null;
+  contact_email: string | null;
+  website_url: string | null;
+  motto: string | null;
+  office_hours: string | null;
+  captain_name: string | null;
+  established_year: number | null;
+  latitude: number | null;
+  longitude: number | null;
+  boundary_geojson: unknown | null;
+  setup_complete: boolean;
   status: string;
   subscription_plan: string | null;
   sms_credit_balance: string;
@@ -32,6 +48,78 @@ export interface Barangay {
   call_credit_balance: string;
   storage_used_bytes: number;
   storage_limit_bytes: number;
+}
+
+export interface BarangaySettings {
+  id: string;
+  name: string;
+  psgc_code: string | null;
+  city_municipality: string | null;
+  province: string | null;
+  zip_code: string | null;
+  full_address: string | null;
+  logo_url: string | null;
+  seal_url: string | null;
+  contact_phone: string | null;
+  contact_email: string | null;
+  website_url: string | null;
+  motto: string | null;
+  office_hours: string | null;
+  established_year: number | null;
+  captain_name: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  boundary_geojson: unknown | null;
+  setup_complete: boolean;
+  document_header_text: string | null;
+  document_footer_text: string | null;
+  sms_sender_name: string | null;
+  notification_preferences: {
+    sms_new_resident: boolean;
+    sms_certificate_issued: boolean;
+    email_alerts: boolean;
+    daily_summary: boolean;
+  };
+  settings: {
+    certificate_validity_days?: number;
+    clearance_fee?: number;
+    indigency_fee?: number;
+    id_fee?: number;
+    cedula_fee?: number;
+    default_signatory_name?: string;
+    default_signatory_title?: string;
+    [key: string]: unknown;
+  };
+  population: number;
+  status: string;
+}
+
+export interface BarangayUsage {
+  subscription: {
+    plan: string;
+    status: string;
+    expires_at: string | null;
+  };
+  sms: {
+    balance: number;
+    total_sent: number;
+    total_credits_used: number;
+    sent_this_month: number;
+    credits_this_month: number;
+  };
+  ai: {
+    balance: number;
+  };
+  storage: {
+    used_bytes: number;
+    limit_bytes: number;
+    file_count: number;
+  };
+  data: {
+    residents: number;
+    active_users: number;
+    population: number;
+  };
 }
 
 export interface Resident {

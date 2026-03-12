@@ -1,35 +1,31 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
-  Save,
-  Upload,
-  MapPin,
-  Phone,
-  Mail,
-  Clock,
-  Building2,
-  Shield,
-  Bell,
-  FileText,
-  Printer,
-  AlertTriangle,
-  Bot,
-  X,
+  Save, Upload, Phone, Mail, Clock, Building2, Shield, Bell, FileText,
+  AlertTriangle, X, Globe, CheckCircle, Loader2, Image as ImageIcon, Banknote,
+  MessageSquare, HardDrive, Users, Database, CreditCard,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
-import { Modal, ModalButton } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
+import { api } from "@/lib/api";
+import { useAuth } from "@/contexts/auth-context";
+import type { BarangaySettings, BarangayUsage, ApiError } from "@/lib/types";
 
-function SettingsInput({ label, value, onChange, placeholder, icon: Icon, disabled, error }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; icon?: React.ElementType; disabled?: boolean; error?: string }) {
+// ── Reusable Components ──
+
+function SettingsInput({ label, value, onChange, placeholder, icon: Icon, disabled, error, type = "text" }: {
+  label: string; value: string; onChange: (v: string) => void; placeholder?: string;
+  icon?: React.ElementType; disabled?: boolean; error?: string; type?: string;
+}) {
+  const id = `settings-${label.toLowerCase().replace(/[\s/]+/g, "-")}`;
   return (
     <div>
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}</label>
+      <label htmlFor={id} className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}</label>
       <div className="relative">
         {Icon && <Icon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />}
-        <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} disabled={disabled}
-          className={cn("w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 transition-colors",
+        <input id={id} type={type} value={value} onChange={(e) => onChange(type === "number" ? e.target.value : e.target.value.toUpperCase())} placeholder={placeholder} disabled={disabled}
+          className={cn("w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 transition-colors uppercase",
             error ? "border-red-500 focus:ring-red-500/30" : "border-border",
             Icon && "pl-9", disabled && "opacity-50 cursor-not-allowed")}
           style={!error ? { "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties : undefined} />
@@ -39,106 +35,345 @@ function SettingsInput({ label, value, onChange, placeholder, icon: Icon, disabl
   );
 }
 
-function SettingsToggle({ label, description, checked, onChange }: { label: string; description: string; checked: boolean; onChange: (v: boolean) => void }) {
+function SettingsTextarea({ label, value, onChange, placeholder, rows = 3 }: {
+  label: string; value: string; onChange: (v: string) => void; placeholder?: string; rows?: number;
+}) {
+  const id = `settings-${label.toLowerCase().replace(/[\s/]+/g, "-")}`;
+  return (
+    <div>
+      <label htmlFor={id} className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}</label>
+      <textarea id={id} value={value} onChange={(e) => onChange(e.target.value.toUpperCase())} placeholder={placeholder} rows={rows}
+        className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 transition-colors border-border resize-none uppercase"
+        style={{ "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties} />
+    </div>
+  );
+}
+
+function SettingsToggle({ label, description, checked, onChange }: {
+  label: string; description: string; checked: boolean; onChange: (v: boolean) => void;
+}) {
   return (
     <div className="flex items-center justify-between p-4 rounded-lg glass-subtle">
       <div>
         <p className="text-sm font-medium text-foreground">{label}</p>
         <p className="text-[11px] text-muted-foreground">{description}</p>
       </div>
-      <button onClick={() => onChange(!checked)} className="shrink-0">
-        {checked
-          ? <div className="w-10 h-6 rounded-full flex items-center justify-end px-0.5" style={{ background: "var(--accent-primary)" }}>
-              <div className="w-5 h-5 rounded-full bg-white" />
-            </div>
-          : <div className="w-10 h-6 rounded-full bg-muted flex items-center px-0.5">
-              <div className="w-5 h-5 rounded-full bg-white shadow" />
-            </div>
-        }
+      <button onClick={() => onChange(!checked)} className="shrink-0" type="button" role="switch" aria-checked={checked}>
+        <div className={cn("w-10 h-6 rounded-full flex items-center px-0.5 transition-colors duration-200",
+          checked ? "" : "bg-muted")}
+          style={checked ? { background: "var(--accent-primary)" } : undefined}>
+          <div className={cn("w-5 h-5 rounded-full bg-white shadow transition-transform duration-200",
+            checked ? "translate-x-4" : "translate-x-0")} />
+        </div>
       </button>
     </div>
   );
 }
 
-export default function SettingsPage() {
-  const router = useRouter();
+/** Compress image client-side if over maxSizeKB. Returns original if SVG or already small. */
+async function compressImage(file: File, maxSizeKB = 500, maxDim = 1024): Promise<File> {
+  if (file.type === "image/svg+xml" || file.size <= maxSizeKB * 1024) return file;
+  return new Promise((resolve) => {
+    const img = new window.Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > maxDim || height > maxDim) {
+        const ratio = Math.min(maxDim / width, maxDim / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d")!;
+      // White background for JPEG (handles transparency)
+      if (file.type === "image/jpeg") {
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillRect(0, 0, width, height);
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+      const outputType = file.type === "image/png" ? "image/png" : "image/jpeg";
+      canvas.toBlob((blob) => {
+        resolve(blob ? new File([blob], file.name, { type: outputType }) : file);
+      }, outputType, 0.85);
+    };
+    img.onerror = () => resolve(file);
+    img.src = URL.createObjectURL(file);
+  });
+}
 
-  // Toast notifications
+function ImageUpload({ label, hint, currentUrl, onUpload, uploading }: {
+  label: string; hint: string; currentUrl: string | null; onUpload: (file: File) => void; uploading: boolean;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const compressed = await compressImage(file);
+      onUpload(compressed);
+    }
+    e.target.value = "";
+  };
+
+  return (
+    <div>
+      <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml" className="hidden" onChange={handleFile} />
+      <div onClick={() => !uploading && inputRef.current?.click()}
+        className="border-2 border-dashed border-border rounded-xl p-6 flex flex-col items-center justify-center text-center hover:border-muted-foreground/30 transition-colors cursor-pointer min-h-[180px]">
+        {uploading ? (
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        ) : currentUrl ? (
+          <div className="w-24 h-24 rounded-lg bg-white border border-border flex items-center justify-center mb-2 overflow-hidden">
+            <img src={currentUrl} alt={label} className="max-h-full max-w-full object-contain" />
+          </div>
+        ) : (
+          <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-3">
+            <ImageIcon className="h-5 w-5 text-muted-foreground" />
+          </div>
+        )}
+        <p className="text-sm font-medium text-foreground">{label}</p>
+        <p className="text-xs text-muted-foreground mt-1">PNG, JPG, or SVG, max 5MB</p>
+        <button type="button" className="mt-3 px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted transition-colors"
+          onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }}>
+          {currentUrl ? "Replace" : "Upload"}
+        </button>
+      </div>
+      <p className="text-[11px] text-muted-foreground/70 mt-2 px-1">{hint}</p>
+    </div>
+  );
+}
+
+// ── Main Page ──
+
+export default function SettingsPage() {
+  const { user, refreshUser } = useAuth();
+  const [settings, setSettings] = useState<BarangaySettings | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [activeSection, setActiveSection] = useState("info");
+
+  // Toast
   const [toasts, setToasts] = useState<{ id: number; message: string; type: "success" | "error" }[]>([]);
+  const toastCounter = useRef(0);
   const addToast = useCallback((message: string, type: "success" | "error" = "success") => {
-    const id = Date.now();
+    const id = ++toastCounter.current;
     setToasts((prev) => [...prev, { id, message, type }]);
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
   }, []);
-  const dismissToast = useCallback((id: number) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
 
-  // Form Errors
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  // Form state (editable fields)
+  const [zip, setZip] = useState("");
+  const [motto, setMotto] = useState("");
+  const [officeHours, setOfficeHours] = useState("");
+  const [establishedYear, setEstablishedYear] = useState("");
+  const [captainName, setCaptainName] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [websiteUrl, setWebsiteUrl] = useState("");
+  const [fullAddress, setFullAddress] = useState("");
+  const [docHeader, setDocHeader] = useState("");
+  const [docFooter, setDocFooter] = useState("");
+  const [smsSenderName, setSmsSenderName] = useState("");
+  const [notifSmsNewResident, setNotifSmsNewResident] = useState(false);
+  const [notifSmsCert, setNotifSmsCert] = useState(false);
+  const [notifEmail, setNotifEmail] = useState(false);
+  const [notifDaily, setNotifDaily] = useState(false);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [sealUrl, setSealUrl] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingSeal, setUploadingSeal] = useState(false);
+  // Fees & signatory (stored in settings JSONB)
+  const [certValidityDays, setCertValidityDays] = useState("180");
+  const [clearanceFee, setClearanceFee] = useState("0");
+  const [indigencyFee, setIndigencyFee] = useState("0");
+  const [idFee, setIdFee] = useState("0");
+  const [cedulaFee, setCedulaFee] = useState("0");
+  const [signatoryName, setSignatoryName] = useState("");
+  const [signatoryTitle, setSignatoryTitle] = useState("PUNONG BARANGAY");
+  // Usage/billing data
+  const [usage, setUsage] = useState<BarangayUsage | null>(null);
+  const [usageLoading, setUsageLoading] = useState(false);
 
-  const clearError = (field: string) => {
-    setFormErrors((prev) => {
-      if (!prev[field]) return prev;
-      const next = { ...prev };
-      delete next[field];
-      return next;
-    });
-  };
+  // Load settings
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await api.settings.get();
+        setSettings(data);
+        setZip(data.zip_code || "");
+        setMotto(data.motto || "");
+        setOfficeHours(data.office_hours || "MON-FRI 8AM-5PM");
+        setEstablishedYear(data.established_year ? String(data.established_year) : "");
+        setCaptainName(data.captain_name || "");
+        setContactPhone(data.contact_phone || "");
+        setContactEmail(data.contact_email || "");
+        setWebsiteUrl(data.website_url || "");
+        setFullAddress(data.full_address || "");
+        setDocHeader(data.document_header_text || "");
+        setDocFooter(data.document_footer_text || "");
+        setSmsSenderName(data.sms_sender_name || "");
+        setNotifSmsNewResident(data.notification_preferences?.sms_new_resident || false);
+        setNotifSmsCert(data.notification_preferences?.sms_certificate_issued || false);
+        setNotifEmail(data.notification_preferences?.email_alerts || false);
+        setNotifDaily(data.notification_preferences?.daily_summary || false);
+        setLogoUrl(data.logo_url);
+        setSealUrl(data.seal_url);
+        // Fees & signatory from settings JSONB
+        const s = data.settings || {};
+        setCertValidityDays(String(s.certificate_validity_days ?? 180));
+        setClearanceFee(String(s.clearance_fee ?? 0));
+        setIndigencyFee(String(s.indigency_fee ?? 0));
+        setIdFee(String(s.id_fee ?? 0));
+        setCedulaFee(String(s.cedula_fee ?? 0));
+        setSignatoryName(s.default_signatory_name || "");
+        setSignatoryTitle(s.default_signatory_title || "PUNONG BARANGAY");
+      } catch {
+        addToast("Failed to load settings", "error");
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const validateForm = (): boolean => {
-    const errors: Record<string, string> = {};
-    if (!barangayName.trim()) errors.barangayName = "Barangay name is required";
-    if (!municipality.trim()) errors.municipality = "Municipality is required";
-    if (!province.trim()) errors.province = "Province is required";
-    if (!zipCode.trim()) errors.zipCode = "ZIP code is required";
-    if (!documentPrefix.trim()) errors.documentPrefix = "Document prefix is required";
-    if (contactEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail.trim())) {
-      errors.contactEmail = "Invalid email format";
+  // Save current tab
+  const saveSettings = async (fields: Record<string, unknown>) => {
+    setSaving(true);
+    try {
+      const res = await api.settings.update(fields as Partial<BarangaySettings>);
+      setSettings(res.data);
+      addToast("Settings saved successfully");
+      refreshUser();
+    } catch (e) {
+      const err = e as ApiError;
+      addToast(err.message || "Failed to save settings", "error");
+    } finally {
+      setSaving(false);
     }
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
   };
 
-  // Barangay Info
-  const [barangayName, setBarangayName] = useState("Barangay Tambo");
-  const [municipality, setMunicipality] = useState("Olongapo City");
-  const [province, setProvince] = useState("Zambales");
-  const [region, setRegion] = useState("Region III - Central Luzon");
-  const [zipCode, setZipCode] = useState("2200");
-  const [barangayCode, setBarangayCode] = useState("037101001");
-  const [population, setPopulation] = useState("12,450");
-  const [numPuroks, setNumPuroks] = useState("8");
+  const saveBarangayInfo = () => saveSettings({
+    zip_code: zip || null,
+    motto: motto || null,
+    office_hours: officeHours || null,
+    established_year: establishedYear ? parseInt(establishedYear) : null,
+    captain_name: captainName || null,
+  });
 
-  // Contact Info
-  const [contactPhone, setContactPhone] = useState("(047) 222-1234");
-  const [contactMobile, setContactMobile] = useState("0917-123-4567");
-  const [contactEmail, setContactEmail] = useState("tambo@olongapo.gov.ph");
-  const [contactAddress, setContactAddress] = useState("Barangay Hall, National Highway, Tambo, Olongapo City");
-  const [officeHours, setOfficeHours] = useState("Mon-Fri, 8:00 AM - 5:00 PM");
+  const saveContact = () => saveSettings({
+    contact_phone: contactPhone || null,
+    contact_email: contactEmail || null,
+    website_url: websiteUrl || null,
+    full_address: fullAddress || null,
+  });
 
-  // System Preferences
-  const [documentPrefix, setDocumentPrefix] = useState("TMB");
-  const [fiscalYear, setFiscalYear] = useState("January - December");
-  const [defaultCopies, setDefaultCopies] = useState("1");
-  const [autoBackup, setAutoBackup] = useState(true);
-  const [emailNotif, setEmailNotif] = useState(true);
-  const [publicPortal, setPublicPortal] = useState(true);
-  const [requireApproval, setRequireApproval] = useState(true);
+  const saveSystem = () => saveSettings({
+    sms_sender_name: smsSenderName || null,
+    settings: {
+      default_signatory_name: signatoryName || null,
+      default_signatory_title: signatoryTitle || null,
+    },
+  });
 
-  // Modals
-  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [activeSection, setActiveSection] = useState("info");
+  const saveDocuments = () => saveSettings({
+    document_header_text: docHeader || null,
+    document_footer_text: docFooter || null,
+    settings: {
+      certificate_validity_days: certValidityDays ? parseInt(certValidityDays) : 180,
+      clearance_fee: clearanceFee ? parseFloat(clearanceFee) : 0,
+      indigency_fee: indigencyFee ? parseFloat(indigencyFee) : 0,
+      id_fee: idFee ? parseFloat(idFee) : 0,
+      cedula_fee: cedulaFee ? parseFloat(cedulaFee) : 0,
+    },
+  });
+
+  const saveNotifications = () => saveSettings({
+    notification_preferences: {
+      sms_new_resident: notifSmsNewResident,
+      sms_certificate_issued: notifSmsCert,
+      email_alerts: notifEmail,
+      daily_summary: notifDaily,
+    },
+  });
+
+  // Load usage data when fees tab is active
+  useEffect(() => {
+    if (activeSection !== "fees" || usage) return;
+    setUsageLoading(true);
+    api.settings.getUsage()
+      .then((data) => setUsage(data))
+      .catch(() => addToast("Failed to load usage data", "error"))
+      .finally(() => setUsageLoading(false));
+  }, [activeSection]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleLogoUpload = async (file: File) => {
+    setUploadingLogo(true);
+    try {
+      const res = await api.settings.uploadLogo(file);
+      setLogoUrl(res.url);
+      addToast("Logo uploaded successfully");
+      refreshUser();
+    } catch (e) {
+      const err = e as ApiError;
+      addToast(err.message || "Logo upload failed", "error");
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const handleSealUpload = async (file: File) => {
+    setUploadingSeal(true);
+    try {
+      const res = await api.settings.uploadSeal(file);
+      setSealUrl(res.url);
+      addToast("Seal uploaded successfully");
+      refreshUser();
+    } catch (e) {
+      const err = e as ApiError;
+      addToast(err.message || "Seal upload failed", "error");
+    } finally {
+      setUploadingSeal(false);
+    }
+  };
+
+  const markSetupComplete = async () => {
+    if (!captainName.trim()) { addToast("Captain name is required to complete setup", "error"); return; }
+    if (!contactPhone.trim()) { addToast("Contact phone is required to complete setup", "error"); return; }
+    await saveSettings({ setup_complete: true });
+    addToast("Barangay setup marked as complete!");
+  };
+
+  // Can mark complete?
+  const canComplete = !!(captainName.trim() && contactPhone.trim());
+  const isSetupComplete = settings?.setup_complete ?? false;
 
   const sections = [
     { id: "info", label: "Barangay Info", icon: Building2 },
     { id: "contact", label: "Contact Details", icon: Phone },
     { id: "branding", label: "Branding", icon: Upload },
+    { id: "fees", label: "Fees & Charges", icon: Banknote },
     { id: "system", label: "System Preferences", icon: Shield },
     { id: "documents", label: "Document Settings", icon: FileText },
     { id: "notifications", label: "Notifications", icon: Bell },
   ];
+
+  const saveFn: Record<string, () => void> = {
+    info: saveBarangayInfo,
+    contact: saveContact,
+    branding: () => {}, // branding saves via upload
+    fees: () => {}, // fees tab is read-only (PrimeX billing)
+    system: saveSystem,
+    documents: saveDocuments,
+    notifications: saveNotifications,
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -148,36 +383,38 @@ export default function SettingsPage() {
         breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "Settings" }]}
         actions={
           <div className="flex items-center gap-2">
-            <button onClick={() => setShowResetConfirm(true)}
-              className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors text-muted-foreground">
-              Reset to Default
-            </button>
-            <button onClick={() => { if (validateForm()) setShowSaveConfirm(true); }}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>
-              <Save className="h-4 w-4" /> Save Changes
-            </button>
+            {!isSetupComplete && (
+              <button onClick={markSetupComplete} disabled={!canComplete || saving}
+                className={cn("flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors",
+                  canComplete ? "bg-emerald-600 hover:bg-emerald-700" : "bg-muted text-muted-foreground cursor-not-allowed")}>
+                <CheckCircle className="h-4 w-4" /> Mark Setup Complete
+              </button>
+            )}
+            {activeSection !== "branding" && activeSection !== "fees" && (
+              <button onClick={saveFn[activeSection]} disabled={saving}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors"
+                style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Save Changes
+              </button>
+            )}
           </div>
         }
       />
 
-      {/* Mabini AI Insight */}
-      <div className="flex items-start gap-3 px-4 py-3 rounded-xl border border-accent-primary/20 bg-accent-bg/30">
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: "var(--accent-primary)", opacity: 0.15 }}>
-          <Bot className="w-4 h-4" style={{ color: "var(--accent-primary)" }} />
+      {/* Setup Incomplete Banner */}
+      {!isSetupComplete && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-amber-500/30 bg-amber-500/10">
+          <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-amber-600">Setup Incomplete</p>
+            <p className="text-xs text-amber-500/80">Fill in the required fields (Captain Name, Contact Phone) and upload your logo, then click &quot;Mark Setup Complete&quot;.</p>
+          </div>
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold text-foreground">Mabini AI Settings Check</p>
-          <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-            Barangay logo and seal not yet uploaded — required for official documents. Automatic backup is enabled. Public portal is active with 9 modules.
-          </p>
-        </div>
-        <button onClick={() => router.push("/dashboard/ai")} className="shrink-0 px-3 py-1.5 text-[10px] font-semibold rounded-lg transition-colors hover:opacity-80" style={{ background: "var(--accent-primary)", color: "#fff" }}>
-          Ask Mabini
-        </button>
-      </div>
+      )}
 
       <div className="flex gap-6">
-        {/* Sidebar Navigation */}
+        {/* Sidebar */}
         <div className="w-56 shrink-0">
           <div className="sticky top-6 space-y-1">
             {sections.map((s) => {
@@ -196,204 +433,316 @@ export default function SettingsPage() {
 
         {/* Content */}
         <div className="flex-1 max-w-2xl space-y-6">
-          {/* Barangay Info */}
+
+          {/* Tab 1: Barangay Info */}
           {activeSection === "info" && (
             <div className="glass rounded-xl p-6">
               <h2 className="text-lg font-semibold text-foreground mb-1">Barangay Information</h2>
               <p className="text-sm text-muted-foreground mb-5">Official barangay details used in documents and reports.</p>
               <div className="space-y-4">
-                <SettingsInput label="Barangay Name" value={barangayName} onChange={(v) => { setBarangayName(v); clearError("barangayName"); }} icon={Building2} error={formErrors.barangayName} />
+                <SettingsInput label="Barangay Name" value={settings?.name || ""} onChange={() => {}} icon={Building2} disabled />
                 <div className="grid grid-cols-2 gap-4">
-                  <SettingsInput label="Municipality / City" value={municipality} onChange={(v) => { setMunicipality(v); clearError("municipality"); }} error={formErrors.municipality} />
-                  <SettingsInput label="Province" value={province} onChange={(v) => { setProvince(v); clearError("province"); }} error={formErrors.province} />
+                  <SettingsInput label="PSGC Code" value={settings?.psgc_code || ""} onChange={() => {}} disabled />
+                  <SettingsInput label="Population" value={settings?.population ? settings.population.toLocaleString() : ""} onChange={() => {}} disabled />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <SettingsInput label="Region" value={region} onChange={setRegion} />
-                  <SettingsInput label="ZIP Code" value={zipCode} onChange={(v) => { setZipCode(v); clearError("zipCode"); }} error={formErrors.zipCode} />
+                  <SettingsInput label="City / Municipality" value={settings?.city_municipality || ""} onChange={() => {}} disabled />
+                  <SettingsInput label="Province" value={settings?.province || ""} onChange={() => {}} disabled />
                 </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <SettingsInput label="PSGC Code" value={barangayCode} onChange={setBarangayCode} />
-                  <SettingsInput label="Population" value={population} onChange={setPopulation} />
-                  <SettingsInput label="Number of Puroks" value={numPuroks} onChange={setNumPuroks} />
+                <SettingsInput label="ZIP Code" value={zip} onChange={setZip} placeholder="e.g. 1700" />
+                <SettingsInput label="Motto / Tagline" value={motto} onChange={setMotto} placeholder="e.g. Sama-samang Pagbabago" />
+                <div className="grid grid-cols-2 gap-4">
+                  <SettingsInput label="Established Year" value={establishedYear} onChange={setEstablishedYear} placeholder="e.g. 1946" type="number" />
+                  <SettingsInput label="Captain Name" value={captainName} onChange={setCaptainName} placeholder="e.g. Hon. Juan Dela Cruz" />
                 </div>
+                <SettingsInput label="Office Hours" value={officeHours || "MON-FRI 8AM-5PM"} onChange={setOfficeHours} placeholder="MON-FRI 8AM-5PM" icon={Clock} disabled />
               </div>
             </div>
           )}
 
-          {/* Contact Details */}
+          {/* Tab 2: Contact Details */}
           {activeSection === "contact" && (
             <div className="glass rounded-xl p-6">
               <h2 className="text-lg font-semibold text-foreground mb-1">Contact Details</h2>
               <p className="text-sm text-muted-foreground mb-5">Contact information displayed on documents and the public portal.</p>
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <SettingsInput label="Landline" value={contactPhone} onChange={setContactPhone} icon={Phone} />
-                  <SettingsInput label="Mobile" value={contactMobile} onChange={setContactMobile} icon={Phone} />
-                </div>
-                <SettingsInput label="Email Address" value={contactEmail} onChange={(v) => { setContactEmail(v); clearError("contactEmail"); }} icon={Mail} error={formErrors.contactEmail} />
-                <SettingsInput label="Office Address" value={contactAddress} onChange={setContactAddress} icon={MapPin} />
-                <SettingsInput label="Office Hours" value={officeHours} onChange={setOfficeHours} icon={Clock} />
+                <SettingsInput label="Contact Phone" value={contactPhone} onChange={setContactPhone} icon={Phone} placeholder="e.g. 0917-123-4567" />
+                <SettingsInput label="Contact Email" value={contactEmail} onChange={setContactEmail} icon={Mail} placeholder="e.g. brgy.tambo@paranaque.gov.ph" />
+                <SettingsInput label="Website URL" value={websiteUrl} onChange={setWebsiteUrl} icon={Globe} placeholder="e.g. https://tambo.barangay.org.ph" />
+                <SettingsInput label="Office Address" value={fullAddress} onChange={setFullAddress} placeholder="Barangay Hall, Street, City" />
               </div>
             </div>
           )}
 
-          {/* Branding */}
+          {/* Tab 3: Branding */}
           {activeSection === "branding" && (
             <div className="glass rounded-xl p-6">
               <h2 className="text-lg font-semibold text-foreground mb-1">Barangay Branding</h2>
               <p className="text-sm text-muted-foreground mb-5">Upload your barangay logo and seal. These appear on documents and the public portal.</p>
               <div className="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                  <div className="border-2 border-dashed border-border rounded-xl p-8 flex flex-col items-center justify-center text-center hover:border-muted-foreground/30 transition-colors cursor-pointer">
-                    <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-3">
-                      <Upload className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <p className="text-sm font-medium text-foreground">Barangay Logo</p>
-                    <p className="text-xs text-muted-foreground mt-1">PNG or JPG, max 2MB</p>
-                    <button className="mt-3 px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted transition-colors">
-                      Upload File
-                    </button>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground/70 mt-2 px-1">Recommended: square image, 512x512px minimum. Appears on documents and certificates.</p>
-                </div>
-                <div>
-                  <div className="border-2 border-dashed border-border rounded-xl p-8 flex flex-col items-center justify-center text-center hover:border-muted-foreground/30 transition-colors cursor-pointer">
-                    <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-3">
-                      <Upload className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <p className="text-sm font-medium text-foreground">Barangay Seal</p>
-                    <p className="text-xs text-muted-foreground mt-1">PNG or JPG, max 2MB</p>
-                    <button className="mt-3 px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted transition-colors">
-                      Upload File
-                    </button>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground/70 mt-2 px-1">Official seal used for document authentication. PNG with transparent background recommended.</p>
-                </div>
+                <ImageUpload label="Barangay Logo" hint="Recommended: square image, 512x512px. Appears on documents and certificates."
+                  currentUrl={logoUrl} onUpload={handleLogoUpload} uploading={uploadingLogo} />
+                <ImageUpload label="City/Municipality Logo" hint="Official seal or logo of your city/municipality. PNG with transparent background recommended."
+                  currentUrl={sealUrl} onUpload={handleSealUpload} uploading={uploadingSeal} />
               </div>
               <div className="p-3 rounded-lg glass-subtle">
                 <p className="text-xs text-muted-foreground">
-                  These images will appear on official documents (certificates, clearances), printed reports, and your barangay.org.ph public portal.
+                  These images appear on official documents (certificates, clearances), printed reports, and your barangay.org.ph public portal.
                 </p>
               </div>
             </div>
           )}
 
-          {/* System Preferences */}
-          {activeSection === "system" && (
-            <div className="glass rounded-xl p-6">
-              <h2 className="text-lg font-semibold text-foreground mb-1">System Preferences</h2>
-              <p className="text-sm text-muted-foreground mb-5">Configure system-wide behavior and defaults.</p>
-              <div className="space-y-3">
-                <SettingsToggle label="Automatic Backup" description="Create daily automated backups of all barangay data" checked={autoBackup} onChange={setAutoBackup} />
-                <SettingsToggle label="Public Portal" description="Enable your barangay.org.ph public-facing website" checked={publicPortal} onChange={setPublicPortal} />
-                <SettingsToggle label="Require Document Approval" description="Documents need approval from the Barangay Captain before issuance" checked={requireApproval} onChange={setRequireApproval} />
+          {/* Tab 4: Fees & Charges (PrimeX Billing & Usage) */}
+          {activeSection === "fees" && (
+            <div className="space-y-4">
+              <div className="glass rounded-xl p-6">
+                <h2 className="text-lg font-semibold text-foreground mb-1">Fees & Charges</h2>
+                <p className="text-sm text-muted-foreground mb-5">PrimeX platform charges and your barangay&apos;s resource usage.</p>
+
+                {usageLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : usage ? (
+                  <div className="space-y-5">
+                    {/* Subscription Plan */}
+                    <div className="p-4 rounded-xl border border-border bg-accent-bg/30">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <CreditCard className="h-4 w-4 text-accent-text" />
+                          <h3 className="text-sm font-semibold text-foreground">Subscription Plan</h3>
+                        </div>
+                        <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 uppercase">{usage.subscription.status}</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Plan</p>
+                          <p className="text-sm font-medium text-foreground">{usage.subscription.plan}</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Renewal Date</p>
+                          <p className="text-sm font-medium text-foreground">{usage.subscription.expires_at ? new Date(usage.subscription.expires_at).toLocaleDateString() : "N/A"}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Credit Balances */}
+                    <div>
+                      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Credit Balances</h3>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="p-3 rounded-xl border border-border">
+                          <div className="flex items-center gap-2 mb-2">
+                            <MessageSquare className="h-3.5 w-3.5 text-blue-500" />
+                            <p className="text-[11px] text-muted-foreground uppercase tracking-wider">SMS Credits</p>
+                          </div>
+                          <p className="text-xl font-bold text-foreground">{usage.sms.balance.toFixed(2)}</p>
+                          <p className="text-[11px] text-muted-foreground mt-1">{usage.sms.sent_this_month} sent this month</p>
+                        </div>
+                        <div className="p-3 rounded-xl border border-border">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Database className="h-3.5 w-3.5 text-purple-500" />
+                            <p className="text-[11px] text-muted-foreground uppercase tracking-wider">AI Credits</p>
+                          </div>
+                          <p className="text-xl font-bold text-foreground">{usage.ai.balance.toFixed(2)}</p>
+                          <p className="text-[11px] text-muted-foreground mt-1">Mabini AI queries</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* SMS Usage Breakdown */}
+                    <div>
+                      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">SMS Usage</h3>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="p-3 rounded-xl border border-border text-center">
+                          <p className="text-lg font-bold text-foreground">{usage.sms.total_sent}</p>
+                          <p className="text-[10px] text-muted-foreground uppercase">Total Sent</p>
+                        </div>
+                        <div className="p-3 rounded-xl border border-border text-center">
+                          <p className="text-lg font-bold text-foreground">{usage.sms.total_credits_used.toFixed(2)}</p>
+                          <p className="text-[10px] text-muted-foreground uppercase">Credits Used</p>
+                        </div>
+                        <div className="p-3 rounded-xl border border-border text-center">
+                          <p className="text-lg font-bold text-foreground">{usage.sms.credits_this_month.toFixed(2)}</p>
+                          <p className="text-[10px] text-muted-foreground uppercase">This Month</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Storage Usage */}
+                    <div>
+                      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Storage Usage</h3>
+                      <div className="p-4 rounded-xl border border-border">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <HardDrive className="h-3.5 w-3.5 text-amber-500" />
+                            <span className="text-sm font-medium text-foreground">
+                              {(usage.storage.used_bytes / (1024 * 1024)).toFixed(1)} MB
+                            </span>
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            of {(usage.storage.limit_bytes / (1024 * 1024 * 1024)).toFixed(1)} GB
+                          </span>
+                        </div>
+                        <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
+                          <div className="h-full rounded-full transition-all"
+                            style={{
+                              width: `${Math.min((usage.storage.used_bytes / usage.storage.limit_bytes) * 100, 100)}%`,
+                              background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)",
+                            }} />
+                        </div>
+                        <p className="text-[11px] text-muted-foreground mt-2">{usage.storage.file_count} files uploaded</p>
+                      </div>
+                    </div>
+
+                    {/* Data Usage */}
+                    <div>
+                      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Data Usage</h3>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="p-3 rounded-xl border border-border text-center">
+                          <Users className="h-4 w-4 mx-auto mb-1 text-blue-500" />
+                          <p className="text-lg font-bold text-foreground">{usage.data.residents.toLocaleString()}</p>
+                          <p className="text-[10px] text-muted-foreground uppercase">Residents</p>
+                        </div>
+                        <div className="p-3 rounded-xl border border-border text-center">
+                          <Shield className="h-4 w-4 mx-auto mb-1 text-emerald-500" />
+                          <p className="text-lg font-bold text-foreground">{usage.data.active_users}</p>
+                          <p className="text-[10px] text-muted-foreground uppercase">Active Users</p>
+                        </div>
+                        <div className="p-3 rounded-xl border border-border text-center">
+                          <Building2 className="h-4 w-4 mx-auto mb-1 text-amber-500" />
+                          <p className="text-lg font-bold text-foreground">{(usage.data.population || 0).toLocaleString()}</p>
+                          <p className="text-[10px] text-muted-foreground uppercase">Population</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-8">Unable to load usage data.</p>
+                )}
+              </div>
+
+              <div className="p-3 rounded-lg glass-subtle">
+                <p className="text-xs text-muted-foreground">
+                  To add SMS or AI credits, contact PrimeX support. Storage limits can be upgraded based on your subscription plan.
+                </p>
               </div>
             </div>
           )}
 
-          {/* Document Settings */}
-          {activeSection === "documents" && (
+          {/* Tab 5: System Preferences */}
+          {activeSection === "system" && (
             <div className="glass rounded-xl p-6">
-              <h2 className="text-lg font-semibold text-foreground mb-1">Document Settings</h2>
-              <p className="text-sm text-muted-foreground mb-5">Configure document numbering, default values, and printing options.</p>
+              <h2 className="text-lg font-semibold text-foreground mb-1">System Preferences</h2>
+              <p className="text-sm text-muted-foreground mb-5">Configure system-wide behavior and defaults.</p>
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <SettingsInput label="Document ID Prefix" value={documentPrefix} onChange={(v) => { setDocumentPrefix(v); clearError("documentPrefix"); }} placeholder="e.g., TMB" error={formErrors.documentPrefix} />
-                  <div>
-                    <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Fiscal Year Start</label>
-                    <select value={fiscalYear} onChange={(e) => setFiscalYear(e.target.value)}
-                      className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2"
-                      style={{ "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties}>
-                      <option>January - December</option>
-                      <option>July - June</option>
-                    </select>
+                <SettingsInput label="SMS Sender Name" value={smsSenderName} onChange={setSmsSenderName} placeholder="E.G. TAMBO (MAX 11 CHARS)" />
+                <p className="text-[11px] text-muted-foreground -mt-2 px-1">This name appears in the SMS body header when your barangay sends SMS. Max 11 characters, alphanumeric only.</p>
+
+                <div className="border-t border-border pt-4 mt-4">
+                  <h3 className="text-sm font-semibold text-foreground mb-3">Default Document Signatory</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <SettingsInput label="Signatory Name" value={signatoryName} onChange={setSignatoryName} placeholder="E.G. HON. JUAN DELA CRUZ" />
+                    <SettingsInput label="Signatory Title" value={signatoryTitle} onChange={setSignatoryTitle} placeholder="E.G. PUNONG BARANGAY" />
                   </div>
+                  <p className="text-[11px] text-muted-foreground mt-2 px-1">This name and title appear as the default signatory on certificates and official documents.</p>
                 </div>
-                <SettingsInput label="Default Number of Copies" value={defaultCopies} onChange={setDefaultCopies} icon={Printer} />
+
                 <div className="p-3 rounded-lg glass-subtle">
                   <p className="text-xs text-muted-foreground">
-                    Document IDs are auto-generated as: {documentPrefix}-YYYY-NNNNN (e.g., {documentPrefix}-2026-00001). This prefix applies to all documents issued by this barangay.
+                    Language, date format, and theme preferences are personal settings. Go to{" "}
+                    <a href="/dashboard/account" className="font-medium underline" style={{ color: "var(--accent-primary)" }}>My Account</a> to change them.
                   </p>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Notifications */}
-          {activeSection === "notifications" && (
-            <div className="glass rounded-xl p-6">
-              <h2 className="text-lg font-semibold text-foreground mb-1">Notifications</h2>
-              <p className="text-sm text-muted-foreground mb-5">Configure how you receive alerts and updates.</p>
-              <div className="space-y-3">
-                <SettingsToggle label="Email Notifications" description="Receive email alerts for new requests, approvals, and system events" checked={emailNotif} onChange={setEmailNotif} />
-                <div className="flex items-center justify-between p-4 rounded-lg glass-subtle">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">SMS Notifications</p>
-                    <p className="text-[11px] text-muted-foreground">Receive SMS alerts for urgent events (requires SMS credits)</p>
+          {/* Tab 6: Document Settings */}
+          {activeSection === "documents" && (
+            <div className="space-y-4">
+              <div className="glass rounded-xl p-6">
+                <h2 className="text-lg font-semibold text-foreground mb-1">Document Settings</h2>
+                <p className="text-sm text-muted-foreground mb-5">Configure the header, footer, fees, and validity for certificates and official documents.</p>
+                <div className="space-y-4">
+                  <SettingsTextarea label="Document Header Text" value={docHeader} onChange={setDocHeader}
+                    placeholder="e.g. Republic of the Philippines\nCity of Paranaque\nBarangay Tambo" rows={3} />
+                  <SettingsTextarea label="Document Footer Text" value={docFooter} onChange={setDocFooter}
+                    placeholder="e.g. This document is valid for 6 months from date of issuance." rows={2} />
+
+                  {/* Preview */}
+                  <div className="p-4 rounded-lg border border-border bg-white">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Preview</p>
+                    <div className="flex items-center gap-3 justify-center mb-3">
+                      {logoUrl && <img src={logoUrl} alt="Logo" className="h-10 w-10 object-contain" />}
+                      <div className="text-center">
+                        {(docHeader || "Republic of the Philippines\nBarangay Tambo").split("\n").map((line, i) => (
+                          <p key={i} className="text-[10px] text-gray-700 font-medium leading-tight">{line}</p>
+                        ))}
+                      </div>
+                      {sealUrl && <img src={sealUrl} alt="City/Municipality Logo" className="h-10 w-10 object-contain" />}
+                    </div>
+                    <div className="border-t border-gray-200 pt-2 mt-2">
+                      <p className="text-[9px] text-gray-500 text-center italic">{docFooter || "Footer text will appear here"}</p>
+                    </div>
                   </div>
-                  <span className="text-xs text-muted-foreground px-2 py-1 rounded bg-muted">Coming Soon</span>
                 </div>
-                <div className="flex items-center justify-between p-4 rounded-lg glass-subtle">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">Push Notifications</p>
-                    <p className="text-[11px] text-muted-foreground">Browser push notifications for real-time updates</p>
+              </div>
+
+              {/* Document Fees */}
+              <div className="glass rounded-xl p-6">
+                <h3 className="text-sm font-semibold text-foreground mb-1">Document Fees</h3>
+                <p className="text-xs text-muted-foreground mb-4">Default fees for certificates and services. Amount in Philippine Pesos (PHP).</p>
+                <div className="space-y-4">
+                  <SettingsInput label="Certificate Validity (Days)" value={certValidityDays} onChange={setCertValidityDays} placeholder="180" type="number" />
+                  <p className="text-[11px] text-muted-foreground -mt-2 px-1">Number of days a certificate/clearance is valid after issuance. Default: 180 days.</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <SettingsInput label="Barangay Clearance Fee" value={clearanceFee} onChange={setClearanceFee} placeholder="0.00" type="number" />
+                    <SettingsInput label="Certificate of Indigency Fee" value={indigencyFee} onChange={setIndigencyFee} placeholder="0.00" type="number" />
                   </div>
-                  <span className="text-xs text-muted-foreground px-2 py-1 rounded bg-muted">Coming Soon</span>
+                  <div className="grid grid-cols-2 gap-4">
+                    <SettingsInput label="Barangay ID Fee" value={idFee} onChange={setIdFee} placeholder="0.00" type="number" />
+                    <SettingsInput label="Cedula Fee" value={cedulaFee} onChange={setCedulaFee} placeholder="0.00" type="number" />
+                  </div>
+                  <div className="p-3 rounded-lg glass-subtle">
+                    <p className="text-xs text-muted-foreground">
+                      These fees are used as defaults when issuing certificates. Staff can override per transaction if needed.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Info Notice */}
-          <div className="glass-subtle rounded-xl p-4">
-            <p className="text-xs text-muted-foreground">
-              Looking for theme and accent color settings? Those are now in{" "}
-              <a href="/dashboard/account" className="font-medium underline hover:text-foreground transition-colors" style={{ color: "var(--accent-primary)" }}>
-                My Account
-              </a>
-              {" "}since they are personal preferences.
-            </p>
-          </div>
+          {/* Tab 6: Notifications */}
+          {activeSection === "notifications" && (
+            <div className="glass rounded-xl p-6">
+              <h2 className="text-lg font-semibold text-foreground mb-1">Notifications</h2>
+              <p className="text-sm text-muted-foreground mb-5">Configure notification preferences for this barangay.</p>
+              <div className="space-y-3">
+                <SettingsToggle label="SMS: New Resident Registered" description="Send SMS notification when a new resident is registered"
+                  checked={notifSmsNewResident} onChange={setNotifSmsNewResident} />
+                <SettingsToggle label="SMS: Certificate Issued" description="Send SMS notification when a certificate is issued"
+                  checked={notifSmsCert} onChange={setNotifSmsCert} />
+                <SettingsToggle label="Email Alerts" description="Receive email alerts for system events and reminders"
+                  checked={notifEmail} onChange={setNotifEmail} />
+                <SettingsToggle label="Daily Summary" description="Receive a daily summary of barangay activity"
+                  checked={notifDaily} onChange={setNotifDaily} />
+              </div>
+            </div>
+          )}
+
+          {/* Setup status */}
+          {isSetupComplete && (
+            <div className="flex items-center gap-2 px-4 py-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10">
+              <CheckCircle className="h-4 w-4 text-emerald-500" />
+              <p className="text-sm text-emerald-600 font-medium">Barangay setup is complete</p>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Save Confirmation Modal */}
-        <Modal open={showSaveConfirm} title="Save Settings" onClose={() => setShowSaveConfirm(false)} size="sm"
-          footer={<>
-            <ModalButton variant="secondary" onClick={() => setShowSaveConfirm(false)}>Cancel</ModalButton>
-            <ModalButton variant="primary" onClick={() => { setShowSaveConfirm(false); addToast("Settings saved successfully", "success"); }}>Save Changes</ModalButton>
-          </>}>
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Are you sure you want to save all changes? This will update barangay settings across the entire system including documents, reports, and the public portal.
-            </p>
-            <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-              <p className="text-xs text-amber-600 font-medium flex items-center gap-1.5">
-                <AlertTriangle className="h-3.5 w-3.5" /> Changes to document prefix will not affect previously issued documents.
-              </p>
-            </div>
-          </div>
-        </Modal>
-
-      {/* Reset Confirmation Modal */}
-        <Modal open={showResetConfirm} title="Reset to Default" onClose={() => setShowResetConfirm(false)} size="sm"
-          footer={<>
-            <ModalButton variant="secondary" onClick={() => setShowResetConfirm(false)}>Cancel</ModalButton>
-            <ModalButton variant="danger" onClick={() => { setShowResetConfirm(false); addToast("Settings reset to default", "success"); }}>Reset Settings</ModalButton>
-          </>}>
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              This will reset all settings to their default values. Your barangay information, contact details, and system preferences will be cleared.
-            </p>
-            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
-              <p className="text-xs text-red-600 font-medium flex items-center gap-1.5">
-                <AlertTriangle className="h-3.5 w-3.5" /> This action cannot be undone. Branding images will not be affected.
-              </p>
-            </div>
-          </div>
-        </Modal>
-
-      {/* Toast Notifications */}
+      {/* Toasts */}
       {toasts.length > 0 && (
         <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
           {toasts.map((toast) => (
@@ -401,7 +750,7 @@ export default function SettingsPage() {
               className={cn("flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg text-sm font-medium text-white animate-in slide-in-from-right-5 fade-in duration-300",
                 toast.type === "success" ? "bg-emerald-600" : "bg-red-600")}>
               <span>{toast.message}</span>
-              <button onClick={() => dismissToast(toast.id)} className="ml-1 hover:opacity-80">
+              <button onClick={() => setToasts((prev) => prev.filter((t) => t.id !== toast.id))} className="ml-1 hover:opacity-80">
                 <X className="h-3.5 w-3.5" />
               </button>
             </div>
