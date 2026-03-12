@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { usePolling } from "@/hooks/use-polling";
 import {
@@ -58,9 +59,18 @@ async function fetchWithFallback<T>(path: string, fallback: T, signal: AbortSign
     }
     return response as T;
   } catch {
+    // Silently fall back to mock data -- don't spam toast errors
+    // when the server is slow or external APIs are timing out.
     return fallback;
   }
 }
+
+// In dev, php artisan serve is single-threaded -- aggressive polling overwhelms it.
+// Production (Nginx + PHP-FPM) handles concurrency fine.
+const isDev = process.env.NODE_ENV === "development";
+const POLL_SHORT = isDev ? 120_000 : 30_000;   // 2min dev, 30s prod
+const POLL_MEDIUM = isDev ? 180_000 : 60_000;  // 3min dev, 60s prod
+const POLL_LONG = isDev ? 600_000 : 300_000;   // 10min dev, 5min prod
 
 export default function DashboardPage() {
   const [isMabiniOpen, setIsMabiniOpen] = useState(false);
@@ -72,13 +82,13 @@ export default function DashboardPage() {
   const alerts = usePolling<Alert[]>({
     fetcher: (signal) =>
       fetchWithFallback("/founder/alerts", mockAlerts, signal),
-    interval: 30000,
+    interval: POLL_SHORT,
   });
 
   const insight = usePolling<MabiniInsight>({
     fetcher: (signal) =>
       fetchWithFallback("/founder/mabini/insights", mockInsight, signal),
-    interval: 60000,
+    interval: POLL_MEDIUM,
   });
 
   const droplets = usePolling<DropletMetrics[]>({
@@ -88,7 +98,7 @@ export default function DashboardPage() {
         mockDroplets,
         signal,
       ),
-    interval: 30000,
+    interval: POLL_SHORT,
   });
 
   const databases = usePolling<DatabaseStatus[]>({
@@ -98,19 +108,19 @@ export default function DashboardPage() {
         mockDatabases,
         signal,
       ),
-    interval: 30000,
+    interval: POLL_SHORT,
   });
 
   const products = usePolling<ProductHealth[]>({
     fetcher: (signal) =>
       fetchWithFallback("/founder/products/health", mockProductHealth, signal),
-    interval: 30000,
+    interval: POLL_SHORT,
   });
 
   const revenue = usePolling<RevenueData[]>({
     fetcher: (signal) =>
       fetchWithFallback("/founder/revenue", mockRevenue, signal),
-    interval: 300000,
+    interval: POLL_LONG,
   });
 
   const domains = usePolling<DomainStatus[]>({
@@ -120,7 +130,7 @@ export default function DashboardPage() {
         mockDomains,
         signal,
       ),
-    interval: 60000,
+    interval: POLL_MEDIUM,
   });
 
   const deployments = usePolling<Deployment[]>({
@@ -130,19 +140,19 @@ export default function DashboardPage() {
         mockDeployments,
         signal,
       ),
-    interval: 30000,
+    interval: POLL_SHORT,
   });
 
   const security = usePolling<SecurityFeed>({
     fetcher: (signal) =>
       fetchWithFallback("/founder/security/feed", mockSecurityFeed, signal),
-    interval: 30000,
+    interval: POLL_SHORT,
   });
 
   const activity = usePolling<ActivityEvent[]>({
     fetcher: (signal) =>
       fetchWithFallback("/founder/activity", mockActivity, signal),
-    interval: 30000,
+    interval: POLL_SHORT,
   });
 
   // Determine overall system status
@@ -158,7 +168,11 @@ export default function DashboardPage() {
 
   const handleAcknowledgeAlert = useCallback((id: string) => {
     setDismissedAlerts((prev) => new Set(prev).add(id));
-    api.post(`/founder/alerts/${id}/acknowledge`).catch(() => {});
+    api.post(`/founder/alerts/${id}/acknowledge`).then(() => {
+      toast.success("Alert acknowledged");
+    }).catch(() => {
+      toast.error("Failed to acknowledge alert");
+    });
   }, []);
 
   // Filter visible alerts

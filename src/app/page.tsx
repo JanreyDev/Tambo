@@ -2,22 +2,28 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { hasToken } from "@/lib/api";
+import { useFounderAuth } from "@/contexts/founder-auth-context";
+import PasscodePage from "./passcode/page";
 
 export default function RootPage() {
   const router = useRouter();
+  const { isAuthenticated, isChecking } = useFounderAuth();
 
   useEffect(() => {
-    if (hasToken()) {
+    if (!isChecking && isAuthenticated) {
       router.replace("/dashboard");
-    } else {
-      router.replace("/passcode");
     }
-  }, [router]);
+  }, [isAuthenticated, isChecking, router]);
 
-  return (
-    <div className="flex h-screen items-center justify-center bg-background">
-      <div className="h-6 w-6 animate-spin rounded-full border-2 border-accent border-t-transparent" />
-    </div>
-  );
+  // If authenticated, show loading while redirecting to dashboard
+  if (isChecking || isAuthenticated) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#020617]">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+      </div>
+    );
+  }
+
+  // Not authenticated -- show passcode page directly (no redirect)
+  return <PasscodePage />;
 }

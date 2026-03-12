@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, ShieldAlert, Shield, Loader2, Clock } from "lucide-react";
+import { Eye, EyeOff, ShieldAlert, Loader2, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { PrimeXLogo } from "@/components/primex-logo";
 import { cn } from "@/lib/utils";
@@ -221,17 +221,6 @@ export default function PasscodePage() {
             )}
           </button>
         </form>
-
-        {/* Family Vault Link */}
-        <div className="mt-6 flex justify-center">
-          <a
-            href="/vault"
-            className="group flex items-center gap-1.5 text-[10px] text-amber-500/60 transition-colors hover:text-amber-400"
-          >
-            <Shield className="h-3 w-3" />
-            <span>Family Vault</span>
-          </a>
-        </div>
 
         {/* Footer */}
         <div className="mt-4 text-center text-[9px] leading-relaxed text-muted-foreground/40">

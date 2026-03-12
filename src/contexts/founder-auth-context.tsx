@@ -55,8 +55,17 @@ export function FounderAuthProvider({ children }: { children: ReactNode }) {
       .then(() => {
         if (!cancelled) setIsAuthenticated(true);
       })
-      .catch(() => {
-        if (!cancelled) clearToken();
+      .catch((err) => {
+        // Only clear token on 401 (invalid/expired session).
+        // Network errors or 500s should NOT log the user out --
+        // the token may still be valid, the server is just busy.
+        if (!cancelled && err instanceof ApiError && err.status === 401) {
+          clearToken();
+        } else if (!cancelled) {
+          // Server unreachable or error -- assume token is still valid
+          // so user doesn't get kicked out on every PHP timeout.
+          setIsAuthenticated(true);
+        }
       })
       .finally(() => {
         if (!cancelled) setIsChecking(false);

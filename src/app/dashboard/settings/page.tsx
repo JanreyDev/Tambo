@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import { ChevronRight, Settings, Shield, Bell, Plug, Wrench } from "lucide-react";
 import { MabiniInsightBanner } from "@/components/mabini-insight-banner";
 

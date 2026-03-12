@@ -38,12 +38,14 @@ interface RequestOptions {
 export class ApiError extends Error {
   status: number;
   retryAfter: number | null;
+  errors: Record<string, string[]> | null;
 
-  constructor(message: string, status: number, retryAfter: number | null = null) {
+  constructor(message: string, status: number, retryAfter: number | null = null, errors: Record<string, string[]> | null = null) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.retryAfter = retryAfter;
+    this.errors = errors;
   }
 }
 
@@ -87,10 +89,9 @@ async function request<T>(
   }
 
   if (response.status === 401) {
-    clearToken();
-    if (typeof window !== "undefined") {
-      window.location.href = "/passcode";
-    }
+    // Don't clearToken() or redirect here -- multiple requests may be in flight.
+    // A single 401 from a slow/overloaded server shouldn't nuke the session.
+    // The auth context handles redirect: !isAuthenticated → /passcode.
     throw new ApiError("Session expired. Please log in again.", 401);
   }
 
@@ -110,6 +111,8 @@ async function request<T>(
     throw new ApiError(
       error.message || "Something went wrong. Please try again.",
       response.status,
+      null,
+      error.errors || null,
     );
   }
 

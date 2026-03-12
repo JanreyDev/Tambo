@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useFounderAuth } from "@/contexts/founder-auth-context";
 import { api } from "@/lib/api";
@@ -14,6 +14,11 @@ export default function DashboardLayout({
 }) {
   const { isAuthenticated, isChecking } = useFounderAuth();
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Redirect to passcode if not authenticated
   useEffect(() => {
@@ -38,9 +43,10 @@ export default function DashboardLayout({
     return () => clearInterval(timer);
   }, [isAuthenticated]);
 
-  if (isChecking) {
+  // Suppress hydration mismatch: render nothing on server, show spinner until auth check completes
+  if (!mounted || isChecking) {
     return (
-      <div className="flex h-screen items-center justify-center bg-background">
+      <div className="flex h-screen items-center justify-center bg-background" suppressHydrationWarning>
         <div className="h-6 w-6 animate-spin rounded-full border-2 border-accent border-t-transparent" />
       </div>
     );
@@ -56,7 +62,7 @@ export default function DashboardLayout({
       <div className="flex-1 flex flex-col min-w-0">
         <main className="flex-1">{children}</main>
         <footer className="border-t border-border px-6 py-3 text-[11px] text-muted-foreground/60 flex items-center justify-between">
-          <span>Copyright 2015-{new Date().getFullYear()} All Rights Reserved | PrimeX Ventures Inc.</span>
+          <span>Copyright 2015-2026 All Rights Reserved | PrimeX Ventures Inc.</span>
           <span className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
             v1.0.0

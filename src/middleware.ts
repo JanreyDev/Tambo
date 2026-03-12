@@ -35,8 +35,8 @@ export function middleware(request: NextRequest) {
   const authCookie = request.cookies.get("founder_auth");
 
   if (!authCookie?.value) {
-    const passcodeUrl = new URL("/passcode", request.url);
-    return NextResponse.redirect(passcodeUrl);
+    const rootUrl = new URL("/", request.url);
+    return NextResponse.redirect(rootUrl);
   }
 
   return NextResponse.next();
