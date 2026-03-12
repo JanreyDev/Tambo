@@ -17,7 +17,11 @@ class FileUploadService
 
     public function __construct()
     {
-        $this->disk = config('filesystems.default', 'do_spaces');
+        $default = config('filesystems.default', 'do_spaces');
+
+        // Local dev: use 'public' disk so files are URL-accessible via /storage
+        // Production: use 'do_spaces' for DigitalOcean Spaces
+        $this->disk = $default === 'local' ? 'public' : $default;
     }
 
     /**
@@ -66,7 +70,7 @@ class FileUploadService
             'mime_type' => $file->getMimeType() ?? 'application/octet-stream',
             'size_bytes' => $sizeBytes,
             'storage_path' => $fullPath,
-            'storage_bucket' => config("filesystems.disks.{$this->disk}.bucket"),
+            'storage_bucket' => config("filesystems.disks.{$this->disk}.bucket", 'local'),
             'uploaded_by' => $uploadedBy,
             'category' => $category,
             'is_public' => $isPublic,

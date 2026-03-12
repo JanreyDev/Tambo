@@ -10,6 +10,7 @@ use App\Models\Tenant\Records\Household;
 use App\Models\Tenant\Records\ResidentCrossBarangayFlag;
 use App\Models\Tenant\Records\ResidentSectoralTag;
 use App\Models\Tenant\Resident;
+use App\Services\SmsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,6 +18,9 @@ use Illuminate\Support\Facades\Log;
 
 class ResidentController extends Controller
 {
+    public function __construct(
+        private readonly SmsService $smsService,
+    ) {}
     /**
      * List residents with search/filter/pagination.
      */
@@ -220,6 +224,40 @@ class ResidentController extends Controller
                 'barangay_id' => $barangayId,
                 'created_by' => $request->user()->id,
             ]);
+
+            // Send SMS notification if enabled in barangay settings
+            $barangay = Barangay::find($barangayId);
+            $notifPrefs = $barangay?->notification_preferences ?? [];
+
+            if (! empty($notifPrefs['sms_new_resident']) && $resident->mobile_number) {
+                try {
+                    // Build full name: FIRST_NAME M. LAST_NAME EXT
+                    $middleInitial = $resident->middle_name ? mb_strtoupper(mb_substr($resident->middle_name, 0, 1)).'.' : '';
+                    $extension = $resident->extension_name ? ' '.mb_strtoupper($resident->extension_name) : '';
+                    $fullName = mb_strtoupper(trim(
+                        ($resident->first_name ?? '').' '.$middleInitial.' '.($resident->last_name ?? '').$extension
+                    ));
+                    $barangayName = mb_strtoupper(trim($barangay->name ?? ''));
+
+                    $message = SmsService::formatWithSenderHeader(
+                        "Magandang araw po, {$fullName}! Kayo po ay matagumpay na narehistro bilang residente ng Barangay {$barangayName}. Ang inyong resident number ay {$residentNumber}. Ang inyong personal na impormasyon ay protektado sa ilalim ng RA 10173 (Data Privacy Act). Para sa mga katanungan, makipag-ugnayan po sa inyong barangay hall. Maraming salamat po!",
+                        $barangay,
+                    );
+                    $this->smsService->send(
+                        phone: $resident->mobile_number,
+                        message: $message,
+                        barangay: $barangay,
+                        source: 'new_resident_registration',
+                        sourceId: $resident->id,
+                    );
+                } catch (\Throwable $e) {
+                    // Never let SMS failure block resident creation
+                    Log::warning('SMS notification failed for new resident', [
+                        'resident_id' => $resident->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
 
             return response()->json([
                 'message' => 'Resident registered successfully.',

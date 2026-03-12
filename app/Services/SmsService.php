@@ -220,6 +220,36 @@ class SmsService
     }
 
     /**
+     * Format an SMS message body with barangay sender name header.
+     * Example output:
+     *   BARANGAY
+     *   TAMBO
+     *
+     *   Your registration has been confirmed.
+     */
+    public static function formatWithSenderHeader(string $message, ?Barangay $barangay = null): string
+    {
+        if (! $barangay) {
+            return $message;
+        }
+
+        $senderName = mb_strtoupper(trim($barangay->sms_sender_name ?? ''));
+        $barangayName = mb_strtoupper(trim($barangay->name));
+
+        if ($senderName === '') {
+            // Fallback: use "BARANGAY\n{NAME}" if no custom sender name
+            return "BARANGAY\n{$barangayName}\n\n{$message}";
+        }
+
+        // Avoid duplicate when sender name equals barangay name (e.g., both "TAMBO")
+        if ($senderName === $barangayName) {
+            return "BARANGAY {$barangayName}\n\n{$message}";
+        }
+
+        return "{$senderName}\nBRGY. {$barangayName}\n\n{$message}";
+    }
+
+    /**
      * Normalize Philippine phone number to 09XXXXXXXXX format.
      */
     public function normalizePhone(string $phone): string

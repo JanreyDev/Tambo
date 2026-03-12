@@ -164,6 +164,7 @@ Route::prefix('v1')->group(function () {
             Route::prefix('settings')->group(function () {
                 Route::get('/', [BarangaySettingsController::class, 'show']);
                 Route::patch('/', [BarangaySettingsController::class, 'update']);
+                Route::get('/usage', [BarangaySettingsController::class, 'usage']);
                 Route::post('/logo', [BarangaySettingsController::class, 'uploadLogo']);
                 Route::post('/seal', [BarangaySettingsController::class, 'uploadSeal']);
             });

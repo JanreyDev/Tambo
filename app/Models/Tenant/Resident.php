@@ -221,7 +221,7 @@ class Resident extends Model
             $this->extension_name,
         ]);
 
-        return strtoupper($this->last_name ?? '').', '.implode(' ', $parts);
+        return mb_strtoupper($this->last_name ?? '', 'UTF-8').', '.implode(' ', $parts);
     }
 
     public function getAgeAttribute(): ?int
