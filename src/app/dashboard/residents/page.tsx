@@ -1812,7 +1812,7 @@ export default function ResidentsPage() {
 
     leafletMapRef.current = map;
 
-    if (hasCoords) {
+    if (hasResidentCoords) {
       placeLeafletMarker(defaultLat, defaultLng);
     }
 
