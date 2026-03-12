@@ -14,13 +14,18 @@ use Illuminate\Support\Facades\Log;
 class SmsService
 {
     /**
-     * Cost per 160-character SMS segment (in PHP pesos).
-     * If message exceeds 160 chars, each additional 160-char block costs another segment.
-     * Example: 161 chars = 2 segments = 1.00, 320 chars = 2 segments = 1.00, 321 chars = 3 segments = 1.50
+     * Default chars per SMS segment (GSM standard).
+     * Cost and segment size configurable via config('bcmp.sms.*').
      */
-    private const COST_PER_SEGMENT = 0.50;
+    private const DEFAULT_COST_PER_SEGMENT = 0.50;
 
-    private const CHARS_PER_SEGMENT = 160;
+    private const DEFAULT_CHARS_PER_SEGMENT = 159;
+
+    /**
+     * Monthly sender name reservation fee per barangay (PHP pesos).
+     * Charged automatically on the 1st of each month.
+     */
+    public const MONTHLY_SENDER_NAME_FEE = 300.00;
 
     /**
      * Calculate the number of SMS segments for a message.
@@ -28,8 +33,9 @@ class SmsService
     public static function calculateSegments(string $message): int
     {
         $length = mb_strlen($message);
+        $charsPerSegment = (int) config('bcmp.sms.chars_per_segment', self::DEFAULT_CHARS_PER_SEGMENT);
 
-        return $length === 0 ? 1 : (int) ceil($length / self::CHARS_PER_SEGMENT);
+        return $length === 0 ? 1 : (int) ceil($length / $charsPerSegment);
     }
 
     /**
@@ -37,7 +43,7 @@ class SmsService
      */
     public static function calculateCost(string $message): float
     {
-        return self::calculateSegments($message) * self::COST_PER_SEGMENT;
+        return self::calculateSegments($message) * self::costPerSegment();
     }
 
     /**
@@ -45,7 +51,7 @@ class SmsService
      */
     public static function costPerSegment(): float
     {
-        return self::COST_PER_SEGMENT;
+        return (float) config('bcmp.sms.cost_per_segment', self::DEFAULT_COST_PER_SEGMENT);
     }
 
     /**

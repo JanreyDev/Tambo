@@ -23,6 +23,7 @@ class DatabaseSeeder extends Seeder
             LotBuildingSeeder::class,
             OfficialSeeder::class,
             PlatformUpdatesSeeder::class,
+            DefaultDocumentTemplateSeeder::class,
         ]);
     }
 }

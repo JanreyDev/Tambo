@@ -285,11 +285,13 @@ class AuthController extends Controller
             ], 422);
         }
 
-        // Generate a short-lived reset token (stored in cache, 10 min TTL)
+        // Generate a short-lived reset token (hashed in cache, 10 min TTL).
+        // Only the hash is stored; the plaintext token is returned to the client.
+        // This prevents token extraction if the cache backend is compromised.
         $resetToken = bin2hex(random_bytes(32));
         \Illuminate\Support\Facades\Cache::put(
             "password_reset:{$user->id}",
-            $resetToken,
+            hash('sha256', $resetToken),
             now()->addMinutes(10)
         );
 
@@ -321,10 +323,10 @@ class AuthController extends Controller
             ], 422);
         }
 
-        // Verify the reset token from cache
-        $storedToken = \Illuminate\Support\Facades\Cache::get("password_reset:{$user->id}");
+        // Verify the reset token from cache (stored as SHA-256 hash)
+        $storedHash = \Illuminate\Support\Facades\Cache::get("password_reset:{$user->id}");
 
-        if (! $storedToken || $storedToken !== $validated['reset_token']) {
+        if (! $storedHash || ! hash_equals($storedHash, hash('sha256', $validated['reset_token']))) {
             return response()->json([
                 'message' => 'Invalid or expired reset token.',
             ], 422);
@@ -376,7 +378,11 @@ class AuthController extends Controller
             'barangay' => $user->barangay ? [
                 'id' => $user->barangay->id,
                 'name' => $user->barangay->name,
+                'psgc_code' => $user->barangay->psgc_code,
                 'full_address' => $user->barangay->full_address,
+                'city_municipality' => $user->barangay->city_municipality,
+                'province' => $user->barangay->province,
+                'zip_code' => $user->barangay->zip_code,
                 'logo_url' => $user->barangay->logo_url,
                 'status' => $user->barangay->status,
                 'sms_credit_balance' => $user->barangay->sms_credit_balance,
@@ -385,6 +391,18 @@ class AuthController extends Controller
                 'subscription_plan' => $user->barangay->subscription_plan,
                 'storage_used_bytes' => $user->barangay->storage_used_bytes,
                 'storage_limit_bytes' => $user->barangay->storage_limit_bytes,
+                'seal_url' => $user->barangay->seal_url,
+                'contact_phone' => $user->barangay->contact_phone,
+                'contact_email' => $user->barangay->contact_email,
+                'website_url' => $user->barangay->website_url,
+                'motto' => $user->barangay->motto,
+                'office_hours' => $user->barangay->office_hours,
+                'captain_name' => $user->barangay->captain_name,
+                'latitude' => $user->barangay->latitude ? (float) $user->barangay->latitude : null,
+                'longitude' => $user->barangay->longitude ? (float) $user->barangay->longitude : null,
+                'boundary_geojson' => $user->barangay->boundary_geojson,
+                'setup_complete' => $user->barangay->setup_complete,
+                'established_year' => $user->barangay->established_year,
             ] : null,
             'roles' => $user->getRoleNames(),
             'permissions' => $user->getAllPermissions()->pluck('name'),

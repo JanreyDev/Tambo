@@ -24,6 +24,9 @@ class Barangay extends Model
         'province_psgc',
         'region_psgc',
         'full_address',
+        'city_municipality',
+        'province',
+        'zip_code',
         'logo_url',
         'seal_url',
         'contact_phone',
@@ -44,6 +47,16 @@ class Barangay extends Model
         'storage_used_bytes',
         'storage_limit_bytes',
         'settings',
+        'motto',
+        'office_hours',
+        'established_year',
+        'captain_name',
+        'boundary_geojson',
+        'setup_complete',
+        'document_header_text',
+        'document_footer_text',
+        'sms_sender_name',
+        'notification_preferences',
     ];
 
     protected function casts(): array
@@ -61,6 +74,10 @@ class Barangay extends Model
             'storage_limit_bytes' => 'integer',
             'settings' => 'array',
             'subscription_expires_at' => 'datetime',
+            'setup_complete' => 'boolean',
+            'established_year' => 'integer',
+            'boundary_geojson' => 'array',
+            'notification_preferences' => 'array',
         ];
     }
 
@@ -72,6 +89,11 @@ class Barangay extends Model
     public function residents(): HasMany
     {
         return $this->hasMany(\App\Models\Tenant\Resident::class);
+    }
+
+    public function files(): HasMany
+    {
+        return $this->hasMany(File::class);
     }
 
     public function isActive(): bool
@@ -105,6 +127,26 @@ class Barangay extends Model
         $this->decrement('ai_credit_balance', $amount);
     }
 
+    public function hasMapCredits(float $amount): bool
+    {
+        return $this->map_credit_balance >= $amount;
+    }
+
+    public function deductMapCredit(float $amount): void
+    {
+        $this->decrement('map_credit_balance', $amount);
+    }
+
+    public function hasCallCredits(float $amount): bool
+    {
+        return $this->call_credit_balance >= $amount;
+    }
+
+    public function deductCallCredit(float $amount): void
+    {
+        $this->decrement('call_credit_balance', $amount);
+    }
+
     /**
      * Get AI markup percentage for this barangay.
      * Checks barangay-level settings first, falls back to global config.
@@ -128,11 +170,29 @@ class Barangay extends Model
 
     public function incrementStorage(int $bytes): void
     {
-        $this->increment('storage_used_bytes', $bytes);
+        $this->increment('storage_used_bytes', max(0, $bytes));
+    }
+
+    public function decrementStorage(int $bytes): void
+    {
+        $newValue = max(0, $this->storage_used_bytes - $bytes);
+        $this->update(['storage_used_bytes' => $newValue]);
     }
 
     public function hasStorageCapacity(int $bytes): bool
     {
         return ($this->storage_used_bytes + $bytes) <= $this->storage_limit_bytes;
+    }
+
+    /**
+     * Recalculate storage_used_bytes from the files table.
+     * Use when data may be out of sync.
+     */
+    public function recalculateStorage(): int
+    {
+        $actualBytes = (int) $this->files()->sum('size_bytes');
+        $this->update(['storage_used_bytes' => $actualBytes]);
+
+        return $actualBytes;
     }
 }

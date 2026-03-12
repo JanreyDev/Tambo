@@ -23,9 +23,11 @@ class UserSeeder extends Seeder
             'password' => Hash::make('PrimeX@2026!'),
             'first_name' => 'PrimeX',
             'last_name' => 'Admin',
-            'is_super_admin' => true,
             'status' => 'active',
         ]);
+        // Set explicitly (excluded from $fillable for security)
+        $superAdmin->is_super_admin = true;
+        $superAdmin->save();
 
         // Tambo Barangay Users
         $kapitanTambo = User::create([

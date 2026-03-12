@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Models\Admin\Barangay;
 use App\Models\Admin\File;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -36,6 +38,17 @@ class FileUploadService
         ?string $barangayId = null,
         bool $isPublic = false,
     ): File {
+        $sizeBytes = $file->getSize();
+
+        // Check storage capacity BEFORE uploading
+        $barangay = null;
+        if ($barangayId) {
+            $barangay = Barangay::find($barangayId);
+            if ($barangay && ! $barangay->hasStorageCapacity($sizeBytes)) {
+                throw new \RuntimeException('Storage limit exceeded for this barangay.');
+            }
+        }
+
         $uuid = (string) Str::uuid();
         $extension = $file->getClientOriginalExtension() ?: 'bin';
         $storedName = "{$uuid}.{$extension}";
@@ -46,12 +59,12 @@ class FileUploadService
         Storage::disk($this->disk)->put($fullPath, $file->getContent(), $visibility);
 
         // Create file record
-        return File::create([
+        $fileRecord = File::create([
             'barangay_id' => $barangayId,
             'original_name' => $file->getClientOriginalName(),
             'stored_name' => $storedName,
             'mime_type' => $file->getMimeType() ?? 'application/octet-stream',
-            'size_bytes' => $file->getSize(),
+            'size_bytes' => $sizeBytes,
             'storage_path' => $fullPath,
             'storage_bucket' => config("filesystems.disks.{$this->disk}.bucket"),
             'uploaded_by' => $uploadedBy,
@@ -62,6 +75,14 @@ class FileUploadService
                 'disk' => $this->disk,
             ],
         ]);
+
+        // Track storage usage on the barangay
+        if ($barangayId) {
+            $barangay = $barangay ?? Barangay::find($barangayId);
+            $barangay?->incrementStorage($sizeBytes);
+        }
+
+        return $fileRecord;
     }
 
     /**
@@ -94,8 +115,16 @@ class FileUploadService
      */
     public function delete(File $file): bool
     {
+        $sizeBytes = $file->size_bytes;
+        $barangayId = $file->barangay_id;
+
         Storage::disk($this->disk)->delete($file->storage_path);
         $file->forceDelete();
+
+        // Decrement storage usage on the barangay
+        if ($barangayId && $sizeBytes > 0) {
+            Barangay::find($barangayId)?->decrementStorage($sizeBytes);
+        }
 
         return true;
     }

@@ -3,8 +3,10 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Api\V1\AccountController;
+use App\Http\Controllers\Api\V1\Admin\AdminBarangayController;
 use App\Http\Controllers\Api\V1\Admin\PlatformUpdateController;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\PsgcController;
 use App\Http\Controllers\Api\V1\Tenant\AiController;
 use App\Http\Controllers\Api\V1\Tenant\AssetController;
 use App\Http\Controllers\Api\V1\Tenant\AttendanceRecordController;
@@ -15,6 +17,7 @@ use App\Http\Controllers\Api\V1\Tenant\CashbookEntryController;
 use App\Http\Controllers\Api\V1\Tenant\CollectionsDepositController;
 use App\Http\Controllers\Api\V1\Tenant\CouncilController;
 use App\Http\Controllers\Api\V1\Tenant\CouncilSessionController;
+use App\Http\Controllers\Api\V1\Tenant\BarangaySettingsController;
 use App\Http\Controllers\Api\V1\Tenant\DashboardController;
 use App\Http\Controllers\Api\V1\Tenant\DisbursementVoucherController;
 use App\Http\Controllers\Api\V1\Tenant\DocumentRouteController;
@@ -22,6 +25,7 @@ use App\Http\Controllers\Api\V1\Tenant\DocumentTemplateController;
 use App\Http\Controllers\Api\V1\Tenant\EmployeeController;
 use App\Http\Controllers\Api\V1\Tenant\EstablishmentController;
 use App\Http\Controllers\Api\V1\Tenant\EvacuationController;
+use App\Http\Controllers\Api\V1\Tenant\FileController;
 use App\Http\Controllers\Api\V1\Tenant\GadPlanController;
 use App\Http\Controllers\Api\V1\Tenant\HazardPinController;
 use App\Http\Controllers\Api\V1\Tenant\HouseholdController;
@@ -126,9 +130,43 @@ Route::prefix('v1')->group(function () {
         // Platform updates (no tenant context needed)
         Route::get('platform-updates', [PlatformUpdateController::class, 'index']);
 
+        // ── Admin routes (super_admin only, no tenant context) ──
+        Route::prefix('admin')->middleware('super_admin')->group(function () {
+            Route::apiResource('barangays', AdminBarangayController::class);
+            Route::get('barangays-subscription-stats', [AdminBarangayController::class, 'subscriptionStats']);
+            Route::get('barangays/{barangay}/stats', [AdminBarangayController::class, 'stats']);
+            Route::post('barangays/{barangay}/recalculate-storage', [AdminBarangayController::class, 'recalculateStorage']);
+            Route::post('barangays/recalculate-storage-all', [AdminBarangayController::class, 'recalculateStorageAll']);
+
+            // User account management
+            Route::post('barangays/{barangay}/users/{user}/suspend', [AdminBarangayController::class, 'suspendUser']);
+            Route::post('barangays/{barangay}/users/{user}/activate', [AdminBarangayController::class, 'activateUser']);
+            Route::post('barangays/{barangay}/users/{user}/reset-password', [AdminBarangayController::class, 'resetUserPassword']);
+            Route::patch('barangays/{barangay}/users/{user}', [AdminBarangayController::class, 'updateUser']);
+
+            // Barangay data views (admin)
+            Route::get('barangays/{barangay}/residents', [AdminBarangayController::class, 'residents']);
+            Route::get('barangays/{barangay}/files', [AdminBarangayController::class, 'files']);
+        });
+
+        // ── PSGC lookup routes (for onboarding cascading dropdowns) ──
+        Route::prefix('psgc')->group(function () {
+            Route::get('provinces', [PsgcController::class, 'provinces']);
+            Route::get('provinces/{code}/cities', [PsgcController::class, 'cities']);
+            Route::get('cities/{code}/barangays', [PsgcController::class, 'barangays']);
+        });
+
         // ── Tenant-scoped routes ──
 
         Route::middleware(['tenant'])->group(function () {
+
+            // ── Barangay Settings ──
+            Route::prefix('settings')->group(function () {
+                Route::get('/', [BarangaySettingsController::class, 'show']);
+                Route::patch('/', [BarangaySettingsController::class, 'update']);
+                Route::post('/logo', [BarangaySettingsController::class, 'uploadLogo']);
+                Route::post('/seal', [BarangaySettingsController::class, 'uploadSeal']);
+            });
 
             // Dashboard
             Route::prefix('dashboard')->group(function () {
@@ -155,6 +193,11 @@ Route::prefix('v1')->group(function () {
                 Route::get('/', [SmsTransactionController::class, 'index']);
                 Route::get('summary', [SmsTransactionController::class, 'summary']);
             });
+
+            // ── Files ──
+            Route::post('files', [FileController::class, 'store']);
+            Route::get('files/{id}/url', [FileController::class, 'url']);
+            Route::delete('files/{id}', [FileController::class, 'destroy']);
 
             // ── Records ──
             Route::post('residents/check-duplicate', [ResidentController::class, 'checkDuplicate']);

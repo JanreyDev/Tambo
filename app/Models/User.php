@@ -31,16 +31,16 @@ class User extends Authenticatable
         'last_name',
         'extension_name',
         'photo_url',
-        'is_super_admin',
         'last_login_at',
         'last_login_ip',
         'status',
         'preferences',
         'username_changed_at',
         'password_changed_at',
-        'two_factor_secret',
         'two_factor_confirmed_at',
-        'two_factor_recovery_codes',
+        // SECURITY: is_super_admin, two_factor_secret, two_factor_recovery_codes
+        // are excluded from $fillable to prevent mass assignment privilege escalation.
+        // Set these explicitly: $user->is_super_admin = true;
     ];
 
     protected $hidden = [

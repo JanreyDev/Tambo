@@ -482,6 +482,10 @@ class ResidentController extends Controller
             'is_voter' => ['nullable', 'boolean'],
             'is_resident_voter' => ['nullable', 'boolean'],
             'voter_precinct_number' => ['nullable', 'string', 'max:50'],
+            'last_voted_year' => ['nullable', 'integer', 'min:1990', 'max:'.date('Y')],
+
+            // Contact
+            'telephone' => ['nullable', 'string', 'max:20'],
 
             // Government IDs (plain values -- encrypted on save)
             'philhealth_number' => ['nullable', 'string', 'max:50'],
@@ -583,8 +587,11 @@ class ResidentController extends Controller
             'emergency_contact_address' => ['nullable', 'string', 'max:1000'],
             'emergency_contact_relationship' => ['nullable', 'string', 'max:50'],
 
-            // Photo
-            'photo_file_id' => ['nullable', 'uuid'],
+            // Biometric file references (upload via POST /api/v1/files first)
+            'photo_file_id' => ['nullable', 'uuid', 'exists:files,id'],
+            'signature_file_id' => ['nullable', 'uuid', 'exists:files,id'],
+            'left_thumbmark_file_id' => ['nullable', 'uuid', 'exists:files,id'],
+            'right_thumbmark_file_id' => ['nullable', 'uuid', 'exists:files,id'],
         ];
     }
 

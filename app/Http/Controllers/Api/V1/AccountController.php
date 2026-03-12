@@ -487,11 +487,11 @@ class AccountController extends Controller
         $google2fa = new Google2FA;
         $secret = $google2fa->generateSecretKey(32);
 
-        // Store secret temporarily (not confirmed yet)
-        $user->update([
-            'two_factor_secret' => $secret,
-            'two_factor_confirmed_at' => null,
-        ]);
+        // Store secret temporarily (not confirmed yet).
+        // Set directly to avoid mass-assignment (excluded from $fillable for security).
+        $user->two_factor_secret = $secret;
+        $user->two_factor_confirmed_at = null;
+        $user->save();
 
         // Generate QR code as data URI
         $otpauthUrl = $google2fa->getQRCodeUrl(
@@ -547,10 +547,9 @@ class AccountController extends Controller
 
         $recoveryCodes = $this->generateRecoveryCodes();
 
-        $user->update([
-            'two_factor_confirmed_at' => now(),
-            'two_factor_recovery_codes' => $recoveryCodes,
-        ]);
+        $user->two_factor_confirmed_at = now();
+        $user->two_factor_recovery_codes = $recoveryCodes;
+        $user->save();
 
         Log::info('2FA enabled', ['user_id' => $user->id]);
 
@@ -586,11 +585,11 @@ class AccountController extends Controller
             ], 422);
         }
 
-        $user->update([
-            'two_factor_secret' => null,
-            'two_factor_confirmed_at' => null,
-            'two_factor_recovery_codes' => null,
-        ]);
+        // Set directly to avoid mass-assignment (excluded from $fillable for security).
+        $user->two_factor_secret = null;
+        $user->two_factor_confirmed_at = null;
+        $user->two_factor_recovery_codes = null;
+        $user->save();
 
         Log::info('2FA disabled', ['user_id' => $user->id]);
 
@@ -635,7 +634,8 @@ class AccountController extends Controller
         }
 
         $recoveryCodes = $this->generateRecoveryCodes();
-        $user->update(['two_factor_recovery_codes' => $recoveryCodes]);
+        $user->two_factor_recovery_codes = $recoveryCodes;
+        $user->save();
 
         Log::info('2FA recovery codes regenerated', ['user_id' => $user->id]);
 

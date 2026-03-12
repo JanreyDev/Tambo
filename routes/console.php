@@ -1,8 +1,6 @@
 <?php
 
-use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 
-Artisan::command('inspire', function () {
-    $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote');
+// Monthly SMS sender name reservation fee (₱300/barangay on 1st of each month at 1:00 AM PHT)
+Schedule::command('bcmp:charge-sms-sender-fee')->monthlyOn(1, '01:00')->timezone('Asia/Manila');

@@ -3,6 +3,7 @@
 use App\Http\Middleware\BlockSuspiciousRequests;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\SetTenantContext;
+use App\Http\Middleware\SuperAdminOnly;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -22,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'tenant' => SetTenantContext::class,
+            'super_admin' => SuperAdminOnly::class,
         ]);
 
         // ── Global middleware (runs on every request) ──
@@ -85,6 +87,22 @@ return Application::configure(basePath: dirname(__DIR__))
             if ($e instanceof ValidationException
                 || $e instanceof HttpExceptionInterface) {
                 return null;
+            }
+
+            // Log the actual error for debugging
+            \Log::error('Unhandled exception', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            // In debug mode, show the actual error for development
+            if (config('app.debug')) {
+                return response()->json([
+                    'message' => $e->getMessage(),
+                    'file' => $e->getFile().':'.$e->getLine(),
+                ], 500);
             }
 
             // Everything else = 500 with no stack trace leak

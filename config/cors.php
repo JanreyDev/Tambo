@@ -16,12 +16,16 @@ return [
 
     'allowed_methods' => ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
 
-    'allowed_origins' => [
-        'https://kapitan.ph',
-        'https://www.kapitan.ph',
-        'http://localhost:3000',
-        'http://localhost:3001',
-    ],
+    'allowed_origins' => array_filter(
+        env('CORS_ALLOWED_ORIGINS')
+            ? explode(',', env('CORS_ALLOWED_ORIGINS'))
+            : [
+                'https://kapitan.ph',
+                'https://www.kapitan.ph',
+                'http://localhost:3000',
+                'http://localhost:3001',
+            ]
+    ),
 
     'allowed_origins_patterns' => [],
 
