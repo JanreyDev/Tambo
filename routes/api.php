@@ -8,6 +8,8 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\Founder\ActivityController;
 use App\Http\Controllers\Api\V1\Founder\AlertController;
+use App\Http\Controllers\Api\V1\Founder\BcmpTenantController;
+use App\Http\Controllers\Api\V1\Founder\PsgcProxyController;
 use App\Http\Controllers\Api\V1\Founder\DeploymentController;
 use App\Http\Controllers\Api\V1\Founder\FounderAuthController;
 use App\Http\Controllers\Api\V1\Founder\InfrastructureController;
@@ -60,7 +62,8 @@ Route::prefix('v1')->group(function (): void {
 
 // Founder Command Center routes (passcode auth, not Sanctum).
 Route::prefix('v1/founder')->group(function (): void {
-    Route::post('verify-passcode', [FounderAuthController::class, 'verifyPasscode']);
+    Route::post('verify-passcode', [FounderAuthController::class, 'verifyPasscode'])
+        ->middleware('throttle:5,1');
 
     Route::middleware(FounderAuth::class)->group(function (): void {
         // Session management
@@ -98,6 +101,30 @@ Route::prefix('v1/founder')->group(function (): void {
 
         // Activity timeline
         Route::get('activity', [ActivityController::class, 'timeline']);
+
+        // PSGC lookups (proxied to bcmp-api)
+        Route::get('psgc/provinces', [PsgcProxyController::class, 'provinces']);
+        Route::get('psgc/provinces/{code}/cities', [PsgcProxyController::class, 'cities']);
+        Route::get('psgc/cities/{code}/barangays', [PsgcProxyController::class, 'barangays']);
+
+        // BCMP tenant management (proxied to bcmp-api)
+        Route::apiResource('bcmp/tenants', BcmpTenantController::class);
+        Route::get('bcmp/tenants/{id}/stats', [BcmpTenantController::class, 'stats']);
+        Route::post('bcmp/tenants/{id}/recalculate-storage', [BcmpTenantController::class, 'recalculateStorage']);
+        Route::post('bcmp/recalculate-storage-all', [BcmpTenantController::class, 'recalculateStorageAll']);
+        Route::get('bcmp/subscription-stats', [BcmpTenantController::class, 'subscriptionStats']);
+        Route::get('bcmp/pricing', [BcmpTenantController::class, 'pricing']);
+        Route::put('bcmp/pricing/{key}', [BcmpTenantController::class, 'updatePricing']);
+
+        // BCMP tenant user management (proxied to bcmp-api)
+        Route::post('bcmp/tenants/{id}/users/{userId}/suspend', [BcmpTenantController::class, 'suspendUser']);
+        Route::post('bcmp/tenants/{id}/users/{userId}/activate', [BcmpTenantController::class, 'activateUser']);
+        Route::post('bcmp/tenants/{id}/users/{userId}/reset-password', [BcmpTenantController::class, 'resetUserPassword']);
+        Route::patch('bcmp/tenants/{id}/users/{userId}', [BcmpTenantController::class, 'updateUser']);
+
+        // BCMP tenant data views (proxied to bcmp-api)
+        Route::get('bcmp/tenants/{id}/residents', [BcmpTenantController::class, 'residents']);
+        Route::get('bcmp/tenants/{id}/files', [BcmpTenantController::class, 'files']);
     });
 });
 

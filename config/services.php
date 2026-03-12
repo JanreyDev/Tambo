@@ -57,4 +57,9 @@ return [
         'api_key' => env('ANTHROPIC_API_KEY'),
     ],
 
+    'bcmp' => [
+        'api_url' => env('BCMP_API_URL'),
+        'api_token' => env('BCMP_API_TOKEN'),
+    ],
+
 ];

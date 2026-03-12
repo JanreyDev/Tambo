@@ -44,8 +44,8 @@ class SecurityController extends Controller
             ->whereNotNull('ip_address')
             ->select('ip_address', DB::raw('COUNT(*) as attempt_count'))
             ->groupBy('ip_address')
-            ->having('attempt_count', '>=', 3)
-            ->orderByDesc('attempt_count')
+            ->having(DB::raw('COUNT(*)'), '>=', 3)
+            ->orderBy(DB::raw('COUNT(*)'), 'desc')
             ->limit(20)
             ->get()
             ->map(fn ($row) => [

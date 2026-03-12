@@ -106,6 +106,64 @@ class PlatformSettingSeeder extends Seeder
                 'type' => 'string',
                 'description' => 'URL to the company logo',
             ],
+
+            // BCMP Subscription Pricing (Baybayin tiers)
+            [
+                'group' => 'bcmp_pricing',
+                'key' => 'munti_annual_price',
+                'value' => '15000',
+                'type' => 'integer',
+                'description' => 'Munti tier annual price (PHP) -- up to 5 GB storage',
+            ],
+            [
+                'group' => 'bcmp_pricing',
+                'key' => 'gitna_annual_price',
+                'value' => '25000',
+                'type' => 'integer',
+                'description' => 'Gitna tier annual price (PHP) -- up to 15 GB storage',
+            ],
+            [
+                'group' => 'bcmp_pricing',
+                'key' => 'malaki_annual_price',
+                'value' => '45000',
+                'type' => 'integer',
+                'description' => 'Malaki tier annual price (PHP) -- up to 50 GB storage',
+            ],
+            [
+                'group' => 'bcmp_pricing',
+                'key' => 'sms_credit_price',
+                'value' => '0.50',
+                'type' => 'string',
+                'description' => 'Price per SMS credit (PHP)',
+            ],
+            [
+                'group' => 'bcmp_pricing',
+                'key' => 'ai_credit_price',
+                'value' => '1.00',
+                'type' => 'string',
+                'description' => 'Price per AI credit (PHP)',
+            ],
+            [
+                'group' => 'bcmp_pricing',
+                'key' => 'call_credit_price',
+                'value' => '2.00',
+                'type' => 'string',
+                'description' => 'Price per call credit (PHP)',
+            ],
+            [
+                'group' => 'bcmp_pricing',
+                'key' => 'map_credit_price',
+                'value' => '0.25',
+                'type' => 'string',
+                'description' => 'Price per map credit (PHP)',
+            ],
+            [
+                'group' => 'bcmp_pricing',
+                'key' => 'storage_warning_threshold',
+                'value' => '80',
+                'type' => 'integer',
+                'description' => 'Storage usage percentage to trigger warning notification',
+            ],
         ];
 
         foreach ($settings as $setting) {

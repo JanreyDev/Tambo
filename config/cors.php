@@ -19,14 +19,17 @@ return [
 
     'allowed_methods' => ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
 
-    'allowed_origins' => [
-        'http://localhost:3001',
-        'http://localhost:3002',
-        'http://localhost:3003',
-        'https://primex.ventures',
-        'https://founder.primex.ventures',
-        'https://api.primex.ventures',
-    ],
+    'allowed_origins' => array_filter(
+        env('CORS_ALLOWED_ORIGINS')
+            ? explode(',', env('CORS_ALLOWED_ORIGINS'))
+            : [
+                'https://primex.ventures',
+                'https://founder.primex.ventures',
+                'http://localhost:3001',
+                'http://localhost:3002',
+                'http://localhost:3003',
+            ]
+    ),
 
     'allowed_origins_patterns' => [],
 
