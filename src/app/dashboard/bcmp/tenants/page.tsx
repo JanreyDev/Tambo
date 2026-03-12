@@ -757,15 +757,15 @@ function AddBarangayForm({ onClose, onSuccess }: { onClose: () => void; onSucces
     setSelectedBrgy(value);
     const brgy = rawBrgys.find((b) => b.psgc_code === value);
     if (brgy) {
-      setName(brgy.name);
+      setName(brgy.name.toUpperCase());
       setPsgcCode(brgy.psgc_code);
       setPopulation(brgy.population ? String(brgy.population) : "");
     }
-    // Auto-fill city/province display names from current selection
+    // Auto-fill city/province display names from current selection (uppercase)
     const city = rawCities.find((c) => c.psgc_code === selectedCity);
-    if (city) setCityName(city.name);
+    if (city) setCityName(city.name.toUpperCase());
     const prov = rawProvinces.find((p) => p.psgc_code === selectedProvince);
-    if (prov) setProvinceName(prov.name);
+    if (prov) setProvinceName(prov.name.toUpperCase());
   }
 
   // ── Derive region/province/municipality PSGC codes ──
@@ -787,20 +787,23 @@ function AddBarangayForm({ onClose, onSuccess }: { onClose: () => void; onSucces
     ].filter(Boolean);
     const fullAddress = addressParts.join(", ");
 
+    // Uppercase all text fields before saving to DB
+    const uc = (s: string) => s.toUpperCase();
+
     const payload: CreateBarangayPayload = {
-      name,
+      name: uc(name),
       psgc_code: psgcCode,
       municipality_psgc: selectedCity || undefined,
       province_psgc: selectedProvince || undefined,
       region_psgc: getRegionPsgc(),
-      full_address: fullAddress || undefined,
+      full_address: fullAddress ? uc(fullAddress) : undefined,
       population: population ? parseInt(population, 10) : undefined,
       zip_code: zipCode || undefined,
       subscription_plan: subscriptionPlan,
       kapitan: {
-        first_name: kapFirstName,
-        last_name: kapLastName,
-        middle_name: kapMiddleName || undefined,
+        first_name: uc(kapFirstName),
+        last_name: uc(kapLastName),
+        middle_name: kapMiddleName ? uc(kapMiddleName) : undefined,
         extension_name: kapExtName || undefined,
         phone: kapPhone,
         role: kapRole,
@@ -914,6 +917,7 @@ function AddBarangayForm({ onClose, onSuccess }: { onClose: () => void; onSucces
                 onChange={setName}
                 placeholder="Auto-filled"
                 error={fieldError("name")}
+                uppercase
               />
               <div className="grid grid-cols-2 gap-2">
                 <FormInput
@@ -921,12 +925,14 @@ function AddBarangayForm({ onClose, onSuccess }: { onClose: () => void; onSucces
                   value={cityName}
                   onChange={setCityName}
                   placeholder="City name"
+                  uppercase
                 />
                 <FormInput
                   label="Province"
                   value={provinceName}
                   onChange={setProvinceName}
                   placeholder="Province name"
+                  uppercase
                 />
               </div>
               <div className="grid grid-cols-3 gap-2">
@@ -1020,11 +1026,11 @@ function AddBarangayForm({ onClose, onSuccess }: { onClose: () => void; onSucces
               {fieldError("kapitan.role")}
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <FormInput label="First Name *" value={kapFirstName} onChange={setKapFirstName} placeholder="Ricardo" error={fieldError("kapitan.first_name")} />
-              <FormInput label="Last Name *" value={kapLastName} onChange={setKapLastName} placeholder="Santos" error={fieldError("kapitan.last_name")} />
+              <FormInput label="First Name *" value={kapFirstName} onChange={setKapFirstName} placeholder="RICARDO" error={fieldError("kapitan.first_name")} uppercase />
+              <FormInput label="Last Name *" value={kapLastName} onChange={setKapLastName} placeholder="SANTOS" error={fieldError("kapitan.last_name")} uppercase />
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <FormInput label="Middle Name" value={kapMiddleName} onChange={setKapMiddleName} placeholder="Optional" error={fieldError("kapitan.middle_name")} />
+              <FormInput label="Middle Name" value={kapMiddleName} onChange={setKapMiddleName} placeholder="OPTIONAL" error={fieldError("kapitan.middle_name")} uppercase />
               <div>
                 <label className="block text-[10px] font-medium text-muted-foreground mb-1">Suffix</label>
                 <select
@@ -1098,6 +1104,7 @@ function FormInput({
   type = "text",
   error,
   disabled,
+  uppercase,
 }: {
   label: string;
   value: string;
@@ -1106,6 +1113,7 @@ function FormInput({
   type?: string;
   error?: React.ReactNode;
   disabled?: boolean;
+  uppercase?: boolean;
 }) {
   return (
     <div>
@@ -1113,12 +1121,12 @@ function FormInput({
       <input
         type={type}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => onChange(uppercase ? e.target.value.toUpperCase() : e.target.value)}
         placeholder={placeholder}
         disabled={disabled}
         className={`w-full px-3 py-2 text-sm rounded-lg border border-input-border bg-input-bg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 ${
           disabled ? "opacity-60 cursor-not-allowed bg-muted/50" : ""
-        }`}
+        } ${uppercase ? "uppercase" : ""}`}
       />
       {error}
     </div>
