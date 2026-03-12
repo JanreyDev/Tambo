@@ -32,30 +32,32 @@ class BcmpService
     }
 
     /**
+     * Check whether config-based (env var) connection is available.
+     */
+    private function hasEnvConfig(): bool
+    {
+        return ! empty(config('services.bcmp.api_url'));
+    }
+
+    /**
      * Get the base URL for bcmp-api.
-     * Falls back to BCMP_API_URL env var for local dev.
      */
     private function baseUrl(): string
     {
-        $envUrl = config('services.bcmp.api_url');
-
-        if ($envUrl) {
-            return rtrim((string) $envUrl, '/');
+        if ($this->hasEnvConfig()) {
+            return rtrim((string) config('services.bcmp.api_url'), '/');
         }
 
         return rtrim($this->connection()->api_base_url, '/');
     }
 
     /**
-     * Get the auth token for bcmp-api.
-     * Falls back to BCMP_API_TOKEN env var for local dev.
+     * Get the auth token for bcmp-api (empty string if none configured).
      */
     private function token(): string
     {
-        $envToken = config('services.bcmp.api_token');
-
-        if ($envToken) {
-            return (string) $envToken;
+        if ($this->hasEnvConfig()) {
+            return (string) config('services.bcmp.api_token', '');
         }
 
         return $this->connection()->api_token;
@@ -117,10 +119,14 @@ class BcmpService
 
         try {
             $pending = Http::timeout(15)
-                ->withToken($this->token())
                 ->withUserAgent('PrimeX-API/1.0 (internal)')
                 ->withoutVerifying()
                 ->acceptJson();
+
+            $token = $this->token();
+            if ($token !== '') {
+                $pending = $pending->withToken($token);
+            }
 
             /** @var Response $response */
             $response = match ($method) {
