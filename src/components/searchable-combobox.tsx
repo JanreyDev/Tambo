@@ -59,13 +59,6 @@ export function SearchableCombobox({
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  // Reset highlight when filtered list changes
-  const prevFilteredLength = useRef(filtered.length);
-  if (prevFilteredLength.current !== filtered.length) {
-    prevFilteredLength.current = filtered.length;
-    if (highlightIndex !== 0) setHighlightIndex(0);
-  }
-
   // Scroll highlighted item into view
   useEffect(() => {
     if (!open || !listRef.current) return;
