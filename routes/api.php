@@ -62,8 +62,7 @@ Route::prefix('v1')->group(function (): void {
 
 // Founder Command Center routes (passcode auth, not Sanctum).
 Route::prefix('v1/founder')->group(function (): void {
-    Route::post('verify-passcode', [FounderAuthController::class, 'verifyPasscode'])
-        ->middleware('throttle:5,1');
+    Route::post('verify-passcode', [FounderAuthController::class, 'verifyPasscode']);
 
     Route::middleware(FounderAuth::class)->group(function (): void {
         // Session management

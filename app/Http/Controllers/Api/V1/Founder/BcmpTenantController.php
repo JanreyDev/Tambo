@@ -42,6 +42,8 @@ class BcmpTenantController extends Controller
         'municipality_psgc',
         'province_psgc',
         'region_psgc',
+        'city_municipality',
+        'province',
         'population',
         'zip_code',
         'subscription_plan',
