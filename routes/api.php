@@ -81,6 +81,13 @@ Route::prefix('v1')->group(function () {
             ->middleware('throttle:5,1'); // 5 attempts per minute
     });
 
+    // ── PSGC lookup routes (public -- geographic data, used by founder dashboard proxy) ──
+    Route::prefix('psgc')->group(function () {
+        Route::get('provinces', [PsgcController::class, 'provinces']);
+        Route::get('provinces/{code}/cities', [PsgcController::class, 'cities']);
+        Route::get('cities/{code}/barangays', [PsgcController::class, 'barangays']);
+    });
+
     // ── Authenticated ──
 
     Route::middleware(['auth:sanctum'])->group(function () {
@@ -147,13 +154,6 @@ Route::prefix('v1')->group(function () {
             // Barangay data views (admin)
             Route::get('barangays/{barangay}/residents', [AdminBarangayController::class, 'residents']);
             Route::get('barangays/{barangay}/files', [AdminBarangayController::class, 'files']);
-        });
-
-        // ── PSGC lookup routes (for onboarding cascading dropdowns) ──
-        Route::prefix('psgc')->group(function () {
-            Route::get('provinces', [PsgcController::class, 'provinces']);
-            Route::get('provinces/{code}/cities', [PsgcController::class, 'cities']);
-            Route::get('cities/{code}/barangays', [PsgcController::class, 'barangays']);
         });
 
         // ── Tenant-scoped routes ──
