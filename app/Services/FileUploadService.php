@@ -7,7 +7,6 @@ namespace App\Services;
 use App\Models\Admin\Barangay;
 use App\Models\Admin\File;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 

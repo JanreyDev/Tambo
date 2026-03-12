@@ -668,7 +668,7 @@ class AdminBarangayController extends Controller
         // ── Registrations trend (last 30 days) ──
         $registrationTrend = Resident::where('barangay_id', $id)
             ->where('created_at', '>=', now()->subDays(30))
-            ->select(DB::raw("DATE(created_at) as date"), DB::raw('count(*) as count'))
+            ->select(DB::raw('DATE(created_at) as date'), DB::raw('count(*) as count'))
             ->groupBy('date')
             ->orderBy('date')
             ->pluck('count', 'date')
@@ -869,7 +869,7 @@ class AdminBarangayController extends Controller
         ]);
 
         return response()->json([
-            'message' => "Password reset for {$user->username}." . ($smsSent ? ' New password sent via SMS.' : ''),
+            'message' => "Password reset for {$user->username}.".($smsSent ? ' New password sent via SMS.' : ''),
             'data' => [
                 'id' => $user->id,
                 'username' => $user->username,

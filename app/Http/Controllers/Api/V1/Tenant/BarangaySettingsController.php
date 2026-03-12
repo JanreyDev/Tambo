@@ -254,7 +254,7 @@ class BarangaySettingsController extends Controller
             ]);
 
             return response()->json([
-                'message' => ucfirst($category) . ' uploaded successfully.',
+                'message' => ucfirst($category).' uploaded successfully.',
                 'url' => $url,
                 'file_id' => $file->id,
             ]);

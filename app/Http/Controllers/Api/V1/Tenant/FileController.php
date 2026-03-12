@@ -70,7 +70,7 @@ class FileController extends Controller
         $maxKb = self::CATEGORY_LIMITS[$category];
         if ($uploadedFile->getSize() > $maxKb * 1024) {
             return response()->json([
-                'message' => "File too large. Maximum size for {$category} is " . ($maxKb >= 1024 ? ($maxKb / 1024) . ' MB' : $maxKb . ' KB') . '.',
+                'message' => "File too large. Maximum size for {$category} is ".($maxKb >= 1024 ? ($maxKb / 1024).' MB' : $maxKb.' KB').'.',
             ], 422);
         }
 

@@ -21,6 +21,7 @@ class ResidentController extends Controller
     public function __construct(
         private readonly SmsService $smsService,
     ) {}
+
     /**
      * List residents with search/filter/pagination.
      */
