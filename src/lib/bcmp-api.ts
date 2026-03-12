@@ -245,6 +245,8 @@ export interface CreateBarangayPayload {
   province_psgc?: string;
   region_psgc?: string;
   full_address?: string;
+  city_municipality?: string;
+  province?: string;
   population?: number;
   zip_code?: string;
   subscription_plan: SubscriptionTier;

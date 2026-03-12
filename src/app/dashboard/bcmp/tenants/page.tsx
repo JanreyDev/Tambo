@@ -797,6 +797,8 @@ function AddBarangayForm({ onClose, onSuccess }: { onClose: () => void; onSucces
       province_psgc: selectedProvince || undefined,
       region_psgc: getRegionPsgc(),
       full_address: fullAddress ? uc(fullAddress) : undefined,
+      city_municipality: cityName ? uc(cityName) : undefined,
+      province: provinceName ? uc(provinceName) : undefined,
       population: population ? parseInt(population, 10) : undefined,
       zip_code: zipCode || undefined,
       subscription_plan: subscriptionPlan,
