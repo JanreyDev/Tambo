@@ -60,9 +60,11 @@ export function SearchableCombobox({
   }, []);
 
   // Reset highlight when filtered list changes
-  useEffect(() => {
-    setHighlightIndex(0);
-  }, [filtered.length]);
+  const prevFilteredLength = useRef(filtered.length);
+  if (prevFilteredLength.current !== filtered.length) {
+    prevFilteredLength.current = filtered.length;
+    if (highlightIndex !== 0) setHighlightIndex(0);
+  }
 
   // Scroll highlighted item into view
   useEffect(() => {

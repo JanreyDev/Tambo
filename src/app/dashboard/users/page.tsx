@@ -1,6 +1,5 @@
 "use client";
 
-import { toast } from "sonner";
 import { Shield, ChevronRight } from "lucide-react";
 import { MabiniInsightBanner } from "@/components/mabini-insight-banner";
 
