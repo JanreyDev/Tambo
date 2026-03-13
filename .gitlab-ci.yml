@@ -64,6 +64,7 @@ build:
 
 deploy_production:
   stage: deploy_production
+  when: manual
   image: alpine:latest
   needs:
     - lint
