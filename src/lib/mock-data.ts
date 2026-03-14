@@ -15,9 +15,9 @@ export const mockAlerts: Alert[] = [
   {
     id: "alert-1",
     severity: "warning",
-    title: "PrimeXV4 RAM Usage High",
+    title: "High RAM Usage Detected",
     description:
-      "RAM usage on PrimeXV4 (128.199.172.45) has been above 85% for the last 2 hours. Consider investigating memory-heavy processes.",
+      "RAM usage on a production droplet has been above 85% for the last 2 hours. Consider investigating memory-heavy processes.",
     source: "infrastructure-monitor",
     created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
     acknowledged: false,
@@ -26,12 +26,11 @@ export const mockAlerts: Alert[] = [
 
 export const mockInsight: MabiniInsight = {
   summary:
-    "All systems operational on production. 5 apps running on primex-production (152.42.223.52): primex-founder-web, primex-admin-web, bcmp-web, primex-api, bcmp-api. PrimeXV4 RAM at 85% -- expected with 50+ barangays. Staging infrastructure eliminated. Revenue stable at ~333K MRR. No critical security incidents.",
+    "All systems operational on production. Core apps running on primex-production. Revenue stable. No critical security incidents.",
   analyzed_at: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
   highlights: [
-    "All 5 apps live on production: founder, admin, bcmp, 2 APIs",
-    "PrimeXV4 cannot be downsized due to RAM constraints",
-    "Staging infrastructure eliminated -- saves ~$32/mo",
+    "All core apps live on production",
+    "Staging infrastructure eliminated",
     "Next priority: Full Mabini AI integration with live data",
   ],
 };
@@ -40,7 +39,7 @@ export const mockDroplets: DropletMetrics[] = [
   {
     id: "primex-production",
     name: "primex-production",
-    ip: "152.42.223.52",
+    ip: "private",
     status: "active",
     region: "SGP1",
     spec: "2vCPU / 4GB",
@@ -50,52 +49,28 @@ export const mockDroplets: DropletMetrics[] = [
     uptime_seconds: 604800,
   },
   {
-    id: "primexv4",
-    name: "PrimeXV4",
-    ip: "128.199.172.45",
+    id: "legacy-production",
+    name: "legacy-production",
+    ip: "private",
     status: "active",
     region: "SGP1",
-    spec: "2vCPU / 8GB",
+    spec: "2vCPU / 4GB",
     cpu_percent: 13,
     ram_percent: 85,
     disk_percent: 42,
     uptime_seconds: 2592000,
   },
   {
-    id: "spa-call",
-    name: "spa-call",
-    ip: "152.42.238.242",
+    id: "venture-production",
+    name: "venture-production",
+    ip: "private",
     status: "active",
     region: "SGP1",
-    spec: "1vCPU / 1GB",
+    spec: "2vCPU / 2GB",
     cpu_percent: 3,
     ram_percent: 52,
     disk_percent: 25,
     uptime_seconds: 1728000,
-  },
-  {
-    id: "tarlac-assets",
-    name: "tarlac-assets",
-    ip: "137.184.249.255",
-    status: "active",
-    region: "SGP1",
-    spec: "1vCPU / 1GB",
-    cpu_percent: 4,
-    ram_percent: 48,
-    disk_percent: 18,
-    uptime_seconds: 1728000,
-  },
-  {
-    id: "barangaymo",
-    name: "BarangayMo",
-    ip: "174.138.21.22",
-    status: "active",
-    region: "SGP1",
-    spec: "1vCPU / 1GB",
-    cpu_percent: 2,
-    ram_percent: 45,
-    disk_percent: 20,
-    uptime_seconds: 2160000,
   },
 ];
 
@@ -111,23 +86,13 @@ export const mockDatabases: DatabaseStatus[] = [
     host: "private",
   },
   {
-    id: "primex-production-db",
-    name: "primex-production-db",
-    engine: "PostgreSQL",
-    version: "17",
-    status: "online",
-    connection_count: 12,
-    size_bytes: 134217728,
-    host: "private",
-  },
-  {
-    id: "spacall-db",
-    name: "spacall-db",
+    id: "primex-db",
+    name: "primex-db",
     engine: "PostgreSQL",
     version: "18",
     status: "online",
-    connection_count: 3,
-    size_bytes: 104857600,
+    connection_count: 12,
+    size_bytes: 134217728,
     host: "private",
   },
   {
@@ -158,7 +123,7 @@ export const mockProductHealth: ProductHealth[] = [
     api_status: "healthy",
     response_time_ms: 89,
     error_rate: 0.3,
-    active_users: 28,
+    active_users: 0,
     last_checked_at: new Date().toISOString(),
   },
   {
@@ -173,12 +138,12 @@ export const mockProductHealth: ProductHealth[] = [
 ];
 
 export const mockRevenue: RevenueData[] = [
-  { month: "Oct 2025", bcmp: 80000, lgmp: 250000, pdmp: 0, total: 330000 },
-  { month: "Nov 2025", bcmp: 78000, lgmp: 250000, pdmp: 0, total: 328000 },
-  { month: "Dec 2025", bcmp: 82000, lgmp: 250000, pdmp: 0, total: 332000 },
-  { month: "Jan 2026", bcmp: 85000, lgmp: 250000, pdmp: 0, total: 335000 },
-  { month: "Feb 2026", bcmp: 83000, lgmp: 250000, pdmp: 0, total: 333000 },
-  { month: "Mar 2026", bcmp: 83000, lgmp: 250000, pdmp: 0, total: 333000 },
+  { month: "Oct 2025", bcmp: 0, lgmp: 0, pdmp: 0, total: 0 },
+  { month: "Nov 2025", bcmp: 0, lgmp: 0, pdmp: 0, total: 0 },
+  { month: "Dec 2025", bcmp: 0, lgmp: 0, pdmp: 0, total: 0 },
+  { month: "Jan 2026", bcmp: 0, lgmp: 0, pdmp: 0, total: 0 },
+  { month: "Feb 2026", bcmp: 0, lgmp: 0, pdmp: 0, total: 0 },
+  { month: "Mar 2026", bcmp: 0, lgmp: 0, pdmp: 0, total: 0 },
 ];
 
 export const mockDomains: DomainStatus[] = [
@@ -234,7 +199,7 @@ export const mockDeployments: Deployment[] = [
     project_name: "primex-api",
     branch: "main",
     status: "success",
-    commit_message: "Deploy staging with PHP-FPM + Nginx, 80 Pest tests passing",
+    commit_message: "Deploy with PHP-FPM + Nginx, Pest tests passing",
     triggered_by: "Claude",
     created_at: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
     duration_seconds: 55,
@@ -242,13 +207,9 @@ export const mockDeployments: Deployment[] = [
 ];
 
 export const mockSecurityFeed: SecurityFeed = {
-  failed_logins_24h: 12,
-  blocked_requests_24h: 847,
-  suspicious_ips: [
-    { ip: "185.220.101.34", attempts: 23, last_seen: new Date(Date.now() - 45 * 60 * 1000).toISOString(), country: "RU" },
-    { ip: "91.240.118.72", attempts: 15, last_seen: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), country: "CN" },
-    { ip: "45.33.32.156", attempts: 8, last_seen: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(), country: "US" },
-  ],
+  failed_logins_24h: 0,
+  blocked_requests_24h: 0,
+  suspicious_ips: [],
   last_updated_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
 };
 
@@ -263,7 +224,7 @@ export const mockActivity: ActivityEvent[] = [
   },
   {
     id: "act-2",
-    action: "76 Tests Passed",
+    action: "Tests Passed",
     actor: "Claude",
     product: "bcmp",
     description: "All Pest tests green on bcmp-api main branch",
@@ -279,30 +240,14 @@ export const mockActivity: ActivityEvent[] = [
   },
   {
     id: "act-4",
-    action: "Server Downsized",
-    actor: "System",
+    action: "Infrastructure Consolidated",
+    actor: "Claude",
     product: "system",
-    description: "spa-call droplet downsized from s-2vcpu-4gb to s-1vcpu-1gb",
+    description: "3 droplets consolidated into venture-production, saves $6/mo",
     timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
   },
   {
     id: "act-5",
-    action: "Firewall Deleted",
-    actor: "Claude",
-    product: "system",
-    description: "automation-server firewall removed after n8n server deletion",
-    timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: "act-6",
-    action: "Login Detected",
-    actor: "Jeager",
-    product: "lgmp",
-    description: "Successful login from 210.4.96.245 (PH) on tarlac.ph",
-    timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: "act-7",
     action: "Dev Team Pulled",
     actor: "Jeager",
     product: "system",
