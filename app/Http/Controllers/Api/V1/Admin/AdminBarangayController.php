@@ -142,6 +142,10 @@ class AdminBarangayController extends Controller
             'population' => ['nullable', 'integer', 'min:0'],
             'land_area_hectares' => ['nullable', 'numeric', 'min:0'],
 
+            // Map center coordinates (PH bounding box: lat 4-21, lng 116-127)
+            'latitude' => ['nullable', 'numeric', 'between:4,21'],
+            'longitude' => ['nullable', 'numeric', 'between:116,127'],
+
             // Subscription (Baybayin tier names: munti=small, gitna=medium, malaki=large)
             'subscription_plan' => ['required', 'string', Rule::in(['munti', 'gitna', 'malaki'])],
 
@@ -196,6 +200,8 @@ class AdminBarangayController extends Controller
                     'contact_email' => $validated['contact_email'] ?? null,
                     'population' => $validated['population'] ?? 0,
                     'land_area_hectares' => $validated['land_area_hectares'] ?? 0,
+                    'latitude' => $validated['latitude'] ?? null,
+                    'longitude' => $validated['longitude'] ?? null,
                     'status' => BarangayStatus::Active,
                     'subscription_plan' => $validated['subscription_plan'],
                     'subscription_expires_at' => $subscriptionExpiry,

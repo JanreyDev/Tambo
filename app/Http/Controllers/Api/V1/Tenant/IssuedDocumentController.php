@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Tenant;
 
 use App\Http\Controllers\Controller;
+use App\Models\Tenant\Documents\DocumentTemplate;
 use App\Models\Tenant\Documents\IssuedDocument;
+use App\Models\Tenant\Resident;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -101,10 +103,29 @@ class IssuedDocumentController extends Controller
             ? str_pad((string) ((int) $lastNumber + 1), 8, '0', STR_PAD_LEFT)
             : '00000001';
 
+        // Resolve template name for denormalized storage.
+        $template = DocumentTemplate::where('barangay_id', $barangayId)
+            ->find($validated['template_id']);
+
+        // Resolve constituent name + number for denormalized storage (avoids N+1 in list view).
+        $constituentName = null;
+        $constituentNumber = null;
+        if ($validated['constituent_type'] === 'resident') {
+            $resident = Resident::where('barangay_id', $barangayId)
+                ->find($validated['constituent_id']);
+            if ($resident) {
+                $constituentName = $resident->full_name;
+                $constituentNumber = $resident->resident_number;
+            }
+        }
+
         $document = IssuedDocument::create([
             ...$validated,
             'barangay_id' => $barangayId,
             'document_number' => $nextNumber,
+            'template_name' => $template?->name,
+            'constituent_name' => $constituentName,
+            'constituent_number' => $constituentNumber,
             'issued_date' => $validated['issued_date'] ?? now()->toDateString(),
             'status' => 'issued',
             'created_by' => $request->user()->id,

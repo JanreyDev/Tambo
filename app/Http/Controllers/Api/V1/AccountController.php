@@ -68,6 +68,8 @@ class AccountController extends Controller
                 'id' => $user->barangay->id,
                 'name' => $user->barangay->name,
                 'full_address' => $user->barangay->full_address,
+                'latitude' => $user->barangay->latitude,
+                'longitude' => $user->barangay->longitude,
             ] : null,
             'created_at' => $user->created_at?->toIso8601String(),
         ]);
