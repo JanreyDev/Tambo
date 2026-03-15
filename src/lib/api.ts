@@ -654,6 +654,34 @@ const api = {
     delete: (id: string) =>
       api.delete<{ message: string }>(`/issued-documents/${id}`),
   },
+
+  map: {
+    residents: () =>
+      api.get<{
+        residents: Array<{
+          id: string;
+          resident_number: string;
+          full_name: string;
+          purok: string | null;
+          sex: string | null;
+          status: string | null;
+          latitude: number;
+          longitude: number;
+        }>;
+        total: number;
+        mapped: number;
+      }>("/map/residents"),
+
+    stats: () =>
+      api.get<{
+        total: number;
+        mapped: number;
+        unmapped: number;
+        coverage: number;
+        by_purok: Array<{ purok: string; total: number; mapped: number }>;
+        by_status: Array<{ status: string; count: number }>;
+      }>("/map/stats"),
+  },
 };
 
 export { api };
