@@ -1950,40 +1950,23 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
   const barangayLat = _bLat >= 4 && _bLat <= 21 ? _bLat : 14.5995;
   const barangayLng = _bLng >= 116 && _bLng <= 127 ? _bLng : 120.9842;
 
-  // Geocode address text → lat/lng. Pure HTTP call — no Google Maps SDK dependency.
-  // Leaflet handles map display; geocoding is just an API fetch that updates form state.
+  // Geocode address text → lat/lng using Nominatim (free, no API key required).
+  // Leaflet handles map display; geocoding is a plain HTTP call that updates form state.
   const geocodeAddress = useCallback(async (addressStr: string) => {
     if (!addressStr.trim()) return;
     setMapLocating(true);
-    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
-    if (!apiKey) {
-      // No Google key — fall back to Nominatim (free, no API key)
-      try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressStr)}&countrycodes=ph&limit=1`,
-          { headers: { "User-Agent": "BCMP-Kapitan/1.0" } }
-        );
-        const data = await res.json();
-        setMapLocating(false);
-        if (data?.[0]) {
-          updateForm("latitude", parseFloat(data[0].lat).toFixed(7));
-          updateForm("longitude", parseFloat(data[0].lon).toFixed(7));
-        }
-      } catch { setMapLocating(false); }
-      return;
-    }
     try {
       const res = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(addressStr)}&key=${apiKey}&region=ph`
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressStr)}&countrycodes=ph&limit=1`,
+        { headers: { "User-Agent": "BCMP-Kapitan/1.0" } }
       );
       const data = await res.json();
-      setMapLocating(false);
-      if (data.status === "OK" && data.results?.[0]) {
-        const loc = data.results[0].geometry.location;
-        updateForm("latitude", loc.lat.toFixed(7));
-        updateForm("longitude", loc.lng.toFixed(7));
+      if (data?.[0]) {
+        updateForm("latitude", parseFloat(data[0].lat).toFixed(7));
+        updateForm("longitude", parseFloat(data[0].lon).toFixed(7));
       }
-    } catch { setMapLocating(false); }
+    } catch { /* silent fail — user can pin manually */ }
+    finally { setMapLocating(false); }
   }, [updateForm]);
 
   // Auto-geocode when address fields change (debounced 1.5s)
