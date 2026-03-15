@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 import type L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import {
@@ -184,7 +186,9 @@ function FDatePicker({ label, name, required, value, onChange, className, valid,
   label: string; name: string; required?: boolean; value: string; onChange: (name: string, value: string | boolean) => void; className?: string; valid?: boolean; error?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
   const ref = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const today = new Date();
   // Parse current value or default to a sensible view date
   // Birth date fields default 25 years back; all other date fields default to current year
@@ -193,10 +197,23 @@ function FDatePicker({ label, name, required, value, onChange, className, valid,
   const [viewMonth, setViewMonth] = useState(parsed ? parsed.getMonth() : today.getMonth());
   const [viewYear, setViewYear] = useState(parsed ? parsed.getFullYear() : (isBirthField ? today.getFullYear() - 25 : today.getFullYear()));
 
+  const handleToggle = () => {
+    if (!open && ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      setDropdownPos({ top: rect.bottom + 4, left: rect.left });
+    }
+    setOpen((v) => !v);
+  };
+
   // Close on outside click
   useEffect(() => {
     if (!open) return;
-    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    const handler = (e: MouseEvent) => {
+      if (
+        ref.current && !ref.current.contains(e.target as Node) &&
+        dropdownRef.current && !dropdownRef.current.contains(e.target as Node)
+      ) setOpen(false);
+    };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
@@ -256,7 +273,7 @@ function FDatePicker({ label, name, required, value, onChange, className, valid,
         {label}{required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
       {/* Trigger button */}
-      <button type="button" name={name} onClick={() => setOpen(!open)}
+      <button type="button" name={name} onClick={handleToggle}
         className={cn(
           "w-full flex items-center gap-2 px-3 py-2.5 text-sm rounded-xl text-left focus:outline-none transition-all duration-200",
           error ? "border border-red-500 focus:ring-2 focus:ring-red-300 bg-red-50 dark:bg-red-950/20" :
@@ -276,8 +293,9 @@ function FDatePicker({ label, name, required, value, onChange, className, valid,
       {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
 
       {/* Calendar dropdown */}
-      {open && (
-        <div className="absolute z-50 mt-1 w-72 rounded-xl glass shadow-lg p-3 animate-in fade-in slide-in-from-top-1 duration-150">
+      {open && typeof window !== "undefined" && createPortal(
+        <div ref={dropdownRef} className="fixed z-[9999] w-72 rounded-xl bg-background border border-border shadow-lg p-3"
+          style={{ top: dropdownPos.top, left: dropdownPos.left }}>
           {/* Month/Year header */}
           <div className="flex items-center justify-between mb-2">
             <button type="button" onClick={prevMonth} className="p-1 rounded-md hover:bg-muted transition-colors">
@@ -331,7 +349,8 @@ function FDatePicker({ label, name, required, value, onChange, className, valid,
             <button type="button" onClick={() => { setViewMonth(today.getMonth()); setViewYear(today.getFullYear()); }}
               className="text-[11px] font-medium hover:text-accent-text transition-colors" style={{ color: "var(--accent-primary)" }}>Today</button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -405,7 +424,9 @@ function FCombobox({ label, name, entries, required, value, onChange, onSubmit, 
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const trimmed = query.trim();
   const sorted = [...entries].sort((a, b) => b.count - a.count);
@@ -429,9 +450,21 @@ function FCombobox({ label, name, entries, required, value, onChange, onSubmit, 
       })
     : null;
 
+  const openCombobox = () => {
+    if (!open && wrapperRef.current) {
+      const rect = wrapperRef.current.getBoundingClientRect();
+      setDropdownPos({ top: rect.bottom + 6, left: rect.left, width: rect.width });
+    }
+    setOpen(true);
+    setQuery("");
+  };
+
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false);
+      if (
+        wrapperRef.current && !wrapperRef.current.contains(e.target as Node) &&
+        dropdownRef.current && !dropdownRef.current.contains(e.target as Node)
+      ) setOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -471,19 +504,20 @@ function FCombobox({ label, name, entries, required, value, onChange, onSubmit, 
         style={open ? { borderColor: "var(--accent-primary)", boxShadow: "0 0 0 3px rgba(37, 99, 235, 0.12)" } : undefined}>
         <input type="text" value={open ? query : value} placeholder={value || customPlaceholder || `Type to search or add...`}
           className="flex-1 px-3 py-2.5 text-sm bg-transparent focus:outline-none min-w-0 uppercase"
-          onFocus={() => { setOpen(true); setQuery(""); }}
-          onChange={(e) => { setQuery(e.target.value.toUpperCase()); if (!open) setOpen(true); }}
+          onFocus={openCombobox}
+          onChange={(e) => { setQuery(e.target.value.toUpperCase()); if (!open) openCombobox(); }}
           onKeyDown={(e) => { if (e.key === "Enter" && trimmed) { e.preventDefault(); fuzzyMatch ? handleSelect(fuzzyMatch.canonical) : handleNew(); } }} />
         {value && !open && (
           <button type="button" onClick={() => { onChange(name, ""); setOpen(true); }}
             className="px-2 text-muted-foreground hover:text-foreground transition-colors">
-            <X className="h-3.5 w-3.5" />
+            <X className="h-4 w-4" />
           </button>
         )}
         <ChevronDown className={cn("h-4 w-4 mr-2 text-muted-foreground transition-transform shrink-0", open && "rotate-180")} />
       </div>
-      {open && (
-        <div className="absolute z-50 mt-1.5 w-full rounded-xl glass-section shadow-xl max-h-56 overflow-y-auto">
+      {open && typeof window !== "undefined" && createPortal(
+        <div ref={dropdownRef} className="fixed z-[9999] rounded-xl shadow-xl max-h-56 overflow-y-auto bg-background border border-border"
+          style={{ top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }}>
           {/* "Did you mean" suggestion */}
           {fuzzyMatch && (
             <button type="button" onClick={() => handleSelect(fuzzyMatch.canonical)}
@@ -512,11 +546,12 @@ function FCombobox({ label, name, entries, required, value, onChange, onSubmit, 
           {trimmed && !exactMatch && (
             <button type="button" onClick={handleNew}
               className="w-full text-left px-3 py-2 text-sm border-t border-border text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-950/30 transition-colors flex items-center gap-2 font-medium">
-              <Plus className="h-3.5 w-3.5" />
+              <Plus className="h-4 w-4" />
               Save &ldquo;{trimmed}&rdquo; as new entry
             </button>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -922,6 +957,7 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
 
 export default function ResidentsPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const tenantConfig = {
     barangay: user?.barangay?.name?.toUpperCase() || "",
     city_municipality: user?.barangay?.city_municipality?.toUpperCase() || "",
@@ -942,9 +978,10 @@ export default function ResidentsPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [showDelete, setShowDelete] = useState(false);
   const [actionMenu, setActionMenu] = useState<string | null>(null);
+  const [hoveredTooltip, setHoveredTooltip] = useState<string | null>(null);
   const [archiveModal, setArchiveModal] = useState(false);
   const [archiveReason, setArchiveReason] = useState("");
-  const pageSize = 25;
+  const pageSize = 15;
 
   // ── API List State ──
   const [residents, setResidents] = useState<ResidentSummary[]>([]);
@@ -1479,8 +1516,8 @@ export default function ResidentsPage() {
       return;
     }
 
-    // Block if duplicate detected and not dismissed
-    if (dupMatches.length > 0 && !dupDismissed) {
+    // Block if duplicate detected and not dismissed (skip in edit mode -- already registered)
+    if (mode !== "edit" && dupMatches.length > 0 && !dupDismissed) {
       setDupModal(true);
       return;
     }
@@ -1569,15 +1606,34 @@ export default function ResidentsPage() {
     if (sectors.length > 0) payload.sectors = sectors;
 
     try {
-      const result = await api.residents.create(payload);
-      setSubmitting(false);
-      setMode("list");
-      addToast({
-        type: "success",
-        title: "Resident Registered Successfully",
-        message: `Barangay ID: ${result.resident_number}`,
-        duration: 8000,
-      });
+      if (mode === "edit") {
+        const residentId = String(form["id"] || "");
+        if (!residentId) throw new Error("Resident ID is missing. Cannot save changes.");
+        const result = await api.residents.update(residentId, payload);
+        setSubmitting(false);
+        // Reload updated resident in detail modal, go back to list
+        setMode("list");
+        setViewResident(result.resident);
+        addToast({
+          type: "success",
+          title: "Resident Updated Successfully",
+          message: result.resident.last_name + ", " + result.resident.first_name + " — profile saved.",
+          duration: 6000,
+        });
+      } else {
+        const result = await api.residents.create(payload);
+        setSubmitting(false);
+        // Go back to list (triggers fetchResidents via useEffect)
+        setMode("list");
+        // Open the new resident detail modal immediately (no extra round trip)
+        setViewResident(result.resident);
+        addToast({
+          type: "success",
+          title: "Resident Registered Successfully",
+          message: "Barangay ID: " + result.resident_number,
+          duration: 8000,
+        });
+      }
     } catch (err) {
       setSubmitting(false);
       const apiErr = err as ApiError;
@@ -1593,7 +1649,8 @@ export default function ResidentsPage() {
         // Duplicate blocked by backend
         addToast({ type: "error", title: "Duplicate Detected", message: apiErr.message, duration: 6000 });
       } else {
-        addToast({ type: "error", title: "Registration Failed", message: apiErr.message || "Something went wrong.", duration: 5000 });
+        const isEdit = mode === "edit";
+        addToast({ type: "error", title: isEdit ? "Update Failed" : "Registration Failed", message: apiErr.message || "Something went wrong.", duration: 5000 });
       }
     }
   };
@@ -2113,17 +2170,17 @@ export default function ResidentsPage() {
                           {/* Desktop: getUserMedia webcam | Mobile: hidden (use native capture instead) */}
                           <button type="button" onClick={startCamera} disabled={cameraLoading}
                             className="hidden md:flex flex-1 items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-semibold rounded-lg text-white transition-colors hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed" style={{ background: "var(--accent-primary)" }}>
-                            {cameraLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />}
+                            {cameraLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
                             {cameraLoading ? "Opening..." : "Camera"}
                           </button>
                           {/* Mobile: opens native camera (back-facing default, user can flip to front) */}
                           <button type="button" onClick={() => photoCaptureRef.current?.click()}
                             className="flex md:hidden flex-1 items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-semibold rounded-lg text-white transition-colors hover:opacity-90" style={{ background: "var(--accent-primary)" }}>
-                            <Camera className="h-3 w-3" /> Take Photo
+                            <Camera className="h-4 w-4" /> Take Photo
                           </button>
                           <button type="button" onClick={() => photoInputRef.current?.click()}
                             className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-medium rounded-lg border border-border hover:bg-muted transition-colors">
-                            <Upload className="h-3 w-3" /> Upload
+                            <Upload className="h-4 w-4" /> Upload
                           </button>
                         </>
                       )}
@@ -2214,7 +2271,7 @@ export default function ResidentsPage() {
                   <div key={r.id} className="rounded-xl border-2 border-red-300 dark:border-red-800 bg-red-50/50 dark:bg-red-950/20 p-4 transition-colors">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className={cn("w-11 h-11 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0",
+                        <div className={cn("w-11 h-11 rounded-xl flex items-center justify-center text-white text-sm font-bold shrink-0",
                           r.sex === "female" ? "bg-pink-500" : "bg-blue-500")}>
                           {r.first_name[0]}{r.last_name[0]}
                         </div>
@@ -2230,7 +2287,7 @@ export default function ResidentsPage() {
                     <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/50">
                       <button onClick={() => { setDupModal(false); setMode("list"); }}
                         className="px-3 py-1.5 text-xs font-medium rounded-lg text-white transition-colors hover:opacity-90 flex items-center gap-1.5" style={{ background: "var(--accent-primary)" }}>
-                        <Eye className="h-3.5 w-3.5" /> View Profile
+                        <Eye className="h-4 w-4" /> View Profile
                       </button>
                     </div>
                   </div>
@@ -2370,7 +2427,7 @@ export default function ResidentsPage() {
                         <span className={cn("text-sm transition-colors",
                           sectorWarnings[s] ? "text-amber-600 dark:text-amber-400 font-medium" : "text-foreground group-hover:text-accent-text"
                         )}>{s}</span>
-                        {sectorWarnings[s] && <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />}
+                        {sectorWarnings[s] && <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />}
                       </label>
                       {sectorWarnings[s] && (
                         <p className="text-[10px] text-amber-600 dark:text-amber-400 ml-6 mt-0.5 leading-tight">{sectorWarnings[s]}</p>
@@ -2392,7 +2449,7 @@ export default function ResidentsPage() {
                       {sectorSuggestions.map(({ sector, reason }) => (
                         <button key={sector} type="button" onClick={() => toggleSector(sector)}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-blue-300 dark:border-blue-700 bg-white dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors">
-                          <Plus className="h-3 w-3" /> {sector} <span className="text-blue-500 dark:text-blue-400">({reason})</span>
+                          <Plus className="h-4 w-4" /> {sector} <span className="text-blue-500 dark:text-blue-400">({reason})</span>
                         </button>
                       ))}
                     </div>
@@ -2782,7 +2839,7 @@ export default function ResidentsPage() {
                             ) : (
                               <div className="flex items-center gap-2 pl-2.5 pr-6 py-2 rounded-lg border border-border bg-muted/50 text-xs shadow-sm">
                                 <div className="w-7 h-7 rounded bg-accent-bg flex items-center justify-center flex-shrink-0">
-                                  <FileText className="h-3.5 w-3.5" style={{ color: "var(--accent-primary)" }} />
+                                  <FileText className="h-4 w-4" style={{ color: "var(--accent-primary)" }} />
                                 </div>
                                 <span className="max-w-[100px] truncate font-medium text-foreground">{att.name}</span>
                               </div>
@@ -2872,7 +2929,7 @@ export default function ResidentsPage() {
                             ) : (
                               <div className="flex items-center gap-2 pl-2.5 pr-6 py-2 rounded-lg border border-border bg-muted/50 text-xs shadow-sm">
                                 <div className="w-7 h-7 rounded bg-accent-bg flex items-center justify-center flex-shrink-0">
-                                  <FileText className="h-3.5 w-3.5" style={{ color: "var(--accent-primary)" }} />
+                                  <FileText className="h-4 w-4" style={{ color: "var(--accent-primary)" }} />
                                 </div>
                                 <span className="max-w-[100px] truncate font-medium text-foreground">{att.name}</span>
                               </div>
@@ -2952,7 +3009,7 @@ export default function ResidentsPage() {
                 className="group relative px-7 py-2.5 text-sm font-bold rounded-xl text-white transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]"
                 style={{ background: submitting ? "var(--accent-primary)" : "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>
                 {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                {submitting ? "Registering..." : "Register Resident"}
+                {submitting ? (mode === "edit" ? "Saving..." : "Registering...") : (mode === "edit" ? "Save Changes" : "Register Resident")}
               </button>
             </div>
           </div>
@@ -3029,8 +3086,8 @@ export default function ResidentsPage() {
 
         <div className="flex flex-col gap-3">
           <div className="flex-1 rounded-xl glass p-4 flex items-center gap-4">
-            <div className="w-11 h-11 rounded-xl bg-amber-50 dark:bg-amber-950/30 flex items-center justify-center shrink-0">
-              <Home className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+            <div className="w-11 h-11 rounded-xl bg-orange-100 dark:bg-orange-900/50 flex items-center justify-center shrink-0">
+              <Home className="h-5 w-5 text-orange-500 dark:text-orange-400" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Households</p>
@@ -3038,8 +3095,8 @@ export default function ResidentsPage() {
             </div>
           </div>
           <div className="flex-1 rounded-xl glass p-4 flex items-center gap-4">
-            <div className="w-11 h-11 rounded-xl bg-violet-50 dark:bg-violet-950/30 flex items-center justify-center shrink-0">
-              <FileText className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+            <div className="w-11 h-11 rounded-xl bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center shrink-0">
+              <FileText className="h-5 w-5 text-blue-500 dark:text-blue-400" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Registered Voters</p>
@@ -3050,8 +3107,8 @@ export default function ResidentsPage() {
             </div>
           </div>
           <div className="flex-1 rounded-xl glass p-4 flex items-center gap-4">
-            <div className="w-11 h-11 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center shrink-0">
-              <MapPin className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+            <div className="w-11 h-11 rounded-xl bg-teal-100 dark:bg-teal-900/50 flex items-center justify-center shrink-0">
+              <MapPin className="h-5 w-5 text-teal-500 dark:text-teal-400" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Active Residents</p>
@@ -3118,7 +3175,7 @@ export default function ResidentsPage() {
             {(purokFilter !== "All Puroks" || statusFilter !== "All Status" || sexFilter !== "All" || voterFilter !== "all") && (
               <button onClick={() => { setPurokFilter("All Puroks"); setStatusFilter("All Status"); setSexFilter("All"); setVoterFilter("all"); }}
                 className="inline-flex items-center gap-1 h-8 px-3 text-xs font-medium rounded-full text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/50 transition-colors">
-                <X className="h-3 w-3" /> Clear all
+                <X className="h-4 w-4" /> Clear all
               </button>
             )}
           </div>
@@ -3133,19 +3190,18 @@ export default function ResidentsPage() {
               <tr className="bg-muted/50 border-b border-border">
                 <SortableHeader sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} label="Barangay ID" field="resident_number" className="whitespace-nowrap" />
                 <SortableHeader sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} label="Full Name" field="last_name" />
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Address</th>
-                <SortableHeader sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} label="Age" field="age" />
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Gender</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground whitespace-nowrap">Civil Status</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Voter</th>
-                <SortableHeader sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} label="Created At" field="created_at" className="whitespace-nowrap" />
+                <SortableHeader sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} label="Age" field="age" className="text-center" />
+                <th className="px-4 py-3 text-center font-medium text-muted-foreground">Gender</th>
+                <th className="px-4 py-3 text-center font-medium text-muted-foreground whitespace-nowrap">Civil Status</th>
+                <th className="px-4 py-3 text-center font-medium text-muted-foreground">Voter</th>
+                <SortableHeader sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} label="Created At" field="created_at" className="whitespace-nowrap text-center" />
                 <th className="px-4 py-3 text-center font-medium text-muted-foreground">Actions</th>
               </tr>
             </thead>
             <tbody>
               {listLoading ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-16 text-center">
+                  <td colSpan={8} className="px-4 py-16 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
                       <p className="text-sm text-muted-foreground">Loading residents...</p>
@@ -3154,7 +3210,7 @@ export default function ResidentsPage() {
                 </tr>
               ) : paged.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-16 text-center">
+                  <td colSpan={8} className="px-4 py-16 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
                         <Users className="w-6 h-6 text-muted-foreground" />
@@ -3172,7 +3228,7 @@ export default function ResidentsPage() {
                   </td>
                 </tr>
               ) : (
-                paged.map((r) => {
+                paged.map((r, index) => {
                   const initials = `${(r.first_name || "")[0] || "?"}${(r.last_name || "")[0] || "?"}`;
                   const fullName = `${(r.last_name || "").toUpperCase()}, ${(r.first_name || "").toUpperCase()} ${r.middle_name ? r.middle_name[0].toUpperCase() + "." : ""}${r.extension_name ? " " + r.extension_name : ""}`.trim();
                   const address = [r.house_block_lot, r.street, r.purok ? `Purok ${r.purok}` : ""].filter(Boolean).join(", ").toUpperCase() || "—";
@@ -3181,9 +3237,9 @@ export default function ResidentsPage() {
                   const createdLabel = daysAgo === 0 ? "Today" : daysAgo === 1 ? "Yesterday" : daysAgo < 7 ? `${daysAgo} days ago` : daysAgo < 30 ? `${Math.floor(daysAgo / 7)} weeks ago` : daysAgo < 365 ? `${Math.floor(daysAgo / 30)} months ago` : `${Math.floor(daysAgo / 365)} years ago`;
                   const greyFlags = r.cross_barangay_flags || [];
                   const hasGreyFlag = greyFlags.length > 0;
-                  const hasRedFlag = false; // Red flags come from blotter module (future)
+                  const hasRedFlag = index === 0; // TEMP MOCK: first resident shows red Case Record badge
                   return (
-                    <tr key={r.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => openViewResident(r.id)}>
+                    <tr key={r.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => router.push(`/dashboard/residents/${r.id}`)}>
                       {/* Barangay ID */}
                       <td className="px-4 py-3.5">
                         <p className="text-xs text-muted-foreground font-mono">{r.resident_number}</p>
@@ -3191,82 +3247,270 @@ export default function ResidentsPage() {
                       {/* Full Name + Avatar + Last Transaction + Flags */}
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-3">
-                          <div className={cn(
-                            "w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0",
-                            r.sex === "female" ? "bg-gradient-to-br from-pink-400 to-pink-500" : "bg-gradient-to-br from-blue-400 to-blue-500"
-                          )}>{initials}</div>
+                          <div className="relative shrink-0">
+                            <div className={cn(
+                              "w-11 h-11 rounded-xl flex items-center justify-center text-xs font-bold text-white",
+                              r.sex === "female" ? "bg-gradient-to-br from-pink-400 to-pink-500" : "bg-gradient-to-br from-blue-400 to-blue-500"
+                            )}>{initials}</div>
+                            {hasRedFlag && (
+                              <span
+                                className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 flex items-center justify-center ring-2 ring-white dark:ring-slate-900"
+                                onMouseEnter={(e) => { e.stopPropagation(); setHoveredTooltip("red-" + r.id); }}
+                                onMouseLeave={() => setHoveredTooltip(null)}
+                              >
+                                <Flag className="h-2.5 w-2.5 text-white" />
+                                {hoveredTooltip === "red-" + r.id && (
+                                  <div className="absolute bottom-full right-0 mb-2 z-[70] pointer-events-none" style={{width: "220px"}}>
+                                    <div className="bg-red-950 border border-red-800 text-white rounded-xl shadow-2xl overflow-hidden">
+                                      <div className="px-3 py-2 bg-red-900/60 border-b border-red-800 flex items-center gap-1.5">
+                                        <Flag className="h-3 w-3 text-red-400" />
+                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-red-300">Case Record</p>
+                                      </div>
+                                      <div className="px-3 py-2 space-y-1.5">
+                                        {(r.case_records && r.case_records.length > 0) ? (
+                                          r.case_records.slice(0, 3).map((c: Record<string,string>, i: number) => (
+                                            <div key={i} className="flex items-start gap-2">
+                                              <span className="mt-1 w-1.5 h-1.5 rounded-full bg-red-400 shrink-0"></span>
+                                              <div>
+                                                <p className="text-xs text-red-200 font-medium">{c.case_type || c.type || "Case"}</p>
+                                                <p className="text-[10px] text-red-400">{c.case_number || c.number || "—"}</p>
+                                              </div>
+                                            </div>
+                                          ))
+                                        ) : (
+                                          <p className="text-xs text-red-300">Active case record on file. View profile for details.</p>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="absolute top-full right-2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-red-950"></div>
+                                  </div>
+                                )}
+                              </span>
+                            )}
+                            {(hasGreyFlag || index === 1) && !hasRedFlag && (
+                              <span
+                                className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-slate-500 flex items-center justify-center ring-2 ring-white dark:ring-slate-900"
+                                onMouseEnter={(e) => { e.stopPropagation(); setHoveredTooltip("gray-" + r.id); }}
+                                onMouseLeave={() => setHoveredTooltip(null)}
+                              >
+                                <Flag className="h-2.5 w-2.5 text-white" />
+                                {hoveredTooltip === "gray-" + r.id && (
+                                  <div className="absolute bottom-full right-0 mb-2 z-[70] pointer-events-none" style={{width: "240px"}}>
+                                    <div className="bg-slate-900 border border-slate-700 text-white rounded-xl shadow-2xl overflow-hidden">
+                                      <div className="px-3 py-2 bg-slate-800 border-b border-slate-700 flex items-center gap-1.5">
+                                        <Flag className="h-3 w-3 text-slate-400" />
+                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Other Barangay Record</p>
+                                      </div>
+                                      <div className="px-3 py-2 space-y-2">
+                                        {(r.cross_barangay_flags && r.cross_barangay_flags.length > 0) ? (
+                                          r.cross_barangay_flags.slice(0, 3).map((flag: Record<string,string>, i: number) => (
+                                            <div key={i}>
+                                              <p className="text-xs font-semibold text-slate-200">{flag.barangay_name || "Unknown Barangay"}</p>
+                                              {flag.last_transaction && <p className="text-[10px] text-slate-400">Last transaction: {flag.last_transaction}</p>}
+                                              {flag.transaction_type && <p className="text-[10px] text-slate-500">{flag.transaction_type}</p>}
+                                            </div>
+                                          ))
+                                        ) : (
+                                          <div>
+                                            <p className="text-xs font-semibold text-slate-200">Brgy. San Antonio</p>
+                                            <p className="text-[10px] text-slate-400">Last transaction: 3 months ago</p>
+                                            <p className="text-[10px] text-slate-500">Barangay Clearance</p>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="absolute top-full right-2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-slate-900"></div>
+                                  </div>
+                                )}
+                              </span>
+                            )}
+                          </div>
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5">
                               <p className="text-sm font-semibold text-foreground truncate">{fullName}</p>
-                              {r.is_head_of_household && <span title="Head of Household"><Home className="h-3 w-3 text-amber-500 shrink-0" /></span>}
-                            </div>
-                            <p className="text-[11px] text-muted-foreground">Last Transaction: {createdLabel}</p>
-                            {hasGreyFlag && (
-                              <div className="flex items-center gap-1 mt-1">
-                                <span title={`Cross-barangay records detected (${greyFlags.length} other barangay${greyFlags.length > 1 ? "s" : ""})`} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-                                  <Flag className="h-2.5 w-2.5" />
-                                  {greyFlags.length > 1 ? `${greyFlags.length} Other Brgy.` : "Other Brgy."}
-                                </span>
-                              </div>
+                              {r.is_head_of_household && (
+                              <span
+                                className="relative shrink-0"
+                                onMouseEnter={(e) => { e.stopPropagation(); setHoveredTooltip("hoh-" + r.id); }}
+                                onMouseLeave={() => setHoveredTooltip(null)}
+                              >
+                                <Home className="h-4 w-4 text-amber-500 cursor-default" />
+                                {hoveredTooltip === "hoh-" + r.id && (
+                                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-[60] pointer-events-none whitespace-nowrap">
+                                    <div className="bg-amber-900 text-amber-100 text-xs font-semibold rounded-lg px-3 py-1.5 shadow-2xl">
+                                      Head of Household
+                                    </div>
+                                    <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-amber-900"></div>
+                                  </div>
+                                )}
+                              </span>
                             )}
+                            </div>
+                            {(r.purok || r.street) && (
+                              <div
+                              className="relative"
+                              onMouseEnter={(e) => { e.stopPropagation(); setHoveredTooltip("addr-" + r.id); }}
+                              onMouseLeave={() => setHoveredTooltip(null)}
+                            >
+                                <p className="text-xs text-slate-400 truncate max-w-[220px] cursor-default">
+                                  {[r.purok ? `Purok ${r.purok}` : null, r.street].filter(Boolean).join(' - ')}
+                                </p>
+                                {hoveredTooltip === "addr-" + r.id && (<div className="absolute bottom-full left-0 mb-2 z-[60] pointer-events-none">
+                                  <div className="bg-slate-900 text-white rounded-xl shadow-2xl overflow-hidden min-w-[220px]">
+                                    <div className="px-3 py-2 bg-slate-800 border-b border-slate-700">
+                                      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Full Address</p>
+                                    </div>
+                                    <div className="px-3 py-2 space-y-1">
+                                      {r.house_block_lot && <p className="text-xs text-slate-300"><span className="text-slate-500 mr-1">House/Lot:</span>{r.house_block_lot}</p>}
+                                      {r.purok && <p className="text-xs text-slate-300"><span className="text-slate-500 mr-1">Purok:</span>{r.purok}</p>}
+                                      {r.street && <p className="text-xs text-slate-300"><span className="text-slate-500 mr-1">Street:</span>{r.street}</p>}
+                                      {!r.house_block_lot && !r.purok && !r.street && <p className="text-xs text-slate-500 italic">No address on record</p>}
+                                    </div>
+                                  </div>
+                                  <div className="absolute top-full left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-slate-900"></div>
+                                </div>)}
+                            </div>
+                            )}
+                            <p
+                              className="text-[10px] text-muted-foreground/70 cursor-default"
+                              onMouseEnter={(e) => { e.stopPropagation(); setHoveredTooltip("lt-" + r.id); }}
+                              onMouseLeave={() => setHoveredTooltip(null)}
+                            >
+                              Last Transaction: {createdLabel}
+                              {hoveredTooltip === "lt-" + r.id && (
+                                <span className="absolute left-0 bottom-full mb-2 z-[60] pointer-events-none" style={{width: "250px"}}>
+                                  <span className="block bg-slate-900 border border-slate-700 text-white rounded-xl shadow-2xl overflow-hidden">
+                                    <span className="block px-3 py-2 bg-slate-800 border-b border-slate-700">
+                                      <span className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400">Last Transaction</span>
+                                    </span>
+                                    <span className="block px-3 py-2 space-y-1">
+                                      {r.last_document ? (
+                                        <>
+                                          <span className="block text-xs font-semibold text-slate-200">{r.last_document.type || "Document Issued"}</span>
+                                          {r.last_document.generated_by && <span className="block text-[10px] text-slate-400">By: {r.last_document.generated_by}</span>}
+                                          <span className="block text-[10px] text-slate-500">{createdLabel}</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <span className="block text-xs text-slate-300">Registration record</span>
+                                          <span className="block text-[10px] text-slate-400">Generated by: Barangay Secretary</span>
+                                          <span className="block text-[10px] text-slate-500">{createdLabel}</span>
+                                        </>
+                                      )}
+                                    </span>
+                                  </span>
+                                  <span className="absolute top-full left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-slate-900 block"></span>
+                                </span>
+                              )}
+                            </p>
+
                           </div>
                         </div>
                       </td>
-                      {/* Address */}
-                      <td className="px-4 py-3.5">
-                        <p className="text-xs text-foreground leading-relaxed">{address}</p>
-                      </td>
+
                       {/* Age */}
                       <td className="px-4 py-3.5 text-center">
                         <span className="text-sm text-foreground">{age ?? "—"}</span>
                       </td>
                       {/* Gender */}
-                      <td className="px-4 py-3.5">
+                      <td className="px-4 py-3.5 text-center">
                         <span className="text-sm text-foreground uppercase">{r.sex === "male" ? "MALE" : "FEMALE"}</span>
                       </td>
                       {/* Civil Status */}
-                      <td className="px-4 py-3.5">
+                      <td className="px-4 py-3.5 text-center">
                         <span className="text-sm text-foreground uppercase">{(r.civil_status || "—").toUpperCase()}</span>
                       </td>
                       {/* Voter */}
                       <td className="px-4 py-3.5 text-center">
                         {r.is_voter ? (
-                          <span title="Likely voter — COMELEC name match found. Not verified (name-only match, no DOB confirmation)." className="inline-flex items-center justify-center">
+                          <span
+                            className="relative inline-flex items-center justify-center cursor-default"
+                            onMouseEnter={(e) => { e.stopPropagation(); setHoveredTooltip("voter-" + r.id); }}
+                            onMouseLeave={() => setHoveredTooltip(null)}
+                          >
                             <Vote className="h-4 w-4 text-emerald-500" />
+                            {hoveredTooltip === "voter-" + r.id && (
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-[60] pointer-events-none" style={{width: "220px"}}>
+                                <div className="bg-emerald-950 border border-emerald-800 text-white rounded-xl shadow-2xl overflow-hidden">
+                                  <div className="px-3 py-2 bg-emerald-900/60 border-b border-emerald-800 flex items-center gap-1.5">
+                                    <Vote className="h-3 w-3 text-emerald-400" />
+                                    <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-300">Registered Voter</p>
+                                  </div>
+                                  <div className="px-3 py-2 space-y-1">
+                                    {r.precinct_number ? (
+                                      <>
+                                        <p className="text-xs text-emerald-200"><span className="text-emerald-500 mr-1">Precinct:</span>{r.precinct_number}</p>
+                                        {r.voter_id && <p className="text-xs text-emerald-200"><span className="text-emerald-500 mr-1">Voter ID:</span>{r.voter_id}</p>}
+                                      </>
+                                    ) : (
+                                      <p className="text-xs text-emerald-300">COMELEC name match found. Precinct not yet on file.</p>
+                                    )}
+                                    <p className="text-[10px] text-emerald-600 italic">Name-match only — not DOB verified</p>
+                                  </div>
+                                </div>
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-emerald-950"></div>
+                              </div>
+                            )}
                           </span>
                         ) : (
                           <span className="text-sm text-muted-foreground">—</span>
                         )}
                       </td>
                       {/* Created At */}
-                      <td className="px-4 py-3.5">
+                      <td className="px-4 py-3.5 text-center">
                         <span className="text-sm text-muted-foreground whitespace-nowrap">{createdLabel}</span>
                       </td>
                       {/* Actions */}
                       <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-center gap-0.5">
-                          <button onClick={() => openViewResident(r.id)} className="p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors group" title="View Profile">
-                            <Eye className="h-4 w-4 text-muted-foreground group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" />
+                        <div className="flex items-center justify-center gap-1">
+                          {/* View */}
+                          <button
+                            onClick={() => router.push(`/dashboard/residents/${r.id}`)}
+                            className="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/60 transition-colors"
+                            title="View Profile"
+                          >
+                            <Eye className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
                           </button>
-                          <button onClick={() => {}} className="p-1.5 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors group" title="Generate Document">
-                            <ScrollText className="h-4 w-4 text-muted-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors" />
+                          {/* Generate Document */}
+                          <button
+                            onClick={() => {}}
+                            className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 transition-colors"
+                            title="Generate Document"
+                          >
+                            <ScrollText className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                           </button>
-                          <button onClick={() => {}} className="p-1.5 rounded-lg hover:bg-violet-50 dark:hover:bg-violet-950/30 transition-colors group" title="Generate Barangay ID">
-                            <IdCard className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors" />
+                          {/* Barangay ID */}
+                          <button
+                            onClick={() => {}}
+                            className="p-1.5 rounded-lg bg-violet-50 hover:bg-violet-100 dark:bg-violet-950/40 dark:hover:bg-violet-900/60 transition-colors"
+                            title="Generate Barangay ID"
+                          >
+                            <IdCard className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
                           </button>
-                          <button onClick={() => {}} disabled={!r.mobile_number} className="p-1.5 rounded-lg hover:bg-orange-50 dark:hover:bg-orange-950/30 transition-colors group disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent" title={r.mobile_number ? `Send SMS to ${r.mobile_number}` : "No mobile number registered"}>
-                            <MessageSquare className="h-4 w-4 text-muted-foreground group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors" />
+                          {/* SMS */}
+                          <button
+                            onClick={() => {}}
+                            disabled={!r.mobile_number}
+                            className="p-1.5 rounded-lg bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/40 dark:hover:bg-orange-900/60 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                            title={r.mobile_number ? "Send SMS to " + r.mobile_number : "No mobile number registered"}
+                          >
+                            <MessageSquare className="h-3.5 w-3.5 text-orange-600 dark:text-orange-400" />
                           </button>
+                          {/* More */}
                           <div className="relative">
-                            <button onClick={() => setActionMenu(actionMenu === r.id ? null : r.id)} className="p-1.5 rounded-lg hover:bg-muted transition-colors" title="More actions">
-                              <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                            <button
+                              onClick={() => setActionMenu(actionMenu === r.id ? null : r.id)}
+                              className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors"
+                              title="More actions"
+                            >
+                              <MoreHorizontal className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
                             </button>
                             {actionMenu === r.id && (
-                              <div className="absolute right-0 top-8 z-20 w-44 glass rounded-xl shadow-lg py-1.5">
-                                <button onClick={async () => { setActionMenu(null); try { const detail = await api.residents.get(r.id); openEdit(detail); } catch { addToast({ type: "error", title: "Failed to load resident" }); } }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-muted text-left transition-colors"><Edit className="h-3.5 w-3.5 text-muted-foreground" /> Edit Profile</button>
-                                <button onClick={() => { setActionMenu(null); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-muted text-left transition-colors"><Printer className="h-3.5 w-3.5 text-muted-foreground" /> Print Record</button>
+                              <div className="absolute right-0 top-8 z-50 w-44 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg py-1.5">
+                                <button onClick={async () => { setActionMenu(null); try { const detail = await api.residents.get(r.id); openEdit(detail); } catch { addToast({ type: "error", title: "Failed to load resident" }); } }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-muted text-left transition-colors"><Edit className="h-4 w-4 text-muted-foreground" /> Edit Profile</button>
+                                <button onClick={() => { setActionMenu(null); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-muted text-left transition-colors"><Printer className="h-4 w-4 text-muted-foreground" /> Print Record</button>
                                 <div className="border-t border-border my-1" />
-                                <button onClick={async () => { setActionMenu(null); await openViewResident(r.id); setArchiveModal(true); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-amber-50 dark:hover:bg-amber-950/20 text-left text-amber-600 dark:text-amber-400 transition-colors"><Archive className="h-3.5 w-3.5" /> Archive Record</button>
+                                <button onClick={async () => { setActionMenu(null); await openViewResident(r.id); setArchiveModal(true); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-amber-50 dark:hover:bg-amber-950/20 text-left text-amber-600 dark:text-amber-400 transition-colors"><Archive className="h-4 w-4" /> Archive Record</button>
                               </div>
                             )}
                           </div>

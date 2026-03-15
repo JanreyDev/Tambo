@@ -48,7 +48,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="flex min-h-screen bg-background relative">
+    <div className="flex min-h-screen bg-background relative overflow-x-hidden">
       {/* Ambient background orbs for glass depth */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         <div className="absolute top-[10%] right-[15%] w-[500px] h-[500px] rounded-full blur-[150px] opacity-[0.04]" style={{ background: "var(--accent-primary)" }} />

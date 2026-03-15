@@ -450,6 +450,10 @@ const api = {
     checkDuplicate: (data: { first_name: string; last_name: string; middle_name?: string; date_of_birth: string }) =>
       api.post<{ has_duplicates: boolean; matches: DuplicateMatch[] }>("/residents/check-duplicate", data),
   },
+
+  puroks: {
+    list: () => api.get<{ data: { id: string; name: string }[] }>("/puroks?per_page=100"),
+  },
 };
 
 export { api };
