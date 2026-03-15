@@ -150,7 +150,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const isNonProd = typeof window !== "undefined" && (process.env.NODE_ENV === "development" || window.location.hostname.includes("staging"));
   const [username, setUsername] = useState(isNonProd ? "kap_tambo" : "");
-  const [password, setPassword] = useState(isNonProd ? "hE77gp7aX2" : "");
+  const [password, setPassword] = useState(isNonProd ? "Tambo@2026!" : "");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
   const router = useRouter();
