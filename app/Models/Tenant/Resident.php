@@ -6,6 +6,7 @@ namespace App\Models\Tenant;
 
 use App\Enums\CivilStatus;
 use App\Enums\ResidentStatus;
+use App\Models\Admin\File;
 use App\Models\Tenant\Records\Household;
 use App\Models\Tenant\Records\ResidentSectoralTag;
 use App\Traits\BelongsToBarangay;
@@ -188,6 +189,11 @@ class Resident extends Model
     public function crossBarangayFlags(): HasMany
     {
         return $this->hasMany(Records\ResidentCrossBarangayFlag::class);
+    }
+
+    public function photoFile(): BelongsTo
+    {
+        return $this->belongsTo(File::class, 'photo_file_id');
     }
 
     // ── Meilisearch ──

@@ -10,6 +10,7 @@ use App\Models\Tenant\Records\Household;
 use App\Models\Tenant\Records\ResidentCrossBarangayFlag;
 use App\Models\Tenant\Records\ResidentSectoralTag;
 use App\Models\Tenant\Resident;
+use App\Services\FileUploadService;
 use App\Services\SmsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,6 +21,7 @@ class ResidentController extends Controller
 {
     public function __construct(
         private readonly SmsService $smsService,
+        private readonly FileUploadService $fileUploadService,
     ) {}
 
     /**
@@ -30,7 +32,7 @@ class ResidentController extends Controller
         $barangayId = $request->user()->barangay_id;
 
         $query = Resident::where('barangay_id', $barangayId)
-            ->with(['sectoralTags', 'crossBarangayFlags']);
+            ->with(['sectoralTags', 'crossBarangayFlags', 'photoFile']);
 
         // Search
         if ($search = $request->get('search')) {
@@ -72,6 +74,14 @@ class ResidentController extends Controller
         $perPage = min((int) $request->get('per_page', 25), 100);
         $residents = $query->paginate($perPage);
 
+        $residents->getCollection()->transform(function ($resident) {
+            $resident->photo_url = $resident->photoFile?->is_public
+                ? $this->fileUploadService->getPublicUrl($resident->photoFile)
+                : null;
+
+            return $resident;
+        });
+
         return response()->json($residents);
     }
 
@@ -81,8 +91,12 @@ class ResidentController extends Controller
     public function show(Request $request, string $id): JsonResponse
     {
         $resident = Resident::where('barangay_id', $request->user()->barangay_id)
-            ->with(['household', 'sectoralTags', 'crossBarangayFlags'])
+            ->with(['household', 'sectoralTags', 'crossBarangayFlags', 'photoFile'])
             ->findOrFail($id);
+
+        $resident->photo_url = $resident->photoFile?->is_public
+            ? $this->fileUploadService->getPublicUrl($resident->photoFile)
+            : null;
 
         return response()->json(['resident' => $resident]);
     }
