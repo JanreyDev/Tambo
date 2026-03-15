@@ -27,10 +27,10 @@ class FileUploadService
 
     /** Max dimensions per category [width, height] */
     private const IMAGE_MAX = [
-        'photo'     => [800, 1000],
-        'avatar'    => [400, 400],
-        'logo'      => [512, 512],
-        'seal'      => [512, 512],
+        'photo' => [800, 1000],
+        'avatar' => [400, 400],
+        'logo' => [512, 512],
+        'seal' => [512, 512],
         'signature' => [600, 300],
         'thumbmark' => [400, 400],
     ];
@@ -65,11 +65,11 @@ class FileUploadService
         // Compress image if applicable — returns compressed binary + metadata
         $compressed = $this->maybeCompress($file, $category);
 
-        $content       = $compressed['content'];
-        $mimeType      = $compressed['mime_type'];
-        $extension     = $compressed['extension'];
-        $sizeBytes     = strlen($content);
-        $originalSize  = $file->getSize();
+        $content = $compressed['content'];
+        $mimeType = $compressed['mime_type'];
+        $extension = $compressed['extension'];
+        $sizeBytes = strlen($content);
+        $originalSize = $file->getSize();
 
         // Check storage capacity BEFORE uploading (use compressed size)
         $barangay = null;
@@ -80,9 +80,9 @@ class FileUploadService
             }
         }
 
-        $uuid       = (string) Str::uuid();
+        $uuid = (string) Str::uuid();
         $storedName = "{$uuid}.{$extension}";
-        $fullPath   = rtrim($path, '/')."/{$storedName}";
+        $fullPath = rtrim($path, '/')."/{$storedName}";
 
         // Store compressed content
         $visibility = $isPublic ? 'public' : 'private';
@@ -91,32 +91,32 @@ class FileUploadService
         // Build metadata — include compression info for observability
         $meta = [
             'original_extension' => $file->getClientOriginalExtension() ?: 'bin',
-            'original_mime'      => $file->getMimeType() ?? 'application/octet-stream',
-            'disk'               => $this->disk,
+            'original_mime' => $file->getMimeType() ?? 'application/octet-stream',
+            'disk' => $this->disk,
         ];
 
         if ($compressed['was_compressed']) {
             $meta['original_size_bytes'] = $originalSize;
             $meta['compressed_size_bytes'] = $sizeBytes;
             $meta['original_dimensions'] = $compressed['original_dimensions'];
-            $meta['stored_dimensions']   = $compressed['stored_dimensions'];
+            $meta['stored_dimensions'] = $compressed['stored_dimensions'];
             $meta['savings_pct'] = $originalSize > 0
                 ? round((1 - $sizeBytes / $originalSize) * 100, 1)
                 : 0;
         }
 
         $fileRecord = File::create([
-            'barangay_id'    => $barangayId,
-            'original_name'  => $file->getClientOriginalName(),
-            'stored_name'    => $storedName,
-            'mime_type'      => $mimeType,
-            'size_bytes'     => $sizeBytes,
-            'storage_path'   => $fullPath,
+            'barangay_id' => $barangayId,
+            'original_name' => $file->getClientOriginalName(),
+            'stored_name' => $storedName,
+            'mime_type' => $mimeType,
+            'size_bytes' => $sizeBytes,
+            'storage_path' => $fullPath,
             'storage_bucket' => config("filesystems.disks.{$this->disk}.bucket", 'local'),
-            'uploaded_by'    => $uploadedBy,
-            'category'       => $category,
-            'is_public'      => $isPublic,
-            'metadata'       => $meta,
+            'uploaded_by' => $uploadedBy,
+            'category' => $category,
+            'is_public' => $isPublic,
+            'metadata' => $meta,
         ]);
 
         // Track actual (compressed) storage usage on the barangay
@@ -158,7 +158,7 @@ class FileUploadService
      */
     public function delete(File $file): bool
     {
-        $sizeBytes  = $file->size_bytes;
+        $sizeBytes = $file->size_bytes;
         $barangayId = $file->barangay_id;
 
         Storage::disk($this->disk)->delete($file->storage_path);
@@ -209,12 +209,12 @@ class FileUploadService
     private function maybeCompress(UploadedFile $file, string $category): array
     {
         $passthrough = [
-            'content'             => $file->getContent(),
-            'mime_type'           => $file->getMimeType() ?? 'application/octet-stream',
-            'extension'           => $file->getClientOriginalExtension() ?: 'bin',
-            'was_compressed'      => false,
+            'content' => $file->getContent(),
+            'mime_type' => $file->getMimeType() ?? 'application/octet-stream',
+            'extension' => $file->getClientOriginalExtension() ?: 'bin',
+            'was_compressed' => false,
             'original_dimensions' => null,
-            'stored_dimensions'   => null,
+            'stored_dimensions' => null,
         ];
 
         // Only compress image categories that have max dimensions defined
@@ -229,7 +229,7 @@ class FileUploadService
 
         try {
             $rawContent = $file->getContent();
-            $src        = @imagecreatefromstring($rawContent);
+            $src = @imagecreatefromstring($rawContent);
 
             if ($src === false) {
                 return $passthrough; // unsupported format — store as-is
@@ -280,12 +280,12 @@ class FileUploadService
             }
 
             return [
-                'content'             => $compressed,
-                'mime_type'           => $outputAsPng ? 'image/png' : 'image/jpeg',
-                'extension'           => $outputAsPng ? 'png' : 'jpg',
-                'was_compressed'      => true,
+                'content' => $compressed,
+                'mime_type' => $outputAsPng ? 'image/png' : 'image/jpeg',
+                'extension' => $outputAsPng ? 'png' : 'jpg',
+                'was_compressed' => true,
                 'original_dimensions' => [$origW, $origH],
-                'stored_dimensions'   => [$destW, $destH],
+                'stored_dimensions' => [$destW, $destH],
             ];
 
         } catch (\Throwable) {

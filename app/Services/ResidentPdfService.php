@@ -16,9 +16,9 @@ class ResidentPdfService
      * Generate a PDF record card for a resident.
      * Returns the raw PDF binary string.
      *
-     * @param  Resident  $resident   The resident whose record is being printed.
-     * @param  Barangay  $barangay   The issuing barangay.
-     * @param  User|null $printingUser  The staff member who triggered the print.
+     * @param  Resident  $resident  The resident whose record is being printed.
+     * @param  Barangay  $barangay  The issuing barangay.
+     * @param  User|null  $printingUser  The staff member who triggered the print.
      */
     public function generate(Resident $resident, Barangay $barangay, ?User $printingUser = null): string
     {
@@ -27,10 +27,10 @@ class ResidentPdfService
         $pdf = Pdf::loadView('pdf.resident-record', $data)
             ->setPaper('a4', 'portrait')
             ->setOptions([
-                'defaultFont'  => 'sans-serif',
-                'dpi'          => 150,
+                'defaultFont' => 'sans-serif',
+                'dpi' => 150,
                 'isHtml5ParserEnabled' => true,
-                'isRemoteEnabled'      => false, // all images embedded as base64
+                'isRemoteEnabled' => false, // all images embedded as base64
             ]);
 
         return $pdf->output();
@@ -49,7 +49,7 @@ class ResidentPdfService
 
         // ── Printed by ──
         $printedBy = $printingUser
-            ? trim(($printingUser->first_name ?? '') . ' ' . ($printingUser->last_name ?? ''))
+            ? trim(($printingUser->first_name ?? '').' '.($printingUser->last_name ?? ''))
                 ?: $printingUser->username
             : 'System';
 
@@ -64,22 +64,22 @@ class ResidentPdfService
 
         // ── Name ──
         $fullName = implode(' ', array_filter([
-            $resident->last_name . ($resident->extension_name ? ' ' . $resident->extension_name : '') . ',',
+            $resident->last_name.($resident->extension_name ? ' '.$resident->extension_name : '').',',
             $resident->first_name,
-            $resident->middle_name ? strtoupper(substr($resident->middle_name, 0, 1)) . '.' : null,
+            $resident->middle_name ? strtoupper(substr($resident->middle_name, 0, 1)).'.' : null,
         ]));
 
         return [
-            'resident'      => $resident,
-            'barangay'      => $barangay,
-            'fullName'      => $fullName,
-            'age'           => $age,
-            'govIds'        => $govIds,
-            'photoDataUri'  => $photoDataUri,
-            'barangaySeal'  => $barangaySeal,
-            'sectoralTags'  => $sectoralTags,
-            'printedBy'     => $printedBy,
-            'printedAt'     => now()->setTimezone('Asia/Manila')->format('F d, Y h:i A'),
+            'resident' => $resident,
+            'barangay' => $barangay,
+            'fullName' => $fullName,
+            'age' => $age,
+            'govIds' => $govIds,
+            'photoDataUri' => $photoDataUri,
+            'barangaySeal' => $barangaySeal,
+            'sectoralTags' => $sectoralTags,
+            'printedBy' => $printedBy,
+            'printedAt' => now()->setTimezone('Asia/Manila')->format('F d, Y h:i A'),
         ];
     }
 
@@ -89,12 +89,12 @@ class ResidentPdfService
     private function decryptGovIds(Resident $resident): array
     {
         $map = [
-            'philhealth_number'  => 'philhealth_number_encrypted',
-            'sss_gsis_number'    => 'sss_gsis_number_encrypted',
-            'pagibig_number'     => 'pagibig_number_encrypted',
-            'tin_number'         => 'tin_number_encrypted',
-            'pwd_id'             => 'pwd_id_encrypted',
-            'senior_citizen_id'  => 'senior_citizen_id_encrypted',
+            'philhealth_number' => 'philhealth_number_encrypted',
+            'sss_gsis_number' => 'sss_gsis_number_encrypted',
+            'pagibig_number' => 'pagibig_number_encrypted',
+            'tin_number' => 'tin_number_encrypted',
+            'pwd_id' => 'pwd_id_encrypted',
+            'senior_citizen_id' => 'senior_citizen_id_encrypted',
         ];
 
         $result = [];
@@ -102,6 +102,7 @@ class ResidentPdfService
             $encrypted = $resident->getRawOriginal($encryptedKey);
             if (empty($encrypted)) {
                 $result[$plainKey] = null;
+
                 continue;
             }
             try {
@@ -129,10 +130,10 @@ class ResidentPdfService
         $disk = $file->metadata['disk'] ?? config('filesystems.default', 'public');
 
         try {
-            $content  = Storage::disk($disk)->get($file->storage_path);
+            $content = Storage::disk($disk)->get($file->storage_path);
             $mimeType = $file->mime_type ?? 'image/jpeg';
 
-            return 'data:' . $mimeType . ';base64,' . base64_encode($content);
+            return 'data:'.$mimeType.';base64,'.base64_encode($content);
         } catch (\Throwable) {
             return null;
         }

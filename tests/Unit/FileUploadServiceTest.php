@@ -35,7 +35,7 @@ describe('FileUploadService image compression', function () {
         $file = UploadedFile::fake()->createWithContent('photo.jpg', $jpeg);
 
         $service = app(FileUploadService::class);
-        $record  = $service->upload(
+        $record = $service->upload(
             file: $file,
             category: 'photo',
             path: 'bcmp/test/photos',
@@ -68,7 +68,7 @@ describe('FileUploadService image compression', function () {
         $file = UploadedFile::fake()->createWithContent('small.jpg', $jpeg);
 
         $service = app(FileUploadService::class);
-        $record  = $service->upload(
+        $record = $service->upload(
             file: $file,
             category: 'photo',
             path: 'bcmp/test/photos',
@@ -90,7 +90,7 @@ describe('FileUploadService image compression', function () {
         $file = UploadedFile::fake()->createWithContent('photo.png', $png);
 
         $service = app(FileUploadService::class);
-        $record  = $service->upload(
+        $record = $service->upload(
             file: $file,
             category: 'photo',
             path: 'bcmp/test/photos',
@@ -114,7 +114,7 @@ describe('FileUploadService image compression', function () {
         $file = UploadedFile::fake()->createWithContent('logo.png', $png);
 
         $service = app(FileUploadService::class);
-        $record  = $service->upload(
+        $record = $service->upload(
             file: $file,
             category: 'logo',
             path: 'bcmp/test/logos',
@@ -129,7 +129,7 @@ describe('FileUploadService image compression', function () {
         $file = UploadedFile::fake()->create('doc.pdf', 500, 'application/pdf');
 
         $service = app(FileUploadService::class);
-        $record  = $service->upload(
+        $record = $service->upload(
             file: $file,
             category: 'document',
             path: 'bcmp/test/docs',
@@ -145,7 +145,7 @@ describe('FileUploadService image compression', function () {
         $file = UploadedFile::fake()->createWithContent('bad.jpg', 'not-an-image');
 
         $service = app(FileUploadService::class);
-        $record  = $service->upload(
+        $record = $service->upload(
             file: $file,
             category: 'photo',
             path: 'bcmp/test/photos',

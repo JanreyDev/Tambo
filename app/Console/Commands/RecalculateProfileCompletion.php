@@ -18,7 +18,7 @@ class RecalculateProfileCompletion extends Command
     public function handle(): int
     {
         $barangayId = $this->option('barangay');
-        $dryRun     = $this->option('dry-run');
+        $dryRun = $this->option('dry-run');
 
         $query = Resident::query()->withoutGlobalScopes();
 
@@ -26,16 +26,17 @@ class RecalculateProfileCompletion extends Command
             $query->where('barangay_id', $barangayId);
         }
 
-        $total   = $query->count();
+        $total = $query->count();
         $updated = 0;
         $skipped = 0;
 
         if ($total === 0) {
             $this->warn('No residents found.');
+
             return self::SUCCESS;
         }
 
-        $this->info("Processing {$total} resident(s)..." . ($dryRun ? ' [DRY RUN]' : ''));
+        $this->info("Processing {$total} resident(s)...".($dryRun ? ' [DRY RUN]' : ''));
 
         $bar = $this->output->createProgressBar($total);
         $bar->start();
@@ -61,7 +62,7 @@ class RecalculateProfileCompletion extends Command
         $bar->finish();
         $this->newLine();
 
-        $this->info("Done. Updated: {$updated} | Already correct: {$skipped}" . ($dryRun ? ' [no changes saved]' : ''));
+        $this->info("Done. Updated: {$updated} | Already correct: {$skipped}".($dryRun ? ' [no changes saved]' : ''));
 
         return self::SUCCESS;
     }

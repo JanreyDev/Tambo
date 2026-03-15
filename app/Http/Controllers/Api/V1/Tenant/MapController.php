@@ -34,27 +34,27 @@ class MapController extends Controller
             ->orderBy('last_name')
             ->get()
             ->map(fn ($r) => [
-                'id'              => $r->id,
+                'id' => $r->id,
                 'resident_number' => $r->resident_number,
-                'full_name'       => trim(
-                    $r->last_name . ', ' .
-                    $r->first_name .
-                    ($r->middle_name ? ' ' . mb_substr($r->middle_name, 0, 1) . '.' : '') .
-                    ($r->extension_name ? ' ' . $r->extension_name : '')
+                'full_name' => trim(
+                    $r->last_name.', '.
+                    $r->first_name.
+                    ($r->middle_name ? ' '.mb_substr($r->middle_name, 0, 1).'.' : '').
+                    ($r->extension_name ? ' '.$r->extension_name : '')
                 ),
-                'purok'           => $r->purok,
-                'sex'             => $r->sex,
-                'status'          => $r->status?->value,
-                'latitude'        => (float) $r->latitude,
-                'longitude'       => (float) $r->longitude,
+                'purok' => $r->purok,
+                'sex' => $r->sex,
+                'status' => $r->status?->value,
+                'latitude' => (float) $r->latitude,
+                'longitude' => (float) $r->longitude,
             ]);
 
         $total = Resident::where('barangay_id', $barangayId)->count();
 
         return response()->json([
             'residents' => $mapped,
-            'total'     => $total,
-            'mapped'    => $mapped->count(),
+            'total' => $total,
+            'mapped' => $mapped->count(),
         ]);
     }
 
@@ -70,7 +70,7 @@ class MapController extends Controller
     {
         $barangayId = $request->user()->barangay_id;
 
-        $total  = Resident::where('barangay_id', $barangayId)->count();
+        $total = Resident::where('barangay_id', $barangayId)->count();
         $mapped = Resident::where('barangay_id', $barangayId)
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')
@@ -87,8 +87,8 @@ class MapController extends Controller
             ->orderByDesc('total')
             ->get()
             ->map(fn ($r) => [
-                'purok'  => $r->purok_name,
-                'total'  => (int) $r->total,
+                'purok' => $r->purok_name,
+                'total' => (int) $r->total,
                 'mapped' => (int) $r->mapped,
             ]);
 
@@ -103,15 +103,15 @@ class MapController extends Controller
             ->get()
             ->map(fn ($r) => [
                 'status' => $r->status_value,
-                'count'  => (int) $r->count,
+                'count' => (int) $r->count,
             ]);
 
         return response()->json([
-            'total'     => $total,
-            'mapped'    => $mapped,
-            'unmapped'  => $total - $mapped,
-            'coverage'  => $total > 0 ? round(($mapped / $total) * 100, 1) : 0,
-            'by_purok'  => $byPurok,
+            'total' => $total,
+            'mapped' => $mapped,
+            'unmapped' => $total - $mapped,
+            'coverage' => $total > 0 ? round(($mapped / $total) * 100, 1) : 0,
+            'by_purok' => $byPurok,
             'by_status' => $byStatus,
         ]);
     }
