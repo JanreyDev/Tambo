@@ -783,6 +783,9 @@ class ResidentController extends Controller
             'sector_other' => ['nullable', 'string', 'max:255'],
             'other_remarks' => ['nullable', 'string', 'max:5000'],
 
+            // Registration source (set by census / import / office form)
+            'registration_source' => ['nullable', 'in:form,census,import'],
+
             // Household
             'is_head_of_household' => ['nullable', 'boolean'],
             'relationship_to_head' => ['nullable', 'string', 'max:50'],
