@@ -44,6 +44,10 @@ class IssuedDocumentController extends Controller
             $query->where('constituent_type', $constituentType);
         }
 
+        if ($constituentId = $request->get('constituent_id')) {
+            $query->where('constituent_id', $constituentId);
+        }
+
         $sortBy = $request->get('sort_by', 'created_at');
         $sortDir = $request->get('sort_dir', 'desc');
         $allowedSorts = ['document_number', 'issued_date', 'status', 'created_at'];
