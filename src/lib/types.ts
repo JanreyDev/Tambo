@@ -193,8 +193,9 @@ export interface DashboardStats {
   pwd_count: number;
   senior_citizen_count: number;
   active_count: number;
-  inactive_count: number;
   deceased_count: number;
+  transferred_count: number;
+  archived_count: number;
 }
 
 export interface DashboardActivity {

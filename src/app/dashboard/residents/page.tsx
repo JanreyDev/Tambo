@@ -2199,8 +2199,8 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
   const pwdCount = residentStats?.pwd_count ?? 0;
   const seniorCount = residentStats?.senior_citizen_count ?? 0;
   const activeCount = residentStats?.active_count ?? 0;
-  const inactiveCount = residentStats?.inactive_count ?? 0;
   const deceasedCount = residentStats?.deceased_count ?? 0;
+  const nonActiveCount = (residentStats?.transferred_count ?? 0) + (residentStats?.archived_count ?? 0);
 
   // ══════════════════════════════════════════════════════════
   // ── REGISTRATION FORM (V3-style collapsible + V4 fields)
@@ -3299,7 +3299,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
               {statsLoading && !residentStats ? <div className="h-7 w-20 rounded bg-muted animate-pulse mt-0.5" /> : (
                 <div className="flex items-baseline gap-2">
                   <p className="text-xl font-bold text-foreground">{activeCount.toLocaleString()}</p>
-                  <span className="text-[11px] text-muted-foreground font-medium">{inactiveCount} inactive{deceasedCount > 0 ? `, ${deceasedCount} deceased` : ""}</span>
+                  <span className="text-[11px] text-muted-foreground font-medium">{nonActiveCount > 0 ? `${nonActiveCount} transferred/archived` : ""}{deceasedCount > 0 ? `${nonActiveCount > 0 ? ", " : ""}${deceasedCount} deceased` : ""}{nonActiveCount === 0 && deceasedCount === 0 ? "all active" : ""}</span>
                 </div>
               )}
             </div>
