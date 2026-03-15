@@ -63,6 +63,27 @@ class DashboardController extends Controller
             ->where('created_at', '>=', now()->startOfMonth())
             ->count();
 
+        // Resident demographics (for residents page stat cards)
+        $stats['voter_count'] = Resident::where('barangay_id', $barangayId)
+            ->where('is_voter', true)->count();
+
+        $stats['pwd_count'] = Resident::where('barangay_id', $barangayId)
+            ->where('is_pwd', true)->count();
+
+        $stats['senior_citizen_count'] = Resident::where('barangay_id', $barangayId)
+            ->whereNotNull('date_of_birth')
+            ->whereRaw("DATE_PART('year', AGE(date_of_birth::date)) >= 60")
+            ->count();
+
+        $stats['active_count'] = Resident::where('barangay_id', $barangayId)
+            ->where('status', 'active')->count();
+
+        $stats['inactive_count'] = Resident::where('barangay_id', $barangayId)
+            ->where('status', 'inactive')->count();
+
+        $stats['deceased_count'] = Resident::where('barangay_id', $barangayId)
+            ->where('status', 'deceased')->count();
+
         return response()->json($stats);
     }
 
