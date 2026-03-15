@@ -18,6 +18,9 @@ uses(Tests\TestCase::class, RefreshDatabase::class);
 describe('FileUploadService image compression', function () {
 
     beforeEach(function () {
+        if (! extension_loaded('gd')) {
+            $this->markTestSkipped('GD extension not available');
+        }
         Storage::fake('public');
         config(['filesystems.default' => 'local']); // local → 'public' disk in service
     });
