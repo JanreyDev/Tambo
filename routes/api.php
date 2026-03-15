@@ -37,6 +37,7 @@ use App\Http\Controllers\Api\V1\Tenant\KpCaseController;
 use App\Http\Controllers\Api\V1\Tenant\KpCaseHearingController;
 use App\Http\Controllers\Api\V1\Tenant\KpCasePartyController;
 use App\Http\Controllers\Api\V1\Tenant\LotBuildingController;
+use App\Http\Controllers\Api\V1\Tenant\MapController;
 use App\Http\Controllers\Api\V1\Tenant\OfficialController;
 use App\Http\Controllers\Api\V1\Tenant\PaymentController;
 use App\Http\Controllers\Api\V1\Tenant\PettyCashVoucherController;
@@ -210,6 +211,12 @@ Route::prefix('v1')->group(function () {
             Route::get('residents/{resident}/activity', [ResidentController::class, 'activity']);
             Route::get('residents/{resident}/print', [ResidentController::class, 'printRecord']);
             Route::apiResource('residents', ResidentController::class);
+
+            // ── Map ──
+            Route::prefix('map')->group(function () {
+                Route::get('residents', [MapController::class, 'residents']);
+                Route::get('stats', [MapController::class, 'stats']);
+            });
             Route::apiResource('establishments', EstablishmentController::class);
             Route::apiResource('lots-buildings', LotBuildingController::class);
             Route::apiResource('households', HouseholdController::class);
