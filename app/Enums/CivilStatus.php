@@ -12,4 +12,5 @@ enum CivilStatus: string
     case Separated = 'separated';
     case Divorced = 'divorced';
     case Annulled = 'annulled';
+    case LiveIn = 'live-in';
 }

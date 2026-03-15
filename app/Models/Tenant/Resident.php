@@ -27,6 +27,8 @@ class Resident extends Model
         'barangay_id',
         'resident_number',
         'registration_date',
+        'registration_source',
+        'import_batch_id',
         'resident_type',
         'transfer_date',
 
@@ -58,7 +60,6 @@ class Resident extends Model
         'sitio',
         'house_block_lot',
         'street',
-        'subdivision_village',
         'zip_code',
         'latitude',
         'longitude',
@@ -127,6 +128,7 @@ class Resident extends Model
         // Status
         'is_head_of_household',
         'household_id',
+        'relationship_to_head',
         'profile_completion_pct',
         'status',
         'approved_at',
@@ -258,16 +260,48 @@ class Resident extends Model
 
     public function calculateProfileCompletion(): int
     {
-        $fields = [
-            'first_name', 'last_name', 'date_of_birth', 'place_of_birth',
-            'sex', 'civil_status', 'citizenship', 'mobile_number',
-            'purok', 'occupation', 'photo_file_id', 'is_voter',
-            'highest_education', 'religion', 'blood_type',
-        ];
+        $score = 0;
+        $total = 0;
 
-        $filled = collect($fields)->filter(fn ($field) => ! empty($this->$field))->count();
+        // Personal basics (8 fields)
+        $personal = ['first_name', 'last_name', 'date_of_birth', 'place_of_birth', 'sex', 'civil_status', 'citizenship', 'blood_type'];
+        foreach ($personal as $f) { $total++; if (! empty($this->$f)) $score++; }
 
-        return (int) round(($filled / count($fields)) * 100);
+        // Extended personal (3 fields)
+        $extended = ['religion', 'ethnicity', 'mothers_maiden_name'];
+        foreach ($extended as $f) { $total++; if (! empty($this->$f)) $score++; }
+
+        // Contact (2 fields)
+        foreach (['mobile_number', 'email'] as $f) { $total++; if (! empty($this->$f)) $score++; }
+
+        // Address (2 fields)
+        foreach (['purok', 'house_block_lot'] as $f) { $total++; if (! empty($this->$f)) $score++; }
+
+        // Photo (1 field)
+        $total++; if (! empty($this->photo_file_id)) $score++;
+
+        // Voter registration (1 field)
+        $total++; if ($this->is_voter) $score++;
+
+        // Education (2 fields: level + detailed entries)
+        $total++; if (! empty($this->highest_education)) $score++;
+        $total++; if (! empty($this->education_details)) $score++;
+
+        // Work & livelihood (3 fields)
+        foreach (['occupation', 'employer', 'source_of_income'] as $f) { $total++; if (! empty($this->$f)) $score++; }
+
+        // Government IDs — check encrypted columns (3 most common)
+        foreach (['philhealth_number_encrypted', 'sss_gsis_number_encrypted', 'pagibig_number_encrypted'] as $f) {
+            $total++; if (! empty($this->$f)) $score++;
+        }
+
+        // Emergency contact (2 fields)
+        foreach (['emergency_contact_name', 'emergency_contact_phone'] as $f) { $total++; if (! empty($this->$f)) $score++; }
+
+        // Health (1 field)
+        $total++; if (! empty($this->health_history)) $score++;
+
+        return $total > 0 ? (int) round(($score / $total) * 100) : 0;
     }
 
     /**

@@ -6,7 +6,9 @@ namespace App\Http\Controllers\Api\V1\Tenant;
 
 use App\Http\Controllers\Controller;
 use App\Models\Admin\Barangay;
+use App\Models\Platform\AuditLog;
 use App\Models\Tenant\Records\Household;
+use App\Models\Tenant\Records\ImportBatch;
 use App\Models\Tenant\Records\ResidentCrossBarangayFlag;
 use App\Models\Tenant\Records\ResidentSectoralTag;
 use App\Models\Tenant\Resident;
@@ -16,6 +18,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ResidentController extends Controller
 {
@@ -62,6 +67,36 @@ class ResidentController extends Controller
             $query->where('is_voter', $request->boolean('is_voter'));
         }
 
+        if ($civilStatus = $request->get('civil_status')) {
+            $query->where('civil_status', $civilStatus);
+        }
+
+        if ($residentType = $request->get('resident_type')) {
+            $query->where('resident_type', $residentType);
+        }
+
+        if ($request->has('is_head_of_household')) {
+            $query->where('is_head_of_household', $request->boolean('is_head_of_household'));
+        }
+
+        if ($citizenship = $request->get('citizenship')) {
+            $query->where('citizenship', 'ilike', "%{$citizenship}%");
+        }
+
+        if ($religion = $request->get('religion')) {
+            $query->where('religion', 'ilike', "%{$religion}%");
+        }
+
+        if ($ethnicity = $request->get('ethnicity')) {
+            $query->where('ethnicity', 'ilike', "%{$ethnicity}%");
+        }
+
+        if ($sector = $request->get('sector')) {
+            $query->whereHas('sectoralTags', function ($q) use ($sector) {
+                $q->where('sector', $sector);
+            });
+        }
+
         // Sort
         $sortBy = $request->get('sort_by', 'last_name');
         $sortDir = $request->get('sort_dir', 'asc');
@@ -87,6 +122,7 @@ class ResidentController extends Controller
 
     /**
      * Get a single resident with full details.
+     * Gov ID fields are decrypted server-side and returned as plain names.
      */
     public function show(Request $request, string $id): JsonResponse
     {
@@ -98,7 +134,43 @@ class ResidentController extends Controller
             ? $this->fileUploadService->getPublicUrl($resident->photoFile)
             : null;
 
-        return response()->json(['resident' => $resident]);
+        // Decrypt government IDs for display (stored encrypted, returned plain)
+        $govIdMap = [
+            'philhealth_number'  => 'philhealth_number_encrypted',
+            'sss_gsis_number'    => 'sss_gsis_number_encrypted',
+            'pagibig_number'     => 'pagibig_number_encrypted',
+            'tin_number'         => 'tin_number_encrypted',
+            'pwd_id'             => 'pwd_id_encrypted',
+            'senior_citizen_id'  => 'senior_citizen_id_encrypted',
+        ];
+
+        $data = $resident->toArray();
+        foreach ($govIdMap as $plainField => $encryptedField) {
+            $data[$plainField] = null;
+            if (! empty($data[$encryptedField])) {
+                try {
+                    $data[$plainField] = decrypt($data[$encryptedField]);
+                } catch (\Throwable) {
+                    // Value was stored unencrypted (legacy) — return as-is
+                    $data[$plainField] = $data[$encryptedField];
+                }
+            }
+            unset($data[$encryptedField]);
+        }
+
+        // Log profile view (fire-and-forget)
+        AuditLog::create([
+            'barangay_id' => $request->user()->barangay_id,
+            'user_id' => $request->user()->id,
+            'action' => 'viewed',
+            'resource_type' => 'resident',
+            'resource_id' => $resident->id,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'module' => 'residents',
+        ]);
+
+        return response()->json(['resident' => $data]);
     }
 
     /**
@@ -240,6 +312,11 @@ class ResidentController extends Controller
                 'created_by' => $request->user()->id,
             ]);
 
+            $this->logAudit($request, 'created', $resident, [
+                'description' => 'New resident registered',
+                'resident_number' => $residentNumber,
+            ]);
+
             // Send SMS notification if enabled in barangay settings
             $barangay = Barangay::find($barangayId);
             $notifPrefs = $barangay?->notification_preferences ?? [];
@@ -342,6 +419,45 @@ class ResidentController extends Controller
 
         $updateData['updated_by'] = $request->user()->id;
 
+        // Capture changes for audit log
+        $originalValues = [];
+        $newValues = [];
+        $readableFields = [
+            'first_name', 'last_name', 'middle_name', 'extension_name', 'date_of_birth',
+            'sex', 'civil_status', 'citizenship', 'religion', 'ethnicity',
+            'mobile_number', 'email', 'purok', 'street', 'house_block_lot',
+            'resident_type', 'is_head_of_household', 'is_voter', 'voter_precinct',
+            'is_organ_donor', 'blood_type', 'occupation', 'monthly_income',
+            'latitude', 'longitude',
+        ];
+
+        foreach ($updateData as $key => $value) {
+            if (in_array($key, $readableFields) && $resident->getOriginal($key) != $value) {
+                $originalValues[$key] = $resident->getOriginal($key);
+                $newValues[$key] = $value;
+            }
+        }
+
+        // Check JSONB array fields
+        $jsonbFields = [
+            'education_details' => 'education_entries',
+            'work_history' => 'work_entries',
+            'business_details' => 'business_entries',
+            'pet_records' => 'pet_entries',
+            'assistance_history' => 'assistance_entries',
+            'relative_links' => 'relative_entries',
+        ];
+        foreach ($jsonbFields as $dbField => $frontendField) {
+            if (array_key_exists($dbField, $updateData)) {
+                $oldCount = is_array($resident->getOriginal($dbField)) ? count($resident->getOriginal($dbField)) : 0;
+                $newCount = is_array($updateData[$dbField]) ? count($updateData[$dbField]) : 0;
+                if ($oldCount !== $newCount) {
+                    $originalValues[$dbField] = "{$oldCount} records";
+                    $newValues[$dbField] = "{$newCount} records";
+                }
+            }
+        }
+
         $resident->update($updateData);
 
         // Update sectoral tags if provided
@@ -361,6 +477,15 @@ class ResidentController extends Controller
             'profile_completion_pct' => $resident->calculateProfileCompletion(),
         ]);
 
+        if (!empty($originalValues)) {
+            $this->logAudit($request, 'updated', $resident, [
+                'description' => 'Profile updated',
+                'fields_changed' => array_keys($originalValues),
+                'old' => $originalValues,
+                'new' => $newValues,
+            ]);
+        }
+
         return response()->json([
             'message' => 'Resident updated.',
             'resident' => $resident->fresh()->load('sectoralTags'),
@@ -378,7 +503,32 @@ class ResidentController extends Controller
         $resident->update(['deleted_by' => $request->user()->id]);
         $resident->delete();
 
+        $this->logAudit($request, 'deleted', $resident, [
+            'description' => 'Resident record deleted (soft)',
+            'resident_number' => $resident->resident_number,
+            'name' => trim($resident->first_name . ' ' . $resident->last_name),
+        ]);
+
         return response()->json(['message' => 'Resident deleted.']);
+    }
+
+    /**
+     * Get activity/audit log for a specific resident.
+     */
+    public function activity(Request $request, string $id): JsonResponse
+    {
+        $resident = Resident::where('barangay_id', $request->user()->barangay_id)
+            ->findOrFail($id);
+
+        $perPage = min((int) $request->get('per_page', 20), 50);
+
+        $logs = AuditLog::where('resource_type', 'resident')
+            ->where('resource_id', $resident->id)
+            ->with('user:id,username,first_name,last_name')
+            ->orderByDesc('created_at')
+            ->paginate($perPage);
+
+        return response()->json($logs);
     }
 
     /**
@@ -524,9 +674,8 @@ class ResidentController extends Controller
             // Address
             'purok' => ['nullable', 'string', 'max:100'],
             'sitio' => ['nullable', 'string', 'max:100'],
-            'house_block_lot' => ['nullable', 'string', 'max:100'],
+            'house_block_lot' => ['nullable', 'string', 'max:255'],
             'street' => ['nullable', 'string', 'max:255'],
-            'subdivision_village' => ['nullable', 'string', 'max:255'],
             'zip_code' => ['nullable', 'string', 'max:10'],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
@@ -633,6 +782,7 @@ class ResidentController extends Controller
 
             // Household
             'is_head_of_household' => ['nullable', 'boolean'],
+            'relationship_to_head' => ['nullable', 'string', 'max:50'],
 
             // Emergency
             'emergency_contact_name' => ['nullable', 'string', 'max:200'],
@@ -663,5 +813,450 @@ class ResidentController extends Controller
         $rules['status'] = ['sometimes', 'in:active,inactive,deceased,transferred'];
 
         return $rules;
+    }
+
+    /**
+     * Export residents as CSV.
+     * Columns: Resident Number, Name, DOB, Sex, Civil Status, Address, Contact
+     *
+     * GET /api/v1/residents/export
+     */
+    public function export(Request $request): StreamedResponse
+    {
+        $barangayId = $request->user()->barangay_id;
+        $barangay = Barangay::findOrFail($barangayId);
+
+        $query = Resident::where('barangay_id', $barangayId);
+
+        // Apply same filters as index
+        if ($search = $request->get('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('first_name', 'ilike', "%{$search}%")
+                    ->orWhere('last_name', 'ilike', "%{$search}%")
+                    ->orWhere('middle_name', 'ilike', "%{$search}%")
+                    ->orWhere('resident_number', 'ilike', "%{$search}%")
+                    ->orWhere('mobile_number', 'ilike', "%{$search}%");
+            });
+        }
+        if ($status = $request->get('status')) {
+            $query->where('status', $status);
+        }
+        if ($purok = $request->get('purok')) {
+            $query->where('purok', $purok);
+        }
+        if ($sex = $request->get('sex')) {
+            $query->where('sex', $sex);
+        }
+        if ($request->has('is_voter')) {
+            $query->where('is_voter', $request->boolean('is_voter'));
+        }
+        if ($civilStatus = $request->get('civil_status')) {
+            $query->where('civil_status', $civilStatus);
+        }
+        if ($residentType = $request->get('resident_type')) {
+            $query->where('resident_type', $residentType);
+        }
+        if ($request->has('is_head_of_household')) {
+            $query->where('is_head_of_household', $request->boolean('is_head_of_household'));
+        }
+        if ($citizenship = $request->get('citizenship')) {
+            $query->where('citizenship', 'ilike', "%{$citizenship}%");
+        }
+        if ($religion = $request->get('religion')) {
+            $query->where('religion', 'ilike', "%{$religion}%");
+        }
+        if ($ethnicity = $request->get('ethnicity')) {
+            $query->where('ethnicity', 'ilike', "%{$ethnicity}%");
+        }
+        if ($sector = $request->get('sector')) {
+            $query->whereHas('sectoralTags', function ($q) use ($sector) {
+                $q->where('sector', $sector);
+            });
+        }
+
+        $query->orderBy('last_name')->orderBy('first_name');
+
+        $headers = [
+            'Resident Number',
+            'Last Name', 'First Name', 'Middle Name',
+            'Date of Birth', 'Sex', 'Civil Status',
+            'Purok', 'Street', 'House/Block/Lot',
+            'Mobile Number', 'Email',
+        ];
+
+        $filename = Str::slug($barangay->name).'-residents-'.now()->format('Y-m-d').'.csv';
+
+        Log::info('Resident CSV export', [
+            'barangay_id' => $barangayId,
+            'user_id' => $request->user()->id,
+            'filters' => $request->only(['search', 'status', 'purok', 'sex', 'is_voter']),
+        ]);
+
+        return response()->streamDownload(function () use ($query, $headers) {
+            $handle = fopen('php://output', 'w');
+            fwrite($handle, "\xEF\xBB\xBF"); // UTF-8 BOM for Excel
+            fputcsv($handle, $headers);
+
+            $query->chunk(500, function ($residents) use ($handle) {
+                foreach ($residents as $r) {
+                    fputcsv($handle, [
+                        $r->resident_number,
+                        $r->last_name,
+                        $r->first_name,
+                        $r->middle_name,
+                        $r->date_of_birth?->format('m/d/Y'),
+                        ucfirst($r->sex ?? ''),
+                        $r->civil_status,
+                        $r->purok,
+                        $r->street,
+                        $r->house_block_lot,
+                        $r->mobile_number,
+                        $r->email,
+                    ]);
+                }
+            });
+
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
+    /**
+     * Preview CSV headers for column mapping verification.
+     * Returns the CSV headers + first 5 sample rows so the user can confirm mapping.
+     *
+     * POST /api/v1/residents/import/preview
+     */
+    public function importPreview(Request $request): JsonResponse
+    {
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:csv,txt', 'max:10240'],
+        ]);
+
+        $file = $request->file('file');
+        $handle = fopen($file->getPathname(), 'r');
+
+        if (! $handle) {
+            return response()->json(['message' => 'Failed to read file.'], 422);
+        }
+
+        $rawHeaders = fgetcsv($handle);
+        if (! $rawHeaders || count($rawHeaders) < 2) {
+            fclose($handle);
+
+            return response()->json(['message' => 'Invalid CSV. Must have at least 2 columns.'], 422);
+        }
+
+        // Strip UTF-8 BOM
+        $rawHeaders[0] = preg_replace('/^\x{FEFF}/u', '', $rawHeaders[0]);
+
+        // Read first 5 data rows for preview
+        $sampleRows = [];
+        $totalRows = 0;
+        while (($row = fgetcsv($handle)) !== false) {
+            if (! array_filter($row)) {
+                continue;
+            }
+            $totalRows++;
+            if (count($sampleRows) < 5) {
+                $sampleRows[] = $row;
+            }
+        }
+        // Count remaining rows
+        while (($row = fgetcsv($handle)) !== false) {
+            if (array_filter($row)) {
+                $totalRows++;
+            }
+        }
+
+        fclose($handle);
+
+        // Auto-detect mapping
+        $autoMap = $this->autoDetectMapping($rawHeaders);
+
+        return response()->json([
+            'headers' => $rawHeaders,
+            'sample_rows' => $sampleRows,
+            'total_rows' => $totalRows,
+            'auto_mapping' => $autoMap,
+            'required_fields' => ['first_name', 'last_name'],
+            'optional_fields' => ['middle_name', 'date_of_birth'],
+        ]);
+    }
+
+    /**
+     * Import residents from CSV with explicit column mapping.
+     * Only imports: first_name, last_name, middle_name, date_of_birth.
+     *
+     * POST /api/v1/residents/import
+     */
+    public function import(Request $request): JsonResponse
+    {
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:csv,txt', 'max:10240'],
+            'mapping' => ['required', 'array'],
+            'mapping.first_name' => ['required', 'integer', 'min:0'],
+            'mapping.last_name' => ['required', 'integer', 'min:0'],
+            'mapping.middle_name' => ['nullable', 'integer', 'min:0'],
+            'mapping.date_of_birth' => ['nullable', 'integer', 'min:0'],
+        ]);
+
+        $barangayId = $request->user()->barangay_id;
+        $barangay = Barangay::findOrFail($barangayId);
+        $psgcCode = $barangay->psgc_code;
+
+        if (! $psgcCode) {
+            return response()->json(['message' => 'Barangay PSGC code is not configured.'], 422);
+        }
+
+        $mapping = $request->input('mapping');
+        $file = $request->file('file');
+        $handle = fopen($file->getPathname(), 'r');
+
+        if (! $handle) {
+            return response()->json(['message' => 'Failed to read file.'], 422);
+        }
+
+        // Skip header row
+        $rawHeaders = fgetcsv($handle);
+        if ($rawHeaders) {
+            $rawHeaders[0] = preg_replace('/^\x{FEFF}/u', '', $rawHeaders[0]);
+        }
+
+        // Create import batch record
+        $batch = ImportBatch::create([
+            'barangay_id' => $barangayId,
+            'imported_by' => $request->user()->id,
+            'filename' => $file->getClientOriginalName(),
+            'column_mapping' => $mapping,
+            'status' => 'completed',
+        ]);
+
+        $imported = 0;
+        $skipped = 0;
+        $errors = [];
+        $rowNum = 1;
+
+        // Get the highest existing sequence number once (not per row)
+        $lastNumber = Resident::where('barangay_id', $barangayId)
+            ->where('resident_number', 'like', "RES-{$psgcCode}-%")
+            ->orderByRaw("CAST(SPLIT_PART(resident_number, '-', 3) AS INTEGER) DESC")
+            ->value('resident_number');
+        $nextSeq = 1;
+        if ($lastNumber) {
+            $parts = explode('-', $lastNumber);
+            $nextSeq = ((int) end($parts)) + 1;
+        }
+
+        DB::beginTransaction();
+
+        try {
+            while (($row = fgetcsv($handle)) !== false) {
+                $rowNum++;
+
+                if (! array_filter($row)) {
+                    continue;
+                }
+
+                // Extract values using explicit mapping
+                $firstName = isset($mapping['first_name']) ? trim($row[$mapping['first_name']] ?? '') : '';
+                $lastName = isset($mapping['last_name']) ? trim($row[$mapping['last_name']] ?? '') : '';
+                $middleName = isset($mapping['middle_name']) ? trim($row[$mapping['middle_name']] ?? '') : '';
+                $dobRaw = isset($mapping['date_of_birth']) ? trim($row[$mapping['date_of_birth']] ?? '') : '';
+
+                // Validate required
+                if (! $firstName || ! $lastName) {
+                    $skipped++;
+                    $errors[] = "Row {$rowNum}: Missing first name or last name.";
+                    continue;
+                }
+
+                // Parse date of birth
+                $dob = null;
+                if ($dobRaw) {
+                    try {
+                        $dob = \Carbon\Carbon::parse($dobRaw)->format('Y-m-d');
+                    } catch (\Throwable) {
+                        $errors[] = "Row {$rowNum}: Invalid date '{$dobRaw}' — imported without DOB.";
+                    }
+                }
+
+                // Check duplicate
+                $dupeQuery = Resident::where('barangay_id', $barangayId)
+                    ->whereRaw('LOWER(first_name) = ?', [mb_strtolower($firstName)])
+                    ->whereRaw('LOWER(last_name) = ?', [mb_strtolower($lastName)]);
+                if ($dob) {
+                    $dupeQuery->where('date_of_birth', $dob);
+                }
+                if ($dupeQuery->exists()) {
+                    $skipped++;
+                    $errors[] = "Row {$rowNum}: {$firstName} {$lastName} already exists.";
+                    continue;
+                }
+
+                $residentNumber = sprintf('RES-%s-%04d', $psgcCode, $nextSeq);
+                $nextSeq++;
+
+                Resident::create([
+                    'barangay_id' => $barangayId,
+                    'resident_number' => $residentNumber,
+                    'registration_date' => now(),
+                    'registration_source' => 'import',
+                    'import_batch_id' => $batch->id,
+                    'first_name' => mb_strtoupper($firstName),
+                    'last_name' => mb_strtoupper($lastName),
+                    'middle_name' => $middleName ? mb_strtoupper($middleName) : null,
+                    'date_of_birth' => $dob,
+                    'status' => 'active',
+                    'resident_type' => 'permanent',
+                ]);
+
+                $imported++;
+            }
+
+            // Update batch record
+            $batch->update([
+                'total_rows' => $rowNum - 1,
+                'imported_count' => $imported,
+                'skipped_count' => $skipped,
+                'errors' => $errors ?: null,
+            ]);
+
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            fclose($handle);
+            $batch->update(['status' => 'failed']);
+
+            Log::error('Resident CSV import failed', [
+                'barangay_id' => $barangayId,
+                'batch_id' => $batch->id,
+                'error' => $e->getMessage(),
+                'row' => $rowNum,
+            ]);
+
+            return response()->json([
+                'message' => "Import failed at row {$rowNum}: ".$e->getMessage(),
+            ], 500);
+        }
+
+        fclose($handle);
+
+        Log::info('Resident CSV import completed', [
+            'barangay_id' => $barangayId,
+            'batch_id' => $batch->id,
+            'user_id' => $request->user()->id,
+            'imported' => $imported,
+            'skipped' => $skipped,
+        ]);
+
+        return response()->json([
+            'message' => "{$imported} residents imported."
+                .($skipped > 0 ? " {$skipped} skipped (duplicates or missing data)." : ''),
+            'batch_id' => $batch->id,
+            'imported' => $imported,
+            'skipped' => $skipped,
+            'errors' => array_slice($errors, 0, 20),
+        ]);
+    }
+
+    /**
+     * List import batches for the current barangay.
+     *
+     * GET /api/v1/residents/import/batches
+     */
+    public function importBatches(Request $request): JsonResponse
+    {
+        $batches = ImportBatch::where('barangay_id', $request->user()->barangay_id)
+            ->orderByDesc('created_at')
+            ->limit(50)
+            ->get();
+
+        return response()->json(['data' => $batches]);
+    }
+
+    /**
+     * Rollback (delete) all residents from an import batch.
+     *
+     * DELETE /api/v1/residents/import/batches/{batchId}
+     */
+    public function rollbackImport(Request $request, string $batchId): JsonResponse
+    {
+        $batch = ImportBatch::where('barangay_id', $request->user()->barangay_id)
+            ->where('status', 'completed')
+            ->findOrFail($batchId);
+
+        $count = Resident::where('import_batch_id', $batch->id)->count();
+
+        DB::transaction(function () use ($batch, $request) {
+            // Hard delete imported residents (they were bulk-imported, not manually entered)
+            Resident::where('import_batch_id', $batch->id)->delete();
+
+            $batch->update([
+                'status' => 'rolled_back',
+                'rolled_back_at' => now(),
+                'rolled_back_by' => $request->user()->id,
+            ]);
+        });
+
+        Log::info('Import batch rolled back', [
+            'batch_id' => $batch->id,
+            'barangay_id' => $batch->barangay_id,
+            'user_id' => $request->user()->id,
+            'residents_deleted' => $count,
+        ]);
+
+        return response()->json([
+            'message' => "{$count} imported residents removed.",
+        ]);
+    }
+
+    /**
+     * Auto-detect CSV column → field mapping by header name.
+     */
+    private function autoDetectMapping(array $headers): array
+    {
+        $map = [];
+        $normalize = fn (string $h): string => mb_strtolower(
+            preg_replace('/[\s\/\-\_\.]+/', '_', trim($h))
+        );
+
+        $aliases = [
+            'first_name' => ['first_name', 'firstname', 'given_name', 'first', 'fname'],
+            'last_name' => ['last_name', 'lastname', 'surname', 'family_name', 'last', 'lname'],
+            'middle_name' => ['middle_name', 'middlename', 'middle', 'mname'],
+            'date_of_birth' => ['date_of_birth', 'dob', 'birthdate', 'birth_date', 'birthday'],
+        ];
+
+        foreach ($headers as $idx => $header) {
+            $n = $normalize($header);
+            foreach ($aliases as $field => $aliasList) {
+                if (in_array($n, $aliasList, true)) {
+                    $map[$field] = $idx;
+                    break;
+                }
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * Log an audit entry for resident operations.
+     */
+    private function logAudit(Request $request, string $action, Resident $resident, ?array $changes = null): void
+    {
+        AuditLog::create([
+            'barangay_id' => $resident->barangay_id,
+            'user_id' => $request->user()->id,
+            'action' => $action,
+            'resource_type' => 'resident',
+            'resource_id' => $resident->id,
+            'changes' => $changes,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'module' => 'residents',
+        ]);
     }
 }

@@ -202,6 +202,12 @@ Route::prefix('v1')->group(function () {
 
             // ── Records ──
             Route::post('residents/check-duplicate', [ResidentController::class, 'checkDuplicate']);
+            Route::get('residents/export', [ResidentController::class, 'export']);
+            Route::post('residents/import/preview', [ResidentController::class, 'importPreview']);
+            Route::post('residents/import', [ResidentController::class, 'import']);
+            Route::get('residents/import/batches', [ResidentController::class, 'importBatches']);
+            Route::delete('residents/import/batches/{batchId}', [ResidentController::class, 'rollbackImport']);
+            Route::get('residents/{resident}/activity', [ResidentController::class, 'activity']);
             Route::apiResource('residents', ResidentController::class);
             Route::apiResource('establishments', EstablishmentController::class);
             Route::apiResource('lots-buildings', LotBuildingController::class);
