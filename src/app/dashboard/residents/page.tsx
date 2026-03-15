@@ -1299,15 +1299,25 @@ export default function ResidentsPage() {
     const watermarked = await stampWatermark(dataUrl);
     setPhotoPreview(watermarked);
 
+    // Upload to API and get file_id
+    try {
+      const res = await fetch(watermarked);
+      const blob = await res.blob();
+      const uploaded = await api.files.uploadPhoto(blob);
+      updateForm("photo_file_id", uploaded.file.id);
+    } catch {
+      // Upload failed — photo preview still shows, but won't be saved server-side
+      // Non-blocking: user can still submit, photo just won't appear after save
+    }
+
     try {
       const analysis = await analyzePhoto(watermarked);
       setPhotoAnalysis(analysis);
     } catch {
-      // Analysis failed — photo still usable, just no smart feedback
       setPhotoAnalysis({ status: "fair", faceDetected: false, faceSupported: false, issues: [], notes: [], brightness: 128, sharpness: 100 });
     }
     setPhotoAnalyzing(false);
-  }, [analyzePhoto, stampWatermark]);
+  }, [analyzePhoto, stampWatermark, updateForm]);
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -2237,7 +2247,7 @@ export default function ResidentsPage() {
                     )}
                     {/* Remove Button */}
                     {photoPreview && !cameraActive && !photoAnalyzing && (
-                      <button type="button" onClick={() => { setPhotoPreview(null); setPhotoAnalysis(null); }}
+                      <button type="button" onClick={() => { setPhotoPreview(null); setPhotoAnalysis(null); updateForm("photo_file_id", ""); }}
                         className="text-[10px] text-red-500 hover:underline">
                         {photoAnalysis?.status === "poor" ? "Retake Photo" : "Remove"}
                       </button>

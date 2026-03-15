@@ -454,6 +454,15 @@ const api = {
   puroks: {
     list: () => api.get<{ data: { id: string; name: string }[] }>("/puroks?per_page=100"),
   },
+
+  files: {
+    uploadPhoto: (blob: Blob) => {
+      const formData = new FormData();
+      formData.append("file", blob, "photo.jpg");
+      formData.append("category", "photo");
+      return uploadFile<{ message: string; file: { id: string; url: string | null; is_public: boolean } }>("/files", formData);
+    },
+  },
 };
 
 export { api };
