@@ -163,8 +163,8 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* Navigation — natural height, scrolls only when content overflows */}
-      <nav className="overflow-y-auto px-2 mt-1 pb-2 shrink-0">
+      {/* Navigation — fills remaining space, scrolls when content overflows */}
+      <nav className="flex-1 overflow-y-auto px-2 mt-1 pb-2">
         {navGroupDefs.map((group, gi) => {
           const isCollapsed = group.collapsible && collapsedGroups[group.titleKey];
           const groupTitle = group.titleKey ? navLabel(group.titleKey) : "";
@@ -227,9 +227,6 @@ export function Sidebar() {
           );
         })}
       </nav>
-
-      {/* Spacer — pushes profile + bottom items to bottom */}
-      <div className="flex-1" />
 
       {/* User profile card */}
       {user && (
