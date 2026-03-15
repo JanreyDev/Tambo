@@ -67,22 +67,28 @@ class DashboardController extends Controller
         $stats['voter_count'] = Resident::where('barangay_id', $barangayId)
             ->where('is_voter', true)->count();
 
-        $stats['pwd_count'] = Resident::where('barangay_id', $barangayId)
-            ->where('is_pwd', true)->count();
-
-        $stats['senior_citizen_count'] = Resident::where('barangay_id', $barangayId)
-            ->whereNotNull('date_of_birth')
-            ->whereRaw("DATE_PART('year', AGE(date_of_birth::date)) >= 60")
+        // PWD and senior citizen counts come from sectoral tags (not boolean columns on residents)
+        $stats['pwd_count'] = DB::table('resident_sectoral_tags')
+            ->where('barangay_id', $barangayId)
+            ->where('sector', 'pwd')
             ->count();
 
-        $stats['active_count'] = Resident::where('barangay_id', $barangayId)
-            ->where('status', 'active')->count();
+        $stats['senior_citizen_count'] = DB::table('resident_sectoral_tags')
+            ->where('barangay_id', $barangayId)
+            ->where('sector', 'senior_citizen')
+            ->count();
 
-        $stats['inactive_count'] = Resident::where('barangay_id', $barangayId)
-            ->where('status', 'inactive')->count();
+        // Status breakdown — valid values: active, deceased, transferred, archived
+        $statusCounts = Resident::where('barangay_id', $barangayId)
+            ->select('status', DB::raw('count(*) as count'))
+            ->groupBy('status')
+            ->pluck('count', 'status')
+            ->toArray();
 
-        $stats['deceased_count'] = Resident::where('barangay_id', $barangayId)
-            ->where('status', 'deceased')->count();
+        $stats['active_count'] = (int) ($statusCounts['active'] ?? 0);
+        $stats['deceased_count'] = (int) ($statusCounts['deceased'] ?? 0);
+        $stats['transferred_count'] = (int) ($statusCounts['transferred'] ?? 0);
+        $stats['archived_count'] = (int) ($statusCounts['archived'] ?? 0);
 
         return response()->json($stats);
     }
