@@ -1705,6 +1705,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
       "occupation", "employer", "monthly_income_range", "source_of_income",
       "livelihood_type", "skills", "highest_education",
       "health_history", "barangay_position", "barangay_role_start", "barangay_role_end",
+      "transfer_date",
       "sector_other", "other_remarks",
       "emergency_contact_name", "emergency_contact_phone",
       "emergency_contact_address", "emergency_contact_relationship",
@@ -1719,7 +1720,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
       // Contact
       "telephone",
       // Voter & Household
-      "voter_id", "voter_precinct_number", "last_voted_year", "relationship_to_head",
+      "voter_precinct_number", "last_voted_year", "relationship_to_head",
     ];
     for (const key of directFields) {
       const val = f(key);
@@ -1738,11 +1739,18 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
     const residentType = f("resident_type").toLowerCase();
     if (residentType) payload.resident_type = residentType === "permanent" ? "permanent" : residentType === "transient" ? "transient" : "transferee";
 
-    // Boolean fields
+    // Boolean fields — is_voter and is_head_of_household use (v === "yes") conversion in FRadio onChange,
+    // so they arrive as actual booleans. is_organ_donor FRadio also stores as boolean via onChange.
     if (form.is_voter !== undefined) payload.is_voter = !!form.is_voter;
     if (form.is_resident_voter !== undefined) payload.is_resident_voter = !!form.is_resident_voter;
     if (form.is_head_of_household !== undefined) payload.is_head_of_household = !!form.is_head_of_household;
     if (form.is_organ_donor !== undefined) payload.is_organ_donor = !!form.is_organ_donor;
+
+    // Status — only include in edit mode (update can change status; create always defaults to active)
+    if (mode === "edit") {
+      const statusVal = f("status");
+      if (statusVal) payload.status = statusVal;
+    }
 
     // Numeric fields — must be sent as numbers, not strings
     const hCm = f("height_cm");
@@ -1847,6 +1855,15 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
     setWorkEntries((r.work_history as WorkEntry[])?.length ? (r.work_history as WorkEntry[]) : [{ ...emptyWork }]);
     setBusinessEntries((r.business_details as BusinessEntry[]) || []);
     setOpenSections({ other: true, education: true, work: true, govinfo: true, emergency: true, biometric: true });
+    // Pre-populate photo preview from existing photo_url so the photo area isn't blank in edit mode
+    const existingPhoto = r.photo_url ? resolvePhotoUrl(r.photo_url) : null;
+    setPhotoPreview(existingPhoto ?? null);
+    setPhotoAnalysis(null);
+    // Clear any stale duplicate detection state from previous form session
+    setDupMatches([]);
+    setDupChecked(false);
+    setDupModal(false);
+    setDupDismissed(false);
     setMode("edit");
     setViewResident(null);
   };
@@ -2088,6 +2105,27 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                         options={[{ value: "yes", label: "Yes" }, { value: "no", label: "No" }]}
                         onChange={(n, v) => updateForm(n, v === "yes")} />
                     </div>
+                    {/* Record Status — edit mode only */}
+                    {mode === "edit" && (
+                      <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 space-y-3">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Record Status</p>
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 items-start">
+                          <div>
+                            <FSelect label="Status" name="status"
+                              options={["active", "inactive", "deceased", "transferred"]}
+                              value={f("status") || "active"}
+                              onChange={updateForm} />
+                            {f("status") === "deceased" && (
+                              <p className="text-[10px] text-red-500 mt-1">Removes from active population count.</p>
+                            )}
+                          </div>
+                          {f("status") === "transferred" && (
+                            <FDatePicker label="Transfer Date" name="transfer_date"
+                              value={f("transfer_date")} onChange={updateForm} />
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                   {/* Smart Photo Area */}
                   <div className="shrink-0 flex flex-col items-center gap-2">
@@ -2464,8 +2502,9 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                   </div>
                 )}
                 <div className="mt-3">
-                  <FRadio label="Organ Donor?" name="is_organ_donor" value={f("is_organ_donor") || "no"}
-                    options={[{ value: "yes", label: "Yes" }, { value: "no", label: "No" }]} onChange={updateForm} />
+                  <FRadio label="Organ Donor?" name="is_organ_donor" value={fb("is_organ_donor") ? "yes" : "no"}
+                    options={[{ value: "yes", label: "Yes" }, { value: "no", label: "No" }]}
+                    onChange={(n, v) => updateForm(n, v === "yes")} />
                 </div>
               </div>
 
@@ -2742,8 +2781,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                   <FInput label="PWD ID" name="pwd_id" placeholder="e.g. PWD ID" value={f("pwd_id")} onChange={updateForm} />
                   <FDatePicker label="Expiration Date" name="pwd_id_expiry" value={f("pwd_id_expiry")} onChange={updateForm} />
                 </div>
-                <FInput label="Senior Citizen ID" name="senior_citizen_id" placeholder="e.g. Senior Citizen ID" value={f("senior_citizen_id")} onChange={updateForm} />
-                <FInput label="Voter&apos;s No." name="voter_id" placeholder="e.g. Voter's No." value={f("voter_id")} onChange={updateForm} />
+                <FInput label="Senior Citizen ID" name="senior_citizen_id" placeholder="e.g. SC-XXXX" value={f("senior_citizen_id")} onChange={updateForm} />
               </div>
 
               {/* Voter & Household */}
