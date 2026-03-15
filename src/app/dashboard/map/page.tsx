@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Map, MapPin, Users, AlertTriangle, Loader2,
   RefreshCw, Bot, Navigation, ChevronRight,
@@ -53,7 +53,7 @@ export default function MapPage() {
 
   // Residents data
   const [residents, setResidents] = useState<MapResident[]>([]);
-  const [filteredResidents, setFilteredResidents] = useState<MapResident[]>([]);
+  // filteredResidents computed via useMemo below
   const [loadingResidents, setLoadingResidents] = useState(true);
   const [residentsError, setResidentsError] = useState(false);
   const [totalResidents, setTotalResidents] = useState(0);
@@ -71,7 +71,7 @@ export default function MapPage() {
   const [activeTab, setActiveTab] = useState<"puroks" | "status" | "resident">("puroks");
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const lastRefresh = useRef<Date>(new Date());
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
   // ── Load barangay center from settings ──────────────────────────────
   useEffect(() => {
@@ -93,10 +93,9 @@ export default function MapPage() {
     api.map.residents()
       .then((res) => {
         setResidents(res.residents);
-        setFilteredResidents(res.residents);
         setTotalResidents(res.total);
         setMappedCount(res.mapped);
-        lastRefresh.current = new Date();
+        setLastRefresh(new Date());
       })
       .catch(() => setResidentsError(true))
       .finally(() => setLoadingResidents(false));
@@ -112,14 +111,16 @@ export default function MapPage() {
   }, []);
 
   useEffect(() => {
-    if (centerLoaded) {
+    if (!centerLoaded) return;
+    const timer = setTimeout(() => {
       loadResidents();
       loadStats();
-    }
+    }, 0);
+    return () => clearTimeout(timer);
   }, [centerLoaded, loadResidents, loadStats, refreshKey]);
 
-  // ── Apply filters ────────────────────────────────────────────────────
-  useEffect(() => {
+  // ── Apply filters (computed, not effect) ─────────────────────────────
+  const filteredResidents = useMemo(() => {
     let result = residents;
     if (activeStatusFilter) result = result.filter((r) => r.status === activeStatusFilter);
     if (activePurokFilter) result = result.filter((r) => (r.purok ?? "Unclassified") === activePurokFilter);
@@ -132,7 +133,7 @@ export default function MapPage() {
           (r.purok ?? "").toLowerCase().includes(q)
       );
     }
-    setFilteredResidents(result);
+    return result;
   }, [residents, activeStatusFilter, activePurokFilter, search]);
 
   // ── Refresh ──────────────────────────────────────────────────────────
@@ -532,7 +533,7 @@ export default function MapPage() {
 
           {/* Last refreshed */}
           <p className="text-[10px] text-muted-foreground text-center shrink-0 pb-1">
-            Last updated: {lastRefresh.current.toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })}
+            Last updated: {lastRefresh.toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })}
           </p>
         </div>
       </div>

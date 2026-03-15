@@ -10,7 +10,7 @@ import {
   HandHeart, Link2, PawPrint, Globe, Fingerprint,
   ScrollText, Activity, FolderOpen, Clock, X, Plus,
   MessageSquare, Sparkles, CheckCircle2, ChevronRight, Search, Eye,
-  FileEdit, Trash2, UserPlus, MonitorSmartphone,
+  FileEdit, Trash2, UserPlus,
 } from "lucide-react";
 import { Badge, StatusBadge } from "@/components/ui/badge";
 import { Tabs } from "@/components/ui/tabs";
@@ -40,6 +40,18 @@ function age(dob: string) {
   const mo = now.getMonth() - d.getMonth();
   if (mo < 0 || (mo === 0 && now.getDate() < d.getDate())) a--;
   return a;
+}
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(dateStr).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" });
 }
 
 function formatDate(d: string | null | undefined): string | null {
@@ -134,16 +146,20 @@ function ActivityTab({ residentId }: { residentId: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    api.residents.activity(residentId, { page, per_page: 20 })
-      .then((res) => {
+    const fetchActivity = async () => {
+      try {
+        const res = await api.residents.activity(residentId, { page, per_page: 20 });
         if (cancelled) return;
         setLogs(res.data);
         setLastPage(res.last_page);
         setTotal(res.total);
-      })
-      .catch(() => {})
-      .finally(() => { if (!cancelled) setLoading(false); });
+      } catch {
+        // ignore
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    fetchActivity();
     return () => { cancelled = true; };
   }, [residentId, page]);
 
@@ -168,18 +184,6 @@ function ActivityTab({ residentId }: { residentId: string }) {
     viewed: "viewed",
     printed: "printed a record for",
   };
-
-  function timeAgo(dateStr: string): string {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return "Just now";
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    const days = Math.floor(hrs / 24);
-    if (days < 7) return `${days}d ago`;
-    return new Date(dateStr).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" });
-  }
 
   function formatChanges(changes: Record<string, unknown> | null): React.ReactNode {
     if (!changes) return null;
@@ -298,16 +302,18 @@ function DocumentsTab({ residentId }: { residentId: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    api.issuedDocuments.list({ constituent_type: "resident", constituent_id: residentId, page, per_page: 20, sort_by: "created_at", sort_dir: "desc" })
-      .then((res) => {
+    const fetchDocs = async () => {
+      try {
+        const res = await api.issuedDocuments.list({ constituent_type: "resident", constituent_id: residentId, page, per_page: 20, sort_by: "created_at", sort_dir: "desc" });
         if (cancelled) return;
         setDocs(res.data);
         setLastPage(res.last_page);
         setTotal(res.total);
-      })
-      .catch(() => {})
-      .finally(() => { if (!cancelled) setLoading(false); });
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    fetchDocs();
     return () => { cancelled = true; };
   }, [residentId, page]);
 
