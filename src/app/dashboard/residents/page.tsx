@@ -3248,10 +3248,14 @@ export default function ResidentsPage() {
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-3">
                           <div className="relative shrink-0">
-                            <div className={cn(
-                              "w-11 h-11 rounded-xl flex items-center justify-center text-xs font-bold text-white",
-                              r.sex === "female" ? "bg-gradient-to-br from-pink-400 to-pink-500" : "bg-gradient-to-br from-blue-400 to-blue-500"
-                            )}>{initials}</div>
+                            {r.photo_url ? (
+                              <img src={r.photo_url} alt={initials} className="w-11 h-11 rounded-xl object-cover" />
+                            ) : (
+                              <div className={cn(
+                                "w-11 h-11 rounded-xl flex items-center justify-center text-xs font-bold text-white",
+                                r.sex === "female" ? "bg-gradient-to-br from-pink-400 to-pink-500" : "bg-gradient-to-br from-blue-400 to-blue-500"
+                              )}>{initials}</div>
+                            )}
                             {hasRedFlag && (
                               <span
                                 className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 flex items-center justify-center ring-2 ring-white dark:ring-slate-900"

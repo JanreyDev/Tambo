@@ -300,6 +300,7 @@ export interface ResidentSummary {
   resident_type: string;
   profile_completion_pct: number;
   photo_file_id: string | null;
+  photo_url: string | null;
   registration_date: string | null;
   created_at: string;
   sectoral_tags?: Array<{ id: string; sector: string }>;

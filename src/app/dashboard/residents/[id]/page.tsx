@@ -589,12 +589,16 @@ export default function ResidentDetailPage() {
 
             {/* Avatar + Name */}
             <div className="flex flex-col items-center text-center mb-4">
-              <div className={cn(
-                "w-24 h-24 rounded-2xl flex items-center justify-center text-3xl font-bold text-white shadow-lg mb-3",
-                avatarColor
-              )}>
-                {initials}
-              </div>
+              {resident.photo_url ? (
+                <img src={resident.photo_url} alt={initials} className="w-24 h-24 rounded-2xl object-cover shadow-lg mb-3" />
+              ) : (
+                <div className={cn(
+                  "w-24 h-24 rounded-2xl flex items-center justify-center text-3xl font-bold text-white shadow-lg mb-3",
+                  avatarColor
+                )}>
+                  {initials}
+                </div>
+              )}
               <h1 className="text-base font-bold text-foreground leading-tight">{fullName}</h1>
               <p className="text-xs font-mono text-muted-foreground mt-0.5">{resident.resident_number}</p>
 
