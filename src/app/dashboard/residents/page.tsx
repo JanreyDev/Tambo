@@ -145,10 +145,14 @@ function FInput({ label, name, required, type = "text", placeholder = "", value,
   label: string; name: string; required?: boolean; type?: string; placeholder?: string; value: string; onChange: (name: string, value: string | boolean) => void; className?: string; valid?: boolean; error?: string; maxLength?: number;
 }) {
   const forceUpper = type === "text" || type === "search";
+  // Normalize value to uppercase at the controlled-input level.
+  // This ensures that values loaded from the DB (edit mode) also reflect the correct case
+  // in the actual form state, not just visually via CSS text-transform.
+  const displayValue = forceUpper ? (value || "").toUpperCase() : (value || "");
   return (
     <div className={className}>
       <label className="block text-xs font-medium text-muted-foreground mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <input type={type} name={name} value={value} maxLength={maxLength}
+      <input type={type} name={name} value={displayValue} maxLength={maxLength}
         onChange={(e) => onChange(name, forceUpper ? e.target.value.toUpperCase() : e.target.value)} placeholder={placeholder}
         className={cn("w-full px-3 py-2.5 text-sm rounded-xl focus:outline-none transition-all duration-200",
           forceUpper && "uppercase",
@@ -1858,6 +1862,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
     //   - dates as ISO 8601 with time ("1990-03-15T00:00:00+00:00") — strip to YYYY-MM-DD
     //   - enums as their backing value (lowercase: "male", "single", "permanent")
     //   - FSelect options use title-case ("Male", "Single", "Permanent") — must match exactly
+    //   - text fields may be mixed/lower case from V4 migration — uppercase to match FInput forceUpper
     const dateOnly = (v: unknown): string => {
       if (!v) return "";
       const s = String(v);
@@ -1867,6 +1872,11 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
       if (!v) return "";
       const s = String(v);
       return s.charAt(0).toUpperCase() + s.slice(1);
+    };
+    // All FInput type="text" fields force uppercase via onChange — ensure form state matches
+    const upper = (v: unknown): string => {
+      if (!v) return "";
+      return String(v).toUpperCase();
     };
     const civilStatusMap: Record<string, string> = {
       single: "Single", married: "Married", widowed: "Widowed",
@@ -1879,6 +1889,30 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
 
     setForm({
       ...r,
+      // Uppercase all text input fields to match FInput forceUpper behavior
+      first_name: upper(r.first_name),
+      middle_name: upper(r.middle_name),
+      last_name: upper(r.last_name),
+      mothers_maiden_name: upper((r as unknown as Record<string, unknown>).mothers_maiden_name),
+      place_of_birth: upper(r.place_of_birth),
+      citizenship: upper((r as unknown as Record<string, unknown>).citizenship),
+      religion: upper((r as unknown as Record<string, unknown>).religion),
+      ethnicity: upper((r as unknown as Record<string, unknown>).ethnicity),
+      occupation: upper((r as unknown as Record<string, unknown>).occupation),
+      employer: upper((r as unknown as Record<string, unknown>).employer),
+      source_of_income: upper((r as unknown as Record<string, unknown>).source_of_income),
+      livelihood_type: upper((r as unknown as Record<string, unknown>).livelihood_type),
+      skills: upper((r as unknown as Record<string, unknown>).skills),
+      health_history: upper((r as unknown as Record<string, unknown>).health_history),
+      barangay_position: upper(r.barangay_position),
+      sector_other: upper((r as unknown as Record<string, unknown>).sector_other),
+      other_remarks: upper((r as unknown as Record<string, unknown>).other_remarks),
+      emergency_contact_name: upper(r.emergency_contact_name),
+      emergency_contact_address: upper(r.emergency_contact_address),
+      emergency_contact_relationship: upper(r.emergency_contact_relationship),
+      house_block_lot: upper((r as unknown as Record<string, unknown>).house_block_lot),
+      street: upper((r as unknown as Record<string, unknown>).street),
+      purok: upper((r as unknown as Record<string, unknown>).purok),
       // Normalize enums to title-case to match FSelect options
       sex: cap(r.sex),
       civil_status: civilStatusMap[String(r.civil_status || "").toLowerCase()] || cap(r.civil_status),
@@ -1896,9 +1930,25 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
       pwd_id_expiry: dateOnly(r.pwd_id_expiry),
     } as unknown as Record<string, string | boolean>);
     setSectors(r.sectoral_tags?.map(t => t.sector) || []);
-    setEduEntries((r.education_details as EduEntry[])?.length ? (r.education_details as EduEntry[]) : [{ ...emptyEdu }]);
-    setWorkEntries((r.work_history as WorkEntry[])?.length ? (r.work_history as WorkEntry[]) : [{ ...emptyWork }]);
-    setBusinessEntries((r.business_details as BusinessEntry[]) || []);
+    // Uppercase text fields in JSONB entry arrays too
+    const upperEdu = (e: EduEntry): EduEntry => ({
+      ...e, course: upper(e.course), school: upper(e.school),
+    });
+    const upperWork = (e: WorkEntry): WorkEntry => ({
+      ...e, position: upper(e.position), company: upper(e.company), description: upper(e.description),
+    });
+    const upperBiz = (e: BusinessEntry): BusinessEntry => ({
+      ...e,
+      business_name: upper(e.business_name),
+      business_type: upper(e.business_type),
+      business_address: upper(e.business_address),
+      business_permit_no: upper(e.business_permit_no),
+      dti_sec_no: upper(e.dti_sec_no),
+      description: upper(e.description),
+    });
+    setEduEntries((r.education_details as EduEntry[])?.length ? (r.education_details as EduEntry[]).map(upperEdu) : [{ ...emptyEdu }]);
+    setWorkEntries((r.work_history as WorkEntry[])?.length ? (r.work_history as WorkEntry[]).map(upperWork) : [{ ...emptyWork }]);
+    setBusinessEntries(((r.business_details as BusinessEntry[]) || []).map(upperBiz));
     setOpenSections({ other: true, education: true, work: true, govinfo: true, emergency: true, biometric: true });
     // Pre-populate photo preview from existing photo_url so the photo area isn't blank in edit mode
     const existingPhoto = r.photo_url ? resolvePhotoUrl(r.photo_url) : null;
