@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Home, MapPin, Filter, Download, Upload, MoreHorizontal,
   Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X, Flag,
@@ -950,6 +950,7 @@ interface ResidentsPageProps {
 export default function ResidentsPage({ censusMode, onCensusRegistered }: ResidentsPageProps = {}) {
   const { user } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const tenantConfig = {
     barangay: user?.barangay?.name?.toUpperCase() || "",
     city_municipality: user?.barangay?.city_municipality?.toUpperCase() || "",
@@ -990,6 +991,8 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
   const [importPreviewLoading, setImportPreviewLoading] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [actionMenu, setActionMenu] = useState<string | null>(null);
+  // Track which resident is currently generating a PDF (shows spinner on button)
+  const [printingId, setPrintingId] = useState<string | null>(null);
   const [hoveredTooltip, setHoveredTooltip] = useState<string | null>(null);
   const [archiveModal, setArchiveModal] = useState(false);
   const [archiveReason, setArchiveReason] = useState("");
@@ -1060,6 +1063,28 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
 
   // ── Form State ──
   const [mode, setMode] = useState<"list" | "create" | "edit">("list");
+
+  // Handle ?edit={id} URL param — navigating from resident detail page "Edit Profile" button
+  useEffect(() => {
+    const editId = searchParams.get("edit");
+    if (!editId || mode !== "list") return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const detail = await api.residents.get(editId);
+        if (!cancelled) {
+          openEdit(detail);
+          // Clean up the URL param without re-triggering navigation
+          router.replace("/dashboard/residents", { scroll: false });
+        }
+      } catch {
+        // Resident not found or access denied — ignore silently
+      }
+    })();
+    return () => { cancelled = true; };
+  // openEdit intentionally excluded — it's stable but defined lower in the file;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   // Fetch residents + stats on mount and when returning to list mode
   useEffect(() => {
@@ -1964,6 +1989,28 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
   };
 
   const openDelete = () => { setShowDelete(true); setViewResident(null); };
+
+  /**
+   * Generate PDF for a resident and open it in a new browser tab.
+   * Records print in audit log + documents tab on the backend.
+   */
+  const handlePrint = useCallback(async (residentId: string) => {
+    if (printingId) return; // prevent double-trigger
+    setPrintingId(residentId);
+    try {
+      const blob = await api.residents.print(residentId);
+      const url  = URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+      // Revoke the object URL after a short delay to free memory
+      setTimeout(() => URL.revokeObjectURL(url), 30_000);
+      addToast({ type: "success", title: "Record PDF Opened", message: "Check your new browser tab.", duration: 4000 });
+    } catch (err) {
+      const e = err as { message?: string };
+      addToast({ type: "error", title: "Print Failed", message: e?.message || "Could not generate PDF. Try again." });
+    } finally {
+      setPrintingId(null);
+    }
+  }, [printingId, addToast]);
 
   // ── Smart Sector Sync ──
   // Auto-sync sectors with other form fields to prevent contradictions.
@@ -3682,7 +3729,15 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                             {actionMenu === r.id && (
                               <div className="absolute right-0 top-8 z-50 w-44 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg py-1.5">
                                 <button onClick={async () => { setActionMenu(null); try { const detail = await api.residents.get(r.id); openEdit(detail); } catch { addToast({ type: "error", title: "Failed to load resident" }); } }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-muted text-left transition-colors"><Edit className="h-4 w-4 text-muted-foreground" /> Edit Profile</button>
-                                <button onClick={() => { setActionMenu(null); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-muted text-left transition-colors"><Printer className="h-4 w-4 text-muted-foreground" /> Print Record</button>
+                                <button
+                                  onClick={() => { setActionMenu(null); handlePrint(r.id); }}
+                                  disabled={printingId === r.id}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-muted text-left transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                  {printingId === r.id
+                                    ? <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" />
+                                    : <Printer className="h-4 w-4 text-muted-foreground" />}
+                                  {printingId === r.id ? "Generating PDF..." : "Print Record"}
+                                </button>
                                 <div className="border-t border-border my-1" />
                                 <button onClick={async () => { setActionMenu(null); await openViewResident(r.id); setArchiveModal(true); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-amber-50 dark:hover:bg-amber-950/20 text-left text-amber-600 dark:text-amber-400 transition-colors"><Archive className="h-4 w-4" /> Archive Record</button>
                               </div>
@@ -3719,7 +3774,14 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
           <>
             <ModalButton variant="secondary" onClick={() => setViewResident(null)}>Close</ModalButton>
             <ModalButton variant="secondary" onClick={() => viewResident && openEdit(viewResident)}><Edit className="h-4 w-4 mr-1" /> Edit Profile</ModalButton>
-            <ModalButton variant="primary"><Printer className="h-4 w-4 mr-1" /> Print ID</ModalButton>
+            <ModalButton
+              variant="primary"
+              onClick={() => viewResident && handlePrint(viewResident.id)}
+              disabled={!!printingId}>
+              {printingId === viewResident?.id
+                ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Generating...</>
+                : <><Printer className="h-4 w-4 mr-1" /> Print Record</>}
+            </ModalButton>
           </>
         }>
         {viewResident && (

@@ -490,6 +490,27 @@ const api = {
     checkDuplicate: (data: { first_name: string; last_name: string; middle_name?: string; date_of_birth: string }) =>
       api.post<{ has_duplicates: boolean; matches: DuplicateMatch[] }>("/residents/check-duplicate", data),
 
+    /**
+     * Generate a PDF record card for a resident.
+     * Returns a Blob (application/pdf) — open in new tab or trigger download.
+     */
+    print: async (id: string): Promise<Blob> => {
+      const base = typeof window !== "undefined" ? "/api/v1" : "";
+      const res = await fetch(`${base}/residents/${id}/print`, {
+        method: "GET",
+        credentials: "include",
+        headers: {
+          Authorization: `Bearer ${getToken() || ""}`,
+          Accept: "application/pdf",
+        },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: "Failed to generate PDF" }));
+        throw { message: err.message || "Failed to generate PDF", status: res.status };
+      }
+      return res.blob();
+    },
+
     exportCsv: (params?: Record<string, string>) => {
       const query = new URLSearchParams();
       if (params) {
