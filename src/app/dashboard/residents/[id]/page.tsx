@@ -152,18 +152,21 @@ function ActivityTab({ residentId }: { residentId: string }) {
     updated: <FileEdit className="h-4 w-4" />,
     deleted: <Trash2 className="h-4 w-4" />,
     viewed: <Eye className="h-4 w-4" />,
+    printed: <Printer className="h-4 w-4" />,
   };
   const actionColorMap: Record<string, string> = {
     created: "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400",
     updated: "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400",
     deleted: "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400",
     viewed: "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400",
+    printed: "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400",
   };
   const actionLabelMap: Record<string, string> = {
     created: "created",
     updated: "updated",
     deleted: "deleted",
     viewed: "viewed",
+    printed: "printed a record for",
   };
 
   function timeAgo(dateStr: string): string {
@@ -278,6 +281,126 @@ function ActivityTab({ residentId }: { residentId: string }) {
           </div>
           <p className="text-sm font-semibold text-foreground mb-1">No activity yet</p>
           <p className="text-xs text-muted-foreground">All profile changes, views, and actions will be recorded here.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Documents Tab ─────────────────────────────────────────────────────────────
+
+function DocumentsTab({ residentId }: { residentId: string }) {
+  const [docs, setDocs] = useState<import("@/lib/types").IssuedDocument[]>([]);
+  const [page, setPage] = useState(1);
+  const [lastPage, setLastPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    api.issuedDocuments.list({ constituent_type: "resident", constituent_id: residentId, page, per_page: 20, sort_by: "created_at", sort_dir: "desc" })
+      .then((res) => {
+        if (cancelled) return;
+        setDocs(res.data);
+        setLastPage(res.last_page);
+        setTotal(res.total);
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [residentId, page]);
+
+  const statusColors: Record<string, string> = {
+    issued:   "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
+    released: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+    expired:  "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+    revoked:  "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+  };
+
+  function fmtDate(d: string | null | undefined) {
+    if (!d) return null;
+    const dt = new Date(d.includes("T") ? d : d + "T00:00:00");
+    if (isNaN(dt.getTime())) return d;
+    return dt.toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <ScrollText className="h-4 w-4 text-muted-foreground" />
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Issued Documents</h3>
+        {total > 0 && (
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-muted text-muted-foreground">{total}</span>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : docs.length > 0 ? (
+        <>
+          <div className="space-y-2">
+            {docs.map((doc) => (
+              <div key={doc.id} className="flex items-start gap-3 p-3.5 rounded-xl border border-border bg-background hover:bg-muted/30 transition-colors">
+                <div className="w-9 h-9 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center shrink-0">
+                  <ScrollText className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-foreground truncate">
+                        {doc.template_name || "Document"}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground font-mono mt-0.5">
+                        #{doc.document_number}
+                      </p>
+                    </div>
+                    <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize shrink-0", statusColors[doc.status] || "bg-muted text-muted-foreground")}>
+                      {doc.status}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 mt-1.5 text-[11px] text-muted-foreground flex-wrap">
+                    {doc.issued_date && (
+                      <span className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        {fmtDate(doc.issued_date)}
+                      </span>
+                    )}
+                    {doc.purpose && (
+                      <span className="truncate max-w-[200px]">{doc.purpose}</span>
+                    )}
+                    {doc.or_number && (
+                      <span>O.R. #{doc.or_number}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {lastPage > 1 && (
+            <div className="flex items-center justify-center gap-2 pt-2">
+              <button type="button" disabled={page <= 1} onClick={() => setPage(p => p - 1)}
+                className="px-3 py-1.5 text-xs rounded-lg border border-border hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                Previous
+              </button>
+              <span className="text-xs text-muted-foreground">Page {page} of {lastPage}</span>
+              <button type="button" disabled={page >= lastPage} onClick={() => setPage(p => p + 1)}
+                className="px-3 py-1.5 text-xs rounded-lg border border-border hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                Next
+              </button>
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="rounded-xl border-2 border-dashed border-border p-10 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto mb-4">
+            <ScrollText className="h-7 w-7 text-muted-foreground/60" />
+          </div>
+          <p className="text-sm font-semibold text-foreground mb-1">No documents yet</p>
+          <p className="text-xs text-muted-foreground">Certificates, clearances, and record prints issued to this resident will appear here.</p>
         </div>
       )}
     </div>
@@ -1266,13 +1389,7 @@ export default function ResidentDetailPage() {
                   </div>
                 )}
 
-                {active === "documents" && (
-                  <PlaceholderTab
-                    icon={<ScrollText className="h-6 w-6" />}
-                    title="Generated Documents"
-                    description="Certificates, clearances, and IDs issued to this resident will appear here."
-                  />
-                )}
+                {active === "documents" && <DocumentsTab residentId={id} />}
 
                 {active === "assistance" && (() => {
                   const assistList = Array.isArray(resident.assistance_history) ? (resident.assistance_history as Record<string, string>[]) : [];

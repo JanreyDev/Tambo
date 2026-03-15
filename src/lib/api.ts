@@ -624,6 +624,7 @@ const api = {
       template_id?: string;
       status?: string;
       constituent_type?: string;
+      constituent_id?: string;
       sort_by?: string;
       sort_dir?: string;
     }) => {
@@ -634,6 +635,7 @@ const api = {
       if (params?.template_id) query.set("template_id", params.template_id);
       if (params?.status) query.set("status", params.status);
       if (params?.constituent_type) query.set("constituent_type", params.constituent_type);
+      if (params?.constituent_id) query.set("constituent_id", params.constituent_id);
       if (params?.sort_by) query.set("sort_by", params.sort_by);
       if (params?.sort_dir) query.set("sort_dir", params.sort_dir);
       const qs = query.toString();
