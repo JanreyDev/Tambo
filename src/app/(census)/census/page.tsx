@@ -250,11 +250,12 @@ function getOnlineServer() { return true; }
 // ══════════════════════════════════════════════════════════════════════════════
 
 function CField({
-  label, name, type = "text", required, value, onChange, placeholder, maxLength, readOnly, mono, rows,
+  label, name, type = "text", required, value, onChange, placeholder, maxLength, readOnly, mono, rows, max, min, step,
 }: {
   label: string; name: string; type?: string; required?: boolean;
   value: string; onChange: (name: string, value: string) => void;
   placeholder?: string; maxLength?: number; readOnly?: boolean; mono?: boolean; rows?: number;
+  max?: string; min?: string; step?: string;
 }) {
   const forceUpper = type === "text" && !mono;
   const display = forceUpper ? value.toUpperCase() : value;
@@ -274,7 +275,7 @@ function CField({
       ) : (
         <input
           id={name} name={name} type={type} value={display} readOnly={readOnly}
-          maxLength={maxLength} placeholder={placeholder}
+          maxLength={maxLength} placeholder={placeholder} max={max} min={min} step={step}
           onChange={(e) => onChange(name, forceUpper ? e.target.value.toUpperCase() : e.target.value)}
           className={cn(base, readOnly && "bg-muted cursor-not-allowed", mono && "font-mono text-xs")}
         />
@@ -426,9 +427,9 @@ function CCombobox({
           )}
         />
         {value && (
-          <button type="button" onClick={() => { onChange(name, ""); setQuery(""); }}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground">
-            <X className="h-3.5 w-3.5" />
+          <button type="button" aria-label="Clear" onClick={() => { onChange(name, ""); setQuery(""); }}
+            className="absolute right-1 top-1/2 -translate-y-1/2 p-2.5 text-muted-foreground hover:text-foreground min-h-[44px] min-w-[44px] flex items-center justify-center">
+            <X className="h-4 w-4" />
           </button>
         )}
       </div>
@@ -556,22 +557,30 @@ export default function CensusPage() {
   const [photoUploading, setPhotoUploading] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
 
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const handlePhoto = useCallback(async (file: File) => {
     setPhotoUploading(true);
+    setPhotoError(null);
     try {
       const reader = new FileReader();
       reader.onload = (e) => setPhotoPreview(e.target?.result as string);
       reader.readAsDataURL(file);
       const blob = await resizeImage(file, 800);
+      if (!isOnline) {
+        // Offline: keep preview, skip upload (photo_file_id stays null)
+        setPhotoError("Offline — photo saved locally. Will upload when online.");
+        setPhotoUploading(false);
+        return;
+      }
       const res = await api.files.uploadPhoto(blob);
       setPhotoFileId(res.file.id);
     } catch {
-      setPhotoPreview(null);
-      setPhotoFileId(null);
+      setPhotoError("Hindi ma-upload ang photo. Subukan ulit.");
+      // Keep the preview so user sees the image was captured
     } finally {
       setPhotoUploading(false);
     }
-  }, []);
+  }, [isOnline]);
 
   // ── Update helper ─────────────────────────────────────────────────────
   const updateForm = useCallback((name: string, value: string) => {
@@ -764,9 +773,23 @@ export default function CensusPage() {
   };
 
   // ── Submit (online) or queue (offline) ────────────────────────────────
+  const submittingRef = useRef(false);
   const handleSubmit = async () => {
+    // Synchronous double-submit guard (ref beats async state update)
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
     setSubmitError(null);
+
+    // Re-validate identity step before submit (in case user went back and cleared fields)
+    if (!validateStep(0)) {
+      setStep(0);
+      setSubmitting(false);
+      submittingRef.current = false;
+      setSubmitError("May kulang na required fields sa Pangalan step.");
+      return;
+    }
+
     const payload = buildPayload();
 
     if (!isOnline) {
@@ -783,6 +806,7 @@ export default function CensusPage() {
         setSubmitError("Hindi ma-save offline. Subukan ulit.");
       } finally {
         setSubmitting(false);
+        submittingRef.current = false;
       }
       return;
     }
@@ -806,6 +830,7 @@ export default function CensusPage() {
       }
     } finally {
       setSubmitting(false);
+      submittingRef.current = false;
     }
   };
 
@@ -994,15 +1019,15 @@ export default function CensusPage() {
         {step === 0 && (
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
-              <CField label="First Name / Pangalan" name="first_name" required value={f("first_name")} onChange={updateForm} placeholder="JUAN" />
-              <CField label="Last Name / Apelyido" name="last_name" required value={f("last_name")} onChange={updateForm} placeholder="DELA CRUZ" />
+              <CField label="First Name / Pangalan" name="first_name" required value={f("first_name")} onChange={updateForm} placeholder="JUAN" maxLength={100} />
+              <CField label="Last Name / Apelyido" name="last_name" required value={f("last_name")} onChange={updateForm} placeholder="DELA CRUZ" maxLength={100} />
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <CField label="Middle Name" name="middle_name" value={f("middle_name")} onChange={updateForm} placeholder="SANTOS" />
+              <CField label="Middle Name" name="middle_name" value={f("middle_name")} onChange={updateForm} placeholder="SANTOS" maxLength={100} />
               <CSelectRaw label="Ext." name="extension_name" value={f("extension_name")} onChange={updateForm}
                 options={extensions.map((e) => ({ value: e.toLowerCase(), label: e || "None" }))} placeholder="None" />
             </div>
-            <CField label="Date of Birth / Kaarawan" name="date_of_birth" type="date" required value={f("date_of_birth")} onChange={updateForm} />
+            <CField label="Date of Birth / Kaarawan" name="date_of_birth" type="date" required value={f("date_of_birth")} onChange={updateForm} max={new Date().toISOString().split("T")[0]} />
             {f("date_of_birth") && getAge(f("date_of_birth")) !== null && (
               <p className="text-xs text-muted-foreground -mt-1.5 ml-1">Edad: <span className="font-semibold text-foreground">{getAge(f("date_of_birth"))} taon</span></p>
             )}
@@ -1014,7 +1039,7 @@ export default function CensusPage() {
                 options={civilStatuses.map((s) => ({ value: s.toLowerCase().replace(/\s+/g, "-"), label: s }))} />
             </div>
             <CCombobox label="Citizenship / Nasyonalidad" name="citizenship" value={f("citizenship")} onChange={updateForm} placeholder="FILIPINO" suggestions={S_CITIZENSHIP} />
-            <CField label="Mother's Maiden Name" name="mothers_maiden_name" value={f("mothers_maiden_name")} onChange={updateForm} placeholder="REYES" />
+            <CField label="Mother's Maiden Name" name="mothers_maiden_name" value={f("mothers_maiden_name")} onChange={updateForm} placeholder="REYES" maxLength={200} />
             {Object.keys(stepErrors).length > 0 && (
               <p className="text-xs text-red-500 font-medium">Pakiusap, i-fill in lahat ng may * (required)</p>
             )}
@@ -1032,8 +1057,8 @@ export default function CensusPage() {
                 options={complexions.map((c) => ({ value: c.toLowerCase().replace(/\s+/g, "-"), label: c }))} />
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <CField label="Height (cm) / Taas" name="height_cm" type="number" value={f("height_cm")} onChange={updateForm} placeholder="165" />
-              <CField label="Weight (kg) / Timbang" name="weight_kg" type="number" value={f("weight_kg")} onChange={updateForm} placeholder="60" />
+              <CField label="Height (cm) / Taas" name="height_cm" type="number" value={f("height_cm")} onChange={updateForm} placeholder="165" min="30" max="250" />
+              <CField label="Weight (kg) / Timbang" name="weight_kg" type="number" value={f("weight_kg")} onChange={updateForm} placeholder="60" min="1" max="500" />
             </div>
             <CCombobox label="Religion / Relihiyon" name="religion" value={f("religion")} onChange={updateForm} placeholder="ROMAN CATHOLIC" suggestions={S_RELIGION} />
             <CCombobox label="Ethnicity / Lahi" name="ethnicity" value={f("ethnicity")} onChange={updateForm} placeholder="TAGALOG" suggestions={S_ETHNICITY} />
@@ -1184,7 +1209,7 @@ export default function CensusPage() {
                 <div className="flex items-center justify-between">
                   <p className="text-[10px] font-bold text-muted-foreground">SCHOOL #{i + 1}</p>
                   <button onClick={() => setEducationEntries((prev) => prev.filter((_, idx) => idx !== i))}
-                    className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 min-h-[36px] min-w-[36px] flex items-center justify-center">
+                    className="p-2 rounded-lg text-red-500 hover:bg-red-50 min-h-[44px] min-w-[44px] flex items-center justify-center">
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -1243,7 +1268,7 @@ export default function CensusPage() {
                 <div className="flex items-center justify-between">
                   <p className="text-[10px] font-bold text-muted-foreground">WORK #{i + 1}</p>
                   <button onClick={() => setWorkEntries((prev) => prev.filter((_, idx) => idx !== i))}
-                    className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 min-h-[36px] min-w-[36px] flex items-center justify-center">
+                    className="p-2 rounded-lg text-red-500 hover:bg-red-50 min-h-[44px] min-w-[44px] flex items-center justify-center">
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -1278,7 +1303,7 @@ export default function CensusPage() {
                 <div className="flex items-center justify-between">
                   <p className="text-[10px] font-bold text-muted-foreground">BUSINESS #{i + 1}</p>
                   <button onClick={() => setBusinessEntries((prev) => prev.filter((_, idx) => idx !== i))}
-                    className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 min-h-[36px] min-w-[36px] flex items-center justify-center">
+                    className="p-2 rounded-lg text-red-500 hover:bg-red-50 min-h-[44px] min-w-[44px] flex items-center justify-center">
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -1320,27 +1345,27 @@ export default function CensusPage() {
             <p className="text-[10px] text-muted-foreground mb-1">I-fill in lang kung available. Hindi required.</p>
 
             <SectionLabel>GSIS / SSS</SectionLabel>
-            <CField label="GSIS/SSS Number" name="sss_gsis_number" value={f("sss_gsis_number")} onChange={updateForm} placeholder="00-0000000-0" mono />
+            <CField label="GSIS/SSS Number" name="sss_gsis_number" value={f("sss_gsis_number")} onChange={updateForm} placeholder="00-0000000-0" mono maxLength={50} />
             <CField label="Expiry Date" name="sss_gsis_expiry" type="date" value={f("sss_gsis_expiry")} onChange={updateForm} />
 
             <SectionLabel>PhilHealth</SectionLabel>
-            <CField label="PhilHealth Number" name="philhealth_number" value={f("philhealth_number")} onChange={updateForm} placeholder="00-000000000-0" mono />
+            <CField label="PhilHealth Number" name="philhealth_number" value={f("philhealth_number")} onChange={updateForm} placeholder="00-000000000-0" mono maxLength={50} />
             <CField label="Expiry Date" name="philhealth_expiry" type="date" value={f("philhealth_expiry")} onChange={updateForm} />
 
             <SectionLabel>Pag-IBIG</SectionLabel>
-            <CField label="Pag-IBIG Number" name="pagibig_number" value={f("pagibig_number")} onChange={updateForm} placeholder="0000-0000-0000" mono />
+            <CField label="Pag-IBIG Number" name="pagibig_number" value={f("pagibig_number")} onChange={updateForm} placeholder="0000-0000-0000" mono maxLength={50} />
             <CField label="Expiry Date" name="pagibig_expiry" type="date" value={f("pagibig_expiry")} onChange={updateForm} />
 
             <SectionLabel>TIN</SectionLabel>
-            <CField label="TIN Number" name="tin_number" value={f("tin_number")} onChange={updateForm} placeholder="000-000-000-000" mono />
+            <CField label="TIN Number" name="tin_number" value={f("tin_number")} onChange={updateForm} placeholder="000-000-000-000" mono maxLength={50} />
             <CField label="Expiry Date" name="tin_expiry" type="date" value={f("tin_expiry")} onChange={updateForm} />
 
             <SectionLabel>PWD ID</SectionLabel>
-            <CField label="PWD ID Number" name="pwd_id" value={f("pwd_id")} onChange={updateForm} mono />
+            <CField label="PWD ID Number" name="pwd_id" value={f("pwd_id")} onChange={updateForm} mono maxLength={50} />
             <CField label="Expiry Date" name="pwd_id_expiry" type="date" value={f("pwd_id_expiry")} onChange={updateForm} />
 
             <SectionLabel>Senior Citizen</SectionLabel>
-            <CField label="Senior Citizen ID" name="senior_citizen_id" value={f("senior_citizen_id")} onChange={updateForm} mono />
+            <CField label="Senior Citizen ID" name="senior_citizen_id" value={f("senior_citizen_id")} onChange={updateForm} mono maxLength={50} />
           </div>
         )}
 
@@ -1415,6 +1440,12 @@ export default function CensusPage() {
                   <Upload className="h-4 w-4" /> Pumili mula sa gallery
                 </button>
                 <p className="text-[10px] text-muted-foreground text-center">Optional lang ang photo — pwede itong idagdag sa office mamaya.</p>
+                {photoError && (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                    <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                    <p className="text-xs text-amber-700 dark:text-amber-300">{photoError}</p>
+                  </div>
+                )}
               </div>
             )}
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden"
