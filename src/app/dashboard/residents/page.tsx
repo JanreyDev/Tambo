@@ -3,8 +3,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import type L from "leaflet";
-import "leaflet/dist/leaflet.css";
 import {
   Home, MapPin, Filter, Download, Upload, MoreHorizontal,
   Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X, Flag,
@@ -21,7 +19,8 @@ import { SortableHeader } from "@/components/ui/sortable-header";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
-import type { ApiError, DuplicateMatch, ResidentSummary, ResidentDetail, PaginatedResponse } from "@/lib/types";
+import type { ApiError, DashboardStats, DuplicateMatch, ResidentSummary, ResidentDetail, PaginatedResponse } from "@/lib/types";
+import { MabiniButton } from "@/components/ui/mabini-button";
 
 // ── Types ──
 interface Resident {
@@ -952,10 +951,53 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
 }
 
 // ══════════════════════════════════════════════════════════════
+// ── Overpass → GeoJSON helpers (barangay boundary overlay) ──
+interface OverpassPoint { lat: number; lon: number; }
+interface OverpassMember { type: string; role: string; ref: number; geometry?: OverpassPoint[]; }
+interface OverpassRelation { type: string; id: number; members: OverpassMember[]; tags?: Record<string, string>; }
+
+/** Chain Overpass ways end-to-end into a single coordinate ring [lng, lat][] */
+const assembleRing = (ways: number[][][]): number[][] => {
+  if (ways.length === 0) return [];
+  if (ways.length === 1) return ways[0];
+  const remaining = ways.map(w => [...w]);
+  const ring: number[][] = [...remaining.shift()!];
+  while (remaining.length > 0) {
+    const tail = ring[ring.length - 1];
+    let matched = false;
+    for (let i = 0; i < remaining.length; i++) {
+      const w = remaining[i];
+      const d = (a: number[], b: number[]) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+      if (d(tail, w[0]) < 0.0002) { ring.push(...w.slice(1)); remaining.splice(i, 1); matched = true; break; }
+      if (d(tail, w[w.length - 1]) < 0.0002) { ring.push(...[...w].reverse().slice(1)); remaining.splice(i, 1); matched = true; break; }
+    }
+    if (!matched) ring.push(...remaining.shift()!); // disconnected way — append as-is
+  }
+  return ring;
+};
+
+/** Convert an Overpass relation (with `out geom;`) to a GeoJSON Feature */
+const overpassRelationToGeoJson = (relation: OverpassRelation): object | null => {
+  const outerWays = relation.members
+    .filter(m => m.role === "outer" && m.geometry && m.geometry.length >= 2)
+    .map(m => m.geometry!.map(p => [p.lon, p.lat]));
+  if (outerWays.length === 0) return null;
+  const ring = assembleRing(outerWays);
+  if (ring.length < 3) return null;
+  const first = ring[0]; const last = ring[ring.length - 1];
+  if (first[0] !== last[0] || first[1] !== last[1]) ring.push([...first]); // close ring
+  return { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [ring] } };
+};
+
 // ── MAIN PAGE COMPONENT
 // ══════════════════════════════════════════════════════════════
 
-export default function ResidentsPage() {
+interface ResidentsPageProps {
+  censusMode?: boolean;
+  onCensusRegistered?: () => void;
+}
+
+export default function ResidentsPage({ censusMode, onCensusRegistered }: ResidentsPageProps = {}) {
   const { user } = useAuth();
   const router = useRouter();
   const tenantConfig = {
@@ -989,6 +1031,22 @@ export default function ResidentsPage() {
   const [listLastPage, setListLastPage] = useState(1);
   const [listLoading, setListLoading] = useState(false);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Resident Stats (full barangay — not current page) ──
+  const [residentStats, setResidentStats] = useState<DashboardStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+
+  const fetchResidentStats = useCallback(async () => {
+    setStatsLoading(true);
+    try {
+      const stats = await api.dashboard.getStats();
+      setResidentStats(stats);
+    } catch {
+      // silently fail — stat cards fall back to list-based approximations
+    } finally {
+      setStatsLoading(false);
+    }
+  }, []);
 
   const fetchResidents = useCallback(async (opts?: { searchOverride?: string; pageOverride?: number }) => {
     setListLoading(true);
@@ -1025,10 +1083,13 @@ export default function ResidentsPage() {
   // ── Form State ──
   const [mode, setMode] = useState<"list" | "create" | "edit">("list");
 
-  // Fetch residents on mount and when filters/page/sort/mode change
+  // Fetch residents + stats on mount and when returning to list mode
   useEffect(() => {
-    if (mode === "list") fetchResidents();
-  }, [mode, fetchResidents]);
+    if (mode === "list") {
+      fetchResidents();
+      fetchResidentStats();
+    }
+  }, [mode, fetchResidents, fetchResidentStats]);
 
   // Debounced search
   const handleSearchChange = useCallback((value: string) => {
@@ -1087,10 +1148,11 @@ export default function ResidentsPage() {
   const [schoolEntries, setSchoolEntries] = useState<SmartEntry[]>(defaultSchoolEntries);
   const [placeOfBirthEntries, setPlaceOfBirthEntries] = useState<SmartEntry[]>(defaultPlaceOfBirthEntries);
 
-  // ── Map State (Leaflet + Google Geocoding) ──
+  // ── Map State (Google Maps) ──
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const leafletMapRef = useRef<L.Map | null>(null);
-  const leafletMarkerRef = useRef<L.Marker | null>(null);
+  const googleMapRef = useRef<google.maps.Map | null>(null);
+  const googleMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
+  const mapInitIdRef = useRef<number>(0); // Abort token — incremented on each cleanup to cancel in-flight inits
   const [mapReady, setMapReady] = useState(false);
   const [mapLocating, setMapLocating] = useState(false);
   const [mapError, setMapError] = useState("");
@@ -1317,7 +1379,8 @@ export default function ResidentsPage() {
       setPhotoAnalysis({ status: "fair", faceDetected: false, faceSupported: false, issues: [], notes: [], brightness: 128, sharpness: 100 });
     }
     setPhotoAnalyzing(false);
-  }, [analyzePhoto, stampWatermark, updateForm]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [analyzePhoto, stampWatermark]);
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1543,7 +1606,7 @@ export default function ResidentsPage() {
       "mothers_maiden_name", "date_of_birth", "place_of_birth",
       "citizenship", "religion", "ethnicity", "blood_type",
       "complexion", "email", "mobile_number",
-      "purok", "sitio", "house_block_lot", "street", "subdivision_village",
+      "purok", "sitio", "house_block_lot", "street",
       "zip_code", "latitude", "longitude",
       "occupation", "employer", "monthly_income_range", "source_of_income",
       "livelihood_type", "skills", "highest_education",
@@ -1840,55 +1903,127 @@ export default function ResidentsPage() {
     });
   };
 
-  // ── Leaflet Map + Google Geocoding ──
-  const initLeafletMap = useCallback(async () => {
-    if (!mapContainerRef.current || leafletMapRef.current) return;
-    const L = (await import("leaflet")).default;
+  // ── Google Maps ──
+  const initGoogleMap = useCallback(async () => {
+    if (!mapContainerRef.current) return;
 
-    // Center on resident's pin if editing, otherwise barangay center from auth context
-    const barangayLat = user?.barangay?.latitude || 14.5995;
-    const barangayLng = user?.barangay?.longitude || 120.9842;
-    const residentLat = parseFloat(String(f("latitude")));
-    const residentLng = parseFloat(String(f("longitude")));
-    const hasResidentCoords = !isNaN(residentLat) && !isNaN(residentLng);
-    const defaultLat = hasResidentCoords ? residentLat : barangayLat;
-    const defaultLng = hasResidentCoords ? residentLng : barangayLng;
+    // Assign an abort token — if cleanup increments mapInitIdRef before we finish, we bail out
+    const initId = ++mapInitIdRef.current;
+    const isAborted = () => mapInitIdRef.current !== initId;
 
-    const map = L.map(mapContainerRef.current, {
-      center: [defaultLat, defaultLng],
-      zoom: hasResidentCoords ? 18 : 16,
-      zoomControl: true,
-    });
+    try {
+      // ── Step 1: Load Google Maps API (classic, synchronous-after-onload approach) ──
+      await new Promise<void>((resolve, reject) => {
+        if (typeof window === "undefined") return reject(new Error("SSR"));
+        // Already fully loaded — Map constructor is ready
+        if (window.google?.maps?.Map) return resolve();
+        // Script already injected — poll until Map is available
+        if (document.querySelector('script[src*="maps.googleapis.com"]')) {
+          const wait = setInterval(() => {
+            if (window.google?.maps?.Map) { clearInterval(wait); resolve(); }
+          }, 100);
+          setTimeout(() => { clearInterval(wait); reject(new Error("Maps load timeout")); }, 15000);
+          return;
+        }
+        // Inject the Maps JS API — libraries=marker included so AdvancedMarkerElement is ready after onload
+        const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
+        const script = document.createElement("script");
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=weekly&libraries=marker`;
+        script.async = true;
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error("Google Maps failed to load"));
+        document.head.appendChild(script);
+      });
 
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      maxZoom: 19,
-    }).addTo(map);
+      // ── Step 2: Bail if superseded or container gone ──
+      if (isAborted() || !mapContainerRef.current) return;
 
-    // Render barangay boundary if available
-    const boundaryGeoJson = user?.barangay?.boundary_geojson;
-    if (boundaryGeoJson) {
-      try {
-        const geoJsonData = typeof boundaryGeoJson === "string" ? JSON.parse(boundaryGeoJson) : boundaryGeoJson;
-        const boundaryLayer = L.geoJSON(geoJsonData, {
-          style: { color: "#3b82f6", weight: 2, dashArray: "6 4", fillColor: "#3b82f6", fillOpacity: 0.05 },
-        }).addTo(map);
-        if (!hasResidentCoords) map.fitBounds(boundaryLayer.getBounds(), { padding: [20, 20] });
-      } catch { /* ignore invalid geojson */ }
+      // ── Step 3: Build map — google.maps.Map is directly available after onload ──
+      const barangayLat = user?.barangay?.latitude ? parseFloat(String(user.barangay.latitude)) : 14.5228;
+      const barangayLng = user?.barangay?.longitude ? parseFloat(String(user.barangay.longitude)) : 121.0172;
+      const residentLat = parseFloat(String(f("latitude")));
+      const residentLng = parseFloat(String(f("longitude")));
+      const hasResidentCoords = !isNaN(residentLat) && !isNaN(residentLng);
+      const defaultLat = hasResidentCoords ? residentLat : barangayLat;
+      const defaultLng = hasResidentCoords ? residentLng : barangayLng;
+
+      const map = new google.maps.Map(mapContainerRef.current, {
+        center: { lat: defaultLat, lng: defaultLng },
+        zoom: hasResidentCoords ? 18 : 16,
+        mapId: "DEMO_MAP_ID",
+        mapTypeId: "roadmap",
+        fullscreenControl: false,
+        streetViewControl: false,
+        mapTypeControl: false,
+        zoomControl: true,
+      });
+
+      // ── Step 4: Final abort check before committing state ──
+      if (isAborted() || !mapContainerRef.current) return;
+
+      googleMapRef.current = map;
+
+      map.addListener("click", (e: google.maps.MapMouseEvent) => {
+        if (e.latLng) placeGoogleMarker(e.latLng.lat(), e.latLng.lng());
+      });
+
+      if (hasResidentCoords) {
+        placeGoogleMarker(defaultLat, defaultLng);
+      }
+
+      setMapReady(true);
+
+      // ── Step 5: Boundary overlay (non-blocking, best-effort) ──
+      const renderBoundary = (geoJsonData: object) => {
+        try {
+          map.data.addGeoJson(geoJsonData);
+          map.data.setStyle({
+            strokeColor: "#ef4444",
+            strokeWeight: 1.5,
+            strokeOpacity: 0.85,
+            fillColor: "#ef4444",
+            fillOpacity: 0.04,
+          });
+          if (!hasResidentCoords) {
+            const bounds = new google.maps.LatLngBounds();
+            map.data.forEach((feature) => {
+              feature.getGeometry()?.forEachLatLng((latLng) => bounds.extend(latLng));
+            });
+            if (!bounds.isEmpty()) map.fitBounds(bounds, 24);
+          }
+        } catch { /* invalid geojson — skip */ }
+      };
+
+      const storedBoundary = user?.barangay?.boundary_geojson;
+      if (storedBoundary) {
+        // Boundary stored in DB — use it directly
+        const geoJsonData = typeof storedBoundary === "string" ? JSON.parse(storedBoundary) : storedBoundary;
+        renderBoundary(geoJsonData);
+      } else if (user?.barangay?.name) {
+        // Fetch from Overpass API — has admin_level=10 barangay boundaries for PH
+        const barangayName = user.barangay.name;
+        const d = 0.04; // ~4km radius bounding box
+        const bbox = `${barangayLat - d},${barangayLng - d},${barangayLat + d},${barangayLng + d}`;
+        try {
+          const overpassQuery = `[out:json][timeout:20];relation["name"~"${barangayName}","i"]["boundary"="administrative"]["admin_level"~"^(9|10)$"](${bbox});out geom;`;
+          const res = await fetch(
+            `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(overpassQuery)}`,
+            { signal: AbortSignal.timeout(20000) }
+          );
+          const data = await res.json();
+          const relation: OverpassRelation | undefined = data?.elements?.find(
+            (el: OverpassRelation) => el.type === "relation"
+          );
+          if (relation) {
+            const geoJsonFeature = overpassRelationToGeoJson(relation);
+            if (geoJsonFeature) renderBoundary(geoJsonFeature);
+          }
+        } catch { /* boundary unavailable — map still works without it */ }
+      }
+    } catch (err) {
+      console.error("[BCMP Map] Failed to initialize:", err);
+      setMapReady(true); // Always hide the spinner even on failure
     }
-
-    leafletMapRef.current = map;
-
-    if (hasResidentCoords) {
-      placeLeafletMarker(defaultLat, defaultLng);
-    }
-
-    // Click to place/move marker
-    map.on("click", (e: L.LeafletMouseEvent) => {
-      placeLeafletMarker(e.latlng.lat, e.latlng.lng);
-    });
-
-    setMapReady(true);
   }, []);
 
   // Build pin icon HTML -- shows resident photo if available, "K" fallback
@@ -1913,50 +2048,55 @@ export default function ResidentsPage() {
     </svg>`;
   }, []);
 
-  const placeLeafletMarker = useCallback(async (lat: number, lng: number) => {
-    if (!leafletMapRef.current) return;
-    const L = (await import("leaflet")).default;
-    const hasPhoto = !!photoPreview;
-    const pinHtml = buildPinHtml(photoPreview);
-    const size: [number, number] = hasPhoto ? [44, 56] : [36, 48];
-    const anchor: [number, number] = hasPhoto ? [22, 56] : [18, 48];
+  const placeGoogleMarker = useCallback(async (lat: number, lng: number) => {
+    if (!googleMapRef.current) return;
 
-    if (leafletMarkerRef.current) {
-      leafletMarkerRef.current.setLatLng([lat, lng]);
-      // Update icon in case photo changed
-      const newIcon = L.divIcon({ html: pinHtml, className: "", iconSize: size, iconAnchor: anchor, popupAnchor: [0, -(size[1] - 6)] });
-      leafletMarkerRef.current.setIcon(newIcon);
-    } else {
-      const icon = L.divIcon({ html: pinHtml, className: "", iconSize: size, iconAnchor: anchor, popupAnchor: [0, -(size[1] - 6)] });
-      const marker = L.marker([lat, lng], { draggable: true, icon }).addTo(leafletMapRef.current);
-      marker.on("dragend", () => {
-        const pos = marker.getLatLng();
-        updateForm("latitude", String(pos.lat));
-        updateForm("longitude", String(pos.lng));
-      });
-      marker.bindPopup("<div style='text-align:center;font-family:sans-serif'><strong style='color:#4338ca'>kapitan.ph</strong><br><small>Drag pin to adjust location</small></div>");
-      leafletMarkerRef.current = marker;
+    // Remove existing marker
+    if (googleMarkerRef.current) {
+      googleMarkerRef.current.map = null;
+      googleMarkerRef.current = null;
     }
-    updateForm("latitude", String(lat));
-    updateForm("longitude", String(lng));
-  }, [updateForm, photoPreview, buildPinHtml]);
+
+    const pinHtml = buildPinHtml(photoPreview);
+    const container = document.createElement("div");
+    container.innerHTML = pinHtml;
+    const element = container.firstElementChild as HTMLElement;
+
+    // marker library loaded synchronously with the script (libraries=marker in URL)
+    const { AdvancedMarkerElement } = google.maps.marker;
+    const marker = new AdvancedMarkerElement({
+      map: googleMapRef.current,
+      position: { lat, lng },
+      content: element,
+      gmpDraggable: true,
+      title: "Resident location",
+    });
+
+    marker.addListener("dragend", () => {
+      const pos = marker.position as google.maps.LatLngLiteral | null;
+      if (pos) {
+        updateForm("latitude", Number(pos.lat).toFixed(7));
+        updateForm("longitude", Number(pos.lng).toFixed(7));
+      }
+    });
+
+    googleMarkerRef.current = marker;
+    updateForm("latitude", lat.toFixed(7));
+    updateForm("longitude", lng.toFixed(7));
+  }, [photoPreview, buildPinHtml, updateForm]);
 
   // Update marker icon when photo changes
   useEffect(() => {
-    if (!leafletMarkerRef.current || !leafletMapRef.current) return;
-    (async () => {
-      const L = (await import("leaflet")).default;
-      const hasPhoto = !!photoPreview;
-      const pinHtml = buildPinHtml(photoPreview);
-      const size: [number, number] = hasPhoto ? [44, 56] : [36, 48];
-      const anchor: [number, number] = hasPhoto ? [22, 56] : [18, 48];
-      const newIcon = L.divIcon({ html: pinHtml, className: "", iconSize: size, iconAnchor: anchor, popupAnchor: [0, -(size[1] - 6)] });
-      leafletMarkerRef.current?.setIcon(newIcon);
-    })();
-  }, [photoPreview, buildPinHtml]);
+    if (!googleMarkerRef.current || !mapReady) return;
+    const pinHtml = buildPinHtml(photoPreview);
+    const container = document.createElement("div");
+    container.innerHTML = pinHtml;
+    const element = container.firstElementChild as HTMLElement;
+    if (element) googleMarkerRef.current.content = element;
+  }, [photoPreview, buildPinHtml, mapReady]);
 
   const geocodeAddress = useCallback(async (addressStr: string) => {
-    if (!leafletMapRef.current) return;
+    if (!googleMapRef.current) return;
     setMapLocating(true);
     setMapError("");
 
@@ -1973,8 +2113,9 @@ export default function ResidentsPage() {
         if (data?.[0]) {
           const lat = parseFloat(data[0].lat);
           const lng = parseFloat(data[0].lon);
-          leafletMapRef.current?.setView([lat, lng], 18, { animate: true });
-          placeLeafletMarker(lat, lng);
+          googleMapRef.current?.setCenter({ lat, lng });
+          googleMapRef.current?.setZoom(18);
+          placeGoogleMarker(lat, lng);
         }
       } catch { setMapLocating(false); }
       return;
@@ -1989,13 +2130,14 @@ export default function ResidentsPage() {
 
       if (data.status === "OK" && data.results?.[0]) {
         const loc = data.results[0].geometry.location;
-        leafletMapRef.current?.setView([loc.lat, loc.lng], 18, { animate: true });
-        placeLeafletMarker(loc.lat, loc.lng);
+        googleMapRef.current?.setCenter({ lat: loc.lat, lng: loc.lng });
+        googleMapRef.current?.setZoom(18);
+        placeGoogleMarker(loc.lat, loc.lng);
       }
     } catch {
       setMapLocating(false);
     }
-  }, [placeLeafletMarker]);
+  }, [placeGoogleMarker]);
 
   // Auto-geocode when address fields change (debounced 1.5s)
   const geocodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -2014,22 +2156,29 @@ export default function ResidentsPage() {
     if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current);
     geocodeTimerRef.current = setTimeout(() => geocodeAddress(address), 1500);
     return () => { if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current); };
-  }, [f("house_block_lot"), f("street"), f("purok"), f("subdivision_village"), mapReady, mode]);
+  }, [f("house_block_lot"), f("street"), f("purok"), mapReady, mode]);
 
-  // Initialize Leaflet map when entering create mode
+  // Initialize Google Maps when entering create mode
   useEffect(() => {
     if (mode === "create") {
-      const timer = setTimeout(() => initLeafletMap(), 100);
-      return () => clearTimeout(timer);
-    }
-    // Cleanup on mode change
-    if (leafletMapRef.current) {
-      leafletMapRef.current.remove();
-      leafletMapRef.current = null;
-      leafletMarkerRef.current = null;
+      // Reset ready state for fresh init
       setMapReady(false);
+      const timer = setTimeout(() => initGoogleMap(), 150);
+      return () => {
+        // Cancel in-flight async init by invalidating its abort token
+        mapInitIdRef.current++;
+        clearTimeout(timer);
+      };
     }
-  }, [mode, initLeafletMap]);
+    // Leaving create mode — tear down map refs
+    mapInitIdRef.current++;
+    googleMapRef.current = null;
+    if (googleMarkerRef.current) {
+      googleMarkerRef.current.map = null;
+      googleMarkerRef.current = null;
+    }
+    setMapReady(false);
+  }, [mode, initGoogleMap]);
 
   // ── Sorting / Pagination (server-side — residents already filtered by API) ──
   const totalPages = Math.max(1, listLastPage);
@@ -2041,10 +2190,17 @@ export default function ResidentsPage() {
     setPage(1);
   };
 
-  // Compute stats from current page data (approximation — full stats come from dashboard API later)
-  const householdCount = residents.filter((r) => r.is_head_of_household).length;
-  const voterCount = residents.filter((r) => r.is_voter).length;
-  const maleCount = residents.filter((r) => r.sex === "male").length;
+  // Real stats from API — full barangay population, not just the current page
+  const totalPopulation = residentStats?.total_residents ?? listTotal;
+  const maleCount = residentStats?.gender_distribution?.male ?? residentStats?.gender_distribution?.Male ?? 0;
+  const femaleCount = residentStats?.gender_distribution?.female ?? residentStats?.gender_distribution?.Female ?? 0;
+  const householdCount = residentStats?.total_households ?? 0;
+  const voterCount = residentStats?.voter_count ?? 0;
+  const pwdCount = residentStats?.pwd_count ?? 0;
+  const seniorCount = residentStats?.senior_citizen_count ?? 0;
+  const activeCount = residentStats?.active_count ?? 0;
+  const inactiveCount = residentStats?.inactive_count ?? 0;
+  const deceasedCount = residentStats?.deceased_count ?? 0;
 
   // ══════════════════════════════════════════════════════════
   // ── REGISTRATION FORM (V3-style collapsible + V4 fields)
@@ -2331,9 +2487,8 @@ export default function ResidentsPage() {
             </div>
             <div className="glass-section rounded-b-xl mt-px px-5 pt-5 pb-4">
             <div className="space-y-4">
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <FInput label="Unit / Floor / House / Block / Lot No." name="house_block_lot" placeholder="E.g. Unit 4B, Blk 5 Lot 12" value={f("house_block_lot")} onChange={updateForm} />
-                <FInput label="Building / Subdivision / Village / Phase" name="subdivision_village" placeholder="E.g. Villa Verde Subd. Phase 2" value={f("subdivision_village")} onChange={updateForm} />
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                <FInput label="House No. / Blk & Lot / Subdivision / Village" name="house_block_lot" placeholder="E.g. Unit 4B Blk 5 Lot 12, Villa Verde Subd. Phase 2" value={f("house_block_lot")} onChange={updateForm} />
                 <FCombobox label="Purok / Sitio" name="purok" entries={purokEntries} value={f("purok")}
                   onChange={updateForm} onSubmit={(val) => submitEntry(purokEntries, setPurokEntries, val)} />
                 <FCombobox label="Street / Road" name="street" entries={streetEntries} value={f("street")}
@@ -2380,13 +2535,16 @@ export default function ResidentsPage() {
                     </span>
                   )}
                 </div>
-                <div ref={mapContainerRef} className="w-full h-56 rounded-lg border border-border overflow-hidden bg-muted z-0">
+                <div className="relative w-full h-56">
+                  {/* Spinner overlay — sibling of map container, NOT inside it */}
                   {!mapReady && (
-                    <div className="flex flex-col items-center justify-center h-full">
+                    <div className="absolute inset-0 flex flex-col items-center justify-center rounded-lg border border-border bg-muted z-10">
                       <Loader2 className="h-6 w-6 text-muted-foreground animate-spin mb-2" />
                       <p className="text-xs text-muted-foreground">Loading map...</p>
                     </div>
                   )}
+                  {/* Map container must be empty — Google Maps owns this DOM node */}
+                  <div ref={mapContainerRef} className="w-full h-full rounded-lg border border-border overflow-hidden bg-muted z-0" />
                 </div>
                 <p className="text-[10px] text-muted-foreground mt-1.5">
                   Map auto-updates as you fill in the address above. Click the map or drag the pin to adjust the exact location.
@@ -3055,7 +3213,11 @@ export default function ResidentsPage() {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Total Population</p>
-                  <p className="text-3xl font-bold text-foreground">{listTotal.toLocaleString()}</p>
+                  {statsLoading && !residentStats ? (
+                    <div className="h-9 w-24 rounded-lg bg-muted animate-pulse mt-1" />
+                  ) : (
+                    <p className="text-3xl font-bold text-foreground">{totalPopulation.toLocaleString()}</p>
+                  )}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3 mb-4">
@@ -3065,8 +3227,12 @@ export default function ResidentsPage() {
                   </div>
                   <div>
                     <p className="text-[11px] font-medium text-blue-600/70 dark:text-blue-400/70 uppercase tracking-wider">Male</p>
-                    <p className="text-xl font-bold text-blue-700 dark:text-blue-300">{maleCount}</p>
-                    <p className="text-[11px] text-blue-500/70 dark:text-blue-400/50">{Math.round((maleCount / listTotal) * 100)}% of total</p>
+                    {statsLoading && !residentStats ? <div className="h-7 w-12 rounded bg-blue-100 animate-pulse mt-0.5" /> : (
+                      <>
+                        <p className="text-xl font-bold text-blue-700 dark:text-blue-300">{maleCount.toLocaleString()}</p>
+                        <p className="text-[11px] text-blue-500/70 dark:text-blue-400/50">{totalPopulation > 0 ? Math.round((maleCount / totalPopulation) * 100) : 0}% of total</p>
+                      </>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-3 rounded-lg bg-pink-50 dark:bg-pink-950/20 border border-pink-100 dark:border-pink-900/30 p-3.5">
@@ -3075,18 +3241,22 @@ export default function ResidentsPage() {
                   </div>
                   <div>
                     <p className="text-[11px] font-medium text-pink-600/70 dark:text-pink-400/70 uppercase tracking-wider">Female</p>
-                    <p className="text-xl font-bold text-pink-700 dark:text-pink-300">{listTotal - maleCount}</p>
-                    <p className="text-[11px] text-pink-500/70 dark:text-pink-400/50">{Math.round(((listTotal - maleCount) / listTotal) * 100)}% of total</p>
+                    {statsLoading && !residentStats ? <div className="h-7 w-12 rounded bg-pink-100 animate-pulse mt-0.5" /> : (
+                      <>
+                        <p className="text-xl font-bold text-pink-700 dark:text-pink-300">{femaleCount.toLocaleString()}</p>
+                        <p className="text-[11px] text-pink-500/70 dark:text-pink-400/50">{totalPopulation > 0 ? Math.round((femaleCount / totalPopulation) * 100) : 0}% of total</p>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
               <div className="space-y-1.5">
                 <div className="flex justify-between text-[10px] font-medium text-muted-foreground">
                   <span>Gender Distribution</span>
-                  <span>{maleCount}M / {listTotal - maleCount}F</span>
+                  <span>{maleCount}M / {femaleCount}F</span>
                 </div>
                 <div className="h-2.5 rounded-full bg-muted overflow-hidden flex">
-                  <div className="h-full bg-blue-500 dark:bg-blue-400 rounded-l-full transition-all" style={{ width: `${(maleCount / listTotal) * 100}%` }} />
+                  <div className="h-full bg-blue-500 dark:bg-blue-400 rounded-l-full transition-all" style={{ width: `${totalPopulation > 0 ? (maleCount / totalPopulation) * 100 : 50}%` }} />
                   <div className="h-full bg-pink-500 dark:bg-pink-400 rounded-r-full flex-1" />
                 </div>
               </div>
@@ -3101,31 +3271,37 @@ export default function ResidentsPage() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Households</p>
-              <p className="text-xl font-bold text-foreground">{householdCount}</p>
+              {statsLoading && !residentStats ? <div className="h-7 w-16 rounded bg-muted animate-pulse mt-0.5" /> : (
+                <p className="text-xl font-bold text-foreground">{householdCount.toLocaleString()}</p>
+              )}
             </div>
           </div>
           <div className="flex-1 rounded-xl glass p-4 flex items-center gap-4">
             <div className="w-11 h-11 rounded-xl bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center shrink-0">
-              <FileText className="h-5 w-5 text-blue-500 dark:text-blue-400" />
+              <Vote className="h-5 w-5 text-blue-500 dark:text-blue-400" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Registered Voters</p>
-              <div className="flex items-baseline gap-2">
-                <p className="text-xl font-bold text-foreground">{voterCount}</p>
-                <span className="text-[11px] text-muted-foreground font-medium">{listTotal > 0 ? Math.round((voterCount / listTotal) * 100) : 0}% of population</span>
-              </div>
+              {statsLoading && !residentStats ? <div className="h-7 w-20 rounded bg-muted animate-pulse mt-0.5" /> : (
+                <div className="flex items-baseline gap-2">
+                  <p className="text-xl font-bold text-foreground">{voterCount.toLocaleString()}</p>
+                  <span className="text-[11px] text-muted-foreground font-medium">{totalPopulation > 0 ? Math.round((voterCount / totalPopulation) * 100) : 0}% of pop.</span>
+                </div>
+              )}
             </div>
           </div>
           <div className="flex-1 rounded-xl glass p-4 flex items-center gap-4">
             <div className="w-11 h-11 rounded-xl bg-teal-100 dark:bg-teal-900/50 flex items-center justify-center shrink-0">
-              <MapPin className="h-5 w-5 text-teal-500 dark:text-teal-400" />
+              <CheckCircle className="h-5 w-5 text-teal-500 dark:text-teal-400" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Active Residents</p>
-              <div className="flex items-baseline gap-2">
-                <p className="text-xl font-bold text-foreground">{residents.filter(r => r.status === "active").length}</p>
-                <span className="text-[11px] text-muted-foreground font-medium">{residents.filter(r => r.status === "inactive").length} inactive, {residents.filter(r => r.status === "deceased").length} deceased</span>
-              </div>
+              {statsLoading && !residentStats ? <div className="h-7 w-20 rounded bg-muted animate-pulse mt-0.5" /> : (
+                <div className="flex items-baseline gap-2">
+                  <p className="text-xl font-bold text-foreground">{activeCount.toLocaleString()}</p>
+                  <span className="text-[11px] text-muted-foreground font-medium">{inactiveCount} inactive{deceasedCount > 0 ? `, ${deceasedCount} deceased` : ""}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -3691,6 +3867,7 @@ export default function ResidentsPage() {
           </div>
         </div>
       </Modal>
+      <MabiniButton pageContext="You are on the Residents page. This page lists all registered residents of the barangay, with search, filter, and CRUD operations for resident records." />
     </div>
   );
 }

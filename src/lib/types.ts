@@ -188,6 +188,13 @@ export interface DashboardStats {
   age_groups: Record<string, number>;
   recent_registrations: number;
   documents_this_month: number;
+  // Resident demographics
+  voter_count: number;
+  pwd_count: number;
+  senior_citizen_count: number;
+  active_count: number;
+  inactive_count: number;
+  deceased_count: number;
 }
 
 export interface DashboardActivity {
@@ -305,6 +312,11 @@ export interface ResidentSummary {
   created_at: string;
   sectoral_tags?: Array<{ id: string; sector: string }>;
   cross_barangay_flags?: Array<{ id: string; other_barangay_id: string; match_confidence: string; other_barangay_name?: string }>;
+  // Optional fields that may be included by the API for list views
+  case_records?: Array<Record<string, string>>;
+  last_document?: { type?: string; generated_by?: string } | null;
+  precinct_number?: string | null;
+  voter_id?: string | null;
 }
 
 export interface ResidentDetail extends ResidentSummary {
@@ -321,7 +333,6 @@ export interface ResidentDetail extends ResidentSummary {
   email: string | null;
   street: string | null;
   house_block_lot: string | null;
-  subdivision_village: string | null;
   sitio: string | null;
   zip_code: string | null;
   latitude: string | null;
@@ -373,4 +384,63 @@ export interface DuplicateMatch {
   status: string;
   photo_file_id: string | null;
   mobile_number: string | null;
+}
+
+// ── Document Module Types ──
+
+export interface DocumentTemplate {
+  id: string;
+  name: string;
+  category: string;
+  constituent_type: string | null;
+  title: string | null;
+  salutation: string | null;
+  status: "active" | "inactive";
+  sort_order: number;
+  settings: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface IssuedDocument {
+  id: string;
+  document_number: string;
+  template_id: string;
+  template_name: string | null;
+  constituent_type: string;
+  constituent_id: string;
+  constituent_name: string | null;
+  constituent_number: string | null;
+  purpose: string | null;
+  or_number: string | null;
+  or_amount: string | null;
+  ctc_number: string | null;
+  ctc_date: string | null;
+  ctc_place: string | null;
+  issued_date: string | null;
+  valid_until: string | null;
+  approved_by_left: string | null;
+  approved_by_right: string | null;
+  qr_code_url: string | null;
+  blockchain_hash: string | null;
+  status: "issued" | "released" | "cancelled" | "expired";
+  sms_sent: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface IssueDocumentPayload {
+  template_id: string;
+  constituent_type: string;
+  constituent_id: string;
+  purpose?: string;
+  or_number?: string;
+  or_amount?: number;
+  ctc_number?: string;
+  ctc_date?: string;
+  ctc_place?: string;
+  issued_date?: string;
+  valid_until?: string;
+  approved_by_left?: string;
+  approved_by_right?: string;
 }

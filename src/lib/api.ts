@@ -1,4 +1,4 @@
-import type { AiConversation, AiConversationSummary, AiCredits, AiStreamEvent, ApiError, BarangaySettings, BarangayUsage, DashboardCredits, DuplicateMatch, LoginResponse, PaginatedResponse, ResidentDetail, ResidentSummary, User } from "./types";
+import type { AiConversation, AiConversationSummary, AiCredits, AiStreamEvent, ApiError, BarangaySettings, BarangayUsage, DashboardCredits, DashboardStats, DocumentTemplate, DuplicateMatch, IssuedDocument, IssueDocumentPayload, LoginResponse, PaginatedResponse, ResidentDetail, ResidentSummary, User } from "./types";
 
 // In dev, requests go through Next.js rewrite proxy (/api/v1 -> bcmp-api:8000/api/v1)
 // In production, NEXT_PUBLIC_API_URL points directly to the API domain
@@ -382,6 +382,8 @@ const api = {
   },
 
   dashboard: {
+    getStats: () =>
+      api.get<DashboardStats>("/dashboard/stats"),
     getCredits: () =>
       api.get<DashboardCredits>("/dashboard/credits"),
   },
@@ -462,6 +464,68 @@ const api = {
       formData.append("category", "photo");
       return uploadFile<{ message: string; file: { id: string; url: string | null; is_public: boolean } }>("/files", formData);
     },
+  },
+
+  documentTemplates: {
+    list: (params?: { search?: string; category?: string; is_active?: boolean; per_page?: number }) => {
+      const query = new URLSearchParams();
+      if (params?.search) query.set("search", params.search);
+      if (params?.category) query.set("category", params.category);
+      if (params?.is_active !== undefined) query.set("is_active", String(params.is_active));
+      query.set("per_page", String(params?.per_page ?? 100));
+      query.set("sort_by", "sort_order");
+      const qs = query.toString();
+      return api.get<PaginatedResponse<DocumentTemplate>>(`/document-templates${qs ? `?${qs}` : ""}`);
+    },
+
+    get: (id: string) =>
+      api.get<{ document_template: DocumentTemplate }>(`/document-templates/${id}`).then(r => r.document_template),
+
+    create: (data: Partial<DocumentTemplate>) =>
+      api.post<{ message: string; document_template: DocumentTemplate }>("/document-templates", data),
+
+    update: (id: string, data: Partial<DocumentTemplate>) =>
+      api.put<{ message: string; document_template: DocumentTemplate }>(`/document-templates/${id}`, data),
+
+    delete: (id: string) =>
+      api.delete<{ message: string }>(`/document-templates/${id}`),
+  },
+
+  issuedDocuments: {
+    list: (params?: {
+      page?: number;
+      per_page?: number;
+      search?: string;
+      template_id?: string;
+      status?: string;
+      constituent_type?: string;
+      sort_by?: string;
+      sort_dir?: string;
+    }) => {
+      const query = new URLSearchParams();
+      if (params?.page) query.set("page", String(params.page));
+      if (params?.per_page) query.set("per_page", String(params.per_page));
+      if (params?.search) query.set("search", params.search);
+      if (params?.template_id) query.set("template_id", params.template_id);
+      if (params?.status) query.set("status", params.status);
+      if (params?.constituent_type) query.set("constituent_type", params.constituent_type);
+      if (params?.sort_by) query.set("sort_by", params.sort_by);
+      if (params?.sort_dir) query.set("sort_dir", params.sort_dir);
+      const qs = query.toString();
+      return api.get<PaginatedResponse<IssuedDocument>>(`/issued-documents${qs ? `?${qs}` : ""}`);
+    },
+
+    get: (id: string) =>
+      api.get<{ issued_document: IssuedDocument }>(`/issued-documents/${id}`).then(r => r.issued_document),
+
+    create: (data: IssueDocumentPayload) =>
+      api.post<{ message: string; issued_document: IssuedDocument }>("/issued-documents", data),
+
+    update: (id: string, data: Partial<IssueDocumentPayload> & { status?: string }) =>
+      api.put<{ message: string; issued_document: IssuedDocument }>(`/issued-documents/${id}`, data),
+
+    delete: (id: string) =>
+      api.delete<{ message: string }>(`/issued-documents/${id}`),
   },
 };
 
