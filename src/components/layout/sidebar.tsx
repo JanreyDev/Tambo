@@ -99,13 +99,11 @@ const navGroupDefs: NavGroupDef[] = [
       { labelKey: "hris", href: "/dashboard/hris", icon: UserCog },
     ],
   },
-  {
-    titleKey: "",
-    items: [
-      { labelKey: "settings", href: "/dashboard/settings", icon: Settings },
-      { labelKey: "helpManual", href: "/dashboard/help", icon: HelpCircle },
-    ],
-  },
+];
+
+const bottomNavItems: NavItemDef[] = [
+  { labelKey: "settings", href: "/dashboard/settings", icon: Settings },
+  { labelKey: "helpManual", href: "/dashboard/help", icon: HelpCircle },
 ];
 
 export function Sidebar() {
@@ -166,7 +164,7 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-2 pb-3 mt-1">
+      <nav className="flex-1 overflow-y-auto px-2 mt-1">
         {navGroupDefs.map((group, gi) => {
           const isCollapsed = group.collapsible && collapsedGroups[group.titleKey];
           const groupTitle = group.titleKey ? navLabel(group.titleKey) : "";
@@ -229,6 +227,33 @@ export function Sidebar() {
           );
         })}
       </nav>
+
+      {/* Bottom — Settings & Help pinned */}
+      <div className="px-2 pb-3 border-t border-border/50 pt-2 shrink-0">
+        <div className="space-y-px">
+          {bottomNavItems.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item.href);
+            const label = navLabel(item.labelKey);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "flex items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[13px] transition-all duration-150",
+                  active
+                    ? "font-medium"
+                    : "text-muted-foreground hover:text-foreground hover:bg-sidebar-hover"
+                )}
+                style={active ? { color: "var(--accent-primary)", background: "var(--accent-bg)" } : undefined}
+              >
+                <Icon className="w-4 h-4 shrink-0" />
+                <span className="truncate">{label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
     </aside>
   );
 }
