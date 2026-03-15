@@ -28,6 +28,7 @@ import {
 import { PageHeader } from "@/components/ui/page-header";
 import { Modal, ModalButton } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
+import { MabiniButton } from '@/components/ui/mabini-button';
 
 interface DriveItem {
   id: string;
@@ -374,6 +375,7 @@ export default function DrivePage() {
           </div>
         ))}
       </div>
+      <MabiniButton pageContext="You are on the Barangay Drive page. This page manages uploaded files, documents, and barangay records storage." />
     </div>
   );
 }

@@ -26,6 +26,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Modal, ModalButton } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
+import { MabiniButton } from '@/components/ui/mabini-button';
 
 interface ReportTemplate {
   id: string;
@@ -504,6 +505,7 @@ export default function ReportsPage() {
           ))}
         </div>
       )}
+      <MabiniButton pageContext="You are on the Barangay Reports page. This page shows analytics, statistics, and generated reports for barangay operations." />
     </div>
   );
 }

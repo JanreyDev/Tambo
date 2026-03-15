@@ -17,6 +17,7 @@ import {
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { cn } from "@/lib/utils";
+import { MabiniButton } from '@/components/ui/mabini-button';
 
 interface MapLayer {
   id: string;
@@ -162,6 +163,7 @@ export default function MapPage() {
           </div>
         </div>
       </div>
+      <MabiniButton pageContext="You are on the Barangay Map page. This page shows geospatial information including resident locations, puroks, and barangay boundaries." />
     </div>
   );
 }

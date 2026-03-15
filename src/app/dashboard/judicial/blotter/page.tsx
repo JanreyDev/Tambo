@@ -34,6 +34,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { Modal, ModalButton } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
 import { CheckCircle } from "lucide-react";
+import { MabiniButton } from '@/components/ui/mabini-button';
 
 // ── Types ──
 interface BlotterRecord {
@@ -656,6 +657,7 @@ export default function BlotterPage() {
           </div>
         )}
       </Modal>
+      <MabiniButton pageContext="You are on the Blotter page. This page manages barangay blotter reports, complaints, and incident records." />
     </div>
   );
 }

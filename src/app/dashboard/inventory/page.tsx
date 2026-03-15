@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/stat-card";
 import { Modal, ModalButton } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
+import { MabiniButton } from '@/components/ui/mabini-button';
 
 interface InventoryItem {
   id: string;
@@ -405,6 +406,7 @@ export default function InventoryPage() {
           ))}
         </div>
       )}
+      <MabiniButton pageContext="You are on the Inventory page. This page manages barangay equipment, supplies, and asset tracking." />
     </div>
   );
 }

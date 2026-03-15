@@ -33,6 +33,7 @@ import { Badge, StatusBadge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/stat-card";
 import { Modal, ModalButton } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
+import { MabiniButton } from '@/components/ui/mabini-button';
 
 interface VawcCase {
   id: string;
@@ -152,6 +153,9 @@ export default function VawcPage() {
   // Action menu
   const [actionMenu, setActionMenu] = useState<string | null>(null);
 
+  // Submission state
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   // Toast system
   const [toasts, setToasts] = useState<{ id: number; message: string }[]>([]);
   const showToast = useCallback((message: string) => {
@@ -239,9 +243,14 @@ export default function VawcPage() {
   };
 
   const handleSave = () => {
+    if (isSubmitting) return;
     if (validateForm()) {
-      showToast(showEdit ? "Case Updated" : "VAWC Case Recorded");
-      closeFormModal();
+      setIsSubmitting(true);
+      setTimeout(() => {
+        showToast(showEdit ? "Case Updated" : "VAWC Case Recorded");
+        closeFormModal();
+        setIsSubmitting(false);
+      }, 300);
     }
   };
 
@@ -524,8 +533,8 @@ export default function VawcPage() {
                   Next <ChevronRight className="w-4 h-4 ml-1" />
                 </ModalButton>
               ) : (
-                <ModalButton variant="primary" onClick={handleSave}>
-                  <Save className="w-4 h-4 mr-1" /> {showEdit ? "Update" : "Save"}
+                <ModalButton variant="primary" onClick={handleSave} disabled={isSubmitting}>
+                  <Save className="w-4 h-4 mr-1" /> {isSubmitting ? "Saving..." : showEdit ? "Update" : "Save"}
                 </ModalButton>
               )}
             </div>
@@ -643,6 +652,7 @@ export default function VawcPage() {
           </div>
         ))}
       </div>
+      <MabiniButton pageContext="You are on the VAWC (Violence Against Women and Children) page. This page manages VAWC cases under RA 9262. All information is strictly confidential." />
     </div>
   );
 }

@@ -32,6 +32,7 @@ import { Badge, StatusBadge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/stat-card";
 import { Modal, ModalButton } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
+import { MabiniButton } from '@/components/ui/mabini-button';
 
 interface KpCase {
   id: string;
@@ -625,6 +626,7 @@ export default function KpCasesPage() {
           </div>
         </div>
       </Modal>
+      <MabiniButton pageContext="You are on the KP Cases (Katarungang Pambarangay) page. This page manages barangay conciliation cases and mediation proceedings." />
     </div>
   );
 }

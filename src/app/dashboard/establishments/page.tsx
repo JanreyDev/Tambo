@@ -41,6 +41,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { Modal, ModalButton } from "@/components/ui/modal";
 import { SortableHeader } from "@/components/ui/sortable-header";
 import { cn } from "@/lib/utils";
+import { MabiniButton } from '@/components/ui/mabini-button';
 
 interface Establishment {
   id: string;
@@ -516,6 +517,7 @@ function InfoItem({ icon, label, value }: { icon: React.ReactNode; label: string
         <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
         <p className="text-sm text-foreground">{value}</p>
       </div>
+      <MabiniButton pageContext="You are on the Establishments page. This page manages business establishments and permits in the barangay." />
     </div>
   );
 }

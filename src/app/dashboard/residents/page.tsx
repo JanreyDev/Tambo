@@ -16,41 +16,13 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Badge, StatusBadge } from "@/components/ui/badge";
 import { Modal, ModalButton } from "@/components/ui/modal";
 import { SortableHeader } from "@/components/ui/sortable-header";
-import { cn } from "@/lib/utils";
+import { cn, resolvePhotoUrl } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import type { ApiError, DashboardStats, DuplicateMatch, ResidentSummary, ResidentDetail, PaginatedResponse } from "@/lib/types";
 import { MabiniButton } from "@/components/ui/mabini-button";
+import ResidentPinMap from "@/components/map/resident-pin-map-dynamic";
 
-// ── Types ──
-interface Resident {
-  id: string; resident_number: string; first_name: string; middle_name: string; last_name: string;
-  extension_name: string; sex: string; date_of_birth: string; age: number; civil_status: string;
-  purok: string; street: string; house_number: string; mobile_number: string; email: string;
-  status: string; is_voter: boolean; is_head_of_household: boolean; resident_type: string;
-  occupation: string; profile_completion_pct: number; flags: { type: "grey" | "red"; label: string }[];
-  created_at: string; place_of_birth: string; nationality: string; religion: string; blood_type: string;
-  telephone: string; educational_attainment: string; employer: string; monthly_income: string;
-  philhealth_number: string; sss_gsis_number: string; pagibig_number: string; tin_number: string;
-  voter_id: string; precinct_number: string; household_number: string; relationship_to_head: string;
-  is_pwd: boolean; pwd_type: string; is_4ps: boolean; is_solo_parent: boolean;
-}
-
-// ── Mock Data ──
-const mockResidents: Resident[] = [
-  { id: "1", resident_number: "RES-1376040160-0001", first_name: "Maria", middle_name: "Santos", last_name: "Dela Cruz", extension_name: "", sex: "female", date_of_birth: "1985-03-15", age: 41, civil_status: "married", purok: "Sampaguita", street: "Rizal St.", house_number: "123", mobile_number: "09171234567", email: "maria@email.com", status: "active", is_voter: true, is_head_of_household: true, resident_type: "permanent", occupation: "Teacher", profile_completion_pct: 92, flags: [], created_at: "2026-01-15", place_of_birth: "Manila", nationality: "Filipino", religion: "Catholic", blood_type: "O+", telephone: "", educational_attainment: "College Graduate", employer: "DepEd", monthly_income: "25000", philhealth_number: "PH-001234567", sss_gsis_number: "GSIS-0987654", pagibig_number: "HD-12345678", tin_number: "123-456-789", voter_id: "VN-001234", precinct_number: "0045A", household_number: "HH-001", relationship_to_head: "Head", is_pwd: false, pwd_type: "", is_4ps: false, is_solo_parent: false },
-  { id: "2", resident_number: "RES-1376040160-0002", first_name: "Juan", middle_name: "Reyes", last_name: "Santos", extension_name: "Jr.", sex: "male", date_of_birth: "1990-07-22", age: 35, civil_status: "single", purok: "Rosal", street: "Mabini St.", house_number: "45", mobile_number: "09281234567", email: "", status: "active", is_voter: true, is_head_of_household: false, resident_type: "permanent", occupation: "Tricycle Driver", profile_completion_pct: 78, flags: [{ type: "grey", label: "This resident also has records registered in Brgy. Amucao, Tarlac City. Cross-barangay verification recommended before issuing official documents." }], created_at: "2026-01-20", place_of_birth: "Tarlac", nationality: "Filipino", religion: "Catholic", blood_type: "B+", telephone: "", educational_attainment: "High School Graduate", employer: "Self-employed", monthly_income: "12000", philhealth_number: "", sss_gsis_number: "SSS-1234567", pagibig_number: "", tin_number: "", voter_id: "VN-002345", precinct_number: "0045A", household_number: "HH-015", relationship_to_head: "Son", is_pwd: false, pwd_type: "", is_4ps: false, is_solo_parent: false },
-  { id: "3", resident_number: "RES-1376040160-0003", first_name: "Ana", middle_name: "Lopez", last_name: "Garcia", extension_name: "", sex: "female", date_of_birth: "1972-11-08", age: 53, civil_status: "widowed", purok: "Ilang-Ilang", street: "Bonifacio Ave.", house_number: "67", mobile_number: "09351234567", email: "ana.garcia@email.com", status: "active", is_voter: true, is_head_of_household: true, resident_type: "permanent", occupation: "Sari-sari Store Owner", profile_completion_pct: 85, flags: [], created_at: "2026-02-01", place_of_birth: "Zambales", nationality: "Filipino", religion: "Catholic", blood_type: "A+", telephone: "044-123-4567", educational_attainment: "College Level", employer: "Self-employed", monthly_income: "15000", philhealth_number: "PH-009876543", sss_gsis_number: "SSS-7654321", pagibig_number: "HD-87654321", tin_number: "987-654-321", voter_id: "VN-003456", precinct_number: "0046B", household_number: "HH-022", relationship_to_head: "Head", is_pwd: false, pwd_type: "", is_4ps: true, is_solo_parent: true },
-  { id: "4", resident_number: "RES-1376040160-0004", first_name: "Pedro", middle_name: "Aquino", last_name: "Reyes", extension_name: "", sex: "male", date_of_birth: "1998-01-30", age: 28, civil_status: "single", purok: "Sampaguita", street: "Luna St.", house_number: "89", mobile_number: "09451234567", email: "", status: "active", is_voter: false, is_head_of_household: false, resident_type: "permanent", occupation: "Construction Worker", profile_completion_pct: 65, flags: [{ type: "red", label: "This resident has an active case record: BLO-2026-003 (Blotter complaint filed 2026-01-18). Review the Blotter Records module for case details before issuing clearances." }], created_at: "2026-02-05", place_of_birth: "Tarlac", nationality: "Filipino", religion: "INC", blood_type: "", telephone: "", educational_attainment: "High School Graduate", employer: "ABC Construction", monthly_income: "15000", philhealth_number: "", sss_gsis_number: "", pagibig_number: "", tin_number: "", voter_id: "", precinct_number: "", household_number: "HH-001", relationship_to_head: "Nephew", is_pwd: false, pwd_type: "", is_4ps: false, is_solo_parent: false },
-  { id: "5", resident_number: "RES-1376040160-0005", first_name: "Rosa", middle_name: "Bautista", last_name: "De Los Santos", extension_name: "", sex: "female", date_of_birth: "1965-05-12", age: 60, civil_status: "married", purok: "Dahlia", street: "Del Pilar St.", house_number: "101", mobile_number: "09161234567", email: "", status: "active", is_voter: true, is_head_of_household: true, resident_type: "permanent", occupation: "Barangay Health Worker", profile_completion_pct: 98, flags: [], created_at: "2026-02-10", place_of_birth: "Zambales", nationality: "Filipino", religion: "Catholic", blood_type: "AB+", telephone: "", educational_attainment: "College Graduate", employer: "Barangay Tambo", monthly_income: "8000", philhealth_number: "PH-005555555", sss_gsis_number: "SSS-5555555", pagibig_number: "HD-55555555", tin_number: "555-555-555", voter_id: "VN-005555", precinct_number: "0047C", household_number: "HH-030", relationship_to_head: "Head", is_pwd: false, pwd_type: "", is_4ps: false, is_solo_parent: false },
-  { id: "6", resident_number: "RES-1376040160-0006", first_name: "Roberto", middle_name: "Cruz", last_name: "Manalo", extension_name: "", sex: "male", date_of_birth: "1988-09-03", age: 37, civil_status: "married", purok: "Rosal", street: "Aguinaldo St.", house_number: "33", mobile_number: "09271234567", email: "roberto.m@email.com", status: "active", is_voter: true, is_head_of_household: true, resident_type: "permanent", occupation: "Fisherman", profile_completion_pct: 80, flags: [{ type: "grey", label: "This resident also has records registered in Brgy. San Nicolas, Tarlac City. Cross-barangay verification recommended before issuing official documents." }, { type: "grey", label: "This resident also has records registered in Brgy. Amucao, Tarlac City. Cross-barangay verification recommended before issuing official documents." }, { type: "grey", label: "This resident also has records registered in Brgy. Dalayap, Tarlac City. Cross-barangay verification recommended before issuing official documents." }, { type: "grey", label: "This resident also has records registered in Brgy. Maliwalo, Tarlac City. Cross-barangay verification recommended before issuing official documents." }, { type: "grey", label: "This resident also has records registered in Brgy. San Roque, Tarlac City. Cross-barangay verification recommended before issuing official documents." }], created_at: "2026-02-14", place_of_birth: "Zambales", nationality: "Filipino", religion: "Catholic", blood_type: "O-", telephone: "", educational_attainment: "Elementary Graduate", employer: "Self-employed", monthly_income: "10000", philhealth_number: "", sss_gsis_number: "", pagibig_number: "", tin_number: "", voter_id: "VN-006666", precinct_number: "0045A", household_number: "HH-035", relationship_to_head: "Head", is_pwd: false, pwd_type: "", is_4ps: true, is_solo_parent: false },
-  { id: "7", resident_number: "RES-1376040160-0007", first_name: "Liza", middle_name: "Tan", last_name: "Villanueva", extension_name: "", sex: "female", date_of_birth: "2001-12-25", age: 24, civil_status: "single", purok: "Jasmine", street: "Rizal St.", house_number: "55", mobile_number: "09381234567", email: "liza.v@email.com", status: "active", is_voter: true, is_head_of_household: false, resident_type: "permanent", occupation: "Nurse", profile_completion_pct: 88, flags: [], created_at: "2026-02-18", place_of_birth: "Manila", nationality: "Filipino", religion: "Catholic", blood_type: "A-", telephone: "", educational_attainment: "College Graduate", employer: "Provincial Hospital", monthly_income: "28000", philhealth_number: "PH-007777777", sss_gsis_number: "SSS-7777777", pagibig_number: "HD-77777777", tin_number: "777-777-777", voter_id: "VN-007777", precinct_number: "0048D", household_number: "HH-015", relationship_to_head: "Daughter", is_pwd: false, pwd_type: "", is_4ps: false, is_solo_parent: false },
-  { id: "8", resident_number: "RES-1376040160-0008", first_name: "Eduardo", middle_name: "Navarro", last_name: "Ramos", extension_name: "Sr.", sex: "male", date_of_birth: "1955-04-10", age: 70, civil_status: "married", purok: "Sunflower", street: "Quezon Blvd.", house_number: "12", mobile_number: "09191234567", email: "", status: "active", is_voter: true, is_head_of_household: true, resident_type: "permanent", occupation: "Retired", profile_completion_pct: 70, flags: [], created_at: "2026-02-22", place_of_birth: "Zambales", nationality: "Filipino", religion: "Catholic", blood_type: "B-", telephone: "044-987-6543", educational_attainment: "High School Graduate", employer: "", monthly_income: "5000", philhealth_number: "PH-008888888", sss_gsis_number: "GSIS-8888888", pagibig_number: "HD-88888888", tin_number: "888-888-888", voter_id: "VN-008888", precinct_number: "0049E", household_number: "HH-040", relationship_to_head: "Head", is_pwd: false, pwd_type: "", is_4ps: false, is_solo_parent: false },
-  { id: "9", resident_number: "RES-1376040160-0009", first_name: "Carmen", middle_name: "Flores", last_name: "Gonzales", extension_name: "", sex: "female", date_of_birth: "1995-08-17", age: 30, civil_status: "married", purok: "Orchid", street: "Mabini St.", house_number: "77", mobile_number: "09321234567", email: "carmen.g@email.com", status: "inactive", is_voter: false, is_head_of_household: false, resident_type: "transient", occupation: "Cashier", profile_completion_pct: 55, flags: [], created_at: "2026-02-28", place_of_birth: "Bulacan", nationality: "Filipino", religion: "Born Again", blood_type: "O+", telephone: "", educational_attainment: "College Level", employer: "SM Supermarket", monthly_income: "13000", philhealth_number: "PH-009999999", sss_gsis_number: "SSS-9999999", pagibig_number: "", tin_number: "", voter_id: "", precinct_number: "", household_number: "HH-022", relationship_to_head: "Spouse", is_pwd: false, pwd_type: "", is_4ps: false, is_solo_parent: false },
-  { id: "10", resident_number: "RES-1376040160-0010", first_name: "Miguel", middle_name: "Torres", last_name: "Aquino", extension_name: "", sex: "male", date_of_birth: "2003-06-05", age: 22, civil_status: "single", purok: "Sampaguita", street: "Luna St.", house_number: "89-B", mobile_number: "09491234567", email: "", status: "active", is_voter: true, is_head_of_household: false, resident_type: "permanent", occupation: "Student", profile_completion_pct: 60, flags: [], created_at: "2026-03-01", place_of_birth: "Zambales", nationality: "Filipino", religion: "Catholic", blood_type: "", telephone: "", educational_attainment: "College Level", employer: "", monthly_income: "", philhealth_number: "", sss_gsis_number: "", pagibig_number: "", tin_number: "", voter_id: "VN-010101", precinct_number: "0045A", household_number: "HH-001", relationship_to_head: "Son", is_pwd: false, pwd_type: "", is_4ps: false, is_solo_parent: false },
-  { id: "11", resident_number: "RES-1376040160-0011", first_name: "Luisa", middle_name: "Mendoza", last_name: "Fernandez", extension_name: "", sex: "female", date_of_birth: "1980-02-14", age: 46, civil_status: "separated", purok: "Dahlia", street: "Rizal St.", house_number: "200", mobile_number: "09211234567", email: "", status: "active", is_voter: true, is_head_of_household: true, resident_type: "permanent", occupation: "Laundress", profile_completion_pct: 72, flags: [], created_at: "2026-03-03", place_of_birth: "Zambales", nationality: "Filipino", religion: "Catholic", blood_type: "AB-", telephone: "", educational_attainment: "Elementary Graduate", employer: "Self-employed", monthly_income: "8000", philhealth_number: "PH-011111111", sss_gsis_number: "", pagibig_number: "", tin_number: "", voter_id: "VN-011111", precinct_number: "0047C", household_number: "HH-050", relationship_to_head: "Head", is_pwd: false, pwd_type: "", is_4ps: true, is_solo_parent: true },
-  { id: "12", resident_number: "RES-1376040160-0012", first_name: "Angelo", middle_name: "Dizon", last_name: "Pascual", extension_name: "", sex: "male", date_of_birth: "1993-10-19", age: 32, civil_status: "married", purok: "Ilang-Ilang", street: "Del Pilar St.", house_number: "44", mobile_number: "09471234567", email: "angelo.p@email.com", status: "active", is_voter: true, is_head_of_household: true, resident_type: "permanent", occupation: "Electrician", profile_completion_pct: 82, flags: [], created_at: "2026-03-06", place_of_birth: "Zambales", nationality: "Filipino", religion: "Catholic", blood_type: "A+", telephone: "", educational_attainment: "Vocational", employer: "Self-employed", monthly_income: "18000", philhealth_number: "PH-012121212", sss_gsis_number: "SSS-1212121", pagibig_number: "HD-12121212", tin_number: "121-212-121", voter_id: "VN-012121", precinct_number: "0046B", household_number: "HH-045", relationship_to_head: "Head", is_pwd: false, pwd_type: "", is_4ps: false, is_solo_parent: false },
-];
 
 // Mock learned address entries -- in production, fetched from barangay_address_entries API
 // The system learns these over time from clerk input (no manual Settings config needed)
@@ -92,9 +64,19 @@ const formatPHMobile = (raw: string) => {
 const puroks = ["All Puroks", ...defaultPuroks];
 const statuses = ["All Status", "Active", "Inactive", "Deceased", "Transferred"];
 const sexOptions = ["All", "Male", "Female"];
-const civilStatuses = ["Single", "Married", "Widowed", "Separated", "Divorced", "Live-in"];
+const civilStatuses = ["Single", "Married", "Widowed", "Separated", "Divorced", "Annulled", "Live-in"];
 const bloodTypes = ["", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
-const educationLevels = ["", "No Formal Education", "Elementary Level", "Elementary Graduate", "High School Level", "High School Graduate", "Vocational", "College Level", "College Graduate", "Post Graduate"];
+const educationLevels = ["", "No Formal Education", "Elementary Graduate", "High School Graduate", "Vocational", "College Graduate", "Post Graduate"];
+
+// Per-level field rules for Educational Attainment
+function eduFieldRules(level: string) {
+  const noFormal = level === "No Formal Education";
+  const noCourse = noFormal || level === "Elementary Graduate" || level === "High School Graduate";
+  return {
+    allDisabled: noFormal,           // lock every other field
+    courseDisabled: noCourse,        // Course/Program not applicable
+  };
+}
 // religions, citizenshipOptions, ethnicityOptions replaced by SmartEntry arrays (dynamic combobox)
 const extensions = ["", "Jr.", "Sr.", "II", "III", "IV", "V"];
 const residentTypes = ["", "Permanent", "Transient", "Seasonal", "Migrant"];
@@ -345,7 +327,12 @@ function FDatePicker({ label, name, required, value, onChange, className, valid,
           <div className="flex items-center justify-between mt-2 pt-2 border-t border-border">
             <button type="button" onClick={() => { onChange(name, ""); setOpen(false); }}
               className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">Clear</button>
-            <button type="button" onClick={() => { setViewMonth(today.getMonth()); setViewYear(today.getFullYear()); }}
+            <button type="button" onClick={() => {
+              const mm = String(today.getMonth() + 1).padStart(2, "0");
+              const dd = String(today.getDate()).padStart(2, "0");
+              onChange(name, `${today.getFullYear()}-${mm}-${dd}`);
+              setOpen(false);
+            }}
               className="text-[11px] font-medium hover:text-accent-text transition-colors" style={{ color: "var(--accent-primary)" }}>Today</button>
           </div>
         </div>,
@@ -355,15 +342,16 @@ function FDatePicker({ label, name, required, value, onChange, className, valid,
   );
 }
 
-function FSelect({ label, name, options, required, value, onChange, className, error }: {
-  label: string; name: string; options: string[]; required?: boolean; value: string; onChange: (name: string, value: string | boolean) => void; className?: string; error?: string;
+function FSelect({ label, name, options, required, value, onChange, className, error, disabled }: {
+  label: string; name: string; options: string[]; required?: boolean; value: string; onChange: (name: string, value: string | boolean) => void; className?: string; error?: string; disabled?: boolean;
 }) {
   return (
-    <div className={className}>
+    <div className={cn(className, disabled && "opacity-40 pointer-events-none")}>
       <label className="block text-xs font-medium text-muted-foreground mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <select name={name} value={value} onChange={(e) => onChange(name, e.target.value)}
+      <select name={name} value={value} onChange={(e) => onChange(name, e.target.value)} disabled={disabled}
         className={cn("w-full px-3 py-2.5 text-sm rounded-xl focus:outline-none transition-all duration-200",
-          error ? "border border-red-500 focus:ring-2 focus:ring-red-300 bg-red-50 dark:bg-red-950/20" : "glass-input")}>
+          error ? "border border-red-500 focus:ring-2 focus:ring-red-300 bg-red-50 dark:bg-red-950/20" : "glass-input",
+          disabled && "cursor-not-allowed")}>
         {options.map((o) => <option key={o} value={o === options[0] && o === "" ? "" : o}>{o || `Select ${label.toLowerCase()}`}</option>)}
       </select>
       {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
@@ -414,12 +402,13 @@ function similarity(a: string, b: string): number {
 
 interface SmartEntry { canonical: string; count: number; aliases: string[] }
 
-function FCombobox({ label, name, entries, required, value, onChange, onSubmit, onEntriesChange, placeholder: customPlaceholder }: {
+function FCombobox({ label, name, entries, required, value, onChange, onSubmit, onEntriesChange, placeholder: customPlaceholder, disabled }: {
   label: string; name: string; entries: SmartEntry[]; required?: boolean; value: string;
   onChange: (name: string, value: string | boolean) => void;
   onSubmit?: (value: string) => void;
   onEntriesChange?: React.Dispatch<React.SetStateAction<SmartEntry[]>>;
   placeholder?: string;
+  disabled?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -496,14 +485,15 @@ function FCombobox({ label, name, entries, required, value, onChange, onSubmit, 
   };
 
   return (
-    <div ref={wrapperRef} className="relative">
+    <div ref={wrapperRef} className={cn("relative", disabled && "opacity-40 pointer-events-none")}>
       <label className="block text-xs font-medium text-muted-foreground mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
       <div className={cn("flex items-center w-full rounded-xl transition-all duration-200",
         open ? "glass-input" : "glass-input")}
         style={open ? { borderColor: "var(--accent-primary)", boxShadow: "0 0 0 3px rgba(37, 99, 235, 0.12)" } : undefined}>
         <input type="text" value={open ? query : value} placeholder={value || customPlaceholder || `Type to search or add...`}
           className="flex-1 px-3 py-2.5 text-sm bg-transparent focus:outline-none min-w-0 uppercase"
-          onFocus={openCombobox}
+          disabled={disabled}
+          onFocus={disabled ? undefined : openCombobox}
           onChange={(e) => { setQuery(e.target.value.toUpperCase()); if (!open) openCombobox(); }}
           onKeyDown={(e) => { if (e.key === "Enter" && trimmed) { e.preventDefault(); fuzzyMatch ? handleSelect(fuzzyMatch.canonical) : handleNew(); } }} />
         {value && !open && (
@@ -617,17 +607,8 @@ const emptyWork: WorkEntry = { position: "", company: "", employment_type: "", s
 interface BusinessEntry { business_name: string; business_type: string; business_address: string; business_permit_no: string; dti_sec_no: string; monthly_income: string; start_year: string; status: string; description: string; }
 const emptyBusiness: BusinessEntry = { business_name: "", business_type: "", business_address: "", business_permit_no: "", dti_sec_no: "", monthly_income: "", start_year: "", status: "", description: "" };
 const businessStatuses = ["", "Active", "Temporarily Closed", "Closed", "Seasonal"];
-const livelihoodTypes = ["", "Employed", "Self-Employed / Business Owner", "Both", "Unemployed", "Retired", "Student", "OFW"];
+const livelihoodTypes = ["", "Employed", "Self-Employed / Business Owner", "Unemployed", "Retired", "Student", "OFW"];
 
-// ── Relative Entry ──
-interface RelativeEntry { resident_id: string; resident_name: string; relationship: string; }
-const emptyRelative: RelativeEntry = { resident_id: "", resident_name: "", relationship: "" };
-const relativeRelationships = ["", "Spouse", "Father", "Mother", "Son", "Daughter", "Brother", "Sister", "Grandfather", "Grandmother", "Grandson", "Granddaughter", "Uncle", "Aunt", "Nephew", "Niece", "Cousin", "Father-in-law", "Mother-in-law", "Son-in-law", "Daughter-in-law", "Brother-in-law", "Sister-in-law", "Stepfather", "Stepmother", "Stepson", "Stepdaughter", "Guardian", "Ward", "Others"];
-
-// ── Pet Entry ──
-interface PetAttachment { name: string; type: "image" | "document"; preview?: string; }
-interface PetEntry { name: string; date_of_birth: string; pet_type: string; sex: string; remarks: string; photo: string | null; attachments: PetAttachment[]; }
-const emptyPet: PetEntry = { name: "", date_of_birth: "", pet_type: "", sex: "", remarks: "", photo: null, attachments: [] };
 const defaultEmergencyRelEntries: SmartEntry[] = [
   { canonical: "Spouse", count: 180, aliases: ["wife", "husband", "asawa"] },
   { canonical: "Parent", count: 120, aliases: ["father", "mother", "tatay", "nanay", "mama", "papa"] },
@@ -640,56 +621,6 @@ const defaultEmergencyRelEntries: SmartEntry[] = [
   { canonical: "Guardian", count: 10, aliases: ["legal guardian"] },
   { canonical: "Employer", count: 5, aliases: ["boss"] },
   { canonical: "Co-worker", count: 3, aliases: ["katrabaho", "officemate"] },
-];
-const defaultPetTypeEntries: SmartEntry[] = [
-  { canonical: "Dog", count: 320, aliases: ["aso", "puppy", "aspin"] },
-  { canonical: "Cat", count: 180, aliases: ["pusa", "kitten", "puspin"] },
-  { canonical: "Bird", count: 45, aliases: ["ibon"] },
-  { canonical: "Fish", count: 35, aliases: ["isda", "goldfish", "koi"] },
-  { canonical: "Chicken", count: 60, aliases: ["manok", "rooster", "hen"] },
-  { canonical: "Rabbit", count: 12, aliases: ["kuneho", "bunny"] },
-  { canonical: "Goat", count: 25, aliases: ["kambing"] },
-  { canonical: "Pig", count: 40, aliases: ["baboy"] },
-  { canonical: "Cow", count: 15, aliases: ["baka"] },
-  { canonical: "Carabao", count: 18, aliases: ["kalabaw", "water buffalo"] },
-  { canonical: "Horse", count: 8, aliases: ["kabayo"] },
-  { canonical: "Turtle", count: 6, aliases: ["pagong"] },
-  { canonical: "Duck", count: 20, aliases: ["pato", "itik"] },
-];
-const petSexOptions = ["", "Male", "Female"];
-
-// ── Assistance/Solicitation Entry ──
-interface AssistanceAttachment { name: string; type: "image" | "document"; preview?: string; }
-interface AssistanceEntry { date: string; type: string; description: string; amount: string; source: string; status: string; remarks: string; attachments: AssistanceAttachment[]; }
-const emptyAssistance: AssistanceEntry = { date: "", type: "", description: "", amount: "", source: "", status: "", remarks: "", attachments: [] };
-const defaultAssistanceTypeEntries: SmartEntry[] = [
-  { canonical: "Financial", count: 220, aliases: ["cash", "monetary", "financial assistance", "pera"] },
-  { canonical: "Medical", count: 180, aliases: ["medicine", "hospital", "medical assistance", "gamot"] },
-  { canonical: "Food Pack", count: 150, aliases: ["food", "grocery", "relief goods", "bigas"] },
-  { canonical: "Livelihood", count: 65, aliases: ["livelihood assistance", "puhunan", "capital"] },
-  { canonical: "Educational", count: 55, aliases: ["school", "tuition", "school supplies", "pang-aral"] },
-  { canonical: "Housing/Shelter", count: 30, aliases: ["housing", "shelter", "bahay", "roof repair"] },
-  { canonical: "Burial", count: 45, aliases: ["death", "funeral", "libing", "burial assistance"] },
-  { canonical: "Calamity Relief", count: 40, aliases: ["calamity", "disaster", "typhoon", "flood"] },
-  { canonical: "Legal", count: 12, aliases: ["legal assistance", "legal aid"] },
-  { canonical: "Referral Letter", count: 35, aliases: ["referral", "endorsement"] },
-  { canonical: "Transportation", count: 20, aliases: ["fare", "pamasahe"] },
-  { canonical: "Scholarship", count: 15, aliases: ["iskolar", "scholarship grant"] },
-];
-const defaultAssistanceSourceEntries: SmartEntry[] = [
-  { canonical: "Barangay Fund", count: 310, aliases: ["barangay", "brgy fund", "brgy"] },
-  { canonical: "Municipal/City Fund", count: 85, aliases: ["city fund", "municipal fund", "city hall"] },
-  { canonical: "Provincial Fund", count: 45, aliases: ["provincial", "capitol"] },
-  { canonical: "DSWD", count: 120, aliases: ["dswd assistance"] },
-  { canonical: "4Ps/Pantawid", count: 95, aliases: ["4ps", "pantawid", "cct"] },
-  { canonical: "AICS", count: 60, aliases: ["assistance to individuals in crisis situation"] },
-  { canonical: "Congressional Fund", count: 30, aliases: ["congressman", "congress", "district fund"] },
-  { canonical: "SK Fund", count: 50, aliases: ["sk", "sangguniang kabataan"] },
-  { canonical: "Private/NGO", count: 25, aliases: ["ngo", "private", "charity", "foundation"] },
-  { canonical: "Red Cross", count: 15, aliases: ["philippine red cross", "prc"] },
-  { canonical: "PCSO", count: 20, aliases: ["pcso medical", "lotto"] },
-  { canonical: "DOH", count: 18, aliases: ["department of health", "malasakit"] },
-  { canonical: "Senatorial Fund", count: 10, aliases: ["senator", "senador"] },
 ];
 const defaultSectorOtherEntries: SmartEntry[] = [
   { canonical: "Tricycle Driver", count: 180, aliases: ["trike", "traysikel", "trisikad"] },
@@ -823,8 +754,6 @@ const defaultEmployerEntries: SmartEntry[] = [
   { canonical: "Church / Religious Org", count: 18, aliases: ["simbahan", "church", "religious"] },
   { canonical: "NGO / Foundation", count: 15, aliases: ["ngo", "foundation", "charity", "non-profit"] },
 ];
-const assistanceStatuses = ["", "Received", "Pending", "Approved", "Denied", "Partially Received"];
-
 // ── Smart Entries: Education ──
 const defaultCourseEntries: SmartEntry[] = [
   { canonical: "BS Computer Science", count: 45, aliases: ["bscs", "compsci", "cs"] },
@@ -951,6 +880,21 @@ function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
 }
 
 // ══════════════════════════════════════════════════════════════
+// ── Data URL → Blob (no fetch — works under any CSP) ──
+function dataUrlToBlob(dataUrl: string): Blob {
+  try {
+    const [header, b64] = dataUrl.split(",");
+    const mime = header.match(/:(.*?);/)?.[1] ?? "image/jpeg";
+    const bytes = atob(b64);
+    const arr = new Uint8Array(bytes.length);
+    for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+    return new Blob([arr], { type: mime });
+  } catch {
+    return new Blob([], { type: "image/jpeg" });
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
 // ── Overpass → GeoJSON helpers (barangay boundary overlay) ──
 interface OverpassPoint { lat: number; lon: number; }
 interface OverpassMember { type: string; role: string; ref: number; geometry?: OverpassPoint[]; }
@@ -1012,12 +956,32 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
   const [statusFilter, setStatusFilter] = useState("All Status");
   const [sexFilter, setSexFilter] = useState("All");
   const [voterFilter, setVoterFilter] = useState("all");
+  const [civilStatusFilter, setCivilStatusFilter] = useState("All Civil Status");
+  const [residentTypeFilter, setResidentTypeFilter] = useState("All Resident Types");
+  const [hohFilter, setHohFilter] = useState("all");
+  const [citizenshipFilter, setCitizenshipFilter] = useState("All Citizenship");
+  const [religionFilter, setReligionFilter] = useState("All Religion");
+  const [ethnicityFilter, setEthnicityFilter] = useState("All Ethnicity");
+  const [sectorFilter, setSectorFilter] = useState("All Sectors");
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
   const [viewResident, setViewResident] = useState<ResidentDetail | null>(null);
   const [viewLoading, setViewLoading] = useState(false);
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{ message: string; imported: number; skipped: number; errors: string[]; batch_id?: string } | null>(null);
+  const importFileRef = useRef<HTMLInputElement>(null);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importPreview, setImportPreview] = useState<{
+    headers: string[];
+    sample_rows: string[][];
+    total_rows: number;
+    auto_mapping: Record<string, number>;
+  } | null>(null);
+  const [importMapping, setImportMapping] = useState<Record<string, number | "">>({});
+  const [importPreviewLoading, setImportPreviewLoading] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [actionMenu, setActionMenu] = useState<string | null>(null);
   const [hoveredTooltip, setHoveredTooltip] = useState<string | null>(null);
@@ -1062,6 +1026,14 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
       if (sexFilter !== "All") params.sex = sexFilter.toLowerCase();
       if (voterFilter === "voter") params.is_voter = true;
       if (voterFilter === "non-voter") params.is_voter = false;
+      if (civilStatusFilter !== "All Civil Status") params.civil_status = civilStatusFilter.toLowerCase();
+      if (residentTypeFilter !== "All Resident Types") params.resident_type = residentTypeFilter.toLowerCase();
+      if (hohFilter === "hoh") params.is_head_of_household = true;
+      if (hohFilter === "non-hoh") params.is_head_of_household = false;
+      if (citizenshipFilter !== "All Citizenship") params.citizenship = citizenshipFilter;
+      if (religionFilter !== "All Religion") params.religion = religionFilter;
+      if (ethnicityFilter !== "All Ethnicity") params.ethnicity = ethnicityFilter;
+      if (sectorFilter !== "All Sectors") params.sector = sectorFilter;
       if (sortKey) {
         // Map frontend sort keys to backend column names
         const sortMap: Record<string, string> = { age: "date_of_birth", resident_number: "resident_number", last_name: "last_name", created_at: "created_at" };
@@ -1078,7 +1050,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
     } finally {
       setListLoading(false);
     }
-  }, [page, search, purokFilter, statusFilter, sexFilter, voterFilter, sortKey, sortDir]);
+  }, [page, search, purokFilter, statusFilter, sexFilter, voterFilter, civilStatusFilter, residentTypeFilter, hohFilter, citizenshipFilter, religionFilter, ethnicityFilter, sectorFilter, sortKey, sortDir]);
 
   // ── Form State ──
   const [mode, setMode] = useState<"list" | "create" | "edit">("list");
@@ -1090,6 +1062,104 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
       fetchResidentStats();
     }
   }, [mode, fetchResidents, fetchResidentStats]);
+
+  // ── Export CSV ──
+  const handleExport = useCallback(async () => {
+    setExporting(true);
+    try {
+      const params: Record<string, string> = {};
+      if (search) params.search = search;
+      if (purokFilter !== "All Puroks") params.purok = purokFilter;
+      if (statusFilter !== "All Status") params.status = statusFilter.toLowerCase();
+      if (sexFilter !== "All") params.sex = sexFilter.toLowerCase();
+      if (voterFilter === "voter") params.is_voter = "true";
+      if (voterFilter === "non-voter") params.is_voter = "false";
+      if (civilStatusFilter !== "All Civil Status") params.civil_status = civilStatusFilter.toLowerCase();
+      if (residentTypeFilter !== "All Resident Types") params.resident_type = residentTypeFilter.toLowerCase();
+      if (hohFilter === "hoh") params.is_head_of_household = "true";
+      if (hohFilter === "non-hoh") params.is_head_of_household = "false";
+      if (citizenshipFilter !== "All Citizenship") params.citizenship = citizenshipFilter;
+      if (religionFilter !== "All Religion") params.religion = religionFilter;
+      if (ethnicityFilter !== "All Ethnicity") params.ethnicity = ethnicityFilter;
+      if (sectorFilter !== "All Sectors") params.sector = sectorFilter;
+
+      const res = await api.residents.exportCsv(params);
+      if (!res.ok) throw new Error("Export failed");
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      // Extract filename from Content-Disposition header or use default
+      const cd = res.headers.get("Content-Disposition");
+      const match = cd?.match(/filename[^;=\n]*=([^;\n]*)/);
+      a.download = match?.[1]?.replace(/['"]/g, "") || `residents-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      alert("Failed to export residents. Please try again.");
+    } finally {
+      setExporting(false);
+    }
+  }, [search, purokFilter, statusFilter, sexFilter, voterFilter, civilStatusFilter, residentTypeFilter, hohFilter, citizenshipFilter, religionFilter, ethnicityFilter, sectorFilter]);
+
+  // ── Import CSV — Step 1: Preview (column mapping) ──
+  const handleImportFileSelect = useCallback(async (file: File) => {
+    setImportFile(file);
+    setImportPreviewLoading(true);
+    setImportResult(null);
+    try {
+      const preview = await api.residents.importPreview(file);
+      setImportPreview(preview);
+      setImportMapping(preview.auto_mapping as Record<string, number | "">);
+    } catch (err: unknown) {
+      const msg = (err && typeof err === "object" && "message" in err) ? String((err as Record<string, unknown>).message) : "Failed to read file";
+      setImportResult({ message: msg, imported: 0, skipped: 0, errors: [] });
+      setImportFile(null);
+    } finally {
+      setImportPreviewLoading(false);
+      if (importFileRef.current) importFileRef.current.value = "";
+    }
+  }, []);
+
+  // ── Import CSV — Step 2: Confirm with mapping ──
+  const handleImportConfirm = useCallback(async () => {
+    if (!importFile) return;
+    // Validate required fields mapped
+    if (importMapping.first_name === "" || importMapping.first_name === undefined ||
+        importMapping.last_name === "" || importMapping.last_name === undefined) {
+      return;
+    }
+    setImporting(true);
+    try {
+      const cleanMapping: Record<string, number> = {};
+      Object.entries(importMapping).forEach(([k, v]) => { if (v !== "" && v !== undefined) cleanMapping[k] = Number(v); });
+      const result = await api.residents.importCsv(importFile, cleanMapping);
+      setImportResult(result);
+      setImportPreview(null);
+      setImportFile(null);
+      fetchResidents();
+    } catch (err: unknown) {
+      const msg = (err && typeof err === "object" && "message" in err) ? String((err as Record<string, unknown>).message) : "Import failed";
+      setImportResult({ message: msg, imported: 0, skipped: 0, errors: [] });
+    } finally {
+      setImporting(false);
+    }
+  }, [importFile, importMapping, fetchResidents]);
+
+  // ── Import — Rollback batch ──
+  const handleRollback = useCallback(async (batchId: string) => {
+    if (!confirm("This will permanently delete all residents from this import. Continue?")) return;
+    try {
+      const result = await api.residents.rollbackBatch(batchId);
+      setImportResult({ message: result.message, imported: 0, skipped: 0, errors: [] });
+      fetchResidents();
+    } catch {
+      alert("Failed to rollback import.");
+    }
+  }, [fetchResidents]);
 
   // Debounced search
   const handleSearchChange = useCallback((value: string) => {
@@ -1104,15 +1174,10 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
   const [sectors, setSectors] = useState<string[]>([]);
   const [eduEntries, setEduEntries] = useState<EduEntry[]>([{ ...emptyEdu }]);
   const [workEntries, setWorkEntries] = useState<WorkEntry[]>([{ ...emptyWork }]);
-  const [relativeEntries, setRelativeEntries] = useState<RelativeEntry[]>([]);
-  const [petEntries, setPetEntries] = useState<PetEntry[]>([]);
-  const [assistanceEntries, setAssistanceEntries] = useState<AssistanceEntry[]>([]);
-  const [relativeSearch, setRelativeSearch] = useState("");
-  const [relativeResults, setRelativeResults] = useState<{ id: string; name: string; purok: string }[]>([]);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     other: false,
     education: false, work: false, govinfo: false,
-    emergency: false, relatives: false, pets: false, assistance: false, biometric: false,
+    emergency: false, biometric: false,
   });
 
   // ── Form Validation ──
@@ -1134,9 +1199,6 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
   const [religionEntries, setReligionEntries] = useState<SmartEntry[]>(defaultReligionEntries);
   const [ethnicityEntries, setEthnicityEntries] = useState<SmartEntry[]>(defaultEthnicityEntries);
   const [emergencyRelEntries, setEmergencyRelEntries] = useState<SmartEntry[]>(defaultEmergencyRelEntries);
-  const [petTypeEntries, setPetTypeEntries] = useState<SmartEntry[]>(defaultPetTypeEntries);
-  const [assistanceTypeEntries, setAssistanceTypeEntries] = useState<SmartEntry[]>(defaultAssistanceTypeEntries);
-  const [assistanceSourceEntries, setAssistanceSourceEntries] = useState<SmartEntry[]>(defaultAssistanceSourceEntries);
   const [sectorOtherEntries, setSectorOtherEntries] = useState<SmartEntry[]>(defaultSectorOtherEntries);
   const [businessTypeEntries, setBusinessTypeEntries] = useState<SmartEntry[]>(defaultBusinessTypeEntries);
   const [occupationEntries, setOccupationEntries] = useState<SmartEntry[]>(defaultOccupationEntries);
@@ -1149,13 +1211,13 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
   const [placeOfBirthEntries, setPlaceOfBirthEntries] = useState<SmartEntry[]>(defaultPlaceOfBirthEntries);
 
   // ── Map State (Google Maps) ──
-  const mapContainerRef = useRef<HTMLDivElement>(null);
-  const googleMapRef = useRef<google.maps.Map | null>(null);
-  const googleMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
-  const mapInitIdRef = useRef<number>(0); // Abort token — incremented on each cleanup to cancel in-flight inits
-  const [mapReady, setMapReady] = useState(false);
+  // Map state — Leaflet handles the map DOM itself; we only track geocoding status
   const [mapLocating, setMapLocating] = useState(false);
-  const [mapError, setMapError] = useState("");
+
+  // Contained-scroll form layout — measure from form top to viewport bottom so the
+  // action bar sits naturally below the scroll area and can never overlap the map.
+  const formContainerRef = useRef<HTMLDivElement>(null);
+  const [formContainerHeight, setFormContainerHeight] = useState(0);
 
   const submitEntry = (entries: SmartEntry[], setEntries: React.Dispatch<React.SetStateAction<SmartEntry[]>>, val: string) => {
     setEntries((prev) => {
@@ -1361,15 +1423,36 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
     const watermarked = await stampWatermark(dataUrl);
     setPhotoPreview(watermarked);
 
-    // Upload to API and get file_id
+    // Resize to ID photo dimensions (max 480×600, JPEG 0.88) and convert to Blob.
+    // Uses atob() instead of fetch(dataUrl) — fetch() on data: URLs is blocked by CSP.
+    const photoBlob = await new Promise<Blob>((resolve) => {
+      const img = new globalThis.Image();
+      img.onload = () => {
+        try {
+          const MAX_W = 480, MAX_H = 600;
+          const scale = Math.min(MAX_W / img.width, MAX_H / img.height, 1);
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+          const ctx = canvas.getContext("2d");
+          if (!ctx) throw new Error("no ctx");
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          canvas.toBlob((b) => resolve(b ?? dataUrlToBlob(watermarked)), "image/jpeg", 0.88);
+        } catch {
+          resolve(dataUrlToBlob(watermarked));
+        }
+      };
+      img.onerror = () => resolve(dataUrlToBlob(watermarked));
+      img.src = watermarked;
+    });
+
+    // Upload to API — silent fail, never show red error to user (Tanga-Proof)
     try {
-      const res = await fetch(watermarked);
-      const blob = await res.blob();
-      const uploaded = await api.files.uploadPhoto(blob);
+      const uploaded = await api.files.uploadPhoto(photoBlob);
       updateForm("photo_file_id", uploaded.file.id);
-    } catch {
-      // Upload failed — photo preview still shows, but won't be saved server-side
-      // Non-blocking: user can still submit, photo just won't appear after save
+    } catch (err) {
+      // Log for debugging — don't block the user or show a scary error
+      console.warn("[Photo upload]", err);
     }
 
     try {
@@ -1501,8 +1584,12 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
     if (key === "mobile_number" && typeof v === "string") {
       v = formatPHMobile(v);
     }
+    // Use functional setState so async callers (geocoding, map pin) never overwrite
+    // fields that were typed after the callback was captured — stale-closure safe.
+    setForm((prev) => ({ ...prev, [key]: v }));
+    // Advisory side-effects: snapshot using current `form` + new value.
+    // Minor staleness is acceptable here (dup check + sector warnings are advisory).
     const next = { ...form, [key]: v };
-    setForm(next);
     // Clear field error on change
     if (formErrors[key]) setFormErrors((prev) => { const n = { ...prev }; delete n[key]; return n; });
     // Real-time validation for mobile/email
@@ -1583,9 +1670,16 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
     setFormErrors(errors);
     if (Object.keys(errors).length > 0) {
       const firstKey = Object.keys(errors)[0];
+      const firstMsg = errors[firstKey];
       const el = document.querySelector(`[name="${firstKey}"]`);
       el?.scrollIntoView({ behavior: "smooth", block: "center" });
-      addToast({ type: "error", title: "Validation Failed", message: `Please fix ${Object.keys(errors).length} error${Object.keys(errors).length > 1 ? "s" : ""} before submitting.`, duration: 4000 });
+      const count = Object.keys(errors).length;
+      addToast({
+        type: "error",
+        title: count > 1 ? `${count} fields need attention` : "Required field missing",
+        message: count > 1 ? `${firstMsg} (+ ${count - 1} more)` : firstMsg,
+        duration: 5000,
+      });
       return;
     }
 
@@ -1602,12 +1696,12 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
 
     // Flat string/boolean fields -> map directly
     const directFields = [
-      "first_name", "last_name", "middle_name", "extension_name", "alias",
+      "first_name", "last_name", "middle_name", "extension_name",
       "mothers_maiden_name", "date_of_birth", "place_of_birth",
       "citizenship", "religion", "ethnicity", "blood_type",
       "complexion", "email", "mobile_number",
-      "purok", "sitio", "house_block_lot", "street",
-      "zip_code", "latitude", "longitude",
+      "purok", "house_block_lot", "street",
+      "zip_code",
       "occupation", "employer", "monthly_income_range", "source_of_income",
       "livelihood_type", "skills", "highest_education",
       "health_history", "barangay_position", "barangay_role_start", "barangay_role_end",
@@ -1625,7 +1719,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
       // Contact
       "telephone",
       // Voter & Household
-      "voter_precinct_number", "last_voted_year", "relationship_to_head",
+      "voter_id", "voter_precinct_number", "last_voted_year", "relationship_to_head",
     ];
     for (const key of directFields) {
       const val = f(key);
@@ -1650,33 +1744,23 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
     if (form.is_head_of_household !== undefined) payload.is_head_of_household = !!form.is_head_of_household;
     if (form.is_organ_donor !== undefined) payload.is_organ_donor = !!form.is_organ_donor;
 
-    // Numeric fields
+    // Numeric fields — must be sent as numbers, not strings
     const hCm = f("height_cm");
     if (hCm) payload.height_cm = parseFloat(hCm);
     const wKg = f("weight_kg");
     if (wKg) payload.weight_kg = parseFloat(wKg);
+    const lat = f("latitude");
+    if (lat) payload.latitude = parseFloat(lat);
+    const lng = f("longitude");
+    if (lng) payload.longitude = parseFloat(lng);
 
-    // JSONB arrays from entry states
-    const validEdu = eduEntries.filter((e) => e.level);
-    if (validEdu.length > 0) payload.education_entries = validEdu;
+    // JSONB arrays — always send (even empty) so edit correctly clears removed entries
+    payload.education_entries = eduEntries.filter((e) => e.level);
+    payload.work_entries = workEntries.filter((e) => e.position);
+    payload.business_entries = businessEntries.filter((e) => e.business_name);
 
-    const validWork = workEntries.filter((e) => e.position);
-    if (validWork.length > 0) payload.work_entries = validWork;
-
-    const validBiz = businessEntries.filter((e) => e.business_name);
-    if (validBiz.length > 0) payload.business_entries = validBiz;
-
-    const validPets = petEntries.filter((e) => e.name);
-    if (validPets.length > 0) payload.pet_entries = validPets;
-
-    const validAssist = assistanceEntries.filter((e) => e.date);
-    if (validAssist.length > 0) payload.assistance_entries = validAssist;
-
-    const validRelatives = relativeEntries.filter((e) => e.relationship);
-    if (validRelatives.length > 0) payload.relative_entries = validRelatives;
-
-    // Sectors
-    if (sectors.length > 0) payload.sectors = sectors;
+    // Sectors — always send (even empty) so edit correctly clears removed sector tags
+    payload.sectors = sectors;
 
     try {
       if (mode === "edit") {
@@ -1762,9 +1846,6 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
     setEduEntries((r.education_details as EduEntry[])?.length ? (r.education_details as EduEntry[]) : [{ ...emptyEdu }]);
     setWorkEntries((r.work_history as WorkEntry[])?.length ? (r.work_history as WorkEntry[]) : [{ ...emptyWork }]);
     setBusinessEntries((r.business_details as BusinessEntry[]) || []);
-    setPetEntries((r.pet_records as PetEntry[]) || []);
-    setAssistanceEntries((r.assistance_history as AssistanceEntry[]) || []);
-    setRelativeEntries((r.relative_links as RelativeEntry[]) || []);
     setOpenSections({ other: true, education: true, work: true, govinfo: true, emergency: true, biometric: true });
     setMode("edit");
     setViewResident(null);
@@ -1845,264 +1926,21 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
     return suggestions;
   })();
 
-  // ── Relative Search (API call to /api/residents?search=...) ──
-  const relativeSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const searchResidents = useCallback((query: string) => {
-    setRelativeSearch(query);
-    if (query.length < 2) { setRelativeResults([]); return; }
-    if (relativeSearchTimerRef.current) clearTimeout(relativeSearchTimerRef.current);
-    relativeSearchTimerRef.current = setTimeout(async () => {
-      try {
-        const res = await api.residents.list({ search: query, per_page: 10 });
-        const results = res.data
-          .filter((r) => !relativeEntries.some((rel) => rel.resident_id === r.id))
-          .slice(0, 5)
-          .map((r) => ({ id: r.id, name: `${r.last_name}, ${r.first_name} ${r.middle_name || ""} ${r.extension_name || ""}`.trim().replace(/\s+/g, " "), purok: r.purok || "" }));
-        setRelativeResults(results);
-      } catch {
-        setRelativeResults([]);
-      }
-    }, 300);
-  }, [relativeEntries]);
 
-  const addRelative = (resident: { id: string; name: string }) => {
-    setRelativeEntries((prev) => [...prev, { resident_id: resident.id, resident_name: resident.name, relationship: "" }]);
-    setRelativeSearch("");
-    setRelativeResults([]);
-  };
+  // ── Map (Leaflet) — center from barangay record (set during onboarding). Fallback: Manila. ──
+  const _bLat = user?.barangay?.latitude ? parseFloat(String(user.barangay.latitude)) : NaN;
+  const _bLng = user?.barangay?.longitude ? parseFloat(String(user.barangay.longitude)) : NaN;
+  const barangayLat = _bLat >= 4 && _bLat <= 21 ? _bLat : 14.5995;
+  const barangayLng = _bLng >= 116 && _bLng <= 127 ? _bLng : 120.9842;
 
-  // ── Pet photo handler ──
-  const handlePetPhoto = (idx: number, file: File) => {
-    if (!file.type.startsWith("image/")) return;
-    const reader = new FileReader();
-    reader.onload = () => setPetEntries((es) => es.map((x, i) => i === idx ? { ...x, photo: reader.result as string } : x));
-    reader.readAsDataURL(file);
-  };
-
-  // ── Attachment handler (for pets and assistance) ──
-  const handleAttachments = (files: FileList, callback: (attachments: { name: string; type: "image" | "document"; preview?: string }[]) => void) => {
-    const allowed = ["image/jpeg", "image/png", "image/webp", "application/pdf", "application/msword",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
-    const newAttachments: { name: string; type: "image" | "document"; preview?: string }[] = [];
-    let processed = 0;
-    Array.from(files).filter((f) => allowed.includes(f.type)).forEach((file) => {
-      const isImage = file.type.startsWith("image/");
-      if (isImage) {
-        const reader = new FileReader();
-        reader.onload = () => {
-          newAttachments.push({ name: file.name, type: "image", preview: reader.result as string });
-          processed++;
-          if (processed === Array.from(files).filter((f) => allowed.includes(f.type)).length) callback(newAttachments);
-        };
-        reader.readAsDataURL(file);
-      } else {
-        newAttachments.push({ name: file.name, type: "document" });
-        processed++;
-        if (processed === Array.from(files).filter((f) => allowed.includes(f.type)).length) callback(newAttachments);
-      }
-    });
-  };
-
-  // ── Google Maps ──
-  const initGoogleMap = useCallback(async () => {
-    if (!mapContainerRef.current) return;
-
-    // Assign an abort token — if cleanup increments mapInitIdRef before we finish, we bail out
-    const initId = ++mapInitIdRef.current;
-    const isAborted = () => mapInitIdRef.current !== initId;
-
-    try {
-      // ── Step 1: Load Google Maps API (classic, synchronous-after-onload approach) ──
-      await new Promise<void>((resolve, reject) => {
-        if (typeof window === "undefined") return reject(new Error("SSR"));
-        // Already fully loaded — Map constructor is ready
-        if (window.google?.maps?.Map) return resolve();
-        // Script already injected — poll until Map is available
-        if (document.querySelector('script[src*="maps.googleapis.com"]')) {
-          const wait = setInterval(() => {
-            if (window.google?.maps?.Map) { clearInterval(wait); resolve(); }
-          }, 100);
-          setTimeout(() => { clearInterval(wait); reject(new Error("Maps load timeout")); }, 15000);
-          return;
-        }
-        // Inject the Maps JS API — libraries=marker included so AdvancedMarkerElement is ready after onload
-        const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
-        const script = document.createElement("script");
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=weekly&libraries=marker`;
-        script.async = true;
-        script.onload = () => resolve();
-        script.onerror = () => reject(new Error("Google Maps failed to load"));
-        document.head.appendChild(script);
-      });
-
-      // ── Step 2: Bail if superseded or container gone ──
-      if (isAborted() || !mapContainerRef.current) return;
-
-      // ── Step 3: Build map — google.maps.Map is directly available after onload ──
-      const barangayLat = user?.barangay?.latitude ? parseFloat(String(user.barangay.latitude)) : 14.5228;
-      const barangayLng = user?.barangay?.longitude ? parseFloat(String(user.barangay.longitude)) : 121.0172;
-      const residentLat = parseFloat(String(f("latitude")));
-      const residentLng = parseFloat(String(f("longitude")));
-      const hasResidentCoords = !isNaN(residentLat) && !isNaN(residentLng);
-      const defaultLat = hasResidentCoords ? residentLat : barangayLat;
-      const defaultLng = hasResidentCoords ? residentLng : barangayLng;
-
-      const map = new google.maps.Map(mapContainerRef.current, {
-        center: { lat: defaultLat, lng: defaultLng },
-        zoom: hasResidentCoords ? 18 : 16,
-        mapId: "DEMO_MAP_ID",
-        mapTypeId: "roadmap",
-        fullscreenControl: false,
-        streetViewControl: false,
-        mapTypeControl: false,
-        zoomControl: true,
-      });
-
-      // ── Step 4: Final abort check before committing state ──
-      if (isAborted() || !mapContainerRef.current) return;
-
-      googleMapRef.current = map;
-
-      map.addListener("click", (e: google.maps.MapMouseEvent) => {
-        if (e.latLng) placeGoogleMarker(e.latLng.lat(), e.latLng.lng());
-      });
-
-      if (hasResidentCoords) {
-        placeGoogleMarker(defaultLat, defaultLng);
-      }
-
-      setMapReady(true);
-
-      // ── Step 5: Boundary overlay (non-blocking, best-effort) ──
-      const renderBoundary = (geoJsonData: object) => {
-        try {
-          map.data.addGeoJson(geoJsonData);
-          map.data.setStyle({
-            strokeColor: "#ef4444",
-            strokeWeight: 1.5,
-            strokeOpacity: 0.85,
-            fillColor: "#ef4444",
-            fillOpacity: 0.04,
-          });
-          if (!hasResidentCoords) {
-            const bounds = new google.maps.LatLngBounds();
-            map.data.forEach((feature) => {
-              feature.getGeometry()?.forEachLatLng((latLng) => bounds.extend(latLng));
-            });
-            if (!bounds.isEmpty()) map.fitBounds(bounds, 24);
-          }
-        } catch { /* invalid geojson — skip */ }
-      };
-
-      const storedBoundary = user?.barangay?.boundary_geojson;
-      if (storedBoundary) {
-        // Boundary stored in DB — use it directly
-        const geoJsonData = typeof storedBoundary === "string" ? JSON.parse(storedBoundary) : storedBoundary;
-        renderBoundary(geoJsonData);
-      } else if (user?.barangay?.name) {
-        // Fetch from Overpass API — has admin_level=10 barangay boundaries for PH
-        const barangayName = user.barangay.name;
-        const d = 0.04; // ~4km radius bounding box
-        const bbox = `${barangayLat - d},${barangayLng - d},${barangayLat + d},${barangayLng + d}`;
-        try {
-          const overpassQuery = `[out:json][timeout:20];relation["name"~"${barangayName}","i"]["boundary"="administrative"]["admin_level"~"^(9|10)$"](${bbox});out geom;`;
-          const res = await fetch(
-            `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(overpassQuery)}`,
-            { signal: AbortSignal.timeout(20000) }
-          );
-          const data = await res.json();
-          const relation: OverpassRelation | undefined = data?.elements?.find(
-            (el: OverpassRelation) => el.type === "relation"
-          );
-          if (relation) {
-            const geoJsonFeature = overpassRelationToGeoJson(relation);
-            if (geoJsonFeature) renderBoundary(geoJsonFeature);
-          }
-        } catch { /* boundary unavailable — map still works without it */ }
-      }
-    } catch (err) {
-      console.error("[BCMP Map] Failed to initialize:", err);
-      setMapReady(true); // Always hide the spinner even on failure
-    }
-  }, []);
-
-  // Build pin icon HTML -- shows resident photo if available, "K" fallback
-  const buildPinHtml = useCallback((photo?: string | null) => {
-    if (photo) {
-      // Photo pin: drop shape with circular photo clipped inside
-      return `<div style="position:relative;width:44px;height:56px;filter:drop-shadow(0 2px 3px rgba(0,0,0,0.35))">
-        <svg width="44" height="56" viewBox="0 0 44 56" style="position:absolute;top:0;left:0">
-          <path d="M22 0C9.85 0 0 9.85 0 22c0 15.4 22 34 22 34s22-18.6 22-34C44 9.85 34.15 0 22 0z" fill="#4338ca"/>
-        </svg>
-        <div style="position:absolute;top:4px;left:5px;width:34px;height:34px;border-radius:50%;overflow:hidden;border:2px solid white">
-          <img src="${photo}" style="width:100%;height:100%;object-fit:cover" />
-        </div>
-      </div>`;
-    }
-    // Default: "K" branded pin
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="48" viewBox="0 0 36 48">
-      <defs><filter id="pin-shadow" x="-20%" y="-10%" width="140%" height="130%"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.3"/></filter></defs>
-      <path d="M18 0C8.06 0 0 8.06 0 18c0 12.6 18 30 18 30s18-17.4 18-30C36 8.06 27.94 0 18 0z" fill="#4338ca" filter="url(#pin-shadow)"/>
-      <circle cx="18" cy="17" r="11" fill="white"/>
-      <text x="18" y="22" text-anchor="middle" font-family="Arial,sans-serif" font-weight="bold" font-size="16" fill="#4338ca">K</text>
-    </svg>`;
-  }, []);
-
-  const placeGoogleMarker = useCallback(async (lat: number, lng: number) => {
-    if (!googleMapRef.current) return;
-
-    // Remove existing marker
-    if (googleMarkerRef.current) {
-      googleMarkerRef.current.map = null;
-      googleMarkerRef.current = null;
-    }
-
-    const pinHtml = buildPinHtml(photoPreview);
-    const container = document.createElement("div");
-    container.innerHTML = pinHtml;
-    const element = container.firstElementChild as HTMLElement;
-
-    // marker library loaded synchronously with the script (libraries=marker in URL)
-    const { AdvancedMarkerElement } = google.maps.marker;
-    const marker = new AdvancedMarkerElement({
-      map: googleMapRef.current,
-      position: { lat, lng },
-      content: element,
-      gmpDraggable: true,
-      title: "Resident location",
-    });
-
-    marker.addListener("dragend", () => {
-      const pos = marker.position as google.maps.LatLngLiteral | null;
-      if (pos) {
-        updateForm("latitude", Number(pos.lat).toFixed(7));
-        updateForm("longitude", Number(pos.lng).toFixed(7));
-      }
-    });
-
-    googleMarkerRef.current = marker;
-    updateForm("latitude", lat.toFixed(7));
-    updateForm("longitude", lng.toFixed(7));
-  }, [photoPreview, buildPinHtml, updateForm]);
-
-  // Update marker icon when photo changes
-  useEffect(() => {
-    if (!googleMarkerRef.current || !mapReady) return;
-    const pinHtml = buildPinHtml(photoPreview);
-    const container = document.createElement("div");
-    container.innerHTML = pinHtml;
-    const element = container.firstElementChild as HTMLElement;
-    if (element) googleMarkerRef.current.content = element;
-  }, [photoPreview, buildPinHtml, mapReady]);
-
+  // Geocode address text → lat/lng. Pure HTTP call — no Google Maps SDK dependency.
+  // Leaflet handles map display; geocoding is just an API fetch that updates form state.
   const geocodeAddress = useCallback(async (addressStr: string) => {
-    if (!googleMapRef.current) return;
+    if (!addressStr.trim()) return;
     setMapLocating(true);
-    setMapError("");
-
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
     if (!apiKey) {
-      // Fallback: use Nominatim (free, no key needed) if no Google key
+      // No Google key — fall back to Nominatim (free, no API key)
       try {
         const res = await fetch(
           `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressStr)}&countrycodes=ph&limit=1`,
@@ -2111,74 +1949,60 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
         const data = await res.json();
         setMapLocating(false);
         if (data?.[0]) {
-          const lat = parseFloat(data[0].lat);
-          const lng = parseFloat(data[0].lon);
-          googleMapRef.current?.setCenter({ lat, lng });
-          googleMapRef.current?.setZoom(18);
-          placeGoogleMarker(lat, lng);
+          updateForm("latitude", parseFloat(data[0].lat).toFixed(7));
+          updateForm("longitude", parseFloat(data[0].lon).toFixed(7));
         }
       } catch { setMapLocating(false); }
       return;
     }
-
     try {
       const res = await fetch(
         `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(addressStr)}&key=${apiKey}&region=ph`
       );
       const data = await res.json();
       setMapLocating(false);
-
       if (data.status === "OK" && data.results?.[0]) {
         const loc = data.results[0].geometry.location;
-        googleMapRef.current?.setCenter({ lat: loc.lat, lng: loc.lng });
-        googleMapRef.current?.setZoom(18);
-        placeGoogleMarker(loc.lat, loc.lng);
+        updateForm("latitude", loc.lat.toFixed(7));
+        updateForm("longitude", loc.lng.toFixed(7));
       }
-    } catch {
-      setMapLocating(false);
-    }
-  }, [placeGoogleMarker]);
+    } catch { setMapLocating(false); }
+  }, [updateForm]);
 
   // Auto-geocode when address fields change (debounced 1.5s)
   const geocodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    if (!mapReady || mode !== "create") return;
+    if (mode !== "create") return;
     const parts = [
       f("house_block_lot"), f("street"), f("purok"),
       tenantConfig.barangay, tenantConfig.city_municipality,
       tenantConfig.province
     ].filter(Boolean).map(String);
-    // Need at least purok or street to attempt geocoding
-    const hasMeaningfulAddress = !!(f("purok") || f("street"));
-    if (!hasMeaningfulAddress) return;
-
+    if (!(f("purok") || f("street"))) return;
     const address = parts.join(", ");
     if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current);
     geocodeTimerRef.current = setTimeout(() => geocodeAddress(address), 1500);
     return () => { if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current); };
-  }, [f("house_block_lot"), f("street"), f("purok"), mapReady, mode]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [f("house_block_lot"), f("street"), f("purok"), mode]);
 
-  // Initialize Google Maps when entering create mode
+  // Measure form container height whenever mode enters create/edit or window resizes.
+  // This drives the contained-scroll layout so the action bar never overlaps the map.
   useEffect(() => {
-    if (mode === "create") {
-      // Reset ready state for fresh init
-      setMapReady(false);
-      const timer = setTimeout(() => initGoogleMap(), 150);
-      return () => {
-        // Cancel in-flight async init by invalidating its abort token
-        mapInitIdRef.current++;
-        clearTimeout(timer);
-      };
-    }
-    // Leaving create mode — tear down map refs
-    mapInitIdRef.current++;
-    googleMapRef.current = null;
-    if (googleMarkerRef.current) {
-      googleMarkerRef.current.map = null;
-      googleMarkerRef.current = null;
-    }
-    setMapReady(false);
-  }, [mode, initGoogleMap]);
+    if (mode !== "create" && mode !== "edit") return;
+    const measure = () => {
+      if (!formContainerRef.current) return;
+      const top = formContainerRef.current.getBoundingClientRect().top;
+      setFormContainerHeight(window.innerHeight - top);
+    };
+    // rAF lets the browser finish the first layout paint before measuring
+    const raf = requestAnimationFrame(measure);
+    window.addEventListener("resize", measure);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", measure);
+    };
+  }, [mode]);
 
   // ── Sorting / Pagination (server-side — residents already filtered by API) ──
   const totalPages = Math.max(1, listLastPage);
@@ -2208,8 +2032,16 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
 
   if (mode === "create" || mode === "edit") {
     return (
-      <div className="space-y-5">
+      // Contained-scroll form: height fills from this element to the viewport bottom.
+      // The action bar is a natural shrink-0 sibling — never fixed, never overlaps the map.
+      <div
+        ref={formContainerRef}
+        className="flex flex-col -m-6"
+        style={{ height: formContainerHeight ? `${formContainerHeight}px` : "calc(100dvh - 120px)" }}
+      >
         <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+        {/* Scrollable form body */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-5">
         {/* Header: Back + Title */}
         <div className="flex items-center justify-between">
           <div>
@@ -2313,8 +2145,16 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                         </>
                       ) : (
                         <>
-                          <User className="w-10 h-10 text-muted-foreground/40" />
-                          <span className="text-[10px] text-muted-foreground mt-1">No photo</span>
+                          {/* BCMP logo watermark */}
+                          <img
+                            src="/kapitanph_logo.png?v=2"
+                            alt=""
+                            aria-hidden="true"
+                            className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
+                            style={{ opacity: 0.18, mixBlendMode: "multiply" }}
+                          />
+                          <User className="w-10 h-10 text-muted-foreground/40 relative z-10" />
+                          <span className="text-[10px] text-muted-foreground mt-1 relative z-10">No photo</span>
                         </>
                       )}
                     </div>
@@ -2517,7 +2357,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                 </div>
               </div>
 
-              {/* Smart Map -- auto-locates as address is typed */}
+              {/* Smart Map — Leaflet (no SDK side-effects, safe to click freely) */}
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
@@ -2535,17 +2375,17 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                     </span>
                   )}
                 </div>
-                <div className="relative w-full h-56">
-                  {/* Spinner overlay — sibling of map container, NOT inside it */}
-                  {!mapReady && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center rounded-lg border border-border bg-muted z-10">
-                      <Loader2 className="h-6 w-6 text-muted-foreground animate-spin mb-2" />
-                      <p className="text-xs text-muted-foreground">Loading map...</p>
-                    </div>
-                  )}
-                  {/* Map container must be empty — Google Maps owns this DOM node */}
-                  <div ref={mapContainerRef} className="w-full h-full rounded-lg border border-border overflow-hidden bg-muted z-0" />
-                </div>
+                <ResidentPinMap
+                  key={`map-${barangayLat}-${barangayLng}`}
+                  lat={f("latitude") ? parseFloat(String(f("latitude"))) : null}
+                  lng={f("longitude") ? parseFloat(String(f("longitude"))) : null}
+                  centerLat={barangayLat}
+                  centerLng={barangayLng}
+                  onPin={(lat, lng) => {
+                    updateForm("latitude", lat.toFixed(7));
+                    updateForm("longitude", lng.toFixed(7));
+                  }}
+                />
                 <p className="text-[10px] text-muted-foreground mt-1.5">
                   Map auto-updates as you fill in the address above. Click the map or drag the pin to adjust the exact location.
                 </p>
@@ -2661,38 +2501,52 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
           <Section icon={<GraduationCap className="h-4 w-4" />} title="Educational Attainment"
             open={openSections.education} onToggle={() => toggleSection("education")}>
             <div className="space-y-4">
-              {eduEntries.map((entry, idx) => (
-                <div key={idx} className="relative rounded-lg border border-border p-4 space-y-3">
-                  {eduEntries.length > 1 && (
-                    <button onClick={() => setEduEntries((e) => e.filter((_, i) => i !== idx))}
-                      className="absolute top-3 right-3 p-1 text-muted-foreground hover:text-red-500 transition-colors"><X className="h-4 w-4" /></button>
-                  )}
-                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                    <FSelect label="Level" name="level" options={educationLevels}
-                      value={entry.level} onChange={(_, v) => setEduEntries((e) => e.map((x, i) => i === idx ? { ...x, level: String(v) } : x))} />
-                    <FCombobox label="Course / Program" name="course" entries={courseEntries} value={entry.course}
-                      onChange={(_, v) => setEduEntries((e) => e.map((x, i) => i === idx ? { ...x, course: String(v) } : x))} onEntriesChange={setCourseEntries} />
-                    <FCombobox label="School / Institution" name="school" entries={schoolEntries} value={entry.school}
-                      onChange={(_, v) => setEduEntries((e) => e.map((x, i) => i === idx ? { ...x, school: String(v) } : x))} onEntriesChange={setSchoolEntries} />
-                  </div>
-                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                    <FSelect label="Start Year" name="start_year" options={yearOptions}
-                      value={entry.start_year} onChange={(_, v) => setEduEntries((e) => e.map((x, i) => i === idx ? { ...x, start_year: String(v) } : x))} />
-                    <FSelect label="End Year" name="end_year" options={yearOptions}
-                      value={entry.end_year} onChange={(_, v) => setEduEntries((e) => e.map((x, i) => i === idx ? { ...x, end_year: String(v) } : x))} />
-                    <div className="pt-6">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked={entry.currently_studying} onChange={(e) => setEduEntries((es) => es.map((x, i) => i === idx ? { ...x, currently_studying: e.target.checked } : x))}
-                          className="w-4 h-4 rounded border-border text-accent-primary focus:ring-accent-ring" />
-                        <span className="text-sm text-foreground">Currently studying?</span>
-                      </label>
+              {eduEntries.map((entry, idx) => {
+                const { allDisabled, courseDisabled } = eduFieldRules(entry.level);
+                return (
+                  <div key={idx} className="relative rounded-lg border border-border p-4 space-y-3">
+                    {eduEntries.length > 1 && (
+                      <button type="button" onClick={() => setEduEntries((e) => e.filter((_, i) => i !== idx))}
+                        className="absolute top-3 right-3 p-1 text-muted-foreground hover:text-red-500 transition-colors"><X className="h-4 w-4" /></button>
+                    )}
+                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                      <FSelect label="Level" name="level" options={educationLevels}
+                        value={entry.level} onChange={(_, v) => setEduEntries((e) => e.map((x, i) => i === idx ? { ...x, level: String(v) } : x))} />
+                      <FCombobox label="Course / Program" name="course" entries={courseEntries} value={entry.course}
+                        onChange={(_, v) => setEduEntries((e) => e.map((x, i) => i === idx ? { ...x, course: String(v) } : x))}
+                        onEntriesChange={setCourseEntries} disabled={courseDisabled} />
+                      <FCombobox label="School / Institution" name="school" entries={schoolEntries} value={entry.school}
+                        onChange={(_, v) => setEduEntries((e) => e.map((x, i) => i === idx ? { ...x, school: String(v) } : x))}
+                        onEntriesChange={setSchoolEntries} disabled={allDisabled} />
                     </div>
+                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                      <FSelect label="Start Year" name="start_year" options={yearOptions}
+                        value={entry.start_year}
+                        onChange={(_, v) => setEduEntries((e) => e.map((x, i) => i === idx ? { ...x, start_year: String(v) } : x))}
+                        disabled={allDisabled} />
+                      <FSelect label="End Year" name="end_year" options={yearOptions}
+                        value={entry.end_year}
+                        onChange={(_, v) => setEduEntries((e) => e.map((x, i) => i === idx ? { ...x, end_year: String(v) } : x))}
+                        disabled={allDisabled || entry.currently_studying} />
+                      <div className={`pt-6 ${allDisabled ? "opacity-40 pointer-events-none" : ""}`}>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input type="checkbox" checked={entry.currently_studying}
+                            onChange={(e) => setEduEntries((es) => es.map((x, i) => i === idx ? { ...x, currently_studying: e.target.checked } : x))}
+                            disabled={allDisabled}
+                            className="w-4 h-4 rounded border-border text-accent-primary focus:ring-accent-ring" />
+                          <span className="text-sm text-foreground">Currently studying?</span>
+                        </label>
+                      </div>
+                    </div>
+                    {allDisabled && (
+                      <p className="text-xs text-muted-foreground italic">No fields to fill — no formal education selected.</p>
+                    )}
                   </div>
-                </div>
-              ))}
-              <button onClick={() => setEduEntries((e) => [...e, { ...emptyEdu }])}
+                );
+              })}
+              <button type="button" onClick={() => setEduEntries((e) => [...e, { ...emptyEdu }])}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-dashed border-accent-primary text-accent-text hover:bg-accent-bg transition-colors">
-                <Plus className="h-4 w-4" /> + Add another educational attainment
+                <Plus className="h-4 w-4" /> Add another educational attainment
               </button>
             </div>
           </Section>
@@ -2701,26 +2555,73 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
           <Section icon={<Briefcase className="h-4 w-4" />} title="Livelihood & Employment"
             open={openSections.work} onToggle={() => toggleSection("work")}>
             <div className="space-y-5">
-              {/* Livelihood Overview */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Livelihood Type — always visible */}
+              <div className="max-w-xs">
                 <FSelect label="Livelihood Type" name="livelihood_type" options={livelihoodTypes} value={f("livelihood_type")} onChange={updateForm} />
-                <FCombobox label="Current Occupation" name="occupation" value={f("occupation")}
-                  entries={occupationEntries} onEntriesChange={setOccupationEntries}
-                  onChange={updateForm} placeholder="Type to search or add occupation..." />
-                <FSelect label="Monthly Income Range" name="monthly_income_range" options={incomeRanges} value={f("monthly_income_range")} onChange={updateForm} />
-                <FCombobox label="Skills / Specialization" name="skills" value={f("skills")}
-                  entries={skillEntries} onEntriesChange={setSkillEntries}
-                  onChange={updateForm} placeholder="Type to search or add skill..." />
               </div>
 
-              {/* Employment History — shown for Employed, Both, OFW */}
-              {(f("livelihood_type") === "Employed" || f("livelihood_type") === "Both" || f("livelihood_type") === "OFW") && (
+              {/* ── EMPLOYED: occupation + income + skills + work records ── */}
+              {f("livelihood_type") === "Employed" && (
+                <div className="space-y-5">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <FCombobox label="Current Occupation" name="occupation" value={f("occupation")}
+                      entries={occupationEntries} onEntriesChange={setOccupationEntries}
+                      onChange={updateForm} placeholder="Type to search or add occupation..." />
+                    <FSelect label="Monthly Income Range" name="monthly_income_range" options={incomeRanges} value={f("monthly_income_range")} onChange={updateForm} />
+                    <FCombobox label="Skills / Specialization" name="skills" value={f("skills")}
+                      entries={skillEntries} onEntriesChange={setSkillEntries}
+                      onChange={updateForm} placeholder="Type to search or add skill..." />
+                  </div>
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-semibold text-accent-text uppercase tracking-wider">Employment Records</h4>
+                    {workEntries.map((entry, idx) => (
+                      <div key={idx} className="relative rounded-lg border border-border p-4 space-y-3">
+                        {workEntries.length > 1 && (
+                          <button type="button" onClick={() => setWorkEntries((e) => e.filter((_, i) => i !== idx))}
+                            className="absolute top-3 right-3 p-1 text-muted-foreground hover:text-red-500 transition-colors"><X className="h-4 w-4" /></button>
+                        )}
+                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                          <FCombobox label="Position / Job Title" name="position"
+                            value={entry.position} entries={positionEntries} onEntriesChange={setPositionEntries}
+                            onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, position: String(v) } : x))}
+                            placeholder="Type to search or add position..." />
+                          <FCombobox label="Company / Employer" name="company"
+                            value={entry.company} entries={employerEntries} onEntriesChange={setEmployerEntries}
+                            onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, company: String(v) } : x))}
+                            placeholder="Type to search or add employer..." />
+                          <FSelect label="Type of Employment" name="employment_type" options={employmentTypeOptions}
+                            value={entry.employment_type} onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, employment_type: String(v) } : x))} />
+                        </div>
+                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                          <FSelect label="Start Year" name="start_year" options={yearOptions}
+                            value={entry.start_year} onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, start_year: String(v) } : x))} />
+                          <FSelect label="End Year (blank = current)" name="end_year" options={yearOptions}
+                            value={entry.end_year} onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, end_year: String(v) } : x))} />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-muted-foreground mb-1.5">Job Description</label>
+                          <textarea value={entry.description} onChange={(e) => setWorkEntries((es) => es.map((x, i) => i === idx ? { ...x, description: e.target.value.toUpperCase() } : x))}
+                            placeholder="Brief summary of responsibilities and achievements"
+                            className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-16 uppercase" />
+                        </div>
+                      </div>
+                    ))}
+                    <button type="button" onClick={() => setWorkEntries((e) => [...e, { ...emptyWork }])}
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-dashed border-accent-primary text-accent-text hover:bg-accent-bg transition-colors">
+                      <Plus className="h-4 w-4" /> Add employment record
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ── OFW: work records only (no occupation/income/skills) ── */}
+              {f("livelihood_type") === "OFW" && (
                 <div className="space-y-3">
-                  <h4 className="text-xs font-semibold text-accent-text uppercase tracking-wider">Employment History</h4>
+                  <h4 className="text-xs font-semibold text-accent-text uppercase tracking-wider">Employment Records (OFW)</h4>
                   {workEntries.map((entry, idx) => (
                     <div key={idx} className="relative rounded-lg border border-border p-4 space-y-3">
                       {workEntries.length > 1 && (
-                        <button onClick={() => setWorkEntries((e) => e.filter((_, i) => i !== idx))}
+                        <button type="button" onClick={() => setWorkEntries((e) => e.filter((_, i) => i !== idx))}
                           className="absolute top-3 right-3 p-1 text-muted-foreground hover:text-red-500 transition-colors"><X className="h-4 w-4" /></button>
                       )}
                       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
@@ -2732,38 +2633,32 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                           value={entry.company} entries={employerEntries} onEntriesChange={setEmployerEntries}
                           onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, company: String(v) } : x))}
                           placeholder="Type to search or add employer..." />
-                        <FSelect label="Type of Employment" name="employment_type" options={employmentTypeOptions}
+                        <FSelect label="Country of Work" name="employment_type" options={["", "Saudi Arabia", "UAE", "Qatar", "Kuwait", "Bahrain", "Hong Kong", "Singapore", "Taiwan", "Japan", "South Korea", "Italy", "UK", "USA", "Canada", "Australia", "Other"]}
                           value={entry.employment_type} onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, employment_type: String(v) } : x))} />
                       </div>
                       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                         <FSelect label="Start Year" name="start_year" options={yearOptions}
                           value={entry.start_year} onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, start_year: String(v) } : x))} />
-                        <FSelect label="End Year" name="end_year" options={yearOptions}
+                        <FSelect label="End Year (blank = currently abroad)" name="end_year" options={yearOptions}
                           value={entry.end_year} onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, end_year: String(v) } : x))} />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-muted-foreground mb-1.5">Job Description</label>
-                        <textarea value={entry.description} onChange={(e) => setWorkEntries((es) => es.map((x, i) => i === idx ? { ...x, description: e.target.value.toUpperCase() } : x))}
-                          placeholder="Brief summary of responsibilities and achievements"
-                          className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-16 uppercase" />
                       </div>
                     </div>
                   ))}
-                  <button onClick={() => setWorkEntries((e) => [...e, { ...emptyWork }])}
+                  <button type="button" onClick={() => setWorkEntries((e) => [...e, { ...emptyWork }])}
                     className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-dashed border-accent-primary text-accent-text hover:bg-accent-bg transition-colors">
-                    <Plus className="h-4 w-4" /> + Add employment record
+                    <Plus className="h-4 w-4" /> Add employment record
                   </button>
                 </div>
               )}
 
-              {/* Business / Self-Employment — shown for Self-Employed / Business Owner, Both */}
-              {(f("livelihood_type") === "Self-Employed / Business Owner" || f("livelihood_type") === "Both") && (
+              {/* ── SELF-EMPLOYED / BUSINESS OWNER: business records only ── */}
+              {f("livelihood_type") === "Self-Employed / Business Owner" && (
                 <div className="space-y-3">
-                  <h4 className="text-xs font-semibold text-accent-text uppercase tracking-wider">Business / Self-Employment</h4>
+                  <h4 className="text-xs font-semibold text-accent-text uppercase tracking-wider">Business / Self-Employment Records</h4>
                   {(businessEntries.length === 0 ? [{ ...emptyBusiness }] : businessEntries).map((entry, idx) => (
                     <div key={idx} className="relative rounded-lg border border-border p-4 space-y-3">
                       {businessEntries.length > 1 && (
-                        <button onClick={() => setBusinessEntries((e) => e.filter((_, i) => i !== idx))}
+                        <button type="button" onClick={() => setBusinessEntries((e) => e.filter((_, i) => i !== idx))}
                           className="absolute top-3 right-3 p-1 text-muted-foreground hover:text-red-500 transition-colors"><X className="h-4 w-4" /></button>
                       )}
                       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
@@ -2799,16 +2694,21 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                       </div>
                     </div>
                   ))}
-                  <button onClick={() => setBusinessEntries((e) => [...(e.length === 0 ? [{ ...emptyBusiness }] : e), { ...emptyBusiness }])}
+                  <button type="button" onClick={() => setBusinessEntries((e) => [...(e.length === 0 ? [{ ...emptyBusiness }] : e), { ...emptyBusiness }])}
                     className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-dashed border-accent-primary text-accent-text hover:bg-accent-bg transition-colors">
-                    <Plus className="h-4 w-4" /> + Add another business
+                    <Plus className="h-4 w-4" /> Add another business
                   </button>
                 </div>
               )}
 
-              {/* Hint when no livelihood type selected */}
+              {/* ── UNEMPLOYED / RETIRED / STUDENT: no additional fields ── */}
+              {(f("livelihood_type") === "Unemployed" || f("livelihood_type") === "Retired" || f("livelihood_type") === "Student") && (
+                <p className="text-xs text-muted-foreground italic px-1">No additional fields needed for this livelihood type.</p>
+              )}
+
+              {/* ── No selection hint ── */}
               {!f("livelihood_type") && (
-                <p className="text-xs text-muted-foreground italic">Select a livelihood type above to show relevant fields.</p>
+                <p className="text-xs text-muted-foreground italic px-1">Select a livelihood type above to show relevant fields.</p>
               )}
             </div>
           </Section>
@@ -2882,259 +2782,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
             </div>
           </Section>
 
-          {/* 8. Relatives */}
-          <Section icon={<Link2 className="h-4 w-4" />} title="Relatives"
-            open={openSections.relatives} onToggle={() => toggleSection("relatives")}>
-            <div className="space-y-4">
-              {/* Search existing resident */}
-              <div className="relative">
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5">Search Resident to Link</label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <input type="text" value={relativeSearch} onChange={(e) => searchResidents(e.target.value)}
-                    placeholder="Type resident name or ID to search..."
-                    className="w-full pl-9 pr-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring" />
-                </div>
-                {relativeResults.length > 0 && (
-                  <div className="absolute z-20 w-full mt-1 bg-background border border-border rounded-lg shadow-lg overflow-hidden">
-                    {relativeResults.map((r) => (
-                      <button key={r.id} onClick={() => addRelative(r)}
-                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-accent-bg transition-colors flex items-center justify-between">
-                        <span className="font-medium">{r.name}</span>
-                        <span className="text-xs text-muted-foreground">Purok {r.purok}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {relativeSearch.length >= 2 && relativeResults.length === 0 && (
-                  <p className="text-xs text-muted-foreground mt-1.5">No matching residents found. The person must be registered first.</p>
-                )}
-              </div>
-
-              {/* Linked relatives list */}
-              {relativeEntries.length > 0 ? (
-                <div className="space-y-2">
-                  {relativeEntries.map((rel, idx) => (
-                    <div key={idx} className="flex items-center gap-3 rounded-lg border border-border p-3">
-                      <div className="w-8 h-8 rounded-full bg-accent-bg flex items-center justify-center shrink-0">
-                        <User className="h-4 w-4 text-accent-text" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">{rel.resident_name}</p>
-                      </div>
-                      <select value={rel.relationship} onChange={(e) => setRelativeEntries((es) => es.map((x, i) => i === idx ? { ...x, relationship: e.target.value } : x))}
-                        className="px-3 py-1.5 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring w-44">
-                        {relativeRelationships.map((o) => <option key={o} value={o}>{o || "Select relationship"}</option>)}
-                      </select>
-                      <button onClick={() => setRelativeEntries((es) => es.filter((_, i) => i !== idx))}
-                        className="p-1.5 text-muted-foreground hover:text-red-500 transition-colors shrink-0"><X className="h-4 w-4" /></button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="rounded-lg border-2 border-dashed border-border p-6 text-center">
-                  <Link2 className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">No relatives linked yet</p>
-                  <p className="text-xs text-muted-foreground mt-1">Search and select an existing resident above to link them</p>
-                </div>
-              )}
-            </div>
-          </Section>
-
-          {/* 9. Pets */}
-          <Section icon={<PawPrint className="h-4 w-4" />} title="Pets"
-            open={openSections.pets} onToggle={() => toggleSection("pets")}>
-            <div className="space-y-4">
-              {petEntries.map((pet, idx) => (
-                <div key={idx} className="relative rounded-lg border border-border p-4 space-y-3">
-                  {petEntries.length > 0 && (
-                    <button onClick={() => setPetEntries((e) => e.filter((_, i) => i !== idx))}
-                      className="absolute top-3 right-3 p-1 text-muted-foreground hover:text-red-500 transition-colors"><X className="h-4 w-4" /></button>
-                  )}
-                  <div className="flex gap-4">
-                    {/* Pet photo */}
-                    <div className="shrink-0">
-                      <label className="block text-xs font-medium text-muted-foreground mb-1.5">Photo</label>
-                      <div className="relative w-20 h-20 rounded-lg border-2 border-dashed border-border overflow-hidden cursor-pointer hover:border-accent-primary transition-colors group">
-                        {pet.photo ? (
-                          <>
-                            <img src={pet.photo} alt="Pet" className="w-full h-full object-cover" />
-                            <button onClick={(e) => { e.stopPropagation(); setPetEntries((es) => es.map((x, i) => i === idx ? { ...x, photo: null } : x)); }}
-                              className="absolute top-0.5 right-0.5 p-0.5 bg-red-500 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                              <X className="h-3 w-3" />
-                            </button>
-                          </>
-                        ) : (
-                          <label className="flex flex-col items-center justify-center w-full h-full cursor-pointer">
-                            <Camera className="h-5 w-5 text-muted-foreground" />
-                            <span className="text-[9px] text-muted-foreground mt-0.5">Add</span>
-                            <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handlePetPhoto(idx, e.target.files[0])} />
-                          </label>
-                        )}
-                      </div>
-                    </div>
-                    {/* Pet details */}
-                    <div className="flex-1 grid grid-cols-2 lg:grid-cols-4 gap-3">
-                      <FInput label="Pet Name" name="pet_name" placeholder="e.g. Bantay" value={pet.name}
-                        onChange={(_, v) => setPetEntries((es) => es.map((x, i) => i === idx ? { ...x, name: String(v) } : x))} />
-                      <FCombobox label="Pet Type" name="pet_type" entries={petTypeEntries} value={pet.pet_type}
-                        onChange={(_, v) => setPetEntries((es) => es.map((x, i) => i === idx ? { ...x, pet_type: String(v) } : x))}
-                        onSubmit={(val) => submitEntry(petTypeEntries, setPetTypeEntries, val)} />
-                      <FSelect label="Sex" name="pet_sex" options={petSexOptions} value={pet.sex}
-                        onChange={(_, v) => setPetEntries((es) => es.map((x, i) => i === idx ? { ...x, sex: String(v) } : x))} />
-                      <FDatePicker label="Date of Birth" name="pet_dob" value={pet.date_of_birth}
-                        onChange={(_, v) => setPetEntries((es) => es.map((x, i) => i === idx ? { ...x, date_of_birth: String(v) } : x))} />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">Remarks</label>
-                    <textarea value={pet.remarks} onChange={(e) => setPetEntries((es) => es.map((x, i) => i === idx ? { ...x, remarks: e.target.value.toUpperCase() } : x))}
-                      placeholder="e.g. Breed, color, vaccination status, special notes"
-                      className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-14 uppercase" />
-                  </div>
-                  {/* Attachments */}
-                  <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">Attachments</label>
-                    {pet.attachments.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mb-2">
-                        {pet.attachments.map((att, aidx) => (
-                          <div key={aidx} className="relative group">
-                            {att.type === "image" && att.preview ? (
-                              <div className="w-16 h-16 rounded-lg border border-border overflow-hidden shadow-sm">
-                                <img src={att.preview} alt={att.name} className="w-full h-full object-cover" />
-                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors rounded-lg" />
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-2 pl-2.5 pr-6 py-2 rounded-lg border border-border bg-muted/50 text-xs shadow-sm">
-                                <div className="w-7 h-7 rounded bg-accent-bg flex items-center justify-center flex-shrink-0">
-                                  <FileText className="h-4 w-4" style={{ color: "var(--accent-primary)" }} />
-                                </div>
-                                <span className="max-w-[100px] truncate font-medium text-foreground">{att.name}</span>
-                              </div>
-                            )}
-                            <button onClick={() => setPetEntries((es) => es.map((x, i) => i === idx ? { ...x, attachments: x.attachments.filter((_, ai) => ai !== aidx) } : x))}
-                              className="absolute -top-1.5 -right-1.5 w-5 h-5 flex items-center justify-center bg-red-500 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity shadow-sm">
-                              <X className="h-3 w-3" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    <label className="flex flex-col items-center justify-center gap-1.5 py-4 px-4 rounded-lg border-2 border-dashed border-border hover:border-accent-primary hover:bg-accent-bg/30 cursor-pointer transition-all group">
-                      <Upload className="h-5 w-5 text-muted-foreground group-hover:text-accent-primary transition-colors" />
-                      <span className="text-xs font-medium text-muted-foreground group-hover:text-accent-text transition-colors">Click to upload files</span>
-                      <span className="text-[10px] text-muted-foreground/60">JPG, PNG, PDF, DOC up to 10MB</span>
-                      <input type="file" multiple accept="image/jpeg,image/png,image/webp,application/pdf,.doc,.docx" className="hidden"
-                        onChange={(e) => e.target.files && handleAttachments(e.target.files, (atts) => setPetEntries((es) => es.map((x, i) => i === idx ? { ...x, attachments: [...x.attachments, ...atts] } : x)))} />
-                    </label>
-                  </div>
-                </div>
-              ))}
-              {petEntries.length === 0 && (
-                <div className="rounded-lg border-2 border-dashed border-border p-6 text-center">
-                  <PawPrint className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">No pets registered</p>
-                  <p className="text-xs text-muted-foreground mt-1">Click below to add a pet</p>
-                </div>
-              )}
-              <button onClick={() => setPetEntries((e) => [...e, { ...emptyPet }])}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-dashed border-accent-primary text-accent-text hover:bg-accent-bg transition-colors">
-                <Plus className="h-4 w-4" /> Add a pet
-              </button>
-            </div>
-          </Section>
-
-          {/* 10. Assistance / Solicitation */}
-          <Section icon={<HandHeart className="h-4 w-4" />} title="Assistance / Solicitation"
-            open={openSections.assistance} onToggle={() => toggleSection("assistance")}>
-            <div className="space-y-4">
-              {assistanceEntries.map((entry, idx) => (
-                <div key={idx} className="relative rounded-lg border border-border p-4 space-y-3">
-                  <button onClick={() => setAssistanceEntries((e) => e.filter((_, i) => i !== idx))}
-                    className="absolute top-3 right-3 p-1 text-muted-foreground hover:text-red-500 transition-colors"><X className="h-4 w-4" /></button>
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    <FDatePicker label="Date" name="assistance_date" value={entry.date}
-                      onChange={(_, v) => setAssistanceEntries((es) => es.map((x, i) => i === idx ? { ...x, date: String(v) } : x))} />
-                    <FCombobox label="Type of Assistance" name="assistance_type" entries={assistanceTypeEntries} value={entry.type}
-                      onChange={(_, v) => setAssistanceEntries((es) => es.map((x, i) => i === idx ? { ...x, type: String(v) } : x))}
-                      onSubmit={(val) => submitEntry(assistanceTypeEntries, setAssistanceTypeEntries, val)} />
-                    <FCombobox label="Source / Program" name="assistance_source" entries={assistanceSourceEntries} value={entry.source}
-                      onChange={(_, v) => setAssistanceEntries((es) => es.map((x, i) => i === idx ? { ...x, source: String(v) } : x))}
-                      onSubmit={(val) => submitEntry(assistanceSourceEntries, setAssistanceSourceEntries, val)} />
-                    <FInput label="Amount (if applicable)" name="assistance_amount" type="number" placeholder="e.g. 5000" value={entry.amount}
-                      onChange={(_, v) => setAssistanceEntries((es) => es.map((x, i) => i === idx ? { ...x, amount: String(v) } : x))} />
-                  </div>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground mb-1.5">Description</label>
-                      <textarea value={entry.description} onChange={(e) => setAssistanceEntries((es) => es.map((x, i) => i === idx ? { ...x, description: e.target.value.toUpperCase() } : x))}
-                        placeholder="Details of assistance received"
-                        className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-16 uppercase" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground mb-1.5">Remarks</label>
-                      <textarea value={entry.remarks} onChange={(e) => setAssistanceEntries((es) => es.map((x, i) => i === idx ? { ...x, remarks: e.target.value.toUpperCase() } : x))}
-                        placeholder="e.g. Received by spouse, partial amount, etc."
-                        className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-16 uppercase" />
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <FSelect label="Status" name="assistance_status" options={assistanceStatuses} value={entry.status}
-                      onChange={(_, v) => setAssistanceEntries((es) => es.map((x, i) => i === idx ? { ...x, status: String(v) } : x))} className="w-48" />
-                  </div>
-                  {/* Attachments */}
-                  <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">Attachments</label>
-                    {entry.attachments.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mb-2">
-                        {entry.attachments.map((att, aidx) => (
-                          <div key={aidx} className="relative group">
-                            {att.type === "image" && att.preview ? (
-                              <div className="w-16 h-16 rounded-lg border border-border overflow-hidden shadow-sm">
-                                <img src={att.preview} alt={att.name} className="w-full h-full object-cover" />
-                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors rounded-lg" />
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-2 pl-2.5 pr-6 py-2 rounded-lg border border-border bg-muted/50 text-xs shadow-sm">
-                                <div className="w-7 h-7 rounded bg-accent-bg flex items-center justify-center flex-shrink-0">
-                                  <FileText className="h-4 w-4" style={{ color: "var(--accent-primary)" }} />
-                                </div>
-                                <span className="max-w-[100px] truncate font-medium text-foreground">{att.name}</span>
-                              </div>
-                            )}
-                            <button onClick={() => setAssistanceEntries((es) => es.map((x, i) => i === idx ? { ...x, attachments: x.attachments.filter((_, ai) => ai !== aidx) } : x))}
-                              className="absolute -top-1.5 -right-1.5 w-5 h-5 flex items-center justify-center bg-red-500 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity shadow-sm">
-                              <X className="h-3 w-3" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    <label className="flex flex-col items-center justify-center gap-1.5 py-4 px-4 rounded-lg border-2 border-dashed border-border hover:border-accent-primary hover:bg-accent-bg/30 cursor-pointer transition-all group">
-                      <Upload className="h-5 w-5 text-muted-foreground group-hover:text-accent-primary transition-colors" />
-                      <span className="text-xs font-medium text-muted-foreground group-hover:text-accent-text transition-colors">Click to upload files</span>
-                      <span className="text-[10px] text-muted-foreground/60">JPG, PNG, PDF, DOC up to 10MB</span>
-                      <input type="file" multiple accept="image/jpeg,image/png,image/webp,application/pdf,.doc,.docx" className="hidden"
-                        onChange={(e) => e.target.files && handleAttachments(e.target.files, (atts) => setAssistanceEntries((es) => es.map((x, i) => i === idx ? { ...x, attachments: [...x.attachments, ...atts] } : x)))} />
-                    </label>
-                  </div>
-                </div>
-              ))}
-              {assistanceEntries.length === 0 && (
-                <div className="rounded-lg border-2 border-dashed border-border p-6 text-center">
-                  <HandHeart className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">No assistance records yet</p>
-                  <p className="text-xs text-muted-foreground mt-1">Click below to record assistance received by this resident</p>
-                </div>
-              )}
-              <button onClick={() => setAssistanceEntries((e) => [...e, { ...emptyAssistance }])}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-dashed border-accent-primary text-accent-text hover:bg-accent-bg transition-colors">
-                <Plus className="h-4 w-4" /> Add assistance record
-              </button>
-            </div>
-          </Section>
-
-          {/* 11. Left & Right Thumbmark */}
+          {/* 8. Left & Right Thumbmark */}
           <Section icon={<Fingerprint className="h-4 w-4" />} title="Left & Right Thumbmark"
             open={openSections.biometric} onToggle={() => toggleSection("biometric")}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -3161,9 +2809,11 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
             </div>
           </Section>
         </div>
+        </div>{/* end scrollable content */}
 
-        {/* Sticky Bottom Action Bar */}
-        <div className="sticky bottom-0 z-30 -mx-6 px-6 py-4 glass-header backdrop-blur-xl shadow-[0_-4px_24px_rgba(0,0,0,0.08)] dark:shadow-[0_-4px_24px_rgba(0,0,0,0.3)]">
+        {/* Action Bar — shrink-0, sits naturally below the scroll area.
+            NO position:fixed — the map can never scroll under this bar. */}
+        <div className="shrink-0 px-6 py-4 glass-header backdrop-blur-xl border-t border-border/40 shadow-[0_-4px_24px_rgba(0,0,0,0.08)] dark:shadow-[0_-4px_24px_rgba(0,0,0,0.3)]">
           <div className="flex items-center justify-between">
             <p className="text-xs text-muted-foreground">
               <span className="text-red-500">*</span> Required fields must be filled before submitting
@@ -3322,15 +2972,45 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                 showFilters ? "border-accent-primary bg-accent-bg text-accent-text shadow-sm" : "border-border text-muted-foreground hover:text-foreground hover:bg-muted")}
               title="Filters">
               <Filter className="h-4 w-4" />
-              {(purokFilter !== "All Puroks" || statusFilter !== "All Status" || sexFilter !== "All" || voterFilter !== "all") && (
+              {(purokFilter !== "All Puroks" || statusFilter !== "All Status" || sexFilter !== "All" || voterFilter !== "all" || civilStatusFilter !== "All Civil Status" || residentTypeFilter !== "All Resident Types" || hohFilter !== "all" || citizenshipFilter !== "All Citizenship" || religionFilter !== "All Religion" || ethnicityFilter !== "All Ethnicity" || sectorFilter !== "All Sectors") && (
                 <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-background" style={{ background: "var(--accent-primary)" }} />
               )}
             </button>
-            <button className="inline-flex items-center justify-center h-10 w-10 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all" title="Import">
-              <Upload className="h-4 w-4" />
+            <button
+              onClick={() => importFileRef.current?.click()}
+              disabled={importing || importPreviewLoading}
+              className={cn(
+                "inline-flex items-center justify-center h-10 w-10 rounded-xl border transition-all",
+                (importing || importPreviewLoading)
+                  ? "border-accent-primary bg-accent-bg text-accent-text"
+                  : "border-border text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
+              title="Import CSV"
+            >
+              {(importing || importPreviewLoading) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
             </button>
-            <button className="inline-flex items-center justify-center h-10 w-10 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all" title="Export">
-              <Download className="h-4 w-4" />
+            <input
+              ref={importFileRef}
+              type="file"
+              accept=".csv,.txt"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleImportFileSelect(file);
+              }}
+            />
+            <button
+              onClick={handleExport}
+              disabled={exporting}
+              className={cn(
+                "inline-flex items-center justify-center h-10 w-10 rounded-xl border transition-all",
+                exporting
+                  ? "border-accent-primary bg-accent-bg text-accent-text"
+                  : "border-border text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
+              title="Export CSV"
+            >
+              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
             </button>
           </div>
           <button onClick={openCreate} className="inline-flex items-center gap-2 h-10 px-5 text-sm font-semibold rounded-xl text-white shadow-sm transition-all hover:opacity-90 hover:shadow-md active:scale-[0.98]" style={{ background: "var(--accent-primary)" }}>
@@ -3340,6 +3020,12 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
         {/* Filter chips row */}
         {showFilters && (
           <div className="flex flex-wrap items-center gap-2 px-1">
+            <span className="inline-flex items-center h-8 px-3 text-xs font-semibold rounded-full bg-muted text-foreground tabular-nums">
+              {(purokFilter !== "All Puroks" || statusFilter !== "All Status" || sexFilter !== "All" || voterFilter !== "all" || civilStatusFilter !== "All Civil Status" || residentTypeFilter !== "All Resident Types" || hohFilter !== "all" || citizenshipFilter !== "All Citizenship" || religionFilter !== "All Religion" || ethnicityFilter !== "All Ethnicity" || sectorFilter !== "All Sectors" || search)
+                ? <>{listTotal.toLocaleString()} found <span className="text-muted-foreground font-normal ml-1">of {(residentStats?.total_residents ?? listTotal).toLocaleString()} total</span></>
+                : <>{(residentStats?.total_residents ?? listTotal).toLocaleString()} residents</>
+              }
+            </span>
             <select value={purokFilter} onChange={(e) => { setPurokFilter(e.target.value); setPage(1); }}
               className="h-8 px-3 text-xs font-medium rounded-full border border-border bg-background hover:bg-muted focus:outline-none focus:ring-2 focus:ring-accent-ring cursor-pointer transition-colors">
               {puroks.map((p) => <option key={p}>{p}</option>)}
@@ -3352,14 +3038,44 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
               className="h-8 px-3 text-xs font-medium rounded-full border border-border bg-background hover:bg-muted focus:outline-none focus:ring-2 focus:ring-accent-ring cursor-pointer transition-colors">
               {sexOptions.map((s) => <option key={s}>{s}</option>)}
             </select>
+            <select value={civilStatusFilter} onChange={(e) => { setCivilStatusFilter(e.target.value); setPage(1); }}
+              className="h-8 px-3 text-xs font-medium rounded-full border border-border bg-background hover:bg-muted focus:outline-none focus:ring-2 focus:ring-accent-ring cursor-pointer transition-colors">
+              {["All Civil Status", ...civilStatuses].map((s) => <option key={s}>{s}</option>)}
+            </select>
+            <select value={residentTypeFilter} onChange={(e) => { setResidentTypeFilter(e.target.value); setPage(1); }}
+              className="h-8 px-3 text-xs font-medium rounded-full border border-border bg-background hover:bg-muted focus:outline-none focus:ring-2 focus:ring-accent-ring cursor-pointer transition-colors">
+              {["All Resident Types", "Permanent", "Transient", "Seasonal", "Migrant"].map((s) => <option key={s}>{s}</option>)}
+            </select>
             <select value={voterFilter} onChange={(e) => { setVoterFilter(e.target.value); setPage(1); }}
               className="h-8 px-3 text-xs font-medium rounded-full border border-border bg-background hover:bg-muted focus:outline-none focus:ring-2 focus:ring-accent-ring cursor-pointer transition-colors">
               <option value="all">All Voters</option>
               <option value="voter">Registered Voter</option>
               <option value="non-voter">Non-Voter</option>
             </select>
-            {(purokFilter !== "All Puroks" || statusFilter !== "All Status" || sexFilter !== "All" || voterFilter !== "all") && (
-              <button onClick={() => { setPurokFilter("All Puroks"); setStatusFilter("All Status"); setSexFilter("All"); setVoterFilter("all"); }}
+            <select value={hohFilter} onChange={(e) => { setHohFilter(e.target.value); setPage(1); }}
+              className="h-8 px-3 text-xs font-medium rounded-full border border-border bg-background hover:bg-muted focus:outline-none focus:ring-2 focus:ring-accent-ring cursor-pointer transition-colors">
+              <option value="all">All Households</option>
+              <option value="hoh">Head of Household</option>
+              <option value="non-hoh">Not Head</option>
+            </select>
+            <select value={citizenshipFilter} onChange={(e) => { setCitizenshipFilter(e.target.value); setPage(1); }}
+              className="h-8 px-3 text-xs font-medium rounded-full border border-border bg-background hover:bg-muted focus:outline-none focus:ring-2 focus:ring-accent-ring cursor-pointer transition-colors">
+              {["All Citizenship", "Filipino", "American", "Chinese", "Japanese", "Korean", "Other"].map((s) => <option key={s}>{s}</option>)}
+            </select>
+            <select value={religionFilter} onChange={(e) => { setReligionFilter(e.target.value); setPage(1); }}
+              className="h-8 px-3 text-xs font-medium rounded-full border border-border bg-background hover:bg-muted focus:outline-none focus:ring-2 focus:ring-accent-ring cursor-pointer transition-colors">
+              {["All Religion", "Roman Catholic", "Iglesia ni Cristo", "Islam", "Born Again Christian", "Evangelical", "Seventh Day Adventist", "Baptist", "Methodist", "Other"].map((s) => <option key={s}>{s}</option>)}
+            </select>
+            <select value={ethnicityFilter} onChange={(e) => { setEthnicityFilter(e.target.value); setPage(1); }}
+              className="h-8 px-3 text-xs font-medium rounded-full border border-border bg-background hover:bg-muted focus:outline-none focus:ring-2 focus:ring-accent-ring cursor-pointer transition-colors">
+              {["All Ethnicity", "Tagalog", "Ilocano", "Pangasinan", "Pampanga", "Bicolano", "Visayan", "Zamboangueño", "Tausug", "Maranao", "Other"].map((s) => <option key={s}>{s}</option>)}
+            </select>
+            <select value={sectorFilter} onChange={(e) => { setSectorFilter(e.target.value); setPage(1); }}
+              className="h-8 px-3 text-xs font-medium rounded-full border border-border bg-background hover:bg-muted focus:outline-none focus:ring-2 focus:ring-accent-ring cursor-pointer transition-colors">
+              {["All Sectors", ...sectorOptions].map((s) => <option key={s}>{s}</option>)}
+            </select>
+            {(purokFilter !== "All Puroks" || statusFilter !== "All Status" || sexFilter !== "All" || voterFilter !== "all" || civilStatusFilter !== "All Civil Status" || residentTypeFilter !== "All Resident Types" || hohFilter !== "all" || citizenshipFilter !== "All Citizenship" || religionFilter !== "All Religion" || ethnicityFilter !== "All Ethnicity" || sectorFilter !== "All Sectors") && (
+              <button onClick={() => { setPurokFilter("All Puroks"); setStatusFilter("All Status"); setSexFilter("All"); setVoterFilter("all"); setCivilStatusFilter("All Civil Status"); setResidentTypeFilter("All Resident Types"); setHohFilter("all"); setCitizenshipFilter("All Citizenship"); setReligionFilter("All Religion"); setEthnicityFilter("All Ethnicity"); setSectorFilter("All Sectors"); }}
                 className="inline-flex items-center gap-1 h-8 px-3 text-xs font-medium rounded-full text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/50 transition-colors">
                 <X className="h-4 w-4" /> Clear all
               </button>
@@ -3367,6 +3083,158 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
           </div>
         )}
       </div>
+
+      {/* Import Result Banner */}
+      {importResult && (
+        <div className={cn(
+          "flex items-start gap-3 rounded-xl border px-4 py-3",
+          importResult.imported > 0
+            ? "border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30"
+            : "border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30"
+        )}>
+          <div className="flex-1 text-sm">
+            <p className={cn("font-semibold", importResult.imported > 0 ? "text-green-800 dark:text-green-300" : "text-amber-800 dark:text-amber-300")}>
+              {importResult.message}
+            </p>
+            {importResult.errors.length > 0 && (
+              <ul className="mt-1.5 space-y-0.5 text-xs text-muted-foreground">
+                {importResult.errors.map((e, i) => <li key={i}>{e}</li>)}
+              </ul>
+            )}
+            {importResult.batch_id && importResult.imported > 0 && (
+              <button
+                onClick={() => handleRollback(importResult.batch_id!)}
+                className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-950/40 hover:bg-red-200 dark:hover:bg-red-950/60 transition-colors"
+              >
+                <Archive className="h-3.5 w-3.5" /> Undo Import (Rollback)
+              </button>
+            )}
+          </div>
+          <button onClick={() => setImportResult(null)} className="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+            <X className="h-4 w-4 text-muted-foreground" />
+          </button>
+        </div>
+      )}
+
+      {/* Import Column Mapping Modal */}
+      {importPreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => { setImportPreview(null); setImportFile(null); }}>
+          <div className="relative w-full max-w-2xl mx-4 rounded-2xl bg-background border border-border shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <div>
+                <h3 className="text-base font-bold text-foreground">Verify Column Mapping</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {importFile?.name} — {importPreview.total_rows.toLocaleString()} rows detected
+                </p>
+              </div>
+              <button onClick={() => { setImportPreview(null); setImportFile(null); }} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
+                <X className="h-4 w-4 text-muted-foreground" />
+              </button>
+            </div>
+
+            {/* Column mapping */}
+            <div className="px-6 py-4 space-y-4">
+              <p className="text-xs text-muted-foreground">
+                Map each CSV column to the correct resident field. Fields marked with <span className="text-red-500 font-bold">*</span> are required.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { key: "first_name", label: "First Name", required: true },
+                  { key: "last_name", label: "Last Name", required: true },
+                  { key: "middle_name", label: "Middle Name", required: false },
+                  { key: "date_of_birth", label: "Date of Birth", required: false },
+                ].map((field) => (
+                  <div key={field.key}>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">
+                      {field.label} {field.required && <span className="text-red-500">*</span>}
+                    </label>
+                    <select
+                      value={importMapping[field.key] ?? ""}
+                      onChange={(e) => setImportMapping((prev) => ({ ...prev, [field.key]: e.target.value === "" ? "" : Number(e.target.value) }))}
+                      className={cn(
+                        "w-full h-9 px-3 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring cursor-pointer transition-colors",
+                        field.required && (importMapping[field.key] === "" || importMapping[field.key] === undefined) ? "border-red-300 dark:border-red-800" : "border-border"
+                      )}
+                    >
+                      <option value="">— Skip —</option>
+                      {importPreview.headers.map((h, i) => (
+                        <option key={i} value={i}>{h}</option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+              </div>
+
+              {/* Data preview table */}
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-2">Preview (first {importPreview.sample_rows.length} rows)</p>
+                <div className="overflow-x-auto rounded-lg border border-border">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-muted/50">
+                        <th className="px-3 py-2 text-left font-medium text-muted-foreground whitespace-nowrap">#</th>
+                        {importPreview.headers.map((h, i) => {
+                          const mappedTo = Object.entries(importMapping).find(([, v]) => v === i);
+                          return (
+                            <th key={i} className="px-3 py-2 text-left font-medium whitespace-nowrap">
+                              <span className="text-muted-foreground">{h}</span>
+                              {mappedTo && (
+                                <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                                  {mappedTo[0].replace("_", " ")}
+                                </span>
+                              )}
+                            </th>
+                          );
+                        })}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {importPreview.sample_rows.map((row, ri) => (
+                        <tr key={ri} className="border-t border-border">
+                          <td className="px-3 py-1.5 text-muted-foreground">{ri + 1}</td>
+                          {row.map((cell, ci) => (
+                            <td key={ci} className="px-3 py-1.5 text-foreground whitespace-nowrap max-w-[150px] truncate">{cell || <span className="text-muted-foreground/40 italic">empty</span>}</td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between px-6 py-4 border-t border-border bg-muted/30">
+              <p className="text-xs text-muted-foreground">
+                Only First Name, Last Name, Middle Name, and Date of Birth will be imported. All other data can be added later.
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => { setImportPreview(null); setImportFile(null); }}
+                  className="px-4 py-2 text-sm font-medium rounded-lg border border-border text-foreground hover:bg-muted transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleImportConfirm}
+                  disabled={importing || importMapping.first_name === "" || importMapping.first_name === undefined || importMapping.last_name === "" || importMapping.last_name === undefined}
+                  className={cn(
+                    "px-4 py-2 text-sm font-semibold rounded-lg text-white transition-all",
+                    importing || importMapping.first_name === "" || importMapping.first_name === undefined || importMapping.last_name === "" || importMapping.last_name === undefined
+                      ? "opacity-50 cursor-not-allowed bg-muted-foreground"
+                      : "hover:opacity-90 active:scale-[0.98]"
+                  )}
+                  style={{ background: (importing || importMapping.first_name === "" || importMapping.first_name === undefined || importMapping.last_name === "" || importMapping.last_name === undefined) ? undefined : "var(--accent-primary)" }}
+                >
+                  {importing ? <Loader2 className="h-4 w-4 animate-spin inline mr-1.5" /> : <Upload className="h-4 w-4 inline mr-1.5" />}
+                  Import {importPreview.total_rows.toLocaleString()} Rows
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Table */}
       <div className="rounded-xl glass overflow-hidden">
@@ -3423,7 +3291,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                   const createdLabel = daysAgo === 0 ? "Today" : daysAgo === 1 ? "Yesterday" : daysAgo < 7 ? `${daysAgo} days ago` : daysAgo < 30 ? `${Math.floor(daysAgo / 7)} weeks ago` : daysAgo < 365 ? `${Math.floor(daysAgo / 30)} months ago` : `${Math.floor(daysAgo / 365)} years ago`;
                   const greyFlags = r.cross_barangay_flags || [];
                   const hasGreyFlag = greyFlags.length > 0;
-                  const hasRedFlag = index === 0; // TEMP MOCK: first resident shows red Case Record badge
+                  const hasRedFlag = Array.isArray(r.case_records) && r.case_records.length > 0;
                   return (
                     <tr key={r.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => router.push(`/dashboard/residents/${r.id}`)}>
                       {/* Barangay ID */}
@@ -3435,7 +3303,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                         <div className="flex items-center gap-3">
                           <div className="relative shrink-0">
                             {r.photo_url ? (
-                              <img src={r.photo_url} alt={initials} className="w-11 h-11 rounded-xl object-cover" />
+                              <img src={resolvePhotoUrl(r.photo_url)!} alt={initials} className="w-11 h-11 rounded-xl object-cover" />
                             ) : (
                               <div className={cn(
                                 "w-11 h-11 rounded-xl flex items-center justify-center text-xs font-bold text-white",
@@ -3477,7 +3345,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                                 )}
                               </span>
                             )}
-                            {(hasGreyFlag || index === 1) && !hasRedFlag && (
+                            {hasGreyFlag && !hasRedFlag && (
                               <span
                                 className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-slate-500 flex items-center justify-center ring-2 ring-white dark:ring-slate-900"
                                 onMouseEnter={(e) => { e.stopPropagation(); setHoveredTooltip("gray-" + r.id); }}

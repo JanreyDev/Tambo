@@ -37,6 +37,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { Modal, ModalButton } from "@/components/ui/modal";
 import { SortableHeader } from "@/components/ui/sortable-header";
 import { cn } from "@/lib/utils";
+import { MabiniButton } from '@/components/ui/mabini-button';
 
 interface IssuedDocument {
   id: string;
@@ -170,6 +171,9 @@ export default function DocumentsPage() {
   const [showResidentDropdown, setShowResidentDropdown] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
+  // Submission state
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   // Toast state
   const [toasts, setToasts] = useState<{ id: number; title: string; description: string }[]>([]);
   const addToast = useCallback((title: string, description: string) => {
@@ -251,6 +255,7 @@ export default function DocumentsPage() {
   };
 
   const handleFormSubmit = () => {
+    if (isSubmitting) return;
     const errors = validateForm();
     if (Object.keys(errors).length > 0) {
       // Jump to the first tab that has errors
@@ -259,14 +264,18 @@ export default function DocumentsPage() {
       if (errors.amount) { setIssueTab(2); return; }
       return;
     }
-    if (showEdit) {
-      addToast("Document Updated", "Document details have been saved successfully.");
-    } else {
-      addToast("Document Issued", `${form.document_type} has been issued for ${form.selected_resident_name}.`);
-    }
-    setShowIssue(false);
-    setShowEdit(false);
-    setFormErrors({});
+    setIsSubmitting(true);
+    setTimeout(() => {
+      if (showEdit) {
+        addToast("Document Updated", "Document details have been saved successfully.");
+      } else {
+        addToast("Document Issued", `${form.document_type} has been issued for ${form.selected_resident_name}.`);
+      }
+      setShowIssue(false);
+      setShowEdit(false);
+      setFormErrors({});
+      setIsSubmitting(false);
+    }, 300);
   };
 
   const handleResidentSearch = (query: string) => {
@@ -720,8 +729,8 @@ export default function DocumentsPage() {
                   Next <ChevronRight className="w-4 h-4 ml-1" />
                 </ModalButton>
               ) : (
-                <ModalButton variant="primary" onClick={handleFormSubmit}>
-                  <Save className="w-4 h-4 mr-1" /> {showEdit ? "Update Document" : "Issue Document"}
+                <ModalButton variant="primary" onClick={handleFormSubmit} disabled={isSubmitting}>
+                  <Save className="w-4 h-4 mr-1" /> {isSubmitting ? "Saving..." : showEdit ? "Update Document" : "Issue Document"}
                 </ModalButton>
               )}
             </div>
@@ -910,6 +919,7 @@ function InfoItem({ icon, label, value }: { icon?: React.ReactNode; label: strin
         <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
         <p className="text-sm text-foreground">{value}</p>
       </div>
+      <MabiniButton pageContext="You are on the Documents page. This page manages issuance of barangay clearances, certificates, and other official documents." />
     </div>
   );
 }

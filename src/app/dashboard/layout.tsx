@@ -48,14 +48,14 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="flex min-h-screen bg-background relative overflow-x-hidden">
+    <div className="flex min-h-screen bg-background relative">
       {/* Ambient background orbs for glass depth */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         <div className="absolute top-[10%] right-[15%] w-[500px] h-[500px] rounded-full blur-[150px] opacity-[0.04]" style={{ background: "var(--accent-primary)" }} />
         <div className="absolute bottom-[20%] left-[10%] w-[400px] h-[400px] rounded-full blur-[120px] opacity-[0.03]" style={{ background: "var(--accent-ring)" }} />
       </div>
       <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0 relative z-10">
+      <div className="flex-1 flex flex-col min-w-0 relative z-10 overflow-x-hidden">
         <Header />
         {user?.barangay && !user.barangay.setup_complete && (
           <div className="mx-6 mt-4 flex items-center gap-3 px-4 py-3 rounded-xl border border-amber-500/30 bg-amber-500/10">

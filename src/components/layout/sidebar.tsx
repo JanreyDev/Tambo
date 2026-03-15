@@ -131,7 +131,7 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="hidden lg:flex flex-col w-[232px] glass-sidebar h-screen sticky top-0 shrink-0">
+    <aside className="hidden lg:flex flex-col w-[232px] glass-sidebar h-screen sticky top-0 shrink-0 overflow-hidden">
       {/* Barangay Identity */}
       <div className="px-3 pt-4 pb-2">
         <div className="relative rounded-xl p-3 overflow-hidden" style={{ background: "var(--accent-primary)" }}>
@@ -164,7 +164,7 @@ export function Sidebar() {
       </div>
 
       {/* Navigation — fills remaining space, scrolls when content overflows */}
-      <nav className="flex-1 overflow-y-auto px-2 mt-1 pb-2">
+      <nav className="flex-1 min-h-0 overflow-y-auto px-2 mt-1 pb-2">
         {navGroupDefs.map((group, gi) => {
           const isCollapsed = group.collapsible && collapsedGroups[group.titleKey];
           const groupTitle = group.titleKey ? navLabel(group.titleKey) : "";

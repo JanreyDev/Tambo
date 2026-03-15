@@ -420,6 +420,13 @@ const api = {
       purok?: string;
       sex?: string;
       is_voter?: boolean;
+      civil_status?: string;
+      resident_type?: string;
+      is_head_of_household?: boolean;
+      citizenship?: string;
+      religion?: string;
+      ethnicity?: string;
+      sector?: string;
       sort_by?: string;
       sort_dir?: string;
     }) => {
@@ -431,6 +438,13 @@ const api = {
       if (params?.purok) query.set("purok", params.purok);
       if (params?.sex) query.set("sex", params.sex);
       if (params?.is_voter !== undefined) query.set("is_voter", String(params.is_voter));
+      if (params?.civil_status) query.set("civil_status", params.civil_status);
+      if (params?.resident_type) query.set("resident_type", params.resident_type);
+      if (params?.is_head_of_household !== undefined) query.set("is_head_of_household", String(params.is_head_of_household));
+      if (params?.citizenship) query.set("citizenship", params.citizenship);
+      if (params?.religion) query.set("religion", params.religion);
+      if (params?.ethnicity) query.set("ethnicity", params.ethnicity);
+      if (params?.sector) query.set("sector", params.sector);
       if (params?.sort_by) query.set("sort_by", params.sort_by);
       if (params?.sort_dir) query.set("sort_dir", params.sort_dir);
       const qs = query.toString();
@@ -449,8 +463,98 @@ const api = {
     delete: (id: string) =>
       api.delete<{ message: string }>(`/residents/${id}`),
 
+    activity: (id: string, params?: { page?: number; per_page?: number }) => {
+      const query = new URLSearchParams();
+      if (params?.page) query.set("page", String(params.page));
+      if (params?.per_page) query.set("per_page", String(params.per_page));
+      const qs = query.toString();
+      return api.get<{
+        data: Array<{
+          id: string;
+          action: string;
+          resource_type: string;
+          resource_id: string;
+          changes: Record<string, unknown> | null;
+          ip_address: string | null;
+          user_agent: string | null;
+          module: string;
+          created_at: string;
+          user: { id: string; username: string; first_name: string | null; last_name: string | null } | null;
+        }>;
+        current_page: number;
+        last_page: number;
+        total: number;
+      }>(`/residents/${id}/activity${qs ? `?${qs}` : ""}`);
+    },
+
     checkDuplicate: (data: { first_name: string; last_name: string; middle_name?: string; date_of_birth: string }) =>
       api.post<{ has_duplicates: boolean; matches: DuplicateMatch[] }>("/residents/check-duplicate", data),
+
+    exportCsv: (params?: Record<string, string>) => {
+      const query = new URLSearchParams();
+      if (params) {
+        Object.entries(params).forEach(([k, v]) => { if (v) query.set(k, v); });
+      }
+      const qs = query.toString();
+      // Direct fetch for file download — bypass JSON parsing
+      const base = typeof window !== "undefined" ? "/api/v1" : "";
+      return fetch(`${base}/residents/export${qs ? `?${qs}` : ""}`, {
+        credentials: "include",
+        headers: {
+          Authorization: `Bearer ${getToken() || ""}`,
+          Accept: "text/csv",
+        },
+      });
+    },
+
+    importPreview: async (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      const base = typeof window !== "undefined" ? "/api/v1" : "";
+      const res = await fetch(`${base}/residents/import/preview`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          Authorization: `Bearer ${getToken() || ""}`,
+          Accept: "application/json",
+        },
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw { message: data.message || "Preview failed", ...data };
+      return data as {
+        headers: string[];
+        sample_rows: string[][];
+        total_rows: number;
+        auto_mapping: Record<string, number>;
+        required_fields: string[];
+        optional_fields: string[];
+      };
+    },
+
+    importCsv: async (file: File, mapping: Record<string, number>) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      Object.entries(mapping).forEach(([k, v]) => {
+        formData.append(`mapping[${k}]`, String(v));
+      });
+      const base = typeof window !== "undefined" ? "/api/v1" : "";
+      const res = await fetch(`${base}/residents/import`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          Authorization: `Bearer ${getToken() || ""}`,
+          Accept: "application/json",
+        },
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw { message: data.message || "Import failed", ...data };
+      return data as { message: string; batch_id: string; imported: number; skipped: number; errors: string[] };
+    },
+
+    rollbackBatch: (batchId: string) =>
+      api.delete<{ message: string }>(`/residents/import/batches/${batchId}`),
   },
 
   puroks: {

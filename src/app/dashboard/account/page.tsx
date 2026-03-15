@@ -58,6 +58,7 @@ import {
 import Image from "next/image";
 import type { AiConversationSummary, AiCredits, AiConversation } from "@/lib/types";
 import { Markdown } from "@/components/ui/markdown";
+import { MabiniButton } from '@/components/ui/mabini-button';
 
 function MabiniIcon({ size = 32 }: { size?: number }) {
   return (
@@ -2352,6 +2353,7 @@ function NotificationToggle({ label, desc, defaultChecked, onChange }: {
         />
         <div className="w-9 h-5 bg-border rounded-full peer peer-checked:bg-[var(--accent-primary)] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full" />
       </label>
+      <MabiniButton pageContext="You are on the Account Settings page. This page allows barangay staff to update their profile, password, and system preferences." />
     </div>
   );
 }

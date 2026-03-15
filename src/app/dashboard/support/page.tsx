@@ -24,6 +24,7 @@ import { Badge, StatusBadge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/stat-card";
 import { Modal, ModalButton } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
+import { MabiniButton } from '@/components/ui/mabini-button';
 
 interface Ticket {
   id: string;
@@ -115,6 +116,7 @@ export default function SupportPage() {
   const pageSize = 10;
 
   // Toast system
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [toasts, setToasts] = useState<{ id: number; message: string }[]>([]);
   const showToast = useCallback((message: string) => {
     const id = Date.now();
@@ -284,7 +286,7 @@ export default function SupportPage() {
                 setFormErrors(errors);
                 if (Object.keys(errors).length === 0) setFormTab(t => t + 1);
               }}>Next</ModalButton>
-            : <ModalButton variant="primary" onClick={() => { if (validateTicketForm()) { showToast("Ticket Submitted"); setShowCreate(false); } }}>Submit Ticket</ModalButton>}
+            : <ModalButton variant="primary" disabled={isSubmitting} onClick={() => { if (isSubmitting) return; if (validateTicketForm()) { setIsSubmitting(true); setTimeout(() => { showToast("Ticket Submitted"); setShowCreate(false); setIsSubmitting(false); }, 300); } }}>{isSubmitting ? "Submitting..." : "Submit Ticket"}</ModalButton>}
         </>}>
         <div className="flex border-b border-border mb-6">
           {formTabs.map((tab, i) => (
@@ -379,6 +381,7 @@ export default function SupportPage() {
           </div>
         ))}
       </div>
+      <MabiniButton pageContext="You are on the Support Tickets page. This page manages help requests submitted to the PrimeX support team." />
     </div>
   );
 }

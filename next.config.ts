@@ -11,12 +11,17 @@ const nextConfig: NextConfig = {
   compress: true,
   reactStrictMode: true,
 
-  // Proxy /api/* requests to bcmp-api so the browser never needs to reach port 8000 directly
+  // Proxy /api/* and /storage/* to bcmp-api so the browser never hits port 8000 directly.
+  // This keeps all origins under 'self', satisfying CSP without extra img-src exceptions.
   async rewrites() {
     return [
       {
         source: "/api/:path*",
         destination: `${apiOrigin}/api/:path*`,
+      },
+      {
+        source: "/storage/:path*",
+        destination: `${apiOrigin}/storage/:path*`,
       },
     ];
   },
@@ -30,17 +35,18 @@ const nextConfig: NextConfig = {
           { key: "X-Frame-Options", value: "DENY" },
           { key: "X-XSS-Protection", value: "1; mode=block" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=()" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), payment=()" },
           { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains; preload" },
           {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
-              "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: blob: https:",
-              "font-src 'self' data:",
-              "connect-src 'self' https://v5-api.kapitan.ph https://api.ipify.org https://*.ingest.us.sentry.io",
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://maps.googleapis.com https://maps.gstatic.com",
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://maps.googleapis.com https://maps.gstatic.com https://unpkg.com",
+              "img-src 'self' data: blob: https: https://maps.googleapis.com https://maps.gstatic.com https://*.googleapis.com https://unpkg.com https://*.tile.openstreetmap.org",
+              "font-src 'self' data: https://fonts.gstatic.com",
+              "connect-src 'self' https://api.kapitan.ph https://api.ipify.org https://*.ingest.us.sentry.io https://maps.googleapis.com https://overpass-api.de https://*.tile.openstreetmap.org https://nominatim.openstreetmap.org",
+              "worker-src blob:",
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",

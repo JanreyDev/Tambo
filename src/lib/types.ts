@@ -331,6 +331,7 @@ export interface ResidentDetail extends ResidentSummary {
   ethnicity: string | null;
   mothers_maiden_name: string | null;
   resident_type: string;
+  telephone: string | null;
   email: string | null;
   street: string | null;
   house_block_lot: string | null;
@@ -341,6 +342,7 @@ export interface ResidentDetail extends ResidentSummary {
   is_voter: boolean;
   is_resident_voter: boolean;
   voter_precinct_number: string | null;
+  last_voted_year: string | null;
   occupation: string | null;
   employer: string | null;
   monthly_income_range: string | null;
@@ -366,8 +368,23 @@ export interface ResidentDetail extends ResidentSummary {
   emergency_contact_address: string | null;
   emergency_contact_relationship: string | null;
   is_head_of_household: boolean;
+  relationship_to_head: string | null;
   household_id: string | null;
   household?: { id: string; household_number: string } | null;
+  // Government IDs — decrypted server-side, returned as plain field names
+  philhealth_number: string | null;
+  philhealth_expiry: string | null;
+  sss_gsis_number: string | null;
+  sss_gsis_expiry: string | null;
+  pagibig_number: string | null;
+  pagibig_expiry: string | null;
+  tin_number: string | null;
+  tin_expiry: string | null;
+  pwd_id: string | null;
+  pwd_id_expiry: string | null;
+  senior_citizen_id: string | null;
+  registration_source: string | null;
+  import_batch_id: string | null;
   updated_at: string;
 }
 

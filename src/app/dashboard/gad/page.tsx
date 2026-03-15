@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/stat-card";
 import { Modal, ModalButton } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
+import { MabiniButton } from '@/components/ui/mabini-button';
 
 interface GadProgram {
   id: string;
@@ -371,6 +372,7 @@ export default function GadPage() {
           ))}
         </div>
       )}
+      <MabiniButton pageContext="You are on the GAD (Gender and Development) page. This page manages gender and development programs, budgets, and reports." />
     </div>
   );
 }

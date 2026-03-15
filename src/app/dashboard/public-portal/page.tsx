@@ -30,6 +30,7 @@ import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/stat-card";
 import { Modal, ModalButton } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
+import { MabiniButton } from '@/components/ui/mabini-button';
 
 interface PortalModule {
   id: string;
@@ -511,6 +512,7 @@ export default function PublicPortalPage() {
           ))}
         </div>
       )}
+      <MabiniButton pageContext="You are on the Public Portal management page. This page manages the public-facing barangay portal settings, announcements, and online services." />
     </div>
   );
 }

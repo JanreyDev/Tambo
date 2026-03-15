@@ -29,6 +29,7 @@ import { Badge, StatusBadge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/stat-card";
 import { Modal, ModalButton } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
+import { MabiniButton } from '@/components/ui/mabini-button';
 
 interface DisasterEvent {
   id: string;
@@ -466,6 +467,7 @@ export default function DisasterPage() {
           ))}
         </div>
       )}
+      <MabiniButton pageContext="You are on the Disaster Risk Reduction Management (DRRM) page. This page manages disaster response records, evacuation plans, and emergency contacts." />
     </div>
   );
 }

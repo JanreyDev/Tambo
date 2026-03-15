@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/ui/page-header";
+import { MabiniButton } from '@/components/ui/mabini-button';
 
 interface HelpSection {
   id: string;
@@ -375,6 +376,7 @@ export default function HelpPage() {
           </div>
         </div>
       </div>
+      <MabiniButton pageContext="You are on the Barangay Help & Documentation page. This page contains guides and FAQs for barangay staff about using the Kapitan.ph system." />
     </div>
   );
 }

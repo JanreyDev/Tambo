@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/stat-card";
 import { Modal, ModalButton } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
+import { MabiniButton } from '@/components/ui/mabini-button';
 
 interface Transaction {
   id: string;
@@ -102,6 +103,7 @@ export default function FinancePage() {
   const [form, setForm] = useState<Record<string, string>>(emptyForm);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [actionMenu, setActionMenu] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [toasts, setToasts] = useState<{id: string; type: "success"|"error"|"warning"|"info"; title: string; message?: string}[]>([]);
 
   const addToast = useCallback((type: "success"|"error"|"warning"|"info", title: string, message?: string) => {
@@ -344,7 +346,7 @@ export default function FinancePage() {
         footer={<>
           <ModalButton variant="secondary" onClick={() => { setShowCreate(false); setShowEdit(false); }}>Cancel</ModalButton>
           {formTab > 0 && <ModalButton variant="secondary" onClick={() => setFormTab((t) => t - 1)}>Previous</ModalButton>}
-          {formTab < formTabs.length - 1 ? <ModalButton variant="primary" onClick={() => setFormTab((t) => t + 1)}>Next</ModalButton> : <ModalButton variant="primary" onClick={() => { if (validateForm()) { if (showEdit) { addToast("success", "Transaction Updated", "The transaction record has been updated successfully."); } else { addToast("success", "Transaction Recorded", "New transaction has been recorded successfully."); } setShowCreate(false); setShowEdit(false); } }}>{showEdit ? "Update" : "Save"}</ModalButton>}
+          {formTab < formTabs.length - 1 ? <ModalButton variant="primary" onClick={() => setFormTab((t) => t + 1)}>Next</ModalButton> : <ModalButton variant="primary" disabled={isSubmitting} onClick={() => { if (isSubmitting) return; if (validateForm()) { setIsSubmitting(true); setTimeout(() => { if (showEdit) { addToast("success", "Transaction Updated", "The transaction record has been updated successfully."); } else { addToast("success", "Transaction Recorded", "New transaction has been recorded successfully."); } setShowCreate(false); setShowEdit(false); setIsSubmitting(false); }, 300); } }}>{isSubmitting ? "Saving..." : showEdit ? "Update" : "Save"}</ModalButton>}
         </>}>
         <div className="flex border-b border-border mb-6">
           {formTabs.map((tab, i) => (
@@ -425,6 +427,7 @@ export default function FinancePage() {
           ))}
         </div>
       )}
+      <MabiniButton pageContext="You are on the Finance page. This page manages barangay financial transactions, income, and expense records." />
     </div>
   );
 }

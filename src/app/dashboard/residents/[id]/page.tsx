@@ -1,23 +1,27 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Edit, Printer, Archive, User, Calendar, Heart, MapPin,
   Phone, Mail, Briefcase, GraduationCap, IdCard, Vote,
   Home, Flag, Users, AlertTriangle, Loader2, Contact,
   HandHeart, Link2, PawPrint, Globe, Fingerprint,
-  ScrollText, Activity, FolderOpen, Clock,
-  MessageSquare, Sparkles, CheckCircle2, ChevronRight,
+  ScrollText, Activity, FolderOpen, Clock, X, Plus,
+  MessageSquare, Sparkles, CheckCircle2, ChevronRight, Search, Eye,
+  FileEdit, Trash2, UserPlus, MonitorSmartphone,
 } from "lucide-react";
 import { Badge, StatusBadge } from "@/components/ui/badge";
 import { Tabs } from "@/components/ui/tabs";
 import { Markdown } from "@/components/ui/markdown";
-import { cn } from "@/lib/utils";
+import { cn, resolvePhotoUrl } from "@/lib/utils";
+import ResidentPinMap from "@/components/map/resident-pin-map-dynamic";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import { useAiStream } from "@/hooks/use-ai-stream";
 import type { ResidentDetail } from "@/lib/types";
+import { MabiniButton } from "@/components/ui/mabini-button";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -111,6 +115,175 @@ function PlaceholderTab({ icon, title, description }: { icon: React.ReactNode; t
   );
 }
 
+// ── Activity Tab ──────────────────────────────────────────────────────────────
+
+type ActivityLogEntry = {
+  id: string;
+  action: string;
+  changes: Record<string, unknown> | null;
+  created_at: string;
+  user: { id: string; username: string; first_name: string | null; last_name: string | null } | null;
+};
+
+function ActivityTab({ residentId }: { residentId: string }) {
+  const [logs, setLogs] = useState<ActivityLogEntry[]>([]);
+  const [page, setPage] = useState(1);
+  const [lastPage, setLastPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    api.residents.activity(residentId, { page, per_page: 20 })
+      .then((res) => {
+        if (cancelled) return;
+        setLogs(res.data);
+        setLastPage(res.last_page);
+        setTotal(res.total);
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [residentId, page]);
+
+  const actionIconMap: Record<string, React.ReactNode> = {
+    created: <UserPlus className="h-4 w-4" />,
+    updated: <FileEdit className="h-4 w-4" />,
+    deleted: <Trash2 className="h-4 w-4" />,
+    viewed: <Eye className="h-4 w-4" />,
+  };
+  const actionColorMap: Record<string, string> = {
+    created: "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400",
+    updated: "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400",
+    deleted: "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400",
+    viewed: "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400",
+  };
+  const actionLabelMap: Record<string, string> = {
+    created: "created",
+    updated: "updated",
+    deleted: "deleted",
+    viewed: "viewed",
+  };
+
+  function timeAgo(dateStr: string): string {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "Just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    if (days < 7) return `${days}d ago`;
+    return new Date(dateStr).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" });
+  }
+
+  function formatChanges(changes: Record<string, unknown> | null): React.ReactNode {
+    if (!changes) return null;
+    const desc = changes.description as string | undefined;
+    const fieldsChanged = changes.fields_changed as string[] | undefined;
+    const oldVals = changes.old as Record<string, unknown> | undefined;
+    const newVals = changes.new as Record<string, unknown> | undefined;
+    return (
+      <div className="space-y-1.5 mt-1.5">
+        {desc && <p className="text-xs text-muted-foreground">{desc}</p>}
+        {fieldsChanged && fieldsChanged.length > 0 && (
+          <div className="space-y-1">
+            {fieldsChanged.slice(0, 5).map((field) => (
+              <div key={field} className="flex items-center gap-2 text-[11px]">
+                <span className="font-medium text-muted-foreground capitalize min-w-[100px]">{field.replace(/_/g, " ")}</span>
+                {oldVals?.[field] !== undefined && (
+                  <span className="px-1.5 py-0.5 rounded bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 line-through truncate max-w-[120px]">{String(oldVals[field] ?? "empty")}</span>
+                )}
+                <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                {newVals?.[field] !== undefined && (
+                  <span className="px-1.5 py-0.5 rounded bg-green-50 dark:bg-green-950/20 text-green-600 dark:text-green-400 truncate max-w-[120px]">{String(newVals[field] ?? "empty")}</span>
+                )}
+              </div>
+            ))}
+            {fieldsChanged.length > 5 && (
+              <p className="text-[10px] text-muted-foreground">+{fieldsChanged.length - 5} more field{fieldsChanged.length - 5 > 1 ? "s" : ""}</p>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <Activity className="h-4 w-4 text-muted-foreground" />
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Activity Log</h3>
+        {total > 0 && (
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-muted text-muted-foreground">{total}</span>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : logs.length > 0 ? (
+        <>
+          <div className="relative">
+            <div className="absolute left-5 top-0 bottom-0 w-px bg-border" />
+            <div className="space-y-1">
+              {logs.map((log) => {
+                const colorClass = actionColorMap[log.action] || "bg-muted text-muted-foreground";
+                const icon = actionIconMap[log.action] || <Activity className="h-4 w-4" />;
+                const label = actionLabelMap[log.action] || log.action;
+                const userName = log.user
+                  ? (log.user.first_name ? `${log.user.first_name} ${log.user.last_name || ""}`.trim() : log.user.username)
+                  : "System";
+                return (
+                  <div key={log.id} className="relative flex gap-3 py-2.5">
+                    <div className={cn("relative z-10 w-10 h-10 rounded-xl flex items-center justify-center shrink-0", colorClass)}>
+                      {icon}
+                    </div>
+                    <div className="flex-1 min-w-0 pt-0.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm text-foreground">
+                          <span className="font-bold">{userName}</span>
+                          <span className="text-muted-foreground"> {label} this profile</span>
+                        </p>
+                        <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0 pt-0.5">{timeAgo(log.created_at)}</span>
+                      </div>
+                      {log.changes && formatChanges(log.changes)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {lastPage > 1 && (
+            <div className="flex items-center justify-center gap-2 pt-2">
+              <button type="button" disabled={page <= 1} onClick={() => setPage(p => p - 1)}
+                className="px-3 py-1.5 text-xs rounded-lg border border-border hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                Previous
+              </button>
+              <span className="text-xs text-muted-foreground">Page {page} of {lastPage}</span>
+              <button type="button" disabled={page >= lastPage} onClick={() => setPage(p => p + 1)}
+                className="px-3 py-1.5 text-xs rounded-lg border border-border hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                Next
+              </button>
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="rounded-xl border-2 border-dashed border-border p-10 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto mb-4">
+            <Activity className="h-7 w-7 text-muted-foreground/60" />
+          </div>
+          <p className="text-sm font-semibold text-foreground mb-1">No activity yet</p>
+          <p className="text-xs text-muted-foreground">All profile changes, views, and actions will be recorded here.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Mabini AI Summary Card ────────────────────────────────────────────────────
 
 function MabiniSummaryCard({
@@ -179,7 +352,7 @@ function PersonalInfoTab({
   r: ResidentDetail;
   mabini: { content: string; isStreaming: boolean; error: string | null };
 }) {
-  const fullAddress = [r.house_block_lot, r.street, r.purok ? `Purok ${r.purok}` : null, r.subdivision_village, r.sitio]
+  const fullAddress = [r.house_block_lot, r.street, r.purok ? `Purok ${r.purok}` : null]
     .filter(Boolean).join(", ");
 
   return (
@@ -224,13 +397,13 @@ function PersonalInfoTab({
       {/* Contact & Address */}
       <Section title="Contact & Address" icon={<Phone className="h-4 w-4" />}>
         <Field label="Mobile" value={r.mobile_number} icon={<Phone className="h-3 w-3" />} />
+        <Field label="Telephone" value={r.telephone} icon={<Phone className="h-3 w-3" />} />
         <Field label="Email" value={r.email} icon={<Mail className="h-3 w-3" />} />
         <Field label="Full Address" value={fullAddress || null} icon={<MapPin className="h-3 w-3" />} wide />
         <Field label="Purok" value={r.purok} />
         <Field label="Street" value={r.street} />
-        <Field label="House / Block / Lot" value={r.house_block_lot} />
-        <Field label="Subdivision / Village" value={r.subdivision_village} />
-        <Field label="Sitio" value={r.sitio} />
+        <Field label="House / Block / Lot / Subdivision / Village" value={r.house_block_lot} />
+
         <Field label="Zip Code" value={r.zip_code} />
         <Field label="Coordinates" value={(r.latitude && r.longitude) ? `${r.latitude}, ${r.longitude}` : null} icon={<Globe className="h-3 w-3" />} wide />
       </Section>
@@ -239,11 +412,9 @@ function PersonalInfoTab({
 
       {/* Employment & Livelihood */}
       <Section title="Employment & Livelihood" icon={<Briefcase className="h-4 w-4" />}>
-        <Field label="Occupation" value={cap(r.occupation)} />
-        <Field label="Employer" value={cap(r.employer)} />
-        <Field label="Monthly Income Range" value={cap(r.monthly_income_range)} />
-        <Field label="Source of Income" value={cap(r.source_of_income)} />
         <Field label="Livelihood Type" value={cap(r.livelihood_type)} />
+        <Field label="Occupation" value={cap(r.occupation)} />
+        <Field label="Monthly Income Range" value={cap(r.monthly_income_range)} />
         <Field label="Skills" value={cap(r.skills)} wide />
       </Section>
 
@@ -251,36 +422,74 @@ function PersonalInfoTab({
 
       {/* Education */}
       <Section title="Education" icon={<GraduationCap className="h-4 w-4" />}>
-        <Field label="Highest Education" value={cap(r.highest_education)} wide />
-      </Section>
-
-      {Array.isArray(r.education_details) && (r.education_details as Record<string, string>[]).length > 0 && (
-        <div className="mt-3 space-y-2">
-          {(r.education_details as Record<string, string>[]).map((e, i) => (
-            <div key={i} className="flex items-start gap-3 p-3 rounded-lg glass-subtle text-sm">
-              <GraduationCap className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-              <div>
-                <p className="font-medium text-foreground">{e.degree || e.level || "—"}</p>
-                {e.school && <p className="text-xs text-muted-foreground">{e.school}{e.year_graduated ? ` · ${e.year_graduated}` : ""}</p>}
-              </div>
+        {Array.isArray(r.education_details) && (r.education_details as Record<string, unknown>[]).length > 0 ? (
+          <div className="relative pl-5">
+            {/* Timeline spine */}
+            <div className="absolute left-1.5 top-2 bottom-2 w-px bg-border" />
+            <div className="space-y-4">
+              {(r.education_details as Record<string, unknown>[]).map((e, i) => {
+                const level = String(e.level || e.degree || "");
+                const school = String(e.school || "");
+                const course = String(e.course || "");
+                const startYear = String(e.start_year || "");
+                const endYear = String(e.end_year || "");
+                const currentlyStudying = Boolean(e.currently_studying);
+                const years = startYear && endYear
+                  ? `${startYear} – ${endYear}`
+                  : startYear && currentlyStudying
+                    ? `${startYear} – present`
+                    : startYear
+                      ? startYear
+                      : endYear
+                        ? `Until ${endYear}`
+                        : "";
+                return (
+                  <div key={i} className="relative">
+                    {/* Timeline dot */}
+                    <div className="absolute -left-5 top-2 w-2.5 h-2.5 rounded-full bg-accent-primary border-2 border-background" />
+                    <div className="bg-card border border-border rounded-xl p-4">
+                      <div className="flex items-start justify-between gap-3 flex-wrap">
+                        <div className="space-y-0.5 flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-foreground leading-tight">{level || "—"}</p>
+                          {course && <p className="text-xs font-medium text-accent-text">{course}</p>}
+                          {school && <p className="text-xs text-muted-foreground">{school}</p>}
+                        </div>
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          {currentlyStudying && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 border border-green-200 dark:border-green-800">
+                              Ongoing
+                            </span>
+                          )}
+                          {years && <p className="text-[11px] text-muted-foreground tabular-nums">{years}</p>}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground italic">No education records on file.</p>
+        )}
+      </Section>
 
       <Divider />
 
-      {/* Government IDs — encrypted, privacy notice */}
-      <div>
-        <div className="flex items-center gap-2 mb-3">
-          <IdCard className="h-4 w-4 text-muted-foreground" />
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Government IDs</h3>
-        </div>
-        <div className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-800 text-sm text-slate-600 dark:text-slate-400">
-          <IdCard className="h-4 w-4 shrink-0" />
-          Government ID numbers (PhilHealth, SSS/GSIS, Pag-IBIG, TIN, PWD ID) are encrypted and stored securely. They are not displayed to protect resident privacy.
-        </div>
-      </div>
+      {/* Government IDs — decrypted server-side, shown to authorized staff */}
+      <Section title="Government IDs" icon={<IdCard className="h-4 w-4" />}>
+        <Field label="PhilHealth No." value={r.philhealth_number} icon={<IdCard className="h-3 w-3" />} />
+        <Field label="PhilHealth Expiry" value={formatDate(r.philhealth_expiry)} />
+        <Field label="SSS / GSIS No." value={r.sss_gsis_number} icon={<IdCard className="h-3 w-3" />} />
+        <Field label="SSS / GSIS Expiry" value={formatDate(r.sss_gsis_expiry)} />
+        <Field label="Pag-IBIG No." value={r.pagibig_number} icon={<IdCard className="h-3 w-3" />} />
+        <Field label="Pag-IBIG Expiry" value={formatDate(r.pagibig_expiry)} />
+        <Field label="TIN No." value={r.tin_number} icon={<IdCard className="h-3 w-3" />} />
+        <Field label="TIN Expiry" value={formatDate(r.tin_expiry)} />
+        <Field label="PWD ID No." value={r.pwd_id} icon={<IdCard className="h-3 w-3" />} />
+        <Field label="PWD ID Expiry" value={formatDate(r.pwd_id_expiry)} />
+        <Field label="Senior Citizen ID" value={r.senior_citizen_id} wide icon={<IdCard className="h-3 w-3" />} />
+      </Section>
 
       <Divider />
 
@@ -288,8 +497,11 @@ function PersonalInfoTab({
       <Section title="Voter & Household" icon={<Vote className="h-4 w-4" />}>
         <Field label="Registered Voter" value={r.is_voter ? "Yes" : "No"} />
         <Field label="Resident Voter" value={r.is_resident_voter ? "Yes" : "No"} />
+        <Field label="Voter ID" value={r.voter_id} mono />
         <Field label="Precinct Number" value={r.voter_precinct_number} mono />
+        <Field label="Last Voted Year" value={r.last_voted_year} />
         <Field label="Head of Household" value={r.is_head_of_household ? "Yes" : "No"} />
+        <Field label="Relationship to Head" value={cap(r.relationship_to_head)} />
         <Field label="Household Number" value={r.household?.household_number} mono />
       </Section>
 
@@ -320,17 +532,31 @@ function PersonalInfoTab({
           <Briefcase className="h-4 w-4 text-muted-foreground" />
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Work History</h3>
         </div>
-        {Array.isArray(r.work_history) && (r.work_history as Record<string, string>[]).length > 0 ? (
+        {Array.isArray(r.work_history) && (r.work_history as Record<string, unknown>[]).length > 0 ? (
           <div className="space-y-2">
-            {(r.work_history as Record<string, string>[]).map((w, i) => (
-              <div key={i} className="flex items-start gap-3 p-3 rounded-lg glass-subtle text-sm">
-                <Briefcase className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-medium text-foreground">{w.position || w.job_title || "—"}</p>
-                  {w.employer && <p className="text-xs text-muted-foreground">{w.employer}{w.year_started ? ` · ${w.year_started}${w.year_ended ? `–${w.year_ended}` : "–present"}` : ""}</p>}
+            {(r.work_history as Record<string, unknown>[]).map((w, i) => {
+              const position = String(w.position || w.job_title || "");
+              const company = String(w.company || w.employer || "");
+              const empType = String(w.employment_type || "");
+              const description = String(w.description || "");
+              const startYear = String(w.start_year || w.year_started || "");
+              const endYear = String(w.end_year || w.year_ended || "");
+              const years = startYear && endYear ? `${startYear} – ${endYear}` : startYear ? `${startYear} – present` : endYear ? `Until ${endYear}` : "";
+              return (
+              <div key={i} className="flex items-start gap-3 p-3.5 rounded-xl glass-subtle text-sm">
+                <Briefcase className="h-4 w-4 text-accent-primary shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0 space-y-0.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-semibold text-foreground">{position || "—"}</p>
+                    {empType && <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{empType}</span>}
+                  </div>
+                  {company && <p className="text-xs text-muted-foreground">{company}</p>}
+                  {years && <p className="text-xs text-muted-foreground">{years}</p>}
+                  {description && <p className="text-xs text-muted-foreground mt-1">{description}</p>}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <p className="text-sm text-muted-foreground/50 italic">Not indicated</p>
@@ -346,91 +572,40 @@ function PersonalInfoTab({
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Business / Enterprise</h3>
         </div>
         {Array.isArray(r.business_details) && (r.business_details as Record<string, string>[]).length > 0 ? (
-          <div className="space-y-2">
-            {(r.business_details as Record<string, string>[]).map((b, i) => (
-              <div key={i} className="flex items-start gap-3 p-3 rounded-lg glass-subtle text-sm">
-                <Briefcase className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-medium text-foreground">{b.business_name || b.name || "—"}</p>
-                  {(b.type || b.address) && <p className="text-xs text-muted-foreground">{[b.type, b.address].filter(Boolean).join(" · ")}</p>}
+          <div className="space-y-3">
+            {(r.business_details as Record<string, string>[]).map((b, i) => {
+              const bizName = b.business_name || b.name || "";
+              const bizType = b.business_type || b.type || "";
+              const bizAddress = b.business_address || b.address || "";
+              const permitNo = b.business_permit_no || "";
+              const dtiSec = b.dti_sec_no || "";
+              const monthlyIncome = b.monthly_income || "";
+              const startYear = b.start_year || "";
+              const status = b.status || "";
+              const description = b.description || "";
+              return (
+                <div key={i} className="p-4 rounded-xl glass-subtle text-sm space-y-2">
+                  <div className="flex items-start gap-3">
+                    <Briefcase className="h-4 w-4 text-accent-primary shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-semibold text-foreground">{bizName || "—"}</p>
+                        {status && <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{status}</span>}
+                      </div>
+                      {bizType && <p className="text-xs text-muted-foreground">{bizType}</p>}
+                      {bizAddress && <p className="text-xs text-muted-foreground">{bizAddress}</p>}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2 pl-7">
+                    {permitNo && <Field label="Business Permit No." value={permitNo} mono />}
+                    {dtiSec && <Field label="DTI / SEC No." value={dtiSec} mono />}
+                    {monthlyIncome && <Field label="Monthly Income" value={monthlyIncome} />}
+                    {startYear && <Field label="Start Year" value={startYear} />}
+                  </div>
+                  {description && <p className="text-xs text-muted-foreground pl-7 mt-1">{description}</p>}
                 </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground/50 italic">Not indicated</p>
-        )}
-      </div>
-
-      <Divider />
-
-      {/* Assistance History */}
-      <div>
-        <div className="flex items-center gap-2 mb-3">
-          <HandHeart className="h-4 w-4 text-muted-foreground" />
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Assistance History</h3>
-        </div>
-        {Array.isArray(r.assistance_history) && (r.assistance_history as Record<string, string>[]).length > 0 ? (
-          <div className="space-y-2">
-            {(r.assistance_history as Record<string, string>[]).map((a, i) => (
-              <div key={i} className="flex items-start gap-3 p-3 rounded-lg glass-subtle text-sm">
-                <HandHeart className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-medium text-foreground">{a.type || a.program || "—"}</p>
-                  {a.date && <p className="text-xs text-muted-foreground">{a.date}{a.amount ? ` · ₱${a.amount}` : ""}</p>}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground/50 italic">Not indicated</p>
-        )}
-      </div>
-
-      <Divider />
-
-      {/* Linked Relatives */}
-      <div>
-        <div className="flex items-center gap-2 mb-3">
-          <Link2 className="h-4 w-4 text-muted-foreground" />
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Linked Relatives</h3>
-        </div>
-        {Array.isArray(r.relative_links) && (r.relative_links as Record<string, string>[]).length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {(r.relative_links as Record<string, string>[]).map((rel, i) => (
-              <div key={i} className="flex items-center gap-2 p-3 rounded-lg glass-subtle text-sm">
-                <Users className="h-4 w-4 text-muted-foreground shrink-0" />
-                <div>
-                  <p className="font-medium text-foreground text-xs">{rel.name || "—"}</p>
-                  <p className="text-[10px] text-muted-foreground capitalize">{rel.relationship || "—"}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground/50 italic">Not indicated</p>
-        )}
-      </div>
-
-      <Divider />
-
-      {/* Pet Records */}
-      <div>
-        <div className="flex items-center gap-2 mb-3">
-          <PawPrint className="h-4 w-4 text-muted-foreground" />
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pet Records</h3>
-        </div>
-        {Array.isArray(r.pet_records) && (r.pet_records as Record<string, string>[]).length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {(r.pet_records as Record<string, string>[]).map((pet, i) => (
-              <div key={i} className="flex items-center gap-2 p-3 rounded-lg glass-subtle text-sm">
-                <PawPrint className="h-4 w-4 text-muted-foreground shrink-0" />
-                <div>
-                  <p className="font-medium text-foreground text-xs">{pet.name || "—"}</p>
-                  <p className="text-[10px] text-muted-foreground capitalize">{pet.species || pet.type || "—"}</p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <p className="text-sm text-muted-foreground/50 italic">Not indicated</p>
@@ -442,7 +617,7 @@ function PersonalInfoTab({
       {/* Health & Remarks — always shown, Tanga-Proof */}
       <Section title="Health & Remarks" icon={<Fingerprint className="h-4 w-4" />}>
         <Field label="Health History" value={r.health_history} wide />
-        <Field label="Organ Donor" value={r.is_organ_donor ? "Yes" : null} />
+        <Field label="Organ Donor" value={r.is_organ_donor ? "Yes" : "No"} />
         <Field label="Sector (Other)" value={r.sector_other} />
         <Field label="Other Remarks" value={r.other_remarks} wide />
       </Section>
@@ -456,32 +631,205 @@ function PersonalInfoTab({
 export default function ResidentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, user } = useAuth();
 
   const [resident, setResident] = useState<ResidentDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [mapModalOpen, setMapModalOpen] = useState(false);
+
+  // ── Relatives search state ──
+  const [relSearch, setRelSearch] = useState("");
+  const [relResults, setRelResults] = useState<{ id: string; name: string; resident_number: string; purok: string; photo_url?: string | null }[]>([]);
+  const [relSearchLoading, setRelSearchLoading] = useState(false);
+  const [relDropdownOpen, setRelDropdownOpen] = useState(false);
+  const [relDropdownPos, setRelDropdownPos] = useState({ top: 0, left: 0, width: 0 });
+  const relInputRef = useRef<HTMLDivElement>(null);
+  const relSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [relSelected, setRelSelected] = useState<{ id: string; name: string; resident_number: string; photo_url?: string | null } | null>(null);
+  const [relRelationship, setRelRelationship] = useState("");
+  const [relSaving, setRelSaving] = useState(false);
+
+  // ── Pet modal state ──
+  const [petModalOpen, setPetModalOpen] = useState(false);
+  const [petForm, setPetForm] = useState({ name: "", pet_type: "", sex: "", date_of_birth: "", remarks: "" });
+  const [petSaving, setPetSaving] = useState(false);
+
+  // ── Assistance modal state ──
+  const [assistModalOpen, setAssistModalOpen] = useState(false);
+  const [assistForm, setAssistForm] = useState({ date: "", type: "", source: "", amount: "", description: "", status: "", remarks: "" });
+  const [assistSaving, setAssistSaving] = useState(false);
 
   const { streamingContent, isStreaming, error: streamError, sendMessage } = useAiStream();
   const aiTriggered = useRef(false);
 
-  const fetchResident = useCallback(async () => {
+  const fetchResident = useCallback(async (silent = false) => {
     if (!isAuthenticated) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const data = await api.residents.get(id);
       setResident(data);
     } catch {
-      setError("Could not load resident record. It may have been deleted or you may not have access.");
+      if (!silent) setError("Could not load resident record. It may have been deleted or you may not have access.");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [id, isAuthenticated]);
 
   useEffect(() => {
     if (!authLoading) fetchResident();
   }, [fetchResident, authLoading]);
+
+  // ── Relatives search ──
+  const searchRelatives = useCallback((query: string) => {
+    setRelSearch(query);
+    setRelSelected(null);
+    if (query.trim().length === 0) {
+      setRelResults([]);
+      setRelDropdownOpen(false);
+      setRelSearchLoading(false);
+      return;
+    }
+    setRelSearchLoading(true);
+    setRelDropdownOpen(true);
+    if (relInputRef.current) {
+      const rect = relInputRef.current.getBoundingClientRect();
+      setRelDropdownPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+    }
+    if (relSearchTimerRef.current) clearTimeout(relSearchTimerRef.current);
+    relSearchTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await api.residents.list({ search: query.trim(), per_page: 10 });
+        const existingIds = new Set(
+          Array.isArray(resident?.relative_links)
+            ? (resident.relative_links as Record<string, string>[]).map((r) => r.resident_id)
+            : []
+        );
+        const results = res.data
+          .filter((r) => r.id !== id && !existingIds.has(r.id))
+          .slice(0, 8)
+          .map((r) => ({
+            id: r.id,
+            resident_number: r.resident_number,
+            name: `${r.last_name}, ${r.first_name}${r.middle_name ? " " + r.middle_name.charAt(0) + "." : ""}${r.extension_name ? " " + r.extension_name : ""}`.trim(),
+            purok: r.purok || "",
+            photo_url: r.photo_url ?? null,
+          }));
+        setRelResults(results);
+      } catch {
+        setRelResults([]);
+      } finally {
+        setRelSearchLoading(false);
+      }
+    }, 300);
+  }, [resident, id]);
+
+  const selectRelative = (r: { id: string; name: string; resident_number: string; purok: string }) => {
+    setRelSelected(r);
+    setRelSearch(r.name);
+    setRelDropdownOpen(false);
+    setRelResults([]);
+    setRelRelationship("");
+  };
+
+  const saveRelative = async () => {
+    if (!relSelected || !relRelationship || !resident) return;
+    setRelSaving(true);
+    try {
+      const existing = Array.isArray(resident.relative_links)
+        ? (resident.relative_links as Record<string, string>[]).map((r) => ({
+            resident_id: r.resident_id || "",
+            resident_name: r.resident_name || r.name || "",
+            relationship: r.relationship || "",
+            photo_url: r.photo_url || "",
+          }))
+        : [];
+      const newEntry = {
+        resident_id: relSelected.id,
+        resident_name: relSelected.name,
+        relationship: relRelationship,
+        photo_url: relSelected.photo_url || "",
+      };
+      await api.residents.update(id, { relative_entries: [...existing, newEntry] });
+      await fetchResident(true);
+      setRelSelected(null);
+      setRelSearch("");
+      setRelRelationship("");
+    } catch {
+      // silent — user will see no change
+    } finally {
+      setRelSaving(false);
+    }
+  };
+
+  const removeRelative = async (relIdx: number) => {
+    if (!resident) return;
+    const existing = (resident.relative_links as Record<string, string>[])
+      .filter((_, i) => i !== relIdx)
+      .map((r) => ({
+        resident_id: r.resident_id || "",
+        resident_name: r.resident_name || r.name || "",
+        relationship: r.relationship || "",
+        photo_url: r.photo_url || "",
+      }));
+    try {
+      await api.residents.update(id, { relative_entries: existing });
+      await fetchResident(true);
+    } catch {
+      // silent
+    }
+  };
+
+  const savePet = async () => {
+    if (!petForm.name || !resident) return;
+    setPetSaving(true);
+    try {
+      const existing = Array.isArray(resident.pet_records)
+        ? (resident.pet_records as Record<string, string>[]).map((p) => ({
+            name: p.name || "",
+            pet_type: p.pet_type || p.species || "",
+            sex: p.sex || "",
+            date_of_birth: p.date_of_birth || "",
+            remarks: p.remarks || "",
+          }))
+        : [];
+      await api.residents.update(id, { pet_entries: [...existing, petForm] });
+      await fetchResident(true);
+      setPetModalOpen(false);
+      setPetForm({ name: "", pet_type: "", sex: "", date_of_birth: "", remarks: "" });
+    } catch {
+      // silent
+    } finally {
+      setPetSaving(false);
+    }
+  };
+
+  const saveAssistance = async () => {
+    if (!assistForm.date || !resident) return;
+    setAssistSaving(true);
+    try {
+      const existing = Array.isArray(resident.assistance_history)
+        ? (resident.assistance_history as Record<string, string>[]).map((a) => ({
+            date: a.date || "",
+            type: a.type || a.program || "",
+            source: a.source || "",
+            amount: a.amount || "",
+            description: a.description || "",
+            status: a.status || "",
+            remarks: a.remarks || "",
+          }))
+        : [];
+      await api.residents.update(id, { assistance_entries: [...existing, assistForm] });
+      await fetchResident(true);
+      setAssistModalOpen(false);
+      setAssistForm({ date: "", type: "", source: "", amount: "", description: "", status: "", remarks: "" });
+    } catch {
+      // silent
+    } finally {
+      setAssistSaving(false);
+    }
+  };
 
   // Auto-trigger Mabini AI summary once resident data is loaded
   useEffect(() => {
@@ -548,21 +896,44 @@ export default function ResidentDetailPage() {
     completionPct >= 50 ? "#f59e0b" : "#ef4444";
 
   const missingFields = [
-    !resident.date_of_birth && "Date of Birth",
-    !resident.mobile_number && "Mobile Number",
-    !resident.purok && "Purok",
+    // Personal
     !resident.blood_type && "Blood Type",
-    !resident.place_of_birth && "Place of Birth",
-    !resident.emergency_contact_name && "Emergency Contact",
+    !resident.citizenship && "Citizenship",
+    !resident.religion && "Religion",
+    !resident.ethnicity && "Ethnicity",
+    !resident.mothers_maiden_name && "Mother's Maiden Name",
+    // Contact
+    !resident.mobile_number && "Mobile Number",
+    !resident.email && "Email Address",
+    // Address
+    !resident.purok && "Purok / Sitio",
+    !resident.house_block_lot && "House / Block / Lot",
+    // Photo
+    !resident.photo_file_id && "Profile Photo",
+    // Education & Work
+    !resident.highest_education && "Highest Education",
+    !(Array.isArray(resident.education_details) && resident.education_details.length > 0) && "Education Details",
     !resident.occupation && "Occupation",
-    !resident.email && "Email",
+    !resident.employer && "Employer",
+    !resident.source_of_income && "Source of Income",
+    // Gov IDs
+    !resident.philhealth_number && "PhilHealth Number",
+    !resident.sss_gsis_number && "SSS / GSIS Number",
+    !resident.pagibig_number && "Pag-IBIG Number",
+    // Emergency Contact
+    !resident.emergency_contact_name && "Emergency Contact Name",
+    !resident.emergency_contact_phone && "Emergency Contact Phone",
+    // Health
+    !resident.health_history && "Health / Medical History",
   ].filter(Boolean) as string[];
 
   const tabs = [
     { id: "info", label: "Personal Info", icon: <User className="h-3.5 w-3.5" /> },
     { id: "cases", label: "Cases", icon: <FolderOpen className="h-3.5 w-3.5" /> },
     { id: "documents", label: "Documents", icon: <ScrollText className="h-3.5 w-3.5" /> },
-    { id: "family", label: "Family", icon: <Users className="h-3.5 w-3.5" /> },
+    { id: "assistance", label: "Assistance / Solicitation", icon: <HandHeart className="h-3.5 w-3.5" /> },
+    { id: "relatives", label: "Linked Relatives", icon: <Link2 className="h-3.5 w-3.5" /> },
+    { id: "pets", label: "Pets", icon: <PawPrint className="h-3.5 w-3.5" /> },
     { id: "activity", label: "Activity", icon: <Activity className="h-3.5 w-3.5" /> },
   ];
 
@@ -590,7 +961,7 @@ export default function ResidentDetailPage() {
             {/* Avatar + Name */}
             <div className="flex flex-col items-center text-center mb-4">
               {resident.photo_url ? (
-                <img src={resident.photo_url} alt={initials} className="w-24 h-24 rounded-2xl object-cover shadow-lg mb-3" />
+                <img src={resolvePhotoUrl(resident.photo_url)!} alt={initials} className="w-24 h-24 rounded-2xl object-cover shadow-lg mb-3" />
               ) : (
                 <div className={cn(
                   "w-24 h-24 rounded-2xl flex items-center justify-center text-3xl font-bold text-white shadow-lg mb-3",
@@ -606,8 +977,17 @@ export default function ResidentDetailPage() {
               <div className="flex flex-wrap justify-center gap-1.5 mt-2">
                 <StatusBadge status={resident.status} />
                 {resident.is_voter && <Badge variant="success" dot>Voter</Badge>}
-                {resident.is_head_of_household && <Badge variant="warning" dot>HOH</Badge>}
+                {resident.is_head_of_household && (
+                  <span className="relative group">
+                    <Badge variant="warning" dot>Head of Household</Badge>
+                  </span>
+                )}
                 {resident.is_organ_donor && <Badge variant="info" dot>Organ Donor</Badge>}
+                {resident.registration_source && (
+                  <Badge variant={resident.registration_source === "import" ? "warning" : resident.registration_source === "census" ? "info" : "success"} dot>
+                    {resident.registration_source === "form" ? "Form" : resident.registration_source === "import" ? "Imported" : resident.registration_source === "census" ? "Census" : cap(resident.registration_source)}
+                  </Badge>
+                )}
               </div>
 
               {/* Sectoral tags */}
@@ -705,36 +1085,125 @@ export default function ResidentDetailPage() {
               <div className="mt-3">
                 <p className="text-[10px] text-muted-foreground mb-1.5">Missing information:</p>
                 <div className="space-y-1">
-                  {missingFields.slice(0, 5).map((f) => (
+                  {missingFields.slice(0, 8).map((f) => (
                     <div key={f} className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                       <div className="w-1 h-1 rounded-full bg-muted-foreground/40 shrink-0" />
                       {f}
                     </div>
                   ))}
-                  {missingFields.length > 5 && (
-                    <p className="text-[10px] text-muted-foreground">+{missingFields.length - 5} more</p>
+                  {missingFields.length > 8 && (
+                    <p className="text-[10px] text-muted-foreground">+{missingFields.length - 8} more fields missing</p>
                   )}
                 </div>
               </div>
             )}
           </div>
 
-          {/* Map Preview — only when coordinates exist */}
-          {resident.latitude && resident.longitude && (
-            <div className="rounded-2xl border border-border glass overflow-hidden">
-              <div className="px-4 pt-3 pb-2 flex items-center gap-2">
-                <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Location</p>
-              </div>
-              <iframe
-                title="Resident Location"
-                src={`https://www.openstreetmap.org/export/embed.html?bbox=${Number(resident.longitude) - 0.003},${Number(resident.latitude) - 0.003},${Number(resident.longitude) + 0.003},${Number(resident.latitude) + 0.003}&layer=mapnik&marker=${resident.latitude},${resident.longitude}`}
-                width="100%"
-                height="140"
-                style={{ border: "none", display: "block", pointerEvents: "none" }}
-              />
-            </div>
-          )}
+          {/* Map Preview — clickable, opens full modal */}
+          {(() => {
+            const resLat = resident.latitude ? parseFloat(String(resident.latitude)) : null;
+            const resLng = resident.longitude ? parseFloat(String(resident.longitude)) : null;
+            const centerLat = resLat ?? (user?.barangay?.latitude ? parseFloat(String(user.barangay.latitude)) : 14.5995);
+            const centerLng = resLng ?? (user?.barangay?.longitude ? parseFloat(String(user.barangay.longitude)) : 120.9842);
+            return (
+              <>
+                <div
+                  className="rounded-2xl border border-border glass overflow-hidden cursor-pointer group"
+                  onClick={() => setMapModalOpen(true)}
+                  title="Click to expand map"
+                >
+                  <div className="px-4 pt-3 pb-2 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Location</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {!resLat && <span className="text-[10px] text-muted-foreground/60 italic">No pin set</span>}
+                      <span className="text-[10px] text-accent-text opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                        <Globe className="h-3 w-3" /> Expand
+                      </span>
+                    </div>
+                  </div>
+                  <div className="pointer-events-none">
+                    <ResidentPinMap
+                      lat={resLat}
+                      lng={resLng}
+                      centerLat={centerLat}
+                      centerLng={centerLng}
+                      readOnly
+                      className="w-full h-[160px]"
+                    />
+                  </div>
+                </div>
+
+                {/* Full Map Modal */}
+                {mapModalOpen && (
+                  <div
+                    className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+                    style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)" }}
+                    onClick={(e) => { if (e.target === e.currentTarget) setMapModalOpen(false); }}
+                  >
+                    <div className="relative w-full max-w-4xl rounded-2xl overflow-hidden border border-border bg-card shadow-2xl flex flex-col"
+                      style={{ maxHeight: "90vh" }}>
+                      {/* Modal Header */}
+                      <div className="flex items-center justify-between px-5 py-3.5 border-b border-border bg-card/95 backdrop-blur shrink-0">
+                        <div className="flex items-center gap-2.5">
+                          <MapPin className="h-4 w-4 text-accent-primary" />
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">
+                              {resident.first_name} {resident.last_name} — Location
+                            </p>
+                            {resLat && resLng ? (
+                              <p className="text-[11px] text-muted-foreground tabular-nums">{resLat.toFixed(6)}, {resLng.toFixed(6)}</p>
+                            ) : (
+                              <p className="text-[11px] text-muted-foreground/60 italic">No pin set — showing barangay area</p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {resLat && resLng && (
+                            <a
+                              href={`https://www.google.com/maps?q=${resLat},${resLng}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted transition-colors"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Globe className="h-3.5 w-3.5" />
+                              Open in Google Maps
+                            </a>
+                          )}
+                          <button
+                            onClick={() => setMapModalOpen(false)}
+                            className="p-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                      {/* Full Map */}
+                      <div style={{ height: "60vh" }}>
+                        <ResidentPinMap
+                          lat={resLat}
+                          lng={resLng}
+                          centerLat={centerLat}
+                          centerLng={centerLng}
+                          readOnly
+                          className="w-full h-full"
+                        />
+                      </div>
+                      {/* Footer hint */}
+                      <div className="px-5 py-2.5 border-t border-border bg-muted/30 shrink-0">
+                        <p className="text-[11px] text-muted-foreground">
+                          Scroll to zoom · Drag to pan · Click marker to see details
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
 
           {/* Actions */}
           <div className="rounded-2xl border border-border glass p-4 space-y-2">
@@ -805,21 +1274,398 @@ export default function ResidentDetailPage() {
                   />
                 )}
 
-                {active === "family" && (
-                  <PlaceholderTab
-                    icon={<Users className="h-6 w-6" />}
-                    title="Family & Relatives"
-                    description="Household members and linked relatives will appear here."
-                  />
-                )}
+                {active === "assistance" && (() => {
+                  const assistList = Array.isArray(resident.assistance_history) ? (resident.assistance_history as Record<string, string>[]) : [];
+                  const totalAmount = assistList.reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
+                  const statusColors: Record<string, string> = {
+                    released: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
+                    pending: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+                    partial: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+                    denied: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+                    cancelled: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
+                  };
+                  return (
+                  <div className="space-y-4">
+                    {/* Header with stats */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <HandHeart className="h-4 w-4 text-muted-foreground" />
+                        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Assistance / Solicitation</h3>
+                      </div>
+                      <button type="button" onClick={() => setAssistModalOpen(true)}
+                        className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-lg text-white transition-all hover:opacity-90 active:scale-[0.97]"
+                        style={{ background: "var(--accent-primary)" }}>
+                        <Plus className="h-3.5 w-3.5" /> Add Record
+                      </button>
+                    </div>
 
-                {active === "activity" && (
-                  <PlaceholderTab
-                    icon={<Activity className="h-6 w-6" />}
-                    title="Activity Log"
-                    description="All actions on this record — creates, edits, views, prints, and document issuances — will be logged here."
-                  />
-                )}
+                    {/* Summary cards */}
+                    {assistList.length > 0 && (
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-center">
+                          <p className="text-lg font-bold text-foreground">{assistList.length}</p>
+                          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Total Records</p>
+                        </div>
+                        <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-center">
+                          <p className="text-lg font-bold text-green-600 dark:text-green-400">₱{totalAmount.toLocaleString()}</p>
+                          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Total Amount</p>
+                        </div>
+                        <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-center">
+                          <p className="text-lg font-bold text-foreground">{assistList.filter(a => (a.status || "").toLowerCase() === "released").length}</p>
+                          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Released</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Records */}
+                    {assistList.length > 0 ? (
+                      <div className="space-y-2.5">
+                        {assistList.map((a, i) => (
+                          <div key={i} className="group rounded-xl border border-border bg-card/60 hover:border-accent-primary/30 hover:shadow-sm transition-all overflow-hidden">
+                            <div className="flex items-start gap-4 p-4">
+                              {/* Type icon */}
+                              <div className="w-10 h-10 rounded-xl bg-accent-bg flex items-center justify-center shrink-0">
+                                <HandHeart className="h-5 w-5 text-accent-primary" />
+                              </div>
+                              {/* Content */}
+                              <div className="flex-1 min-w-0 space-y-1.5">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div>
+                                    <p className="text-sm font-bold text-foreground">{a.type || a.program || "Assistance"}</p>
+                                    {a.source && <p className="text-xs text-muted-foreground">Source: {a.source}</p>}
+                                  </div>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    {a.amount && (
+                                      <span className="px-2.5 py-1 rounded-lg bg-green-50 dark:bg-green-950/30 text-xs font-bold text-green-700 dark:text-green-300 tabular-nums">
+                                        ₱{Number(a.amount).toLocaleString()}
+                                      </span>
+                                    )}
+                                    {a.status && (
+                                      <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider", statusColors[(a.status || "").toLowerCase()] || "bg-muted text-muted-foreground")}>
+                                        {a.status}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                {a.description && <p className="text-xs text-foreground/70 leading-relaxed">{a.description}</p>}
+                                {a.remarks && <p className="text-xs text-muted-foreground italic">{a.remarks}</p>}
+                                {a.date && (
+                                  <div className="flex items-center gap-1.5 pt-0.5">
+                                    <Calendar className="h-3 w-3 text-muted-foreground" />
+                                    <p className="text-[11px] text-muted-foreground">{formatDate(a.date) || a.date}</p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border-2 border-dashed border-border p-10 text-center">
+                        <div className="w-14 h-14 rounded-2xl bg-accent-bg/50 flex items-center justify-center mx-auto mb-4">
+                          <HandHeart className="h-7 w-7 text-accent-primary/60" />
+                        </div>
+                        <p className="text-sm font-semibold text-foreground mb-1">No assistance records yet</p>
+                        <p className="text-xs text-muted-foreground mb-4">Track financial aid, medical assistance, food packs, and other support given to this resident.</p>
+                        <button type="button" onClick={() => setAssistModalOpen(true)}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg text-white transition-all hover:opacity-90"
+                          style={{ background: "var(--accent-primary)" }}>
+                          <Plus className="h-3.5 w-3.5" /> Add First Record
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  );
+                })()}
+
+                {active === "relatives" && (() => {
+                  const relList = Array.isArray(resident.relative_links) ? (resident.relative_links as Record<string, string>[]) : [];
+                  const relIconMap: Record<string, React.ReactNode> = {
+                    spouse: <Heart className="h-4 w-4" />,
+                    father: <User className="h-4 w-4" />,
+                    mother: <User className="h-4 w-4" />,
+                    son: <User className="h-4 w-4" />,
+                    daughter: <User className="h-4 w-4" />,
+                    brother: <Users className="h-4 w-4" />,
+                    sister: <Users className="h-4 w-4" />,
+                  };
+                  const relColorMap: Record<string, string> = {
+                    spouse: "bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400",
+                    father: "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400",
+                    mother: "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400",
+                    son: "bg-sky-100 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400",
+                    daughter: "bg-fuchsia-100 text-fuchsia-600 dark:bg-fuchsia-900/30 dark:text-fuchsia-400",
+                    brother: "bg-teal-100 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400",
+                    sister: "bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400",
+                  };
+                  return (
+                  <div className="space-y-4">
+                    {/* Header */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Link2 className="h-4 w-4 text-muted-foreground" />
+                        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Linked Relatives</h3>
+                        {relList.length > 0 && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-accent-bg text-accent-text">{relList.length}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Search box */}
+                    <div className="rounded-xl border border-border p-4 space-y-3 bg-gradient-to-br from-muted/20 to-muted/5">
+                      <p className="text-xs font-medium text-muted-foreground">Link an existing resident as a relative</p>
+                      <div ref={relInputRef} className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                        {relSearchLoading && (
+                          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground animate-spin" />
+                        )}
+                        <input
+                          type="text"
+                          value={relSearch}
+                          onChange={(e) => searchRelatives(e.target.value)}
+                          onFocus={() => {
+                            if (relInputRef.current) {
+                              const rect = relInputRef.current.getBoundingClientRect();
+                              setRelDropdownPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+                            }
+                            if (relResults.length > 0) setRelDropdownOpen(true);
+                          }}
+                          onBlur={() => setTimeout(() => setRelDropdownOpen(false), 250)}
+                          placeholder="Type resident name or ID number..."
+                          className="w-full pl-9 pr-8 py-2.5 text-sm rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring"
+                        />
+                      </div>
+                      {relSearch.trim().length >= 1 && !relSearchLoading && relResults.length === 0 && !relSelected && (
+                        <p className="text-xs text-muted-foreground pl-1">No matching residents found. They must be registered first.</p>
+                      )}
+                      {relSelected && (
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-accent-bg text-accent-text text-xs font-medium">
+                            <User className="h-3.5 w-3.5" />
+                            {relSelected.name}
+                            <span className="text-[10px] text-accent-text/60 ml-0.5">{relSelected.resident_number}</span>
+                            <button type="button" onClick={() => { setRelSelected(null); setRelSearch(""); setRelRelationship(""); }} className="ml-1 hover:text-red-500 transition-colors">
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                          <select
+                            value={relRelationship}
+                            onChange={(e) => setRelRelationship(e.target.value)}
+                            className="px-3 py-1.5 text-sm rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring"
+                          >
+                            {["", "Spouse", "Father", "Mother", "Son", "Daughter", "Brother", "Sister", "Grandfather", "Grandmother", "Grandson", "Granddaughter", "Uncle", "Aunt", "Nephew", "Niece", "Cousin", "Father-in-law", "Mother-in-law", "Son-in-law", "Daughter-in-law", "Brother-in-law", "Sister-in-law", "Stepfather", "Stepmother", "Stepson", "Stepdaughter", "Guardian", "Ward", "Others"].map((o) => (
+                              <option key={o} value={o}>{o || "Select relationship..."}</option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={saveRelative}
+                            disabled={!relRelationship || relSaving}
+                            className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:opacity-90 active:scale-[0.97]"
+                            style={{ background: "var(--accent-primary)" }}
+                          >
+                            {relSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                            Link Relative
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Portal dropdown */}
+                    {relDropdownOpen && relResults.length > 0 && typeof window !== "undefined" && createPortal(
+                      <div
+                        className="fixed z-[9999] bg-background border border-border rounded-xl shadow-xl overflow-hidden"
+                        style={{ top: relDropdownPos.top, left: relDropdownPos.left, width: relDropdownPos.width, maxHeight: 280 }}
+                        onMouseDown={(e) => e.preventDefault()}
+                      >
+                        <div className="px-3 py-2 border-b border-border bg-muted/40">
+                          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{relResults.length} resident{relResults.length !== 1 ? "s" : ""} found</p>
+                        </div>
+                        {relResults.map((r) => (
+                          <button key={r.id} type="button" onMouseDown={() => selectRelative(r)}
+                            className="w-full text-left px-4 py-2.5 text-sm hover:bg-accent-bg transition-colors flex items-center gap-3 border-b border-border/40 last:border-0">
+                            <div className="w-7 h-7 rounded-lg bg-accent-bg flex items-center justify-center shrink-0">
+                              <User className="h-3.5 w-3.5 text-accent-text" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-foreground truncate">{r.name}</p>
+                              <p className="text-[10px] text-muted-foreground">{r.resident_number}{r.purok ? ` · Purok ${r.purok}` : ""}</p>
+                            </div>
+                            <Link2 className="h-3.5 w-3.5 text-accent-primary shrink-0" />
+                          </button>
+                        ))}
+                      </div>,
+                      document.body
+                    )}
+
+                    {/* Linked relatives grid */}
+                    {relList.length > 0 ? (
+                      <div className={cn("gap-3", relList.length > 1 ? "grid grid-cols-1 sm:grid-cols-2" : "flex flex-col")}>
+                        {relList.map((rel, i) => {
+                          const relKey = (rel.relationship || "").toLowerCase();
+                          const colorClass = relColorMap[relKey] || "bg-accent-bg text-accent-primary";
+                          const displayName = rel.name || rel.resident_name || "—";
+                          const nameParts = displayName.trim().split(/\s+/);
+                          const initials = nameParts.length >= 2
+                            ? `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase()
+                            : displayName.slice(0, 2).toUpperCase();
+                          const photoUrl = rel.photo_url ? resolvePhotoUrl(rel.photo_url) : null;
+                          return (
+                          <div key={i} className="group relative rounded-xl border border-border bg-card/60 hover:border-accent-primary/30 hover:shadow-sm transition-all overflow-hidden">
+                            <div className="flex items-center gap-3 p-4">
+                              {/* Square avatar with photo or initials */}
+                              <div className={cn("w-12 h-12 rounded-xl shrink-0 overflow-hidden flex items-center justify-center font-bold text-sm", colorClass)}>
+                                {photoUrl ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img src={photoUrl} alt={displayName} className="w-full h-full object-cover" />
+                                ) : (
+                                  <span>{initials}</span>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-bold text-foreground truncate">{displayName}</p>
+                                <p className="text-[11px] text-muted-foreground capitalize">{rel.relationship || "—"}</p>
+                                {rel.resident_id && (
+                                  <button type="button" onClick={() => router.push(`/dashboard/residents/${rel.resident_id}`)}
+                                    className="mt-1 inline-flex items-center gap-1 text-[10px] font-medium text-accent-text hover:underline">
+                                    <Eye className="h-3 w-3" /> View Profile
+                                  </button>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => removeRelative(i)}
+                                className="absolute top-2 right-2 p-1.5 text-muted-foreground/0 group-hover:text-muted-foreground hover:!text-red-500 transition-all rounded-lg hover:bg-red-50 dark:hover:bg-red-950/20 shrink-0"
+                                title="Remove link"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border-2 border-dashed border-border p-10 text-center">
+                        <div className="w-14 h-14 rounded-2xl bg-accent-bg/50 flex items-center justify-center mx-auto mb-4">
+                          <Link2 className="h-7 w-7 text-accent-primary/60" />
+                        </div>
+                        <p className="text-sm font-semibold text-foreground mb-1">No relatives linked yet</p>
+                        <p className="text-xs text-muted-foreground">Search for an existing resident above and select their relationship to link family members.</p>
+                      </div>
+                    )}
+                  </div>
+                  );
+                })()}
+
+                {active === "pets" && (() => {
+                  const petList = Array.isArray(resident.pet_records) ? (resident.pet_records as Record<string, string>[]) : [];
+                  const speciesColorMap: Record<string, string> = {
+                    dog: "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400",
+                    cat: "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400",
+                    bird: "bg-sky-100 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400",
+                    fish: "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400",
+                    chicken: "bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400",
+                    rabbit: "bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400",
+                    goat: "bg-lime-100 text-lime-600 dark:bg-lime-900/30 dark:text-lime-400",
+                    pig: "bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400",
+                    cow: "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400",
+                    carabao: "bg-stone-100 text-stone-600 dark:bg-stone-900/30 dark:text-stone-400",
+                    horse: "bg-teal-100 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400",
+                  };
+                  return (
+                  <div className="space-y-4">
+                    {/* Header */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <PawPrint className="h-4 w-4 text-muted-foreground" />
+                        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pets</h3>
+                        {petList.length > 0 && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{petList.length}</span>
+                        )}
+                      </div>
+                      <button type="button" onClick={() => setPetModalOpen(true)}
+                        className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-lg text-white transition-all hover:opacity-90 active:scale-[0.97]"
+                        style={{ background: "var(--accent-primary)" }}>
+                        <Plus className="h-3.5 w-3.5" /> Add Pet
+                      </button>
+                    </div>
+
+                    {/* Summary */}
+                    {petList.length > 0 && (() => {
+                      const speciesCounts: Record<string, number> = {};
+                      petList.forEach(p => {
+                        const s = (p.species || p.pet_type || "Other").toLowerCase();
+                        speciesCounts[s] = (speciesCounts[s] || 0) + 1;
+                      });
+                      return (
+                        <div className="flex flex-wrap gap-2">
+                          {Object.entries(speciesCounts).map(([species, count]) => (
+                            <span key={species} className={cn("px-2.5 py-1 rounded-lg text-[11px] font-semibold capitalize", speciesColorMap[species] || "bg-muted text-muted-foreground")}>
+                              {count} {species}{count > 1 ? "s" : ""}
+                            </span>
+                          ))}
+                        </div>
+                      );
+                    })()}
+
+                    {/* Pet cards */}
+                    {petList.length > 0 ? (
+                      <div className={cn("gap-3", petList.length > 1 ? "grid grid-cols-1 sm:grid-cols-2" : "flex flex-col")}>
+                        {petList.map((pet, i) => {
+                          const speciesKey = (pet.species || pet.pet_type || "").toLowerCase();
+                          const colorClass = speciesColorMap[speciesKey] || "bg-muted text-muted-foreground";
+                          const petAge = pet.date_of_birth ? age(pet.date_of_birth) : null;
+                          return (
+                          <div key={i} className="group relative rounded-xl border border-border bg-card/60 hover:border-amber-400/40 hover:shadow-sm transition-all overflow-hidden">
+                            <div className="flex items-start gap-3 p-4">
+                              <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0", colorClass)}>
+                                <PawPrint className="h-5 w-5" />
+                              </div>
+                              <div className="flex-1 min-w-0 space-y-1">
+                                <div className="flex items-start justify-between gap-2">
+                                  <p className="text-sm font-bold text-foreground truncate">{pet.name || "Unnamed"}</p>
+                                  {pet.sex && (
+                                    <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-semibold shrink-0", pet.sex.toLowerCase() === "male" ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" : "bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400")}>
+                                      {pet.sex}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-muted-foreground capitalize">{pet.species || pet.pet_type || "Unknown species"}</p>
+                                {petAge !== null && (
+                                  <div className="flex items-center gap-1.5">
+                                    <Calendar className="h-3 w-3 text-muted-foreground" />
+                                    <p className="text-[11px] text-muted-foreground">{petAge} year{petAge !== 1 ? "s" : ""} old</p>
+                                  </div>
+                                )}
+                                {pet.remarks && (
+                                  <p className="text-[11px] text-muted-foreground/70 italic leading-relaxed mt-0.5">{pet.remarks}</p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border-2 border-dashed border-border p-10 text-center">
+                        <div className="w-14 h-14 rounded-2xl bg-amber-50 dark:bg-amber-950/30 flex items-center justify-center mx-auto mb-4">
+                          <PawPrint className="h-7 w-7 text-amber-400/60" />
+                        </div>
+                        <p className="text-sm font-semibold text-foreground mb-1">No pets registered</p>
+                        <p className="text-xs text-muted-foreground mb-4">Register household pets including dogs, cats, livestock, and other animals.</p>
+                        <button type="button" onClick={() => setPetModalOpen(true)}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg text-white transition-all hover:opacity-90"
+                          style={{ background: "var(--accent-primary)" }}>
+                          <Plus className="h-3.5 w-3.5" /> Add First Pet
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  );
+                })()}
+
+                {active === "activity" && <ActivityTab residentId={id} />}
 
               </div>
             )}
@@ -828,6 +1674,168 @@ export default function ResidentDetailPage() {
         {/* ── End Right Panel ── */}
 
       </div>
+      {/* ── Pet Modal ── */}
+      {petModalOpen && typeof window !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" onMouseDown={(e) => e.stopPropagation()}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onMouseDown={(e) => e.preventDefault()} />
+          <div className="relative z-10 w-full max-w-lg bg-background rounded-2xl border border-border shadow-2xl overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                  <PawPrint className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-semibold text-foreground">Add Pet</h2>
+                  <p className="text-[11px] text-muted-foreground">Register a pet for this resident</p>
+                </div>
+              </div>
+              <button type="button" onClick={() => setPetModalOpen(false)} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            {/* Modal Body */}
+            <div className="px-6 py-5 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Pet Name <span className="text-red-500">*</span></label>
+                  <input type="text" value={petForm.name} onChange={(e) => setPetForm((f) => ({ ...f, name: e.target.value.toUpperCase() }))}
+                    placeholder="e.g. BROWNIE"
+                    className="w-full px-3 py-2.5 text-sm rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring uppercase" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Type / Species</label>
+                  <select value={petForm.pet_type} onChange={(e) => setPetForm((f) => ({ ...f, pet_type: e.target.value }))}
+                    className="w-full px-3 py-2.5 text-sm rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+                    {["", "Dog", "Cat", "Bird", "Fish", "Chicken", "Rabbit", "Goat", "Pig", "Cow", "Carabao", "Horse", "Turtle", "Duck", "Other"].map((o) => (
+                      <option key={o} value={o}>{o || "Select type..."}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Sex</label>
+                  <select value={petForm.sex} onChange={(e) => setPetForm((f) => ({ ...f, sex: e.target.value }))}
+                    className="w-full px-3 py-2.5 text-sm rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+                    {["", "Male", "Female"].map((o) => <option key={o} value={o}>{o || "Select sex..."}</option>)}
+                  </select>
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Date of Birth</label>
+                  <input type="date" value={petForm.date_of_birth} onChange={(e) => setPetForm((f) => ({ ...f, date_of_birth: e.target.value }))}
+                    className="w-full px-3 py-2.5 text-sm rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Remarks</label>
+                  <textarea value={petForm.remarks} onChange={(e) => setPetForm((f) => ({ ...f, remarks: e.target.value.toUpperCase() }))}
+                    placeholder="Vaccination status, special notes, etc."
+                    rows={3}
+                    className="w-full px-3 py-2.5 text-sm rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none uppercase" />
+                </div>
+              </div>
+            </div>
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-muted/30">
+              <button type="button" onClick={() => setPetModalOpen(false)}
+                className="px-4 py-2 text-sm rounded-xl border border-border hover:bg-muted transition-colors text-muted-foreground">
+                Cancel
+              </button>
+              <button type="button" onClick={savePet} disabled={!petForm.name || petSaving}
+                className="flex items-center gap-2 px-5 py-2 text-sm font-semibold rounded-xl text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                style={{ background: "var(--accent-primary)" }}>
+                {petSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                Add Pet
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ── Assistance / Solicitation Modal ── */}
+      {assistModalOpen && typeof window !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" onMouseDown={(e) => e.stopPropagation()}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onMouseDown={(e) => e.preventDefault()} />
+          <div className="relative z-10 w-full max-w-lg bg-background rounded-2xl border border-border shadow-2xl overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-accent-bg flex items-center justify-center">
+                  <HandHeart className="h-4 w-4 text-accent-primary" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-semibold text-foreground">Add Assistance / Solicitation</h2>
+                  <p className="text-[11px] text-muted-foreground">Record assistance given to this resident</p>
+                </div>
+              </div>
+              <button type="button" onClick={() => setAssistModalOpen(false)} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            {/* Modal Body */}
+            <div className="px-6 py-5 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Date <span className="text-red-500">*</span></label>
+                  <input type="date" value={assistForm.date} onChange={(e) => setAssistForm((f) => ({ ...f, date: e.target.value }))}
+                    className="w-full px-3 py-2.5 text-sm rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Status</label>
+                  <select value={assistForm.status} onChange={(e) => setAssistForm((f) => ({ ...f, status: e.target.value }))}
+                    className="w-full px-3 py-2.5 text-sm rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+                    {["", "Pending", "Released", "Partial", "Denied", "Cancelled"].map((o) => <option key={o} value={o}>{o || "Select status..."}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Type of Assistance</label>
+                  <select value={assistForm.type} onChange={(e) => setAssistForm((f) => ({ ...f, type: e.target.value }))}
+                    className="w-full px-3 py-2.5 text-sm rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring">
+                    {["", "Financial", "Medical", "Food Pack", "Livelihood", "Educational", "Housing/Shelter", "Burial", "Calamity Relief", "Legal", "Referral Letter", "Transportation", "Scholarship", "Other"].map((o) => (
+                      <option key={o} value={o}>{o || "Select type..."}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Amount (₱)</label>
+                  <input type="number" min="0" value={assistForm.amount} onChange={(e) => setAssistForm((f) => ({ ...f, amount: e.target.value }))}
+                    placeholder="0.00"
+                    className="w-full px-3 py-2.5 text-sm rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Description</label>
+                  <textarea value={assistForm.description} onChange={(e) => setAssistForm((f) => ({ ...f, description: e.target.value.toUpperCase() }))}
+                    placeholder="Details of the assistance provided..."
+                    rows={2}
+                    className="w-full px-3 py-2.5 text-sm rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none uppercase" />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Remarks</label>
+                  <textarea value={assistForm.remarks} onChange={(e) => setAssistForm((f) => ({ ...f, remarks: e.target.value.toUpperCase() }))}
+                    placeholder="Additional notes..."
+                    rows={2}
+                    className="w-full px-3 py-2.5 text-sm rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none uppercase" />
+                </div>
+              </div>
+            </div>
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-muted/30">
+              <button type="button" onClick={() => setAssistModalOpen(false)}
+                className="px-4 py-2 text-sm rounded-xl border border-border hover:bg-muted transition-colors text-muted-foreground">
+                Cancel
+              </button>
+              <button type="button" onClick={saveAssistance} disabled={!assistForm.date || assistSaving}
+                className="flex items-center gap-2 px-5 py-2 text-sm font-semibold rounded-xl text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                style={{ background: "var(--accent-primary)" }}>
+                {assistSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                Add Assistance
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      <MabiniButton pageContext="You are on the Resident Detail page. This page shows the complete profile of a specific resident, including personal information, address, sectoral data, government IDs, and activity history." />
     </div>
   );
 }

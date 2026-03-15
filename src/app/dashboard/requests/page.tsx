@@ -35,6 +35,7 @@ import { Badge, StatusBadge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/stat-card";
 import { Modal, ModalButton } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
+import { MabiniButton } from '@/components/ui/mabini-button';
 
 // ── Types ──
 interface ServiceRequest {
@@ -168,6 +169,9 @@ export default function RequestsPage() {
   const [showReject, setShowReject] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
   const [rejectionError, setRejectionError] = useState("");
+
+  // Submission state
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // ── Toast System ──
   const [toasts, setToasts] = useState<{ id: number; message: string; type: "success" | "error" | "info" }[]>([]);
@@ -320,8 +324,13 @@ export default function RequestsPage() {
       }
       return;
     }
-    addToast(showEdit ? "Request updated successfully." : "Request submitted successfully.", "success");
-    closeForm();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    setTimeout(() => {
+      addToast(showEdit ? "Request updated successfully." : "Request submitted successfully.", "success");
+      closeForm();
+      setIsSubmitting(false);
+    }, 300);
   };
 
   // ── Render Form Tab Content ──
@@ -512,8 +521,8 @@ export default function RequestsPage() {
                 Next <ChevronRight className="w-4 h-4 ml-1" />
               </ModalButton>
             ) : (
-              <ModalButton variant="primary" onClick={handleFormSubmit}>
-                <Save className="w-4 h-4 mr-1" /> {showEdit ? "Update Request" : "Submit Request"}
+              <ModalButton variant="primary" onClick={handleFormSubmit} disabled={isSubmitting}>
+                <Save className="w-4 h-4 mr-1" /> {isSubmitting ? "Saving..." : showEdit ? "Update Request" : "Submit Request"}
               </ModalButton>
             )}
           </div>
@@ -939,6 +948,7 @@ export default function RequestsPage() {
           ))}
         </div>
       )}
+      <MabiniButton pageContext="You are on the Service Requests page. This page manages pending document requests from residents." />
     </div>
   );
 }
