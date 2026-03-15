@@ -228,6 +228,33 @@ export function Sidebar() {
         })}
       </nav>
 
+      {/* User profile card */}
+      {user && (
+        <div className="px-3 py-2.5 mx-2 mb-2 rounded-xl glass-subtle shrink-0">
+          <div className="flex items-center gap-2.5">
+            {user.photo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={user.photo_url} alt="" className="w-8 h-8 rounded-lg object-cover shrink-0" />
+            ) : (
+              <div
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white shrink-0"
+                style={{ background: "var(--accent-primary)" }}
+              >
+                {(user.first_name?.[0] || "").toUpperCase()}{(user.last_name?.[0] || "").toUpperCase()}
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="text-[12px] font-semibold text-foreground truncate leading-tight">
+                {user.first_name} {user.last_name}
+              </p>
+              <p className="text-[10px] text-muted-foreground truncate leading-tight capitalize">
+                {user.roles?.[0]?.replace(/_/g, " ") || "Staff"}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Bottom — Settings & Help pinned */}
       <div className="px-2 pb-3 border-t border-border/50 pt-2 shrink-0">
         <div className="space-y-px">
