@@ -208,6 +208,7 @@ Route::prefix('v1')->group(function () {
             Route::get('residents/import/batches', [ResidentController::class, 'importBatches']);
             Route::delete('residents/import/batches/{batchId}', [ResidentController::class, 'rollbackImport']);
             Route::get('residents/{resident}/activity', [ResidentController::class, 'activity']);
+            Route::get('residents/{resident}/print', [ResidentController::class, 'printRecord']);
             Route::apiResource('residents', ResidentController::class);
             Route::apiResource('establishments', EstablishmentController::class);
             Route::apiResource('lots-buildings', LotBuildingController::class);
