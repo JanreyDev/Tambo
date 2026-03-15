@@ -79,7 +79,7 @@ function eduFieldRules(level: string) {
 }
 // religions, citizenshipOptions, ethnicityOptions replaced by SmartEntry arrays (dynamic combobox)
 const extensions = ["", "Jr.", "Sr.", "II", "III", "IV", "V"];
-const residentTypes = ["", "Permanent", "Transient", "Seasonal", "Migrant"];
+const residentTypes = ["", "Permanent", "Transient", "Transferee"];
 const relationships = ["Head", "Spouse", "Son", "Daughter", "Father", "Mother", "Brother", "Sister", "Grandson", "Granddaughter", "Nephew", "Niece", "Boarder", "Helper", "Others"];
 const sectorOptions = ["Senior Citizen", "PWD", "Solo Parent", "4Ps Beneficiary", "Farmer", "Nano/Micro Entrepreneur", "Student", "OFW", "TODA Driver", "JODA Driver", "Other Driver", "Vendor", "Working Student", "LGBTQIA+", "With Comorbidities", "IP (Indigenous People)"];
 const employmentStatuses = ["", "Employed", "Self-employed", "Unemployed", "Retired", "Student", "OFW"];
@@ -173,7 +173,9 @@ function FDatePicker({ label, name, required, value, onChange, className, valid,
   const today = new Date();
   // Parse current value or default to a sensible view date
   // Birth date fields default 25 years back; all other date fields default to current year
-  const parsed = value ? new Date(value + "T00:00:00") : null;
+  // Strip time component if API returns ISO datetime (e.g. "1990-03-15T00:00:00+00:00")
+  const dateOnly = value?.includes("T") ? value.split("T")[0] : value;
+  const parsed = dateOnly ? new Date(dateOnly + "T00:00:00") : null;
   const isBirthField = name.toLowerCase().includes("birth") || name.toLowerCase().includes("date_of_birth");
   const [viewMonth, setViewMonth] = useState(parsed ? parsed.getMonth() : today.getMonth());
   const [viewYear, setViewYear] = useState(parsed ? parsed.getFullYear() : (isBirthField ? today.getFullYear() - 25 : today.getFullYear()));
@@ -1737,7 +1739,9 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
 
     // Resident type: normalize to lowercase
     const residentType = f("resident_type").toLowerCase();
-    if (residentType) payload.resident_type = residentType === "permanent" ? "permanent" : residentType === "transient" ? "transient" : "transferee";
+    // Backend enum: permanent | transient | transferee (all lowercase)
+    const residentTypeMap: Record<string, string> = { permanent: "permanent", transient: "transient", transferee: "transferee" };
+    if (residentType) payload.resident_type = residentTypeMap[residentType] ?? "permanent";
 
     // Boolean fields — is_voter and is_head_of_household use (v === "yes") conversion in FRadio onChange,
     // so they arrive as actual booleans. is_organ_donor FRadio also stores as boolean via onChange.
@@ -1849,7 +1853,48 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
   }, [addToast]);
 
   const openEdit = (r: ResidentDetail) => {
-    setForm({ ...r } as unknown as Record<string, string | boolean>);
+    // Normalize API values before storing in form state.
+    // Laravel toArray() returns:
+    //   - dates as ISO 8601 with time ("1990-03-15T00:00:00+00:00") — strip to YYYY-MM-DD
+    //   - enums as their backing value (lowercase: "male", "single", "permanent")
+    //   - FSelect options use title-case ("Male", "Single", "Permanent") — must match exactly
+    const dateOnly = (v: unknown): string => {
+      if (!v) return "";
+      const s = String(v);
+      return s.includes("T") ? s.split("T")[0] : s;
+    };
+    const cap = (v: unknown): string => {
+      if (!v) return "";
+      const s = String(v);
+      return s.charAt(0).toUpperCase() + s.slice(1);
+    };
+    const civilStatusMap: Record<string, string> = {
+      single: "Single", married: "Married", widowed: "Widowed",
+      separated: "Separated", divorced: "Divorced", annulled: "Annulled",
+      "live-in": "Live-in",
+    };
+    const residentTypeMap: Record<string, string> = {
+      permanent: "Permanent", transient: "Transient", transferee: "Transferee",
+    };
+
+    setForm({
+      ...r,
+      // Normalize enums to title-case to match FSelect options
+      sex: cap(r.sex),
+      civil_status: civilStatusMap[String(r.civil_status || "").toLowerCase()] || cap(r.civil_status),
+      resident_type: residentTypeMap[String(r.resident_type || "").toLowerCase()] || cap(r.resident_type),
+      // Normalize all date fields: strip ISO time component → YYYY-MM-DD
+      date_of_birth: dateOnly(r.date_of_birth),
+      registration_date: dateOnly((r as unknown as Record<string, unknown>).registration_date),
+      transfer_date: dateOnly((r as unknown as Record<string, unknown>).transfer_date),
+      barangay_role_start: dateOnly(r.barangay_role_start),
+      barangay_role_end: dateOnly(r.barangay_role_end),
+      philhealth_expiry: dateOnly(r.philhealth_expiry),
+      sss_gsis_expiry: dateOnly(r.sss_gsis_expiry),
+      pagibig_expiry: dateOnly(r.pagibig_expiry),
+      tin_expiry: dateOnly(r.tin_expiry),
+      pwd_id_expiry: dateOnly(r.pwd_id_expiry),
+    } as unknown as Record<string, string | boolean>);
     setSectors(r.sectoral_tags?.map(t => t.sector) || []);
     setEduEntries((r.education_details as EduEntry[])?.length ? (r.education_details as EduEntry[]) : [{ ...emptyEdu }]);
     setWorkEntries((r.work_history as WorkEntry[])?.length ? (r.work_history as WorkEntry[]) : [{ ...emptyWork }]);
