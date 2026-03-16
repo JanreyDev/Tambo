@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, LogOut, ClipboardList, Wifi, WifiOff, CloudUpload } from "lucide-react";
+import { Loader2, LogOut, ClipboardList, Wifi, WifiOff, CloudUpload, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { useAccentColor } from "@/hooks/use-theme-store";
+import { ToastProvider } from "@/components/ui/toast";
 import { getPendingCount, syncPendingSubmissions } from "@/lib/census-offline";
 import { api } from "@/lib/api";
 
@@ -32,6 +33,7 @@ export default function CensusLayout({
   const isOnline = useSyncExternalStore(subscribeOnline, getOnlineSnapshot, getOnlineServerSnapshot);
   const [pendingCount, setPendingCount] = useState(0);
   const [syncing, setSyncing] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -62,6 +64,11 @@ export default function CensusLayout({
     return () => clearTimeout(timer);
   }, [isOnline, pendingCount, syncing]);
 
+  const handleLogout = useCallback(() => {
+    setShowLogoutConfirm(false);
+    logout();
+  }, [logout]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -77,56 +84,92 @@ export default function CensusLayout({
   const barangayName = user?.barangay?.name || "Barangay";
 
   return (
-    <div className="flex flex-col min-h-screen bg-background">
-      {/* Connection status bar */}
-      {!isOnline && (
-        <div className="flex items-center justify-center gap-2 px-3 py-1.5 bg-amber-500 text-white text-xs font-bold">
-          <WifiOff className="h-3.5 w-3.5" />
-          <span>OFFLINE — Data will be saved and synced when signal returns</span>
-        </div>
-      )}
-      {isOnline && pendingCount > 0 && (
-        <div className="flex items-center justify-center gap-2 px-3 py-1.5 bg-blue-500 text-white text-xs font-bold">
-          {syncing ? (
-            <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Syncing {pendingCount} pending record{pendingCount > 1 ? "s" : ""}...</>
-          ) : (
-            <><CloudUpload className="h-3.5 w-3.5" /> {pendingCount} record{pendingCount > 1 ? "s" : ""} waiting to sync</>
-          )}
-        </div>
-      )}
+    <ToastProvider>
+      <div className="flex flex-col min-h-screen bg-background">
+        {/* Connection status bar */}
+        {!isOnline && (
+          <div className="flex items-center justify-center gap-2 px-3 py-1.5 bg-amber-500 text-white text-xs font-bold">
+            <WifiOff className="h-3.5 w-3.5" />
+            <span>OFFLINE — Data will be saved and synced when signal returns</span>
+          </div>
+        )}
+        {isOnline && pendingCount > 0 && (
+          <div className="flex items-center justify-center gap-2 px-3 py-1.5 bg-blue-500 text-white text-xs font-bold">
+            {syncing ? (
+              <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Syncing {pendingCount} pending record{pendingCount > 1 ? "s" : ""}...</>
+            ) : (
+              <><CloudUpload className="h-3.5 w-3.5" /> {pendingCount} record{pendingCount > 1 ? "s" : ""} waiting to sync</>
+            )}
+          </div>
+        )}
 
-      {/* Top bar -- compact, Tanga-Proof: big touch targets, clear labels */}
-      <header className="sticky top-0 z-50 flex items-center justify-between px-3 py-2.5 border-b border-border glass-header">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: "var(--accent-primary)" }}>
-            <ClipboardList className="h-4.5 w-4.5 text-white" />
+        {/* Top bar -- compact, Tanga-Proof: big touch targets, clear labels */}
+        <header className="sticky top-0 z-50 flex items-center justify-between px-3 py-2.5 border-b border-border glass-header">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: "var(--accent-primary)" }}>
+              <ClipboardList className="h-4.5 w-4.5 text-white" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-foreground truncate">Census Mode</p>
+              <p className="text-[10px] text-muted-foreground truncate">{barangayName}</p>
+            </div>
           </div>
-          <div className="min-w-0">
-            <p className="text-sm font-bold text-foreground truncate">Census Mode</p>
-            <p className="text-[10px] text-muted-foreground truncate">{barangayName}</p>
+          <div className="flex items-center gap-1.5">
+            {/* Connection indicator */}
+            <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold ${isOnline ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300" : "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300"}`}>
+              {isOnline ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+              {isOnline ? "Online" : "Offline"}
+            </div>
+            <button
+              onClick={() => setShowLogoutConfirm(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors min-h-[44px]"
+              title="Sign out"
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="hidden min-[360px]:inline">Exit</span>
+            </button>
           </div>
-        </div>
-        <div className="flex items-center gap-1.5">
-          {/* Connection indicator */}
-          <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold ${isOnline ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300" : "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300"}`}>
-            {isOnline ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
-            {isOnline ? "Online" : "Offline"}
-          </div>
-          <button
-            onClick={() => { if (window.confirm("Sign out of Census Mode?")) logout(); }}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors min-h-[44px]"
-            title="Sign out"
-          >
-            <LogOut className="h-4 w-4" />
-            <span className="hidden min-[360px]:inline">Exit</span>
-          </button>
-        </div>
-      </header>
+        </header>
 
-      {/* Main content */}
-      <main className="flex-1 overflow-y-auto census-mobile-view">
-        {children}
-      </main>
-    </div>
+        {/* Main content */}
+        <main className="flex-1 overflow-y-auto census-mobile-view">
+          {children}
+        </main>
+
+        {/* Logout confirmation modal */}
+        {showLogoutConfirm && (
+          <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setShowLogoutConfirm(false)}>
+            <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 duration-200" onClick={(e) => e.stopPropagation()}>
+              <div className="p-5 text-center">
+                <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                  <AlertTriangle className="h-7 w-7 text-amber-600 dark:text-amber-400" />
+                </div>
+                <h3 className="text-base font-bold text-foreground mb-1">Lumabas sa Census Mode?</h3>
+                <p className="text-sm text-muted-foreground">
+                  {pendingCount > 0
+                    ? `May ${pendingCount} pending record pa na hindi na-sync. Mawa-wala kung mag-logout.`
+                    : "Hindi pa naka-save ang current form. Sigurado ka bang gusto mong lumabas?"}
+                </p>
+              </div>
+              <div className="flex border-t border-border">
+                <button
+                  onClick={() => setShowLogoutConfirm(false)}
+                  className="flex-1 py-3.5 text-sm font-semibold text-muted-foreground hover:bg-muted transition-colors min-h-[48px]"
+                >
+                  Huwag muna
+                </button>
+                <div className="w-px bg-border" />
+                <button
+                  onClick={handleLogout}
+                  className="flex-1 py-3.5 text-sm font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors min-h-[48px]"
+                >
+                  Oo, lumabas
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </ToastProvider>
   );
 }

@@ -53,7 +53,6 @@ export default function MapPage() {
 
   // Residents data
   const [residents, setResidents] = useState<MapResident[]>([]);
-  // filteredResidents computed via useMemo below
   const [loadingResidents, setLoadingResidents] = useState(true);
   const [residentsError, setResidentsError] = useState(false);
   const [totalResidents, setTotalResidents] = useState(0);
@@ -156,34 +155,24 @@ export default function MapPage() {
   const coverage = totalResidents > 0 ? Math.round((mappedCount / totalResidents) * 100) : 0;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-80px)] gap-0 -mt-1">
-      {/* ── Header bar ─────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-1 pb-3 shrink-0">
-        <PageHeader
-          title="Barangay Map"
-          description="Live resident location map — pins from registered coordinates"
-          breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "Map" }]}
-          className="mb-0"
-        />
-        <div className="flex items-center gap-2 shrink-0">
-          {/* Coverage pill */}
-          {!loadingResidents && (
-            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted/50 border border-border text-xs text-muted-foreground">
-              <MapPin className="h-3 w-3" />
-              <span><span className="font-semibold text-foreground">{mappedCount}</span> / {totalResidents} mapped</span>
-              <span className="text-accent-primary font-semibold">{coverage}%</span>
-            </div>
-          )}
+    <div className="flex flex-col h-[calc(100vh-80px)] gap-0 p-4 lg:p-6 -mt-1">
+      {/* ── Header ─────────────────────────────────────────────────────── */}
+      <PageHeader
+        title="Barangay Map"
+        description="Live resident location map — pins from registered coordinates"
+        breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "Map" }]}
+        actions={
           <button
             onClick={handleRefresh}
             disabled={loadingResidents}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-medium hover:bg-muted transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-medium hover:bg-muted transition-colors disabled:opacity-50 min-h-[36px]"
           >
-            <RefreshCw className={cn("h-3 w-3", loadingResidents && "animate-spin")} />
+            <RefreshCw className={cn("h-3.5 w-3.5", loadingResidents && "animate-spin")} />
             Refresh
           </button>
-        </div>
-      </div>
+        }
+        className="mb-3 shrink-0"
+      />
 
       {/* ── Mabini AI Insight ──────────────────────────────────────────── */}
       <div className="flex items-start gap-3 px-4 py-2.5 rounded-xl border border-accent-primary/20 bg-accent-bg/30 mb-3 shrink-0">
@@ -245,12 +234,14 @@ export default function MapPage() {
             )}
           </div>
 
-          {/* Pin count overlay */}
+          {/* Pin count + coverage overlay */}
           {!loadingResidents && (
-            <div className="absolute top-3 right-3 z-[1000] flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-background/95 backdrop-blur-sm border border-border text-[11px] shadow-sm">
-              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              <span className="font-semibold text-foreground">{filteredResidents.length}</span>
-              <span className="text-muted-foreground">pins visible</span>
+            <div className="absolute top-3 right-3 z-[1000] flex items-center gap-3">
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-background/95 backdrop-blur-sm border border-border text-[11px] shadow-sm">
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                <span className="font-semibold text-foreground">{filteredResidents.length}</span>
+                <span className="text-muted-foreground">pins visible</span>
+              </div>
             </div>
           )}
 
@@ -321,9 +312,9 @@ export default function MapPage() {
         </div>
 
         {/* ── Right sidebar ─────────────────────────────────────────────── */}
-        <div className="w-72 shrink-0 flex flex-col gap-3 overflow-y-auto">
+        <div className="w-72 shrink-0 flex flex-col gap-3 overflow-y-auto hidden lg:flex">
 
-          {/* Quick stats */}
+          {/* Quick stats — 2x2 grid */}
           <div className="grid grid-cols-2 gap-2 shrink-0">
             {[
               { label: "Total Residents", value: loadingStats ? "..." : totalResidents.toLocaleString(), icon: Users, color: "text-blue-600" },
@@ -538,7 +529,7 @@ export default function MapPage() {
         </div>
       </div>
 
-      <MabiniButton pageContext="You are on the Barangay Map page. This page shows all residents that have GPS coordinates as live pins on a Leaflet map. Stats show total residents, mapped count, coverage percentage, per-purok breakdown, and per-status breakdown." />
+      <MabiniButton pageContext="You are on the Barangay Map page. This page shows all residents that have GPS coordinates as live pins on a Google Map. Stats show total residents, mapped count, coverage percentage, per-purok breakdown, and per-status breakdown." />
     </div>
   );
 }

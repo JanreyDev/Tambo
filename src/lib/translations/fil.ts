@@ -32,6 +32,7 @@ export const fil: Translations = {
     disasterDrrm: "Kalamidad/DRRM",
     gad: "GAD",
     hris: "HRIS",
+    updates: "Mga Bagong Update",
     settings: "Mga Setting",
     helpManual: "Tulong at Manual",
   },

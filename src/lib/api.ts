@@ -682,6 +682,11 @@ const api = {
         by_status: Array<{ status: string; count: number }>;
       }>("/map/stats"),
   },
+
+  platformUpdates: {
+    list: () =>
+      api.get<{ updates: import("@/lib/types").PlatformUpdate[] }>("/platform-updates"),
+  },
 };
 
 export { api };

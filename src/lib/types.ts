@@ -462,3 +462,22 @@ export interface IssueDocumentPayload {
   approved_by_left?: string;
   approved_by_right?: string;
 }
+
+// ── Platform Updates ──────────────────────────────────────────────────────
+
+export interface PlatformUpdate {
+  id: string;
+  type: "feature" | "improvement" | "bugfix" | "security" | "maintenance";
+  category: string | null;
+  version: string | null;
+  title: string;
+  description: string;
+  icon: string | null;
+  badge_color: string | null;
+  is_published: boolean;
+  is_breaking: boolean;
+  published_at: string;
+  commit_hash: string | null;
+  author: string | null;
+  created_at: string;
+}

@@ -30,6 +30,7 @@ export const en = {
     disasterDrrm: "Disaster/DRRM",
     gad: "GAD",
     hris: "HRIS",
+    updates: "What's New",
     settings: "Settings",
     helpManual: "Help & Manual",
   },

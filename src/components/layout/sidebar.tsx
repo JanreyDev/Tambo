@@ -29,6 +29,7 @@ import {
   MessageCircle,
   ChevronDown,
   HelpCircle,
+  Sparkles,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -102,6 +103,7 @@ const navGroupDefs: NavGroupDef[] = [
 ];
 
 const bottomNavItems: NavItemDef[] = [
+  { labelKey: "updates", href: "/dashboard/updates", icon: Sparkles },
   { labelKey: "settings", href: "/dashboard/settings", icon: Settings },
   { labelKey: "helpManual", href: "/dashboard/help", icon: HelpCircle },
 ];

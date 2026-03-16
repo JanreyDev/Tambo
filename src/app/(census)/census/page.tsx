@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/components/ui/toast";
 import { queueSubmission, saveDraft, loadDraft, clearDraft } from "@/lib/census-offline";
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -246,6 +247,67 @@ function getOnline() { return navigator.onLine; }
 function getOnlineServer() { return true; }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// Confirm Dialog — mobile-optimized bottom sheet modal (replaces window.confirm)
+// ══════════════════════════════════════════════════════════════════════════════
+
+interface ConfirmDialogProps {
+  open: boolean;
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  variant?: "danger" | "warning" | "primary";
+  icon?: React.ReactNode;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+function ConfirmDialog({ open, title, message, confirmLabel = "Oo", cancelLabel = "Huwag muna", variant = "warning", icon, onConfirm, onCancel }: ConfirmDialogProps) {
+  if (!open) return null;
+
+  const confirmColors = {
+    danger: "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20",
+    warning: "text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/20",
+    primary: "hover:bg-accent-bg/50",
+  };
+  const iconBg = {
+    danger: "bg-red-100 dark:bg-red-900/30",
+    warning: "bg-amber-100 dark:bg-amber-900/30",
+    primary: "bg-accent-bg",
+  };
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onCancel}>
+      <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 duration-200" onClick={(e) => e.stopPropagation()}>
+        <div className="p-5 text-center">
+          <div className={cn("w-14 h-14 mx-auto mb-3 rounded-full flex items-center justify-center", iconBg[variant])}>
+            {icon || <AlertTriangle className="h-7 w-7 text-amber-600 dark:text-amber-400" />}
+          </div>
+          <h3 className="text-base font-bold text-foreground mb-1">{title}</h3>
+          <p className="text-sm text-muted-foreground leading-relaxed">{message}</p>
+        </div>
+        <div className="flex border-t border-border">
+          <button
+            onClick={onCancel}
+            className="flex-1 py-3.5 text-sm font-semibold text-muted-foreground hover:bg-muted transition-colors min-h-[48px]"
+          >
+            {cancelLabel}
+          </button>
+          <div className="w-px bg-border" />
+          <button
+            onClick={onConfirm}
+            className={cn("flex-1 py-3.5 text-sm font-bold transition-colors min-h-[48px]", confirmColors[variant])}
+            style={variant === "primary" ? { color: "var(--accent-primary)" } : undefined}
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // Reusable input components — 44px min touch targets, mobile-first
 // ══════════════════════════════════════════════════════════════════════════════
 
@@ -456,6 +518,16 @@ function CCombobox({
 
 export default function CensusPage() {
   const isOnline = useSyncExternalStore(subscribeOnline, getOnline, getOnlineServer);
+  const { toast } = useToast();
+
+  // ── Confirm dialog state ────────────────────────────────────────────────
+  const [confirmDialog, setConfirmDialog] = useState<{
+    title: string; message: string;
+    confirmLabel?: string; cancelLabel?: string;
+    variant?: "danger" | "warning" | "primary";
+    icon?: React.ReactNode;
+    onConfirm: () => void;
+  } | null>(null);
 
   // ── Form state (all flat fields) ──────────────────────────────────────
   const [form, setForm] = useState<Record<string, string>>({
@@ -532,7 +604,11 @@ export default function CensusPage() {
   const [gpsError, setGpsError] = useState<string | null>(null);
 
   const detectGps = useCallback(() => {
-    if (!navigator.geolocation) { setGpsError("GPS not available sa device na ito"); return; }
+    if (!navigator.geolocation) {
+      setGpsError("GPS not available sa device na ito");
+      toast("error", "Walang GPS", "Hindi supported ang GPS sa device o browser na ito.");
+      return;
+    }
     setGpsLoading(true);
     setGpsError(null);
     navigator.geolocation.getCurrentPosition(
@@ -543,14 +619,21 @@ export default function CensusPage() {
           longitude: pos.coords.longitude.toFixed(7),
         }));
         setGpsLoading(false);
+        toast("success", "GPS detected", "Na-detect na ang location coordinates.", 3000);
       },
       (err) => {
-        setGpsError(err.code === 1 ? "Hindi ma-access ang location. I-enable ang GPS sa browser settings." : "Hindi makuha ang location. Try ulit sa labas.");
+        const msg = err.code === 1
+          ? "Hindi ma-access ang location. I-enable ang GPS sa Settings > Privacy > Location Services."
+          : err.code === 2
+            ? "Hindi available ang GPS ngayon. Lumabas sa loob ng building at try ulit."
+            : "Nag-timeout ang GPS. I-try ulit sa lugar na may clear sky view.";
+        setGpsError(msg);
         setGpsLoading(false);
+        toast("error", "Hindi makuha ang GPS", msg, 6000);
       },
       { enableHighAccuracy: true, timeout: 15000 },
     );
-  }, []);
+  }, [toast]);
 
   // ── Photo ─────────────────────────────────────────────────────────────
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -562,25 +645,35 @@ export default function CensusPage() {
     setPhotoUploading(true);
     setPhotoError(null);
     try {
+      // Check file size before processing (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        setPhotoError("Masyadong malaki ang photo (max 10MB). Kumuha ng bagong photo.");
+        toast("error", "Malaki ang photo", "Maximum na file size ay 10MB. Kumuha ng mas maliit na photo.");
+        setPhotoUploading(false);
+        return;
+      }
       const reader = new FileReader();
       reader.onload = (e) => setPhotoPreview(e.target?.result as string);
       reader.readAsDataURL(file);
       const blob = await resizeImage(file, 800);
       if (!isOnline) {
         // Offline: keep preview, skip upload (photo_file_id stays null)
-        setPhotoError("Offline — photo saved locally. Will upload when online.");
+        setPhotoError("Offline — photo saved locally. I-upload kapag may signal.");
+        toast("warning", "Photo saved locally", "Wala pang internet. I-upload ang photo kapag may signal na.", 5000);
         setPhotoUploading(false);
         return;
       }
       const res = await api.files.uploadPhoto(blob);
       setPhotoFileId(res.file.id);
+      toast("success", "Photo uploaded", "Na-upload na ang photo ng residente.", 3000);
     } catch {
-      setPhotoError("Hindi ma-upload ang photo. Subukan ulit.");
+      setPhotoError("Hindi ma-upload ang photo. I-check ang internet at subukan ulit.");
+      toast("error", "Photo upload failed", "Hindi ma-upload ang photo. I-check ang WiFi/data at i-try ulit.");
       // Keep the preview so user sees the image was captured
     } finally {
       setPhotoUploading(false);
     }
-  }, [isOnline]);
+  }, [isOnline, toast]);
 
   // ── Update helper ─────────────────────────────────────────────────────
   const updateForm = useCallback((name: string, value: string) => {
@@ -642,7 +735,13 @@ export default function CensusPage() {
   }, [form.first_name, form.last_name, form.middle_name, form.date_of_birth, isOnline]);
 
   // ── Step validation ───────────────────────────────────────────────────
-  const validateStep = (s: number): boolean => {
+  const FIELD_LABELS: Record<string, string> = {
+    first_name: "First Name", last_name: "Last Name", date_of_birth: "Date of Birth",
+    place_of_birth: "Place of Birth", sex: "Sex", civil_status: "Civil Status",
+    resident_type: "Residence Type",
+  };
+
+  const validateStep = (s: number): Record<string, string> => {
     const errors: Record<string, string> = {};
     if (s === 0) { // Identity
       if (!form.first_name.trim()) errors.first_name = "Required";
@@ -656,11 +755,17 @@ export default function CensusPage() {
       if (!form.resident_type) errors.resident_type = "Required";
     }
     setStepErrors(errors);
-    return Object.keys(errors).length === 0;
+    return errors;
   };
 
   const goNext = () => {
-    if (!validateStep(step)) return;
+    const errors = validateStep(step);
+    if (Object.keys(errors).length > 0) {
+      const currentStepLabel = STEPS[step].label;
+      const fieldNames = Object.keys(errors).map((key) => FIELD_LABELS[key] || key.replace(/_/g, " "));
+      toast("error", `May kulang sa ${currentStepLabel}`, `I-fill up: ${fieldNames.join(", ")}`, 5000);
+      return;
+    }
     if (step < STEPS.length - 1) setStep(step + 1);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -774,36 +879,42 @@ export default function CensusPage() {
 
   // ── Submit (online) or queue (offline) ────────────────────────────────
   const submittingRef = useRef(false);
-  const handleSubmit = async () => {
+
+  const doSubmit = async () => {
     // Synchronous double-submit guard (ref beats async state update)
     if (submittingRef.current) return;
+
     submittingRef.current = true;
     setSubmitting(true);
     setSubmitError(null);
 
     // Re-validate identity step before submit (in case user went back and cleared fields)
-    if (!validateStep(0)) {
+    const identityErrors = validateStep(0);
+    if (Object.keys(identityErrors).length > 0) {
       setStep(0);
       setSubmitting(false);
       submittingRef.current = false;
-      setSubmitError("May kulang na required fields sa Pangalan step.");
+      const missing = Object.keys(identityErrors).map((key) => FIELD_LABELS[key] || key.replace(/_/g, " "));
+      const errorMsg = `Kulang pa: ${missing.join(", ")}. Bumalik sa Step 1 (Pangalan).`;
+      setSubmitError(errorMsg);
+      toast("error", "Hindi ma-submit", errorMsg);
       return;
     }
 
     const payload = buildPayload();
+    const displayName = `${form.last_name}, ${form.first_name} ${form.middle_name ? form.middle_name.charAt(0) + "." : ""}`.trim();
 
     if (!isOnline) {
       // Offline: queue to IndexedDB
       try {
         await queueSubmission(payload);
         setRegisteredCount((c) => c + 1);
-        setSuccess({
-          name: `${form.last_name}, ${form.first_name} ${form.middle_name ? form.middle_name.charAt(0) + "." : ""}`.trim(),
-          number: "QUEUED (will sync when online)",
-        });
+        setSuccess({ name: displayName, number: "QUEUED (will sync when online)" });
         await clearDraft("census-form");
+        toast("warning", "Naka-save offline", `Record ni ${displayName} ay naka-queue. Automatic na mag-sync kapag may internet.`, 6000);
       } catch {
-        setSubmitError("Hindi ma-save offline. Subukan ulit.");
+        setSubmitError("Hindi ma-save sa device. Baka puno na ang storage. I-clear ang browser cache at subukan ulit.");
+        toast("error", "Hindi ma-save offline", "Baka puno na ang storage ng device. I-clear ang browser cache at subukan ulit.");
       } finally {
         setSubmitting(false);
         submittingRef.current = false;
@@ -815,23 +926,61 @@ export default function CensusPage() {
       const res = await api.residents.create(payload as Record<string, string>);
       const r = res.resident;
       setRegisteredCount((c) => c + 1);
-      setSuccess({
-        name: `${form.last_name}, ${form.first_name} ${form.middle_name ? form.middle_name.charAt(0) + "." : ""}`.trim(),
-        number: r.resident_number,
-      });
+      setSuccess({ name: displayName, number: r.resident_number });
       await clearDraft("census-form");
+      toast("success", "Na-register na!", `${displayName} — ${r.resident_number}`, 5000);
     } catch (err) {
       const e = err as { message?: string; errors?: Record<string, string[]> };
+      let errorMsg: string;
       if (e.errors) {
-        const first = Object.values(e.errors)[0]?.[0] ?? "Validation failed";
-        setSubmitError(first);
+        // Show ALL validation errors, not just first
+        const allErrors = Object.entries(e.errors).map(([field, msgs]) => {
+          const fieldLabel = field.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+          return `${fieldLabel}: ${msgs[0]}`;
+        });
+        errorMsg = allErrors.join("\n");
+        setSubmitError(allErrors.join(" | "));
+        toast("error", "May mali sa form", allErrors.slice(0, 3).join(" | ") + (allErrors.length > 3 ? ` (+${allErrors.length - 3} pa)` : ""), 8000);
+      } else if (e.message?.includes("duplicate") || e.message?.includes("Duplicate")) {
+        errorMsg = "May existing record na para sa residenteng ito. I-check ang duplicate warning sa Step 1.";
+        setSubmitError(errorMsg);
+        toast("warning", "Possible duplicate", errorMsg, 8000);
+      } else if (e.message?.includes("Network") || e.message?.includes("fetch")) {
+        errorMsg = "Nawala ang internet connection habang nag-submit. I-check ang WiFi/data at try ulit.";
+        setSubmitError(errorMsg);
+        toast("error", "Nawala ang connection", errorMsg, 8000);
+      } else if (e.message?.includes("413") || e.message?.includes("too large")) {
+        errorMsg = "Masyadong malaki ang data (baka dahil sa photo). I-try ulit na walang photo.";
+        setSubmitError(errorMsg);
+        toast("error", "Masyadong malaki ang file", errorMsg, 8000);
+      } else if (e.message?.includes("500") || e.message?.includes("Server")) {
+        errorMsg = "May problema sa server. I-try ulit after 1 minute. Kung tuloy-tuloy, i-report sa admin.";
+        setSubmitError(errorMsg);
+        toast("error", "Server error", errorMsg, 8000);
       } else {
-        setSubmitError(e.message || "Hindi ma-register. Check ang connection at try ulit.");
+        errorMsg = e.message || "Hindi ma-register. I-check ang internet connection at subukan ulit.";
+        setSubmitError(errorMsg);
+        toast("error", "Hindi na-register", errorMsg, 8000);
       }
     } finally {
       setSubmitting(false);
       submittingRef.current = false;
     }
+  };
+
+  const handleSubmit = () => {
+    if (submittingRef.current) return;
+    const fullName = `${form.last_name}, ${form.first_name}`.trim();
+
+    setConfirmDialog({
+      title: "I-submit ang record?",
+      message: `I-register na si ${fullName} sa barangay system${!isOnline ? " (OFFLINE — i-queue muna at i-sync later)" : ""}.`,
+      confirmLabel: isOnline ? "Oo, i-register" : "Oo, i-save offline",
+      cancelLabel: "Sandali lang",
+      variant: "primary",
+      icon: <UserCheck className="h-7 w-7" style={{ color: "var(--accent-primary)" }} />,
+      onConfirm: () => { setConfirmDialog(null); doSubmit(); },
+    });
   };
 
   // ── Reset form ────────────────────────────────────────────────────────
@@ -976,7 +1125,15 @@ export default function CensusPage() {
       {showDraftBanner && step === 0 && (
         <div className="mx-3 mt-2 flex items-center justify-between px-3 py-2 rounded-xl bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
           <p className="text-xs text-blue-700 dark:text-blue-300">May naka-save na draft para kay <b>{form.first_name} {form.last_name}</b></p>
-          <button onClick={resetForm} className="text-[10px] font-bold text-blue-600 underline ml-2">Clear</button>
+          <button onClick={() => setConfirmDialog({
+            title: "I-clear ang form?",
+            message: "Mabubura ang lahat ng na-fill up na data. Hindi na ito maibabalik.",
+            confirmLabel: "Oo, i-clear",
+            cancelLabel: "Huwag",
+            variant: "danger",
+            icon: <Trash2 className="h-7 w-7 text-red-600 dark:text-red-400" />,
+            onConfirm: () => { setConfirmDialog(null); resetForm(); toast("info", "Na-clear ang form", "Ready na para sa bagong entry."); },
+          })} className="text-[10px] font-bold text-blue-600 underline ml-2 min-h-[44px] px-2">Clear</button>
         </div>
       )}
 
@@ -1081,7 +1238,7 @@ export default function CensusPage() {
 
             {/* GPS */}
             <div className="space-y-1.5">
-              <SectionLabel>GPS Location / Lokasyon</SectionLabel>
+              <SectionLabel>GPS Lokasyon</SectionLabel>
               <button
                 onClick={detectGps} disabled={gpsLoading}
                 className={cn(
@@ -1121,12 +1278,12 @@ export default function CensusPage() {
         {/* ═══════ STEP 4: CONTACT & VOTER ═══════ */}
         {step === 3 && (
           <div className="space-y-3">
-            <SectionLabel>Contact Information</SectionLabel>
+            <SectionLabel>Kontak / Contact Info</SectionLabel>
             <CField label="Mobile Number / Cellphone" name="mobile_number" type="tel" value={f("mobile_number")} onChange={updateForm} placeholder="09171234567" maxLength={13} />
             <CField label="Telephone / Landline" name="telephone" type="tel" value={f("telephone")} onChange={updateForm} placeholder="(047) 222-3456" maxLength={20} />
             <CField label="Email" name="email" type="email" value={f("email")} onChange={updateForm} placeholder="juan@email.com" />
 
-            <SectionLabel>Voter Information / Impormasyon ng Botante</SectionLabel>
+            <SectionLabel>Botante / Voter Info</SectionLabel>
             <CRadio label="Registered Voter?" name="is_voter" value={f("is_voter")}
               onChange={updateForm} options={[{ value: "yes", label: "Oo" }, { value: "no", label: "Hindi" }]} />
             {f("is_voter") === "yes" && (
@@ -1203,12 +1360,12 @@ export default function CensusPage() {
             <CSelectRaw label="Highest Education / Pinakamataas na Natapos" name="highest_education" value={f("highest_education")} onChange={updateForm}
               options={educationLevels.map((l) => ({ value: l.toLowerCase().replace(/\s+/g, "-"), label: l }))} />
 
-            <SectionLabel>Educational Background</SectionLabel>
+            <SectionLabel>Edukasyon / Educational Background</SectionLabel>
             {educationEntries.map((entry, i) => (
               <div key={i} className="p-3 rounded-xl border border-border space-y-2.5 bg-muted/10">
                 <div className="flex items-center justify-between">
                   <p className="text-[10px] font-bold text-muted-foreground">SCHOOL #{i + 1}</p>
-                  <button onClick={() => setEducationEntries((prev) => prev.filter((_, idx) => idx !== i))}
+                  <button onClick={() => setEducationEntries((prev) => prev.filter((_, idx) => idx !== i))} aria-label={`Remove school #${i + 1}`}
                     className="p-2 rounded-lg text-red-500 hover:bg-red-50 min-h-[44px] min-w-[44px] flex items-center justify-center">
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
@@ -1262,12 +1419,12 @@ export default function CensusPage() {
             )}
 
             {/* Work entries */}
-            <SectionLabel>Employment Records / Work History</SectionLabel>
+            <SectionLabel>Trabaho / Employment</SectionLabel>
             {workEntries.map((entry, i) => (
               <div key={i} className="p-3 rounded-xl border border-border space-y-2.5 bg-muted/10">
                 <div className="flex items-center justify-between">
                   <p className="text-[10px] font-bold text-muted-foreground">WORK #{i + 1}</p>
-                  <button onClick={() => setWorkEntries((prev) => prev.filter((_, idx) => idx !== i))}
+                  <button onClick={() => setWorkEntries((prev) => prev.filter((_, idx) => idx !== i))} aria-label={`Remove work #${i + 1}`}
                     className="p-2 rounded-lg text-red-500 hover:bg-red-50 min-h-[44px] min-w-[44px] flex items-center justify-center">
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
@@ -1302,7 +1459,7 @@ export default function CensusPage() {
               <div key={i} className="p-3 rounded-xl border border-border space-y-2.5 bg-muted/10">
                 <div className="flex items-center justify-between">
                   <p className="text-[10px] font-bold text-muted-foreground">BUSINESS #{i + 1}</p>
-                  <button onClick={() => setBusinessEntries((prev) => prev.filter((_, idx) => idx !== i))}
+                  <button onClick={() => setBusinessEntries((prev) => prev.filter((_, idx) => idx !== i))} aria-label={`Remove business #${i + 1}`}
                     className="p-2 rounded-lg text-red-500 hover:bg-red-50 min-h-[44px] min-w-[44px] flex items-center justify-center">
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
@@ -1392,11 +1549,11 @@ export default function CensusPage() {
                   <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => { setPhotoPreview(null); setPhotoFileId(null); setCameraActive(true); }}
+                  <button onClick={() => { if (photoPreview && photoPreview.startsWith("blob:")) URL.revokeObjectURL(photoPreview); setPhotoPreview(null); setPhotoFileId(null); setCameraActive(true); }}
                     className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold border border-border hover:bg-muted min-h-[44px] transition-colors">
                     <RotateCcw className="h-3.5 w-3.5" /> Ulitin
                   </button>
-                  <button onClick={() => { setPhotoPreview(null); setPhotoFileId(null); }}
+                  <button onClick={() => { if (photoPreview && photoPreview.startsWith("blob:")) URL.revokeObjectURL(photoPreview); setPhotoPreview(null); setPhotoFileId(null); }}
                     className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold text-red-600 border border-red-200 hover:bg-red-50 min-h-[44px] transition-colors">
                     <X className="h-3.5 w-3.5" /> Alisin
                   </button>
@@ -1407,12 +1564,14 @@ export default function CensusPage() {
               <LiveCamera
                 onCapture={(blob, preview) => {
                   setCameraActive(false);
+                  // Revoke previous object URL to prevent memory leak
+                  if (photoPreview && photoPreview.startsWith("blob:")) URL.revokeObjectURL(photoPreview);
                   setPhotoPreview(preview);
                   setPhotoUploading(true);
                   resizeImage(new File([blob], "photo.jpg", { type: "image/jpeg" }), 800)
                     .then((resized) => api.files.uploadPhoto(resized))
                     .then((res) => setPhotoFileId(res.file.id))
-                    .catch(() => { setPhotoPreview(null); setPhotoFileId(null); })
+                    .catch(() => { if (preview.startsWith("blob:")) URL.revokeObjectURL(preview); setPhotoPreview(null); setPhotoFileId(null); })
                     .finally(() => setPhotoUploading(false));
                 }}
                 onCancel={() => setCameraActive(false)}
@@ -1617,6 +1776,19 @@ export default function CensusPage() {
           </button>
         )}
       </div>
+
+      {/* ── Confirm Dialog ─────────────────────────────────────────── */}
+      <ConfirmDialog
+        open={!!confirmDialog}
+        title={confirmDialog?.title || ""}
+        message={confirmDialog?.message || ""}
+        confirmLabel={confirmDialog?.confirmLabel}
+        cancelLabel={confirmDialog?.cancelLabel}
+        variant={confirmDialog?.variant}
+        icon={confirmDialog?.icon}
+        onConfirm={() => confirmDialog?.onConfirm?.()}
+        onCancel={() => setConfirmDialog(null)}
+      />
     </div>
   );
 }
@@ -1708,7 +1880,7 @@ function LiveCamera({
       <div className="flex flex-col items-center gap-3 py-8">
         <AlertTriangle className="h-10 w-10 text-amber-500" />
         <p className="text-xs text-center text-muted-foreground px-4">{error}</p>
-        <button onClick={onCancel}
+        <button onClick={onCancel} aria-label="Bumalik mula sa camera"
           className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold border border-border hover:bg-muted min-h-[44px] transition-colors">
           <X className="h-3.5 w-3.5" /> Bumalik
         </button>
@@ -1741,11 +1913,11 @@ function LiveCamera({
 
       {/* Capture + Cancel buttons */}
       <div className="flex items-center gap-4">
-        <button onClick={onCancel}
+        <button onClick={onCancel} aria-label="Cancel camera"
           className="w-12 h-12 rounded-full border-2 border-border flex items-center justify-center hover:bg-muted transition-colors">
           <X className="h-5 w-5 text-muted-foreground" />
         </button>
-        <button onClick={capturePhoto} disabled={!ready}
+        <button onClick={capturePhoto} disabled={!ready} aria-label="Capture photo"
           className="w-16 h-16 rounded-full border-4 border-white shadow-lg flex items-center justify-center transition-transform active:scale-90 disabled:opacity-40"
           style={{ background: "var(--accent-primary)" }}>
           <Camera className="h-7 w-7 text-white" />
@@ -1790,6 +1962,7 @@ function resizeImage(file: File, maxSize: number): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
+      URL.revokeObjectURL(img.src);
       let { width, height } = img;
       if (width <= maxSize && height <= maxSize) { resolve(file); return; }
       if (width > height) { height = Math.round(height * (maxSize / width)); width = maxSize; }
@@ -1802,7 +1975,7 @@ function resizeImage(file: File, maxSize: number): Promise<Blob> {
       ctx.drawImage(img, 0, 0, width, height);
       canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("Canvas toBlob failed"))), "image/jpeg", 0.85);
     };
-    img.onerror = () => reject(new Error("Image load failed"));
+    img.onerror = () => { URL.revokeObjectURL(img.src); reject(new Error("Image load failed")); };
     img.src = URL.createObjectURL(file);
   });
 }

@@ -824,7 +824,7 @@ const defaultPlaceOfBirthEntries: SmartEntry[] = [
 ];
 
 // ── Year options ──
-const yearOptions = ["", ...Array.from({ length: 60 }, (_, i) => String(2026 - i))];
+const yearOptions = ["", ...Array.from({ length: 60 }, (_, i) => String(new Date().getFullYear() - i))];
 
 // ── Toast Notification System ──
 interface Toast { id: string; type: "success" | "error" | "warning" | "info"; title: string; message?: string; duration?: number; }
@@ -2916,7 +2916,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                   options={[{ value: "yes", label: "Yes" }, { value: "no", label: "No" }]}
                   onChange={(n, v) => updateForm(n, v === "yes")} />
                 <FInput label="Voter Precinct Number" name="voter_precinct_number" placeholder="e.g. 0045A" value={f("voter_precinct_number")} onChange={updateForm} />
-                <FSelect label="Last Voted Year" name="last_voted_year" options={["", ...Array.from({ length: 10 }, (_, i) => String(2025 - i))]} value={f("last_voted_year")} onChange={updateForm} />
+                <FSelect label="Last Voted Year" name="last_voted_year" options={["", ...Array.from({ length: 10 }, (_, i) => String(new Date().getFullYear() - i))]} value={f("last_voted_year")} onChange={updateForm} />
               </div>
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                 <FSelect label="Relationship to Head" name="relationship_to_head" options={["", ...relationships]} value={f("relationship_to_head")} onChange={updateForm} />
@@ -3207,7 +3207,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
             </select>
             <select value={residentTypeFilter} onChange={(e) => { setResidentTypeFilter(e.target.value); setPage(1); }}
               className="h-8 px-3 text-xs font-medium rounded-full border border-border bg-background hover:bg-muted focus:outline-none focus:ring-2 focus:ring-accent-ring cursor-pointer transition-colors">
-              {["All Resident Types", "Permanent", "Transient", "Seasonal", "Migrant"].map((s) => <option key={s}>{s}</option>)}
+              {["All Resident Types", "Permanent", "Transient", "Transferee"].map((s) => <option key={s}>{s}</option>)}
             </select>
             <select value={voterFilter} onChange={(e) => { setVoterFilter(e.target.value); setPage(1); }}
               className="h-8 px-3 text-xs font-medium rounded-full border border-border bg-background hover:bg-muted focus:outline-none focus:ring-2 focus:ring-accent-ring cursor-pointer transition-colors">
@@ -3227,7 +3227,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
             </select>
             <select value={religionFilter} onChange={(e) => { setReligionFilter(e.target.value); setPage(1); }}
               className="h-8 px-3 text-xs font-medium rounded-full border border-border bg-background hover:bg-muted focus:outline-none focus:ring-2 focus:ring-accent-ring cursor-pointer transition-colors">
-              {["All Religion", "Roman Catholic", "Iglesia ni Cristo", "Islam", "Born Again Christian", "Evangelical", "Seventh Day Adventist", "Baptist", "Methodist", "Other"].map((s) => <option key={s}>{s}</option>)}
+              {["All Religion", "Catholic", "INC (Iglesia ni Cristo)", "Born Again", "Muslim", "Protestant", "Seventh Day Adventist", "Baptist", "Methodist", "Jehovah's Witness", "Mormon", "Aglipayan", "Buddhist", "Other"].map((s) => <option key={s}>{s}</option>)}
             </select>
             <select value={ethnicityFilter} onChange={(e) => { setEthnicityFilter(e.target.value); setPage(1); }}
               className="h-8 px-3 text-xs font-medium rounded-full border border-border bg-background hover:bg-muted focus:outline-none focus:ring-2 focus:ring-accent-ring cursor-pointer transition-colors">
@@ -3532,11 +3532,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                                             </div>
                                           ))
                                         ) : (
-                                          <div>
-                                            <p className="text-xs font-semibold text-slate-200">Brgy. San Antonio</p>
-                                            <p className="text-[10px] text-slate-400">Last transaction: 3 months ago</p>
-                                            <p className="text-[10px] text-slate-500">Barangay Clearance</p>
-                                          </div>
+                                          <p className="text-[10px] text-slate-400">No flags</p>
                                         )}
                                       </div>
                                     </div>
@@ -3694,7 +3690,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                           </button>
                           {/* Generate Document */}
                           <button
-                            onClick={() => {}}
+                            onClick={() => addToast({ type: "info", title: "Coming soon", message: "Generate Document is under development" })}
                             className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 transition-colors"
                             title="Generate Document"
                           >
@@ -3702,7 +3698,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                           </button>
                           {/* Barangay ID */}
                           <button
-                            onClick={() => {}}
+                            onClick={() => addToast({ type: "info", title: "Coming soon", message: "Generate Barangay ID is under development" })}
                             className="p-1.5 rounded-lg bg-violet-50 hover:bg-violet-100 dark:bg-violet-950/40 dark:hover:bg-violet-900/60 transition-colors"
                             title="Generate Barangay ID"
                           >
@@ -3710,7 +3706,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                           </button>
                           {/* SMS */}
                           <button
-                            onClick={() => {}}
+                            onClick={() => addToast({ type: "info", title: "Coming soon", message: "SMS is under development" })}
                             disabled={!r.mobile_number}
                             className="p-1.5 rounded-lg bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/40 dark:hover:bg-orange-900/60 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                             title={r.mobile_number ? "Send SMS to " + r.mobile_number : "No mobile number registered"}
@@ -3844,10 +3840,10 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
             <div>
               <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Government IDs</h4>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-3">
-                <InfoItem label="PhilHealth" value="\u2014" />
-                <InfoItem label="SSS/GSIS" value="\u2014" />
-                <InfoItem label="Pag-IBIG" value="\u2014" />
-                <InfoItem label="TIN" value="\u2014" />
+                <InfoItem label="PhilHealth" value={viewResident.philhealth_number || "\u2014"} />
+                <InfoItem label="SSS/GSIS" value={viewResident.sss_gsis_number || "\u2014"} />
+                <InfoItem label="Pag-IBIG" value={viewResident.pagibig_number || "\u2014"} />
+                <InfoItem label="TIN" value={viewResident.tin_number || "\u2014"} />
               </div>
             </div>
 
@@ -3876,7 +3872,20 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
       {/* Delete Confirmation */}
       {/* Archive Record Modal */}
       <Modal open={archiveModal} onClose={() => { setArchiveModal(false); setArchiveReason(""); }} title="Archive Resident Record" size="sm"
-        footer={<><ModalButton variant="secondary" onClick={() => { setArchiveModal(false); setArchiveReason(""); }}>Cancel</ModalButton><ModalButton variant="danger" disabled={!archiveReason} onClick={() => { setArchiveModal(false); setArchiveReason(""); }}>Archive Record</ModalButton></>}>
+        footer={<><ModalButton variant="secondary" onClick={() => { setArchiveModal(false); setArchiveReason(""); }}>Cancel</ModalButton><ModalButton variant="danger" disabled={!archiveReason} onClick={async () => {
+          if (!viewResident) return;
+          try {
+            await api.residents.delete(viewResident.id);
+            addToast({ type: "success", title: "Record archived", message: `${viewResident.first_name} ${viewResident.last_name} has been moved to archive.` });
+            setArchiveModal(false);
+            setArchiveReason("");
+            setViewResident(null);
+            fetchResidents();
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : "Failed to archive resident";
+            addToast({ type: "error", title: "Archive failed", message: msg });
+          }
+        }}>Archive Record</ModalButton></>}>
         <div className="space-y-4">
           <div className="flex items-center gap-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900">
             <Archive className="h-5 w-5 text-amber-500 shrink-0" />
