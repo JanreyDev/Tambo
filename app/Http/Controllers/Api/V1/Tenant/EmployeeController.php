@@ -20,7 +20,11 @@ class EmployeeController extends Controller
     {
         $barangayId = $request->user()->barangay_id;
 
-        $query = Employee::where('barangay_id', $barangayId);
+        $query = Employee::where('barangay_id', $barangayId)
+            ->with([
+                'resident:id,first_name,last_name,middle_name,contact_number,email',
+                'office:id,name',
+            ]);
 
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
@@ -62,6 +66,10 @@ class EmployeeController extends Controller
     public function show(Request $request, string $id): JsonResponse
     {
         $employee = Employee::where('barangay_id', $request->user()->barangay_id)
+            ->with([
+                'resident:id,first_name,last_name,middle_name,contact_number,email',
+                'office:id,name',
+            ])
             ->findOrFail($id);
 
         return response()->json(['employee' => $employee]);

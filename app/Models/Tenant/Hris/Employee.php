@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Models\Tenant\Hris;
 
+use App\Models\Tenant\Hris\Office;
+use App\Models\Tenant\Resident;
 use App\Traits\BelongsToBarangay;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Employee extends Model
 {
@@ -31,5 +34,15 @@ class Employee extends Model
         return [
             'date_hired' => 'date',
         ];
+    }
+
+    public function resident(): BelongsTo
+    {
+        return $this->belongsTo(Resident::class, 'resident_id');
+    }
+
+    public function office(): BelongsTo
+    {
+        return $this->belongsTo(Office::class, 'office_id');
     }
 }
