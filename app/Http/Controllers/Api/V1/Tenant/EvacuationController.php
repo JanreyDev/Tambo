@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1\Tenant;
 
 use App\Http\Controllers\Controller;
 use App\Models\Tenant\Disaster\Evacuation;
+use App\Models\Tenant\Disaster\EvacuationFamily;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -57,10 +58,20 @@ class EvacuationController extends Controller
      */
     public function show(Request $request, string $id): JsonResponse
     {
-        $evacuation = Evacuation::where('barangay_id', $request->user()->barangay_id)
+        $barangayId = $request->user()->barangay_id;
+
+        $evacuation = Evacuation::where('barangay_id', $barangayId)
             ->findOrFail($id);
 
-        return response()->json(['evacuation' => $evacuation]);
+        $families = EvacuationFamily::where('evacuation_id', $id)
+            ->where('barangay_id', $barangayId)
+            ->orderBy('head_name')
+            ->get();
+
+        return response()->json([
+            'evacuation' => $evacuation,
+            'families'   => $families,
+        ]);
     }
 
     /**

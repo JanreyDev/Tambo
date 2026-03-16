@@ -27,6 +27,9 @@ class File extends Model
         'category',
         'is_public',
         'metadata',
+        'drive_folder_id',
+        'drive_owner_id',
+        'drive_shared_with_barangay',
     ];
 
     protected function casts(): array
@@ -35,6 +38,7 @@ class File extends Model
             'is_public' => 'boolean',
             'metadata' => 'array',
             'size_bytes' => 'integer',
+            'drive_shared_with_barangay' => 'boolean',
         ];
     }
 }

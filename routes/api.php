@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Api\V1\AccountController;
 use App\Http\Controllers\Api\V1\Admin\AdminBarangayController;
+use App\Http\Controllers\Api\V1\Admin\MarketplaceAdminController;
 use App\Http\Controllers\Api\V1\Admin\PlatformUpdateController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\PsgcController;
 use App\Http\Controllers\Api\V1\Tenant\AiController;
+use App\Http\Controllers\Api\V1\Tenant\DriveController;
+use App\Http\Controllers\Api\V1\Tenant\MarketplaceController;
+use App\Http\Controllers\Api\V1\Tenant\MessageController;
 use App\Http\Controllers\Api\V1\Tenant\AssetController;
 use App\Http\Controllers\Api\V1\Tenant\AttendanceRecordController;
 use App\Http\Controllers\Api\V1\Tenant\BarangayPostController;
@@ -39,6 +43,7 @@ use App\Http\Controllers\Api\V1\Tenant\KpCasePartyController;
 use App\Http\Controllers\Api\V1\Tenant\LotBuildingController;
 use App\Http\Controllers\Api\V1\Tenant\MapController;
 use App\Http\Controllers\Api\V1\Tenant\VoterController;
+use App\Http\Controllers\Api\V1\Tenant\OfficeController;
 use App\Http\Controllers\Api\V1\Tenant\OfficialController;
 use App\Http\Controllers\Api\V1\Tenant\PaymentController;
 use App\Http\Controllers\Api\V1\Tenant\PettyCashVoucherController;
@@ -156,6 +161,16 @@ Route::prefix('v1')->group(function () {
             // Barangay data views (admin)
             Route::get('barangays/{barangay}/residents', [AdminBarangayController::class, 'residents']);
             Route::get('barangays/{barangay}/files', [AdminBarangayController::class, 'files']);
+
+            // Marketplace admin — global product catalog + cross-barangay orders
+            Route::prefix('marketplace')->group(function () {
+                Route::get('products', [MarketplaceAdminController::class, 'index']);
+                Route::post('products', [MarketplaceAdminController::class, 'store']);
+                Route::put('products/{id}', [MarketplaceAdminController::class, 'update']);
+                Route::delete('products/{id}', [MarketplaceAdminController::class, 'destroy']);
+                Route::get('orders', [MarketplaceAdminController::class, 'orders']);
+                Route::patch('orders/{id}/status', [MarketplaceAdminController::class, 'updateOrderStatus']);
+            });
         });
 
         // ── Tenant-scoped routes ──
@@ -265,6 +280,10 @@ Route::prefix('v1')->group(function () {
 
             // ── Judicial ──
             Route::get('kp-cases/stats', [KpCaseController::class, 'stats']);
+            Route::post('kp-cases/{id}/sms', [KpCaseController::class, 'sendSms']);
+            Route::get('kp-cases/{id}/sms-history', [KpCaseController::class, 'smsHistory']);
+            Route::get('kp-cases/{id}/activity', [KpCaseController::class, 'activity']);
+            Route::post('kp-cases/{id}/log-document', [KpCaseController::class, 'logDocument']);
             Route::apiResource('kp-cases', KpCaseController::class)->except(['destroy']);
             Route::apiResource('kp-case-parties', KpCasePartyController::class);
             Route::apiResource('kp-case-hearings', KpCaseHearingController::class);
@@ -301,6 +320,7 @@ Route::prefix('v1')->group(function () {
             Route::apiResource('gad-plans', GadPlanController::class);
 
             // ── HRIS ──
+            Route::apiResource('offices', OfficeController::class);
             Route::apiResource('employees', EmployeeController::class);
             Route::apiResource('attendance-records', AttendanceRecordController::class);
 
@@ -308,6 +328,45 @@ Route::prefix('v1')->group(function () {
             Route::apiResource('posts', BarangayPostController::class);
             Route::apiResource('public-complaints', PublicComplaintController::class)->except(['store', 'destroy']);
             Route::apiResource('public-document-requests', PublicDocumentRequestController::class)->except(['store', 'destroy']);
+
+            // ── Messages (internal email) ──
+            Route::prefix('messages')->group(function () {
+                Route::get('/', [MessageController::class, 'index']);
+                Route::post('/', [MessageController::class, 'store']);
+                Route::get('users', [MessageController::class, 'users']);
+                Route::get('{id}', [MessageController::class, 'show']);
+                Route::patch('{id}', [MessageController::class, 'update']);
+                Route::delete('{id}', [MessageController::class, 'destroy']);
+            });
+
+            // ── Marketplace ──
+            Route::prefix('marketplace')->group(function () {
+                Route::get('products', [MarketplaceController::class, 'products']);
+                Route::get('products/{id}', [MarketplaceController::class, 'product']);
+                Route::get('cart', [MarketplaceController::class, 'cart']);
+                Route::post('cart', [MarketplaceController::class, 'addToCart']);
+                Route::patch('cart/{id}', [MarketplaceController::class, 'updateCart']);
+                Route::delete('cart/{id}', [MarketplaceController::class, 'removeFromCart']);
+                Route::get('orders', [MarketplaceController::class, 'orders']);
+                Route::get('orders/{id}', [MarketplaceController::class, 'order']);
+                Route::post('checkout', [MarketplaceController::class, 'checkout']);
+                Route::patch('orders/{id}/cancel', [MarketplaceController::class, 'cancelOrder']);
+            });
+
+            // ── Drive ──
+            Route::prefix('drive')->group(function () {
+                Route::get('stats', [DriveController::class, 'stats']);
+                Route::get('folders', [DriveController::class, 'folders']);
+                Route::post('folders', [DriveController::class, 'createFolder']);
+                Route::get('folders/{id}', [DriveController::class, 'folder']);
+                Route::patch('folders/{id}', [DriveController::class, 'updateFolder']);
+                Route::delete('folders/{id}', [DriveController::class, 'deleteFolder']);
+                Route::get('files', [DriveController::class, 'files']);
+                Route::post('files', [DriveController::class, 'upload']);
+                Route::get('files/{id}/download', [DriveController::class, 'download']);
+                Route::patch('files/{id}', [DriveController::class, 'updateFile']);
+                Route::delete('files/{id}', [DriveController::class, 'deleteFile']);
+            });
         });
     });
 });
