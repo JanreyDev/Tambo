@@ -86,6 +86,17 @@ class BcmpService
     }
 
     /**
+     * Make a PUT request to bcmp-api.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    public function put(string $path, array $data = []): array
+    {
+        return $this->request('PUT', $path, data: $data);
+    }
+
+    /**
      * Make a PATCH request to bcmp-api.
      *
      * @param  array<string, mixed>  $data
@@ -132,6 +143,7 @@ class BcmpService
             $response = match ($method) {
                 'GET' => $pending->get($url, $query),
                 'POST' => $pending->post($url, $data),
+                'PUT' => $pending->put($url, $data),
                 'PATCH' => $pending->patch($url, $data),
                 'DELETE' => $pending->delete($url),
                 default => throw new \InvalidArgumentException("Unsupported method: {$method}"),

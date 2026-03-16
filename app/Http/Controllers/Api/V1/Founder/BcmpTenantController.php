@@ -45,6 +45,8 @@ class BcmpTenantController extends Controller
         'province',
         'population',
         'zip_code',
+        'latitude',
+        'longitude',
         'subscription_plan',
         'kapitan',
     ];
@@ -57,6 +59,8 @@ class BcmpTenantController extends Controller
         'contact_email',
         'population',
         'land_area_hectares',
+        'latitude',
+        'longitude',
         'logo_url',
         'seal_url',
         'status',

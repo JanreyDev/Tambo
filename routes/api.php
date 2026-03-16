@@ -8,6 +8,8 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\Founder\ActivityController;
 use App\Http\Controllers\Api\V1\Founder\AlertController;
+use App\Http\Controllers\Api\V1\Founder\BcmpDocumentTemplateController;
+use App\Http\Controllers\Api\V1\Founder\BcmpMarketplaceController;
 use App\Http\Controllers\Api\V1\Founder\BcmpTenantController;
 use App\Http\Controllers\Api\V1\Founder\DeploymentController;
 use App\Http\Controllers\Api\V1\Founder\FounderAuthController;
@@ -124,6 +126,21 @@ Route::prefix('v1/founder')->group(function (): void {
         // BCMP tenant data views (proxied to bcmp-api)
         Route::get('bcmp/tenants/{id}/residents', [BcmpTenantController::class, 'residents']);
         Route::get('bcmp/tenants/{id}/files', [BcmpTenantController::class, 'files']);
+
+        // BCMP system document templates (proxied to bcmp-api via super-admin token)
+        // barangay_id = null on all templates managed here → auto-visible to all tenants
+        Route::apiResource('bcmp/document-templates', BcmpDocumentTemplateController::class)
+            ->except(['create', 'edit']);
+
+        // BCMP marketplace admin — product catalog + cross-barangay orders (proxied to bcmp-api)
+        Route::prefix('bcmp/marketplace')->group(function () {
+            Route::get('products', [BcmpMarketplaceController::class, 'products']);
+            Route::post('products', [BcmpMarketplaceController::class, 'storeProduct']);
+            Route::put('products/{id}', [BcmpMarketplaceController::class, 'updateProduct']);
+            Route::delete('products/{id}', [BcmpMarketplaceController::class, 'destroyProduct']);
+            Route::get('orders', [BcmpMarketplaceController::class, 'orders']);
+            Route::patch('orders/{id}/status', [BcmpMarketplaceController::class, 'updateOrderStatus']);
+        });
     });
 });
 

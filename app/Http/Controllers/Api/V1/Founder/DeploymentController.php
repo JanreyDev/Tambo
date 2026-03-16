@@ -81,7 +81,8 @@ class DeploymentController extends Controller
                                 'status' => $this->mapPipelineStatus($pipeline['status'] ?? 'unknown'),
                                 'commit_message' => $pipeline['ref'] ?? 'Pipeline run',
                                 'triggered_by' => $pipeline['source'] ?? 'push',
-                                'created_at' => $pipeline['created_at'],
+                                'created_at' => $pipeline['created_at'] ?? null,
+                                'updated_at' => $pipeline['updated_at'] ?? $pipeline['created_at'] ?? null,
                                 'duration_seconds' => $durationSeconds,
                                 'web_url' => $pipeline['web_url'] ?? null,
                             ];
@@ -96,8 +97,11 @@ class DeploymentController extends Controller
                 }
             }
 
-            // Sort all pipelines by updated_at descending.
-            usort($allPipelines, fn (array $a, array $b) => strcmp($b['updated_at'], $a['updated_at']));
+            // Sort all pipelines by updated_at descending (null-safe).
+            usort($allPipelines, fn (array $a, array $b) => strcmp(
+                $b['updated_at'] ?? $b['created_at'] ?? '',
+                $a['updated_at'] ?? $a['created_at'] ?? '',
+            ));
 
             // Return the 20 most recent.
             $allPipelines = array_slice($allPipelines, 0, 20);
