@@ -9,6 +9,7 @@ use App\Traits\HasAuditColumns;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Establishment extends Model
@@ -30,6 +31,8 @@ class Establishment extends Model
         'purok',
         'street',
         'exact_address',
+        'registration_type',
+        'registration_number',
         'registration_date',
         'permit_number',
         'permit_expiry',
@@ -46,5 +49,10 @@ class Establishment extends Model
             'latitude' => 'decimal:8',
             'longitude' => 'decimal:8',
         ];
+    }
+
+    public function transactions(): HasMany
+    {
+        return $this->hasMany(EstablishmentTransaction::class);
     }
 }

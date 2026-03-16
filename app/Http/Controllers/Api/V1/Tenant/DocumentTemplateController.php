@@ -20,7 +20,11 @@ class DocumentTemplateController extends Controller
     {
         $barangayId = $request->user()->barangay_id;
 
-        $query = DocumentTemplate::where('barangay_id', $barangayId);
+        // Include barangay-specific templates AND system defaults (barangay_id = null)
+        $query = DocumentTemplate::where(function ($q) use ($barangayId) {
+            $q->where('barangay_id', $barangayId)
+                ->orWhereNull('barangay_id');
+        });
 
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
@@ -34,8 +38,15 @@ class DocumentTemplateController extends Controller
         }
 
         if ($request->has('is_active')) {
-            $status = $request->boolean('is_active') ? 'active' : 'inactive';
-            $query->where('status', $status);
+            if ($request->boolean('is_active')) {
+                $query->where('status', 'active');
+            } else {
+                $query->whereIn('status', ['draft', 'archived']);
+            }
+        }
+
+        if ($constituentType = $request->get('constituent_type')) {
+            $query->where('constituent_type', $constituentType);
         }
 
         $sortBy = $request->get('sort_by', 'sort_order');
@@ -58,8 +69,10 @@ class DocumentTemplateController extends Controller
      */
     public function show(Request $request, string $id): JsonResponse
     {
-        $template = DocumentTemplate::where('barangay_id', $request->user()->barangay_id)
-            ->findOrFail($id);
+        $template = DocumentTemplate::where(function ($q) use ($request) {
+            $q->where('barangay_id', $request->user()->barangay_id)
+                ->orWhereNull('barangay_id');
+        })->findOrFail($id);
 
         return response()->json(['document_template' => $template]);
     }
@@ -83,7 +96,7 @@ class DocumentTemplateController extends Controller
             'custom_tables' => ['nullable', 'array'],
             'approval_config' => ['nullable', 'array'],
             'settings' => ['nullable', 'array'],
-            'status' => ['nullable', 'in:active,inactive'],
+            'status' => ['nullable', 'in:active,draft,archived'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
         ]);
 
@@ -122,7 +135,7 @@ class DocumentTemplateController extends Controller
             'custom_tables' => ['nullable', 'array'],
             'approval_config' => ['nullable', 'array'],
             'settings' => ['nullable', 'array'],
-            'status' => ['sometimes', 'in:active,inactive'],
+            'status' => ['sometimes', 'in:active,draft,archived'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
         ]);
 

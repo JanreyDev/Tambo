@@ -20,13 +20,15 @@ class KpCaseController extends Controller
     {
         $barangayId = $request->user()->barangay_id;
 
-        $query = KpCase::where('barangay_id', $barangayId);
+        $query = KpCase::where('barangay_id', $barangayId)
+            ->with('parties');
 
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('case_number', 'ilike', "%{$search}%")
                     ->orWhere('nature', 'ilike', "%{$search}%")
-                    ->orWhere('nature_of_complaint', 'ilike', "%{$search}%");
+                    ->orWhere('nature_of_complaint', 'ilike', "%{$search}%")
+                    ->orWhereHas('parties', fn ($pq) => $pq->where('full_name', 'ilike', "%{$search}%"));
             });
         }
 
@@ -52,6 +54,58 @@ class KpCaseController extends Controller
     }
 
     /**
+     * Get KP case stats.
+     *
+     * GET /api/v1/kp-cases/stats
+     */
+    public function stats(Request $request): JsonResponse
+    {
+        $barangayId = $request->user()->barangay_id;
+        $base = KpCase::where('barangay_id', $barangayId);
+
+        $total = (clone $base)->count();
+        $active = (clone $base)->whereNotIn('status', ['settled', 'dismissed', 'closed', 'cfa_issued'])->count();
+        $settled = (clone $base)->where('status', 'settled')->count();
+        $mediation = (clone $base)->where('case_level', 'mediation')->whereNotIn('status', ['settled', 'dismissed', 'closed', 'cfa_issued'])->count();
+        $conciliation = (clone $base)->where('case_level', 'conciliation')->whereNotIn('status', ['settled', 'dismissed', 'closed', 'cfa_issued'])->count();
+        $cfaIssued = (clone $base)->where('status', 'cfa_issued')->count();
+
+        // Overdue: mediation deadline passed but still in mediation
+        $overdueMediation = (clone $base)
+            ->where('case_level', 'mediation')
+            ->whereNotIn('status', ['settled', 'dismissed', 'closed', 'cfa_issued'])
+            ->whereNotNull('mediation_deadline')
+            ->where('mediation_deadline', '<', now()->toDateString())
+            ->count();
+
+        $overdueConciliation = (clone $base)
+            ->where('case_level', 'conciliation')
+            ->whereNotIn('status', ['settled', 'dismissed', 'closed', 'cfa_issued'])
+            ->where(function ($q) {
+                $q->where(function ($q2) {
+                    $q2->whereNotNull('conciliation_extended_deadline')
+                        ->where('conciliation_extended_deadline', '<', now()->toDateString());
+                })->orWhere(function ($q2) {
+                    $q2->whereNull('conciliation_extended_deadline')
+                        ->whereNotNull('conciliation_deadline')
+                        ->where('conciliation_deadline', '<', now()->toDateString());
+                });
+            })
+            ->count();
+
+        return response()->json([
+            'total' => $total,
+            'active' => $active,
+            'settled' => $settled,
+            'mediation' => $mediation,
+            'conciliation' => $conciliation,
+            'cfa_issued' => $cfaIssued,
+            'overdue_mediation' => $overdueMediation,
+            'overdue_conciliation' => $overdueConciliation,
+        ]);
+    }
+
+    /**
      * Get a single KP case with parties and hearings.
      *
      * GET /api/v1/kp-cases/{id}
@@ -59,6 +113,7 @@ class KpCaseController extends Controller
     public function show(Request $request, string $id): JsonResponse
     {
         $kpCase = KpCase::where('barangay_id', $request->user()->barangay_id)
+            ->with(['parties', 'hearings' => fn ($q) => $q->orderBy('hearing_date', 'desc')])
             ->findOrFail($id);
 
         return response()->json(['kp_case' => $kpCase]);
@@ -87,8 +142,10 @@ class KpCaseController extends Controller
 
         $barangayId = $request->user()->barangay_id;
 
-        // Auto-generate case number
-        $year = now()->format('Y');
+        // Case number uses the filing_date year — not today's date.
+        // Handles late entries: December cases filed in January still get KP-{prev_year}-XXXX.
+        // created_at is the audit trail for when it was actually entered.
+        $year = \Carbon\Carbon::parse($validated['filing_date'])->format('Y');
         $lastCase = KpCase::where('barangay_id', $barangayId)
             ->where('case_number', 'ilike', "KP-{$year}-%")
             ->orderByRaw("CAST(SUBSTRING(case_number FROM 'KP-\\d{4}-(\\d+)') AS INTEGER) DESC NULLS LAST")
@@ -162,19 +219,4 @@ class KpCaseController extends Controller
         ]);
     }
 
-    /**
-     * Soft delete a KP case.
-     *
-     * DELETE /api/v1/kp-cases/{id}
-     */
-    public function destroy(Request $request, string $id): JsonResponse
-    {
-        $kpCase = KpCase::where('barangay_id', $request->user()->barangay_id)
-            ->findOrFail($id);
-
-        $kpCase->update(['deleted_by' => $request->user()->id]);
-        $kpCase->delete();
-
-        return response()->json(['message' => 'KP case deleted.']);
-    }
 }

@@ -17,6 +17,8 @@ class IssuedDocument extends Model
 
     protected $table = 'issued_documents';
 
+    protected $appends = ['pdf_url'];
+
     protected $fillable = [
         'barangay_id',
         'document_number',
@@ -54,5 +56,17 @@ class IssuedDocument extends Model
             'custom_field_values' => 'array',
             'sms_sent' => 'boolean',
         ];
+    }
+
+    /**
+     * Computed PDF download URL for the frontend.
+     */
+    public function getPdfUrlAttribute(): ?string
+    {
+        if (! $this->pdf_file_id) {
+            return null;
+        }
+
+        return url("/api/v1/issued-documents/{$this->id}/pdf");
     }
 }

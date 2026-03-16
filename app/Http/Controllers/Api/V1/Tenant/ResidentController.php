@@ -42,12 +42,7 @@ class ResidentController extends Controller
         $barangayId = $request->user()->barangay_id;
 
         $query = Resident::where('barangay_id', $barangayId)
-            ->with(['sectoralTags', 'crossBarangayFlags', 'photoFile'])
-            ->withCount([
-                'blotterRecordsAsComplainant as blotter_complainant_count',
-                'blotterRecordsAsRespondent as blotter_respondent_count',
-                'kpCaseParties as kp_case_count',
-            ]);
+            ->with(['sectoralTags', 'crossBarangayFlags', 'photoFile']);
 
         // Search
         if ($search = $request->get('search')) {
@@ -128,7 +123,40 @@ class ResidentController extends Controller
             ? Barangay::whereIn('id', $crossBarangayIds)->pluck('name', 'id')
             : collect();
 
-        $residents->getCollection()->transform(function ($resident) use ($barangayNames) {
+        // Batch-load case records (KP cases + blotter) for all residents on this page
+        $residentIds = $residents->getCollection()->pluck('id')->all();
+        $kpPartiesByResident = collect();
+        $blottersByResident  = collect();
+
+        if (!empty($residentIds)) {
+            $kpPartiesByResident = KpCaseParty::whereIn('kp_case_parties.resident_id', $residentIds)
+                ->join('kp_cases', 'kp_cases.id', '=', 'kp_case_parties.case_id')
+                ->whereNull('kp_cases.deleted_at')
+                ->select([
+                    'kp_case_parties.resident_id',
+                    'kp_case_parties.party_type',
+                    'kp_cases.case_number',
+                    'kp_cases.nature_of_complaint',
+                    'kp_cases.status',
+                    'kp_cases.filing_date',
+                ])
+                ->get()
+                ->groupBy('resident_id');
+
+            $complainants = BlotterRecord::whereIn('complainant_resident_id', $residentIds)
+                ->whereNull('deleted_at')
+                ->selectRaw("complainant_resident_id as resident_id, blotter_number, incident_type, status, filing_date, 'complainant' as role")
+                ->get();
+
+            $respondents = BlotterRecord::whereIn('respondent_resident_id', $residentIds)
+                ->whereNull('deleted_at')
+                ->selectRaw("respondent_resident_id as resident_id, blotter_number, incident_type, status, filing_date, 'respondent' as role")
+                ->get();
+
+            $blottersByResident = $complainants->concat($respondents)->groupBy('resident_id');
+        }
+
+        $residents->getCollection()->transform(function ($resident) use ($barangayNames, $kpPartiesByResident, $blottersByResident) {
             $resident->photo_url = $resident->photoFile?->is_public
                 ? $this->fileUploadService->getPublicUrl($resident->photoFile)
                 : null;
@@ -144,11 +172,32 @@ class ResidentController extends Controller
                 ->values()
                 ->all();
 
-            // Build case_records flag array for red flag indicator
-            $caseCount = ($resident->blotter_complainant_count ?? 0)
-                + ($resident->blotter_respondent_count ?? 0)
-                + ($resident->kp_case_count ?? 0);
-            $resident->case_records = $caseCount > 0 ? array_fill(0, $caseCount, true) : [];
+            // Build case_records with real data for the red flag tooltip
+            $caseRecords = collect();
+
+            foreach ($kpPartiesByResident->get($resident->id, collect()) as $party) {
+                $caseRecords->push([
+                    'source'      => 'kp_case',
+                    'case_number' => $party->case_number,
+                    'description' => Str::limit($party->nature_of_complaint ?? '', 50),
+                    'status'      => $party->status,
+                    'party_type'  => $party->party_type,
+                    'filing_date' => is_string($party->filing_date) ? $party->filing_date : $party->filing_date?->toDateString(),
+                ]);
+            }
+
+            foreach ($blottersByResident->get($resident->id, collect()) as $blotter) {
+                $caseRecords->push([
+                    'source'      => 'blotter',
+                    'case_number' => $blotter->blotter_number,
+                    'description' => Str::limit($blotter->incident_type ?? '', 50),
+                    'status'      => $blotter->status,
+                    'party_type'  => $blotter->role,
+                    'filing_date' => is_string($blotter->filing_date) ? $blotter->filing_date : $blotter->filing_date?->toDateString(),
+                ]);
+            }
+
+            $resident->case_records = $caseRecords->values()->all();
 
             return $resident;
         });

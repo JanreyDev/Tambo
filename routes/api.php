@@ -264,9 +264,11 @@ Route::prefix('v1')->group(function () {
             Route::apiResource('document-routes', DocumentRouteController::class);
 
             // ── Judicial ──
-            Route::apiResource('kp-cases', KpCaseController::class);
+            Route::get('kp-cases/stats', [KpCaseController::class, 'stats']);
+            Route::apiResource('kp-cases', KpCaseController::class)->except(['destroy']);
             Route::apiResource('kp-case-parties', KpCasePartyController::class);
             Route::apiResource('kp-case-hearings', KpCaseHearingController::class);
+            Route::get('blotters/stats', [BlotterController::class, 'stats']);
             Route::apiResource('blotters', BlotterController::class);
             Route::apiResource('vawc-cases', VawcCaseController::class);
 

@@ -9,6 +9,7 @@ use App\Traits\HasAuditColumns;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class KpCase extends Model
@@ -16,6 +17,16 @@ class KpCase extends Model
     use BelongsToBarangay, HasAuditColumns, HasFactory, HasUuids, SoftDeletes;
 
     protected $table = 'kp_cases';
+
+    public function parties(): HasMany
+    {
+        return $this->hasMany(KpCaseParty::class, 'case_id');
+    }
+
+    public function hearings(): HasMany
+    {
+        return $this->hasMany(KpCaseHearing::class, 'case_id');
+    }
 
     protected $fillable = [
         'barangay_id',
