@@ -321,7 +321,7 @@ function SmsHistoryTab({ residentId }: { residentId: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
+    queueMicrotask(() => { if (!cancelled) setLoading(true); });
     api.residents.smsHistory(residentId, { page, per_page: 20 })
       .then((res) => {
         if (cancelled) return;

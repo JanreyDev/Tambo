@@ -405,7 +405,7 @@ export default function TemplatesPage() {
               </div>
             </div>
             <p className="text-sm text-muted-foreground mb-6">
-              Delete <strong className="text-foreground">"{deleteConfirm.name}"</strong>? Documents already generated from this template will not be affected.
+              Delete <strong className="text-foreground">&quot;{deleteConfirm.name}&quot;</strong>? Documents already generated from this template will not be affected.
             </p>
             <div className="flex justify-end gap-2">
               <button
@@ -474,7 +474,7 @@ function TemplateCard({
 
       {template.title && (
         <p className="text-xs text-muted-foreground truncate mb-2 italic">
-          "{template.title}"
+          &quot;{template.title}&quot;
         </p>
       )}
 
