@@ -22,6 +22,9 @@ import { useAuth } from "@/contexts/auth-context";
 import type { ApiError, DashboardStats, DuplicateMatch, ResidentSummary, ResidentDetail, PaginatedResponse } from "@/lib/types";
 import { MabiniButton } from "@/components/ui/mabini-button";
 import ResidentPinMap from "@/components/map/resident-pin-map-dynamic";
+import { GenerateDocumentWizard } from "@/components/documents/GenerateDocumentWizard";
+import { GenerateIdModal } from "@/components/documents/GenerateIdModal";
+import { SendSmsModal, type SmsTargetResident } from "@/components/residents/SendSmsModal";
 
 
 // Mock learned address entries -- in production, fetched from barangay_address_entries API
@@ -152,7 +155,7 @@ function FInput({ label, name, required, type = "text", placeholder = "", value,
   return (
     <div className={className}>
       <label className="block text-xs font-medium text-muted-foreground mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <input type={type} name={name} value={displayValue} maxLength={maxLength}
+      <input type={type} name={name} value={displayValue} maxLength={maxLength} autoComplete="off"
         onChange={(e) => onChange(name, forceUpper ? e.target.value.toUpperCase() : e.target.value)} placeholder={placeholder}
         className={cn("w-full px-3 py-2.5 text-sm rounded-xl focus:outline-none transition-all duration-200",
           forceUpper && "uppercase",
@@ -996,6 +999,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
   const [hoveredTooltip, setHoveredTooltip] = useState<string | null>(null);
   const [archiveModal, setArchiveModal] = useState(false);
   const [archiveReason, setArchiveReason] = useState("");
+  const [archiveTarget, setArchiveTarget] = useState<{ id: string; first_name: string; last_name: string; sex: string; resident_number: string } | null>(null);
   const pageSize = 15;
 
   // ── API List State ──
@@ -1217,6 +1221,17 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
 
   // ── Toast Notifications ──
   const [toasts, setToasts] = useState<Toast[]>([]);
+
+  // ── Document wizard (opened from resident row action buttons) ──
+  const [showDocWizard, setShowDocWizard] = useState(false);
+  const [docWizardResidentId, setDocWizardResidentId] = useState<string | null>(null);
+  const [docWizardCategory, setDocWizardCategory] = useState<string | null>(null);
+
+  // ── ID card modal (purple button) ──
+  const [showIdModal, setShowIdModal] = useState(false);
+  const [idModalResidentId, setIdModalResidentId] = useState<string | null>(null);
+  const [showSmsModal, setShowSmsModal] = useState(false);
+  const [smsModalResident, setSmsModalResident] = useState<SmsTargetResident | null>(null);
   const addToast = useCallback((toast: Omit<Toast, "id">) => {
     const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
     setToasts((prev) => [...prev, { ...toast, id }]);
@@ -3456,7 +3471,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                   const hasGreyFlag = greyFlags.length > 0;
                   const hasRedFlag = Array.isArray(r.case_records) && r.case_records.length > 0;
                   return (
-                    <tr key={r.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => router.push(`/dashboard/residents/${r.id}`)}>
+                    <tr key={r.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => openViewResident(r.id)}>
                       {/* Barangay ID */}
                       <td className="px-4 py-3.5">
                         <p className="text-xs text-muted-foreground font-mono">{r.resident_number}</p>
@@ -3690,23 +3705,30 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                           </button>
                           {/* Generate Document */}
                           <button
-                            onClick={() => addToast({ type: "info", title: "Coming soon", message: "Generate Document is under development" })}
+                            onClick={() => { setDocWizardResidentId(r.id); setDocWizardCategory(null); setShowDocWizard(true); }}
                             className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 transition-colors"
                             title="Generate Document"
                           >
                             <ScrollText className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                           </button>
-                          {/* Barangay ID */}
+                          {/* Generate ID Card */}
                           <button
-                            onClick={() => addToast({ type: "info", title: "Coming soon", message: "Generate Barangay ID is under development" })}
+                            onClick={() => { setIdModalResidentId(r.id); setShowIdModal(true); }}
                             className="p-1.5 rounded-lg bg-violet-50 hover:bg-violet-100 dark:bg-violet-950/40 dark:hover:bg-violet-900/60 transition-colors"
-                            title="Generate Barangay ID"
+                            title="Generate ID Card"
                           >
                             <IdCard className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
                           </button>
                           {/* SMS */}
                           <button
-                            onClick={() => addToast({ type: "info", title: "Coming soon", message: "SMS is under development" })}
+                            onClick={() => {
+                              setSmsModalResident({
+                                id: r.id,
+                                name: `${r.last_name}, ${r.first_name}${r.middle_name ? " " + r.middle_name.charAt(0) + "." : ""}${r.extension_name ? " " + r.extension_name : ""}`.trim(),
+                                mobile_number: r.mobile_number ?? null,
+                              });
+                              setShowSmsModal(true);
+                            }}
                             disabled={!r.mobile_number}
                             className="p-1.5 rounded-lg bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/40 dark:hover:bg-orange-900/60 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                             title={r.mobile_number ? "Send SMS to " + r.mobile_number : "No mobile number registered"}
@@ -3723,19 +3745,19 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                               <MoreHorizontal className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
                             </button>
                             {actionMenu === r.id && (
-                              <div className="absolute right-0 top-8 z-50 w-44 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg py-1.5">
-                                <button onClick={async () => { setActionMenu(null); try { const detail = await api.residents.get(r.id); openEdit(detail); } catch { addToast({ type: "error", title: "Failed to load resident" }); } }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-muted text-left transition-colors"><Edit className="h-4 w-4 text-muted-foreground" /> Edit Profile</button>
+                              <div className="absolute right-0 top-8 z-50 w-44 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-xl shadow-lg py-1.5">
+                                <button onClick={async () => { setActionMenu(null); try { const detail = await api.residents.get(r.id); openEdit(detail); } catch { addToast({ type: "error", title: "Failed to load resident" }); } }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-800 dark:text-gray-100 text-left transition-colors"><Edit className="h-4 w-4 text-gray-500 dark:text-gray-400" /> Edit Profile</button>
                                 <button
                                   onClick={() => { setActionMenu(null); handlePrint(r.id); }}
                                   disabled={printingId === r.id}
-                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-muted text-left transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-800 dark:text-gray-100 text-left transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                                   {printingId === r.id
-                                    ? <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" />
-                                    : <Printer className="h-4 w-4 text-muted-foreground" />}
+                                    ? <Loader2 className="h-4 w-4 text-gray-500 dark:text-gray-400 animate-spin" />
+                                    : <Printer className="h-4 w-4 text-gray-500 dark:text-gray-400" />}
                                   {printingId === r.id ? "Generating PDF..." : "Print Record"}
                                 </button>
-                                <div className="border-t border-border my-1" />
-                                <button onClick={async () => { setActionMenu(null); await openViewResident(r.id); setArchiveModal(true); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-amber-50 dark:hover:bg-amber-950/20 text-left text-amber-600 dark:text-amber-400 transition-colors"><Archive className="h-4 w-4" /> Archive Record</button>
+                                <div className="border-t border-gray-200 dark:border-slate-600 my-1" />
+                                <button onClick={() => { setActionMenu(null); setArchiveTarget({ id: r.id, first_name: r.first_name, last_name: r.last_name, sex: r.sex, resident_number: r.resident_number }); setArchiveModal(true); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-amber-50 dark:hover:bg-amber-950/20 text-left text-amber-600 dark:text-amber-400 transition-colors"><Archive className="h-4 w-4" /> Archive Record</button>
                               </div>
                             )}
                           </div>
@@ -3762,124 +3784,170 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
         )}
       </div>
 
-      {/* View Resident Modal */}
-      <Modal open={!!viewResident && !showDelete && !archiveModal} onClose={() => setViewResident(null)}
-        title={viewResident ? `${viewResident.last_name}, ${viewResident.first_name} ${viewResident.middle_name ? viewResident.middle_name[0] + "." : ""} ${viewResident.extension_name}`.trim() : ""}
-        description={viewResident?.resident_number} size="xl"
+      {/* Quick View Modal */}
+      <Modal open={!!viewResident && !showDelete} onClose={() => setViewResident(null)} size="lg" hideCloseButton
         footer={
-          <>
-            <ModalButton variant="secondary" onClick={() => setViewResident(null)}>Close</ModalButton>
-            <ModalButton variant="secondary" onClick={() => viewResident && openEdit(viewResident)}><Edit className="h-4 w-4 mr-1" /> Edit Profile</ModalButton>
-            <ModalButton
-              variant="primary"
-              onClick={() => viewResident && handlePrint(viewResident.id)}
-              disabled={!!printingId}>
-              {printingId === viewResident?.id
-                ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Generating...</>
-                : <><Printer className="h-4 w-4 mr-1" /> Print Record</>}
-            </ModalButton>
-          </>
+          <div className="flex gap-3 w-full">
+            <button
+              onClick={() => setViewResident(null)}
+              className="flex-1 py-2.5 rounded-xl text-sm font-medium border border-border bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
+            >
+              Close
+            </button>
+            <button
+              onClick={() => { if (viewResident) { setViewResident(null); router.push(`/dashboard/residents/${viewResident.id}`); } }}
+              className="flex-[2] flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-accent-primary hover:bg-accent-hover text-white transition-all shadow-sm"
+            >
+              <Eye className="h-4 w-4" /> View Full Profile
+            </button>
+          </div>
         }>
         {viewResident && (
-          <div className="space-y-6">
+          <div>
+            {/* Cross-barangay alert */}
             {(viewResident.cross_barangay_flags?.length ?? 0) > 0 && (
-              <div className="space-y-2">
-                {viewResident.cross_barangay_flags?.map((fl, i) => (
-                  <div key={i} className="flex items-center gap-2 p-3 rounded-lg text-sm bg-gray-50 dark:bg-gray-900/20 text-gray-700 dark:text-gray-400 border border-gray-200 dark:border-gray-800">
-                    <Flag className="h-4 w-4 shrink-0" />
-                    Cross-barangay record detected. Verification recommended before issuing documents.
-                  </div>
-                ))}
+              <div className="mb-4 flex items-start gap-2.5 p-3 rounded-xl text-sm bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                <Flag className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>Cross-barangay record detected. Verify before issuing documents.</span>
               </div>
             )}
 
-            <div className="p-4 rounded-lg glass-subtle">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-foreground">Profile Completion</span>
-                <span className="text-sm font-bold" style={{ color: viewResident.profile_completion_pct >= 80 ? "#22c55e" : viewResident.profile_completion_pct >= 50 ? "#f59e0b" : "#ef4444" }}>{viewResident.profile_completion_pct}%</span>
+            {/* Header: Photo + Name + Status + Completion */}
+            <div className="flex items-start gap-4 mb-5">
+              {/* Photo */}
+              <div className="w-[72px] h-[72px] rounded-2xl overflow-hidden bg-muted shrink-0 border-2 border-border">
+                {viewResident.photo_url ? (
+                  <img src={resolvePhotoUrl(viewResident.photo_url) ?? undefined} alt={viewResident.first_name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700">
+                    <User className="h-7 w-7 text-muted-foreground" />
+                  </div>
+                )}
               </div>
-              <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
-                <div className="h-full rounded-full transition-all" style={{ width: `${viewResident.profile_completion_pct}%`, background: viewResident.profile_completion_pct >= 80 ? "#22c55e" : viewResident.profile_completion_pct >= 50 ? "#f59e0b" : "#ef4444" }} />
+
+              {/* Name + number + badges */}
+              <div className="flex-1 min-w-0">
+                <h3 className="text-lg font-bold text-foreground leading-tight">
+                  {viewResident.first_name}{viewResident.middle_name ? ` ${viewResident.middle_name[0]}.` : ""} {viewResident.last_name}{viewResident.extension_name ? ` ${viewResident.extension_name}` : ""}
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5 font-mono">{viewResident.resident_number}</p>
+                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                  <StatusBadge status={viewResident.status} />
+                  {viewResident.is_voter && <Badge variant="success" dot>Registered Voter</Badge>}
+                  {viewResident.is_head_of_household && <Badge variant="warning" dot>Head of Household</Badge>}
+                </div>
+              </div>
+
+              {/* Profile completion */}
+              <div className="shrink-0 text-right">
+                <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">Profile</div>
+                <div className="text-2xl font-bold leading-none" style={{ color: viewResident.profile_completion_pct >= 80 ? "#22c55e" : viewResident.profile_completion_pct >= 50 ? "#f59e0b" : "#ef4444" }}>
+                  {viewResident.profile_completion_pct}%
+                </div>
+                <div className="w-14 h-1.5 rounded-full bg-muted mt-1.5 ml-auto overflow-hidden">
+                  <div className="h-full rounded-full transition-all" style={{ width: `${viewResident.profile_completion_pct}%`, background: viewResident.profile_completion_pct >= 80 ? "#22c55e" : viewResident.profile_completion_pct >= 50 ? "#f59e0b" : "#ef4444" }} />
+                </div>
               </div>
             </div>
 
-            <div>
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Personal Information</h4>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-3">
-                <InfoItem icon={<User className="h-4 w-4" />} label="Sex" value={viewResident.sex} />
-                <InfoItem icon={<Calendar className="h-4 w-4" />} label="Date of Birth" value={viewResident.date_of_birth ? `${viewResident.date_of_birth} (${Math.floor((Date.now() - new Date(viewResident.date_of_birth).getTime()) / 31557600000)} yrs)` : "\u2014"} />
-                <InfoItem icon={<Heart className="h-4 w-4" />} label="Civil Status" value={viewResident.civil_status || "\u2014"} />
-                <InfoItem label="Blood Type" value={viewResident.blood_type || "\u2014"} />
-                <InfoItem label="Place of Birth" value={viewResident.place_of_birth || "\u2014"} />
-                <InfoItem label="Citizenship" value={viewResident.citizenship || "\u2014"} />
-                <InfoItem label="Religion" value={viewResident.religion || "\u2014"} />
-                <InfoItem label="Resident Type" value={viewResident.resident_type || "\u2014"} />
+            {/* Info grid */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* Personal */}
+              <div className="p-3.5 rounded-xl bg-muted/40 dark:bg-slate-800/40 space-y-2.5">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Personal</p>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="text-[11px] text-muted-foreground w-14 shrink-0">Born</span>
+                    <span className="text-sm font-medium text-foreground truncate">
+                      {viewResident.date_of_birth
+                        ? (() => { const d = new Date(viewResident.date_of_birth.includes("T") ? viewResident.date_of_birth : viewResident.date_of_birth + "T00:00:00"); return `${d.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })} · ${Math.floor((Date.now() - d.getTime()) / 31557600000)} yrs`; })()
+                        : "—"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="text-[11px] text-muted-foreground w-14 shrink-0">Sex</span>
+                    <span className="text-sm font-medium text-foreground">{viewResident.sex || "—"}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Heart className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="text-[11px] text-muted-foreground w-14 shrink-0">Civil</span>
+                    <span className="text-sm font-medium text-foreground capitalize">{viewResident.civil_status || "—"}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="h-3.5 w-3.5 shrink-0" />
+                    <span className="text-[11px] text-muted-foreground w-14 shrink-0">Blood</span>
+                    <span className="text-sm font-medium text-foreground">{viewResident.blood_type || "—"}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Globe className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="text-[11px] text-muted-foreground w-14 shrink-0">Citizen</span>
+                    <span className="text-sm font-medium text-foreground truncate">{viewResident.citizenship || "—"}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Contact */}
+              <div className="p-3.5 rounded-xl bg-muted/40 dark:bg-slate-800/40 space-y-2.5">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Contact & Location</p>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="text-[11px] text-muted-foreground w-14 shrink-0">Mobile</span>
+                    <span className="text-sm font-medium text-foreground">{viewResident.mobile_number || "—"}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="text-[11px] text-muted-foreground w-14 shrink-0">Email</span>
+                    <span className="text-sm font-medium text-foreground truncate">{viewResident.email || "—"}</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                    <span className="text-[11px] text-muted-foreground w-14 shrink-0">Address</span>
+                    <span className="text-sm font-medium text-foreground leading-snug">
+                      {[viewResident.house_block_lot, viewResident.street, viewResident.purok ? `Purok ${viewResident.purok}` : ""].filter(Boolean).join(", ") || "—"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Briefcase className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="text-[11px] text-muted-foreground w-14 shrink-0">Work</span>
+                    <span className="text-sm font-medium text-foreground truncate">{viewResident.occupation || "—"}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Vote className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="text-[11px] text-muted-foreground w-14 shrink-0">Voter</span>
+                    <span className="text-sm font-medium text-foreground">
+                      {viewResident.is_voter ? `Yes${viewResident.voter_precinct_number ? ` · Pct ${viewResident.voter_precinct_number}` : ""}` : "No"}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div>
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Contact & Address</h4>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-3">
-                <InfoItem icon={<Phone className="h-4 w-4" />} label="Mobile" value={viewResident.mobile_number || "\u2014"} />
-                <InfoItem icon={<Mail className="h-4 w-4" />} label="Email" value={viewResident.email || "\u2014"} />
-                <InfoItem icon={<MapPin className="h-4 w-4" />} label="Address" value={[viewResident.house_block_lot, viewResident.street, viewResident.purok ? `Purok ${viewResident.purok}` : ""].filter(Boolean).join(", ") || "\u2014"} />
-                <InfoItem label="Telephone" value={"\u2014"} />
+            {/* Sectoral tags */}
+            {(viewResident.sectoral_tags?.length ?? 0) > 0 && (
+              <div className="flex items-center gap-2 mt-3 flex-wrap">
+                {viewResident.sectoral_tags?.map(t => (
+                  <Badge key={t.id} variant="info" dot>{t.sector}</Badge>
+                ))}
               </div>
-            </div>
-
-            <div>
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Employment</h4>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-3">
-                <InfoItem icon={<FileText className="h-4 w-4" />} label="Occupation" value={viewResident.occupation || "\u2014"} />
-                <InfoItem label="Employer" value={viewResident.employer || "\u2014"} />
-                <InfoItem label="Monthly Income" value={viewResident.monthly_income_range || "\u2014"} />
-                <InfoItem label="Education" value={viewResident.highest_education || "\u2014"} />
-              </div>
-            </div>
-
-            <div>
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Government IDs</h4>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-3">
-                <InfoItem label="PhilHealth" value={viewResident.philhealth_number || "\u2014"} />
-                <InfoItem label="SSS/GSIS" value={viewResident.sss_gsis_number || "\u2014"} />
-                <InfoItem label="Pag-IBIG" value={viewResident.pagibig_number || "\u2014"} />
-                <InfoItem label="TIN" value={viewResident.tin_number || "\u2014"} />
-              </div>
-            </div>
-
-            <div>
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Voter & Household</h4>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-3">
-                <InfoItem label="Voter" value={viewResident.is_voter ? "Yes" : "No"} />
-                <InfoItem label="Precinct" value={viewResident.voter_precinct_number || "\u2014"} />
-                <InfoItem label="Household" value={viewResident.household?.household_number || "\u2014"} />
-                <InfoItem label="Head of Household" value={viewResident.is_head_of_household ? "Yes" : "No"} />
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 pt-2 border-t border-border flex-wrap">
-              <StatusBadge status={viewResident.status} />
-              {viewResident.is_voter && <Badge variant="success" dot>Registered Voter</Badge>}
-              {viewResident.is_head_of_household && <Badge variant="warning" dot>Head of Household</Badge>}
-              {viewResident.sectoral_tags?.map(t => (
-                <Badge key={t.id} variant="info" dot>{t.sector}</Badge>
-              ))}
-            </div>
+            )}
           </div>
         )}
       </Modal>
 
       {/* Delete Confirmation */}
       {/* Archive Record Modal */}
-      <Modal open={archiveModal} onClose={() => { setArchiveModal(false); setArchiveReason(""); }} title="Archive Resident Record" size="sm"
-        footer={<><ModalButton variant="secondary" onClick={() => { setArchiveModal(false); setArchiveReason(""); }}>Cancel</ModalButton><ModalButton variant="danger" disabled={!archiveReason} onClick={async () => {
-          if (!viewResident) return;
+      <Modal open={archiveModal} onClose={() => { setArchiveModal(false); setArchiveReason(""); setArchiveTarget(null); }} title="Archive Resident Record" size="sm"
+        footer={<><ModalButton variant="secondary" onClick={() => { setArchiveModal(false); setArchiveReason(""); setArchiveTarget(null); }}>Cancel</ModalButton><ModalButton variant="danger" disabled={!archiveReason} onClick={async () => {
+          if (!archiveTarget) return;
           try {
-            await api.residents.delete(viewResident.id);
-            addToast({ type: "success", title: "Record archived", message: `${viewResident.first_name} ${viewResident.last_name} has been moved to archive.` });
+            await api.residents.delete(archiveTarget.id);
+            addToast({ type: "success", title: "Record archived", message: `${archiveTarget.first_name} ${archiveTarget.last_name} has been moved to archive.` });
             setArchiveModal(false);
             setArchiveReason("");
-            setViewResident(null);
+            setArchiveTarget(null);
             fetchResidents();
           } catch (err) {
             const msg = err instanceof Error ? err.message : "Failed to archive resident";
@@ -3891,14 +3959,14 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
             <Archive className="h-5 w-5 text-amber-500 shrink-0" />
             <p className="text-sm text-amber-700 dark:text-amber-400">This record will be moved to the archive. All data is preserved and can be viewed in Settings &gt; Archived Records.</p>
           </div>
-          {viewResident && (
+          {archiveTarget && (
             <div className="flex items-center gap-3 p-3 rounded-lg glass-subtle">
-              <div className={cn("w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0", viewResident.sex === "female" ? "bg-pink-400" : "bg-blue-400")}>
-                {viewResident.last_name[0]}{viewResident.first_name[0]}
+              <div className={cn("w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0", archiveTarget.sex === "female" ? "bg-pink-400" : "bg-blue-400")}>
+                {archiveTarget.last_name[0]}{archiveTarget.first_name[0]}
               </div>
               <div>
-                <p className="text-sm font-semibold">{viewResident.last_name.toUpperCase()}, {viewResident.first_name.toUpperCase()}</p>
-                <p className="text-xs text-muted-foreground font-mono">{viewResident.resident_number}</p>
+                <p className="text-sm font-semibold">{archiveTarget.last_name.toUpperCase()}, {archiveTarget.first_name.toUpperCase()}</p>
+                <p className="text-xs text-muted-foreground font-mono">{archiveTarget.resident_number}</p>
               </div>
             </div>
           )}
@@ -3922,6 +3990,24 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
           </div>
         </div>
       </Modal>
+      <GenerateDocumentWizard
+        open={showDocWizard}
+        onClose={() => { setShowDocWizard(false); setDocWizardResidentId(null); setDocWizardCategory(null); }}
+        initialResidentId={docWizardResidentId}
+        initialTemplateCategory={docWizardCategory}
+      />
+      <GenerateIdModal
+        open={showIdModal}
+        onClose={() => { setShowIdModal(false); setIdModalResidentId(null); }}
+        residentId={idModalResidentId}
+      />
+      <SendSmsModal
+        open={showSmsModal}
+        onClose={() => { setShowSmsModal(false); setSmsModalResident(null); }}
+        resident={smsModalResident}
+        creditBalance={user?.barangay?.sms_credit_balance != null ? parseFloat(String(user.barangay.sms_credit_balance)) : null}
+      />
+
       <MabiniButton pageContext="You are on the Residents page. This page lists all registered residents of the barangay, with search, filter, and CRUD operations for resident records." />
     </div>
   );

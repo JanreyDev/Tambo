@@ -88,6 +88,7 @@ export interface BarangaySettings {
     cedula_fee?: number;
     default_signatory_name?: string;
     default_signatory_title?: string;
+    document_layout?: "klasiko" | "moderno" | "elegante" | "digital";
     [key: string]: unknown;
   };
   population: number;
@@ -406,16 +407,54 @@ export interface DuplicateMatch {
 
 // ── Document Module Types ──
 
+export type DocumentLayout = "klasiko" | "moderno" | "elegante" | "digital";
+
+export interface DocumentTemplateCustomInput {
+  name: string;
+  type: "text" | "number" | "date" | "select" | "textarea";
+  required: boolean;
+  label: string;
+  options?: string[]; // for select type
+}
+
+export interface DocumentTemplateApproval {
+  label: string;
+  position: string;
+}
+
+export type PaperSize = "a4" | "short_bond" | "long_bond";
+
+export interface DocumentTemplateSettings {
+  show_qr?: boolean;
+  show_ctc?: boolean;
+  show_doc_no?: boolean;
+  show_or?: boolean;
+  show_expiry?: boolean;
+  expiry_months?: number;
+  show_photo?: boolean;
+  show_thumbmark?: boolean;
+  paper_size?: PaperSize;
+}
+
 export interface DocumentTemplate {
   id: string;
+  barangay_id: string | null; // null = system template, string = barangay-owned
   name: string;
   category: string;
-  constituent_type: string | null;
+  constituent_type: "resident" | "establishment" | "lot_building" | "case";
   title: string | null;
   salutation: string | null;
-  status: "active" | "inactive";
+  content: string | null;
+  merge_fields: string[] | null;
+  custom_inputs: DocumentTemplateCustomInput[] | null;
+  custom_tables: Record<string, unknown>[] | null;
+  approval_config: {
+    left?: DocumentTemplateApproval;
+    right?: DocumentTemplateApproval;
+  } | null;
+  settings: DocumentTemplateSettings | null;
+  status: "active" | "published" | "draft" | "archived";
   sort_order: number;
-  settings: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }
@@ -437,10 +476,13 @@ export interface IssuedDocument {
   ctc_place: string | null;
   issued_date: string | null;
   valid_until: string | null;
+  custom_field_values: Record<string, string> | null;
   approved_by_left: string | null;
   approved_by_right: string | null;
   qr_code_url: string | null;
   blockchain_hash: string | null;
+  pdf_file_id: string | null;
+  pdf_url: string | null;
   status: "issued" | "released" | "cancelled" | "expired";
   sms_sent: boolean;
   created_at: string;
@@ -459,8 +501,160 @@ export interface IssueDocumentPayload {
   ctc_place?: string;
   issued_date?: string;
   valid_until?: string;
+  custom_field_values?: Record<string, string>;
   approved_by_left?: string;
   approved_by_right?: string;
+  /** Manual content override — replaces template body for custom documents or edited previews */
+  custom_content?: string;
+}
+
+// ── Establishment Types ───────────────────────────────────────────────────
+
+export interface Establishment {
+  id: string;
+  establishment_number: string;
+  barangay_id: string;
+  business_name: string;
+  business_type: string | null;
+  owner_resident_id: string | null;
+  owner_name: string | null;
+  owner_contact: string | null;
+  owner_email: string | null;
+  owner_address: string | null;
+  purok: string | null;
+  street: string | null;
+  exact_address: string | null;
+  registration_type: "DTI" | "SEC" | null;
+  registration_number: string | null;
+  registration_date: string | null;
+  permit_number: string | null;
+  permit_expiry: string | null;
+  status: "active" | "inactive" | "closed" | "suspended";
+  latitude: string | null;
+  longitude: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EstablishmentFormPayload {
+  business_name: string;
+  business_type?: string | null;
+  owner_resident_id?: string | null;
+  owner_name: string;
+  owner_contact?: string | null;
+  owner_email?: string | null;
+  owner_address?: string | null;
+  purok?: string | null;
+  street?: string | null;
+  exact_address?: string | null;
+  registration_type?: "DTI" | "SEC" | null;
+  registration_number?: string | null;
+  registration_date?: string | null;
+  permit_number?: string | null;
+  permit_expiry?: string | null;
+  status?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+}
+
+// ── Lot/Building Types ────────────────────────────────────────────────────
+
+export interface LotBuilding {
+  id: string;
+  lot_building_number: string;
+  barangay_id: string;
+  classification: "lot_only" | "building_only" | "lot_and_building";
+  property_classification: string | null;
+  owner_resident_id: string | null;
+  owner_name: string | null;
+  owner_contact: string | null;
+  owner_email: string | null;
+  owner_address: string | null;
+  size: string | null;
+  mri: string | null;
+  purok: string | null;
+  street: string | null;
+  exact_address: string | null;
+  lot_number: string | null;
+  block_number: string | null;
+  boundary_north: string | null;
+  boundary_south: string | null;
+  boundary_east: string | null;
+  boundary_west: string | null;
+  tax_declaration_number: string | null;
+  registration_date: string | null;
+  number_of_floors: number | null;
+  building_material: string | null;
+  year_constructed: number | null;
+  assessed_value: string | null;
+  market_value: string | null;
+  status: "active" | "inactive" | "demolished";
+  latitude: string | null;
+  longitude: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LotBuildingTransaction {
+  id: string;
+  transaction_type: string;
+  year: number;
+  notes: string | null;
+  created_at: string;
+  generated_by?: string;
+}
+
+// ── Voters ────────────────────────────────────────────────────────────────
+
+export interface Voter {
+  id: string;
+  barangay_id: string;
+  last_name: string;
+  first_name: string;
+  middle_name: string | null;
+  full_name: string;
+  precinct_number: string;
+  address: string;
+  application_number: string | null;
+  resident_id: string | null;
+  matched_at: string | null;
+  imported_at: string;
+  resident?: { id: string; first_name: string; last_name: string; resident_number: string } | null;
+}
+
+export interface VoterStats {
+  total: number;
+  matched: number;
+  last_import_date: string | null;
+}
+
+export interface VoterImportPreview {
+  count: number;
+  rows: Array<{
+    last_name: string;
+    first_name: string;
+    middle_name: string | null;
+    full_name: string;
+    precinct_number: string;
+    address: string;
+    application_number: string | null;
+  }>;
+  sample: Array<{
+    last_name: string;
+    first_name: string;
+    middle_name: string | null;
+    full_name: string;
+    precinct_number: string;
+    address: string;
+    application_number: string | null;
+  }>;
+}
+
+export interface VoterImportResult {
+  message: string;
+  total: number;
+  matched: number;
+  imported_at: string;
 }
 
 // ── Platform Updates ──────────────────────────────────────────────────────

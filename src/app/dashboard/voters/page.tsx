@@ -1,245 +1,291 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Bot,
   ClipboardList,
-  Plus,
   Search,
   Filter,
-  Download,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
   X,
   Calendar,
-  Users,
-  CheckCircle2,
-  XCircle,
   Upload,
-  MoreHorizontal,
-  Eye,
-  Edit,
-  Trash2,
   UserCheck,
+  FileText,
+  CheckCircle2,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
-import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/stat-card";
 import { Modal, ModalButton } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
-import { MabiniButton } from '@/components/ui/mabini-button';
+import { MabiniButton } from "@/components/ui/mabini-button";
+import { api } from "@/lib/api";
+import type { Voter, VoterStats, VoterImportPreview, VoterImportResult } from "@/lib/types";
 
-interface VoterRecord {
-  id: string;
-  resident_number: string;
-  first_name: string;
-  middle_name: string;
-  last_name: string;
-  suffix: string;
-  sex: string;
-  birth_date: string;
-  precinct_number: string;
-  voter_id_number: string;
-  barangay: string;
-  purok: string;
-  is_sk_voter: boolean;
-  is_registered: boolean;
-  registration_date: string;
-  last_voted: string;
-}
-
-const mockVoters: VoterRecord[] = [
-  { id: "1", resident_number: "RES-2026-0001", first_name: "Maria", middle_name: "Santos", last_name: "Dela Cruz", suffix: "", sex: "Female", birth_date: "1985-05-12", precinct_number: "0045A", voter_id_number: "VRN-2022-78901", barangay: "Tambo", purok: "Sampaguita", is_sk_voter: false, is_registered: true, registration_date: "2022-01-15", last_voted: "2025-10-28" },
-  { id: "2", resident_number: "RES-2026-0002", first_name: "Juan", middle_name: "Pascual", last_name: "Santos", suffix: "Jr.", sex: "Male", birth_date: "1990-08-22", precinct_number: "0045A", voter_id_number: "VRN-2022-78902", barangay: "Tambo", purok: "Rosal", is_sk_voter: false, is_registered: true, registration_date: "2022-01-15", last_voted: "2025-10-28" },
-  { id: "3", resident_number: "RES-2026-0003", first_name: "Angelo", middle_name: "Reyes", last_name: "Pascual", suffix: "", sex: "Male", birth_date: "2003-11-15", precinct_number: "0045B", voter_id_number: "VRN-2025-11001", barangay: "Tambo", purok: "Dahlia", is_sk_voter: true, is_registered: true, registration_date: "2025-09-01", last_voted: "" },
-  { id: "4", resident_number: "RES-2026-0005", first_name: "Ana", middle_name: "Lopez", last_name: "Garcia", suffix: "", sex: "Female", birth_date: "1978-03-08", precinct_number: "0046A", voter_id_number: "VRN-2019-55001", barangay: "Tambo", purok: "Sampaguita", is_sk_voter: false, is_registered: true, registration_date: "2019-06-20", last_voted: "2025-10-28" },
-  { id: "5", resident_number: "RES-2026-0008", first_name: "Pedro", middle_name: "Manalo", last_name: "Reyes", suffix: "", sex: "Male", birth_date: "1995-07-30", precinct_number: "0046A", voter_id_number: "", barangay: "Tambo", purok: "Ilang-Ilang", is_sk_voter: false, is_registered: false, registration_date: "", last_voted: "" },
-  { id: "6", resident_number: "RES-2026-0010", first_name: "Rosa", middle_name: "Villanueva", last_name: "Mendoza", suffix: "", sex: "Female", birth_date: "2005-01-20", precinct_number: "0045B", voter_id_number: "VRN-2025-11010", barangay: "Tambo", purok: "Rosal", is_sk_voter: true, is_registered: true, registration_date: "2025-09-01", last_voted: "" },
-  { id: "7", resident_number: "RES-2026-0012", first_name: "Roberto", middle_name: "Bautista", last_name: "Cruz", suffix: "Sr.", sex: "Male", birth_date: "1960-12-01", precinct_number: "0047A", voter_id_number: "VRN-2016-33001", barangay: "Tambo", purok: "Dahlia", is_sk_voter: false, is_registered: true, registration_date: "2016-03-15", last_voted: "2025-10-28" },
-  { id: "8", resident_number: "RES-2026-0015", first_name: "Liza", middle_name: "Ramos", last_name: "De Los Santos", suffix: "", sex: "Female", birth_date: "2000-06-18", precinct_number: "0046B", voter_id_number: "VRN-2022-78950", barangay: "Tambo", purok: "Sampaguita", is_sk_voter: false, is_registered: true, registration_date: "2022-02-10", last_voted: "2025-10-28" },
-];
-
-const precincts = ["All Precincts", "0045A", "0045B", "0046A", "0046B", "0047A"];
-const registrationStatuses = ["All Status", "Registered", "Not Registered"];
-
-const formTabs = ["Personal", "Voter Info"];
-const suffixOptions = ["", "Jr.", "Sr.", "II", "III"];
-const sexOptions = ["", "Male", "Female"];
-const civilStatusOptions = ["", "Single", "Married", "Widowed", "Separated"];
-const purokOptions = ["", "Sampaguita", "Rosal", "Ilang-Ilang", "Dahlia", "Sunflower", "Orchid", "Jasmine"];
-const regStatusOptions = ["", "Active", "Deactivated", "Transferred"];
-const yesNoOptions = ["", "Yes", "No"];
-const voterTypeOptions = ["", "Regular", "SK"];
-
-const emptyForm: Record<string, string> = {
-  first_name: "", middle_name: "", last_name: "", extension: "", sex: "", date_of_birth: "", civil_status: "",
-  precinct_number: "", voter_id: "", purok: "", registration_status: "", is_sk_voter: "", voter_type: "",
-};
-
-function FormInput({ label, name, value, placeholder, required, type, onChange, error, max }: { label: string; name: string; value: string; placeholder?: string; required?: boolean; type?: string; onChange: (name: string, value: string) => void; error?: string; max?: string }) {
-  return (
-    <div>
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <input type={type || "text"} value={value} onChange={(e) => onChange(name, e.target.value)} placeholder={placeholder} max={max} className={cn("w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring", error ? "border-red-500" : "border-border")} />
-      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
-    </div>
-  );
-}
-
-function FormSelect({ label, name, value, options, required, onChange, error }: { label: string; name: string; value: string; options: string[]; required?: boolean; onChange: (name: string, value: string) => void; error?: string }) {
-  return (
-    <div>
-      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <select value={value} onChange={(e) => onChange(name, e.target.value)} className={cn("w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring", error ? "border-red-500" : "border-border")}>
-        {options.map((o) => <option key={o} value={o}>{o || "\u2014 Select \u2014"}</option>)}
-      </select>
-      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
-    </div>
-  );
-}
+type ImportStep = "pick" | "preview" | "importing" | "done" | "error";
 
 export default function VotersPage() {
+  // --- List state ---
   const [search, setSearch] = useState("");
-  const [precinctFilter, setPrecinctFilter] = useState("All Precincts");
-  const [statusFilter, setStatusFilter] = useState("All Status");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [precinctFilter, setPrecinctFilter] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
-  const [viewVoter, setViewVoter] = useState<VoterRecord | null>(null);
-  const [showCreate, setShowCreate] = useState(false);
-  const [showEdit, setShowEdit] = useState(false);
-  const [showDelete, setShowDelete] = useState(false);
-  const [formTab, setFormTab] = useState(0);
-  const [form, setForm] = useState<Record<string, string>>(emptyForm);
-  const [actionMenu, setActionMenu] = useState<string | null>(null);
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  const [toasts, setToasts] = useState<{ id: number; message: string }[]>([]);
-  const pageSize = 10;
+  const perPage = 25;
 
-  const addToast = useCallback((message: string) => {
-    const id = Date.now();
-    setToasts((t) => [...t, { id, message }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3500);
-  }, []);
-  const dismissToast = useCallback((id: number) => {
-    setToasts((t) => t.filter((x) => x.id !== id));
-  }, []);
+  const [voters, setVoters] = useState<Voter[]>([]);
+  const [total, setTotal] = useState(0);
+  const [lastPage, setLastPage] = useState(1);
+  const [loadingList, setLoadingList] = useState(true);
 
-  const today = new Date().toISOString().split("T")[0];
+  const [stats, setStats] = useState<VoterStats | null>(null);
+  const [loadingStats, setLoadingStats] = useState(true);
 
-  const handleFieldChange = (name: string, value: string) => {
-    setForm((f) => ({ ...f, [name]: value }));
-    setFormErrors((e) => { const next = { ...e }; delete next[name]; return next; });
-  };
+  const [precincts, setPrecincts] = useState<string[]>([]);
 
-  const validateForm = (): boolean => {
-    const errors: Record<string, string> = {};
-    if (!form.first_name.trim()) errors.first_name = "First name is required.";
-    if (!form.last_name.trim()) errors.last_name = "Last name is required.";
-    if (!form.sex) errors.sex = "Sex is required.";
-    if (form.voter_id && !form.voter_id.trim()) errors.voter_id = "Voter ID cannot be empty whitespace.";
-    if (form.date_of_birth && form.date_of_birth > today) errors.date_of_birth = "Date of birth cannot be a future date.";
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
+  // --- Import modal state ---
+  const [showImport, setShowImport] = useState(false);
+  const [importStep, setImportStep] = useState<ImportStep>("pick");
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<VoterImportPreview | null>(null);
+  const [importResult, setImportResult] = useState<VoterImportResult | null>(null);
+  const [importError, setImportError] = useState<string>("");
+  const [loadingPreview, setLoadingPreview] = useState(false);
 
-  const handleFormSubmit = () => {
-    if (!validateForm()) return;
-    const isEdit = showEdit;
-    setShowCreate(false);
-    setShowEdit(false);
-    setFormErrors({});
-    addToast(isEdit ? "Voter Updated" : "Voter Registered");
-  };
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const openCreate = () => { setForm(emptyForm); setFormTab(0); setFormErrors({}); setShowCreate(true); };
-  const openEdit = (v: VoterRecord) => {
-    setForm({
-      first_name: v.first_name, middle_name: v.middle_name, last_name: v.last_name, extension: v.suffix, sex: v.sex, date_of_birth: v.birth_date, civil_status: "",
-      precinct_number: v.precinct_number, voter_id: v.voter_id_number, purok: v.purok, registration_status: v.is_registered ? "Active" : "Deactivated", is_sk_voter: v.is_sk_voter ? "Yes" : "No", voter_type: v.is_sk_voter ? "SK" : "Regular",
-    });
-    setFormTab(0);
-    setFormErrors({});
-    setShowEdit(true);
-  };
+  // --- Debounce search ---
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 350);
+    return () => clearTimeout(t);
+  }, [search]);
 
-  const filtered = mockVoters.filter((v) => {
-    if (search) {
-      const q = search.toLowerCase();
-      const fullName = `${v.first_name} ${v.middle_name} ${v.last_name}`.toLowerCase();
-      if (!fullName.includes(q) && !v.resident_number.toLowerCase().includes(q)
-        && !v.voter_id_number.toLowerCase().includes(q) && !v.precinct_number.toLowerCase().includes(q)) return false;
+  // --- Fetch stats ---
+  const fetchStats = useCallback(async () => {
+    setLoadingStats(true);
+    try {
+      const data = await api.voters.stats();
+      setStats(data);
+    } catch {
+      // ignore
+    } finally {
+      setLoadingStats(false);
     }
-    if (precinctFilter !== "All Precincts" && v.precinct_number !== precinctFilter) return false;
-    if (statusFilter === "Registered" && !v.is_registered) return false;
-    if (statusFilter === "Not Registered" && v.is_registered) return false;
-    return true;
-  });
+  }, []);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  // --- Fetch precincts ---
+  const fetchPrecincts = useCallback(async () => {
+    try {
+      const data = await api.voters.precincts();
+      setPrecincts(data);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // --- Fetch voter list ---
+  const fetchList = useCallback(async () => {
+    setLoadingList(true);
+    try {
+      const params: Record<string, string | number> = { page, per_page: perPage };
+      if (debouncedSearch) params.search = debouncedSearch;
+      if (precinctFilter) params.precinct = precinctFilter;
+      const res = await api.voters.list(params);
+      setVoters(res.data ?? []);
+      setTotal(res.total ?? 0);
+      setLastPage(res.last_page ?? 1);
+    } catch {
+      setVoters([]);
+    } finally {
+      setLoadingList(false);
+    }
+  }, [page, debouncedSearch, precinctFilter, perPage]);
+
+  useEffect(() => { fetchStats(); fetchPrecincts(); }, [fetchStats, fetchPrecincts]);
+  useEffect(() => { fetchList(); }, [fetchList]);
+
+  // reset page on filter change
+  useEffect(() => { setPage(1); }, [debouncedSearch, precinctFilter]);
+
+  // --- Import handlers ---
+  const openImport = () => {
+    setImportStep("pick");
+    setImportFile(null);
+    setPreview(null);
+    setImportResult(null);
+    setImportError("");
+    setShowImport(true);
+  };
+
+  const closeImport = () => {
+    if (importStep === "importing") return; // block close during import
+    setShowImport(false);
+    if (importStep === "done") {
+      fetchStats();
+      fetchList();
+      fetchPrecincts();
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    if (!file) return;
+    if (file.type !== "application/pdf") {
+      setImportError("Only PDF files are accepted.");
+      return;
+    }
+    setImportError("");
+    setImportFile(file);
+  };
+
+  const handlePreview = async () => {
+    if (!importFile) return;
+    setLoadingPreview(true);
+    setImportError("");
+    try {
+      const data = await api.voters.preview(importFile);
+      setPreview(data);
+      setImportStep("preview");
+    } catch (err: unknown) {
+      const msg = (err as { message?: string })?.message ?? "Failed to parse PDF. Make sure it's a valid COMELEC PDF.";
+      setImportError(msg);
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
+
+  const handleImport = async () => {
+    if (!importFile) return;
+    setImportStep("importing");
+    setImportError("");
+    try {
+      const data = await api.voters.import(importFile);
+      setImportResult(data);
+      setImportStep("done");
+    } catch (err: unknown) {
+      const msg = (err as { message?: string })?.message ?? "Import failed. Please try again.";
+      setImportError(msg);
+      setImportStep("error");
+    }
+  };
+
+  // pagination
+  const totalPages = Math.max(1, lastPage);
   const safePage = Math.min(page, totalPages);
-  const start = (safePage - 1) * pageSize;
-  const paged = filtered.slice(start, start + pageSize);
+  const start = (safePage - 1) * perPage + 1;
+  const end = Math.min(safePage * perPage, total);
 
-  const registeredCount = mockVoters.filter((v) => v.is_registered).length;
-  const skVoterCount = mockVoters.filter((v) => v.is_sk_voter).length;
-  const votedLastElection = mockVoters.filter((v) => v.last_voted === "2025-10-28").length;
+  const matchRate = stats && stats.total > 0 ? Math.round((stats.matched / stats.total) * 100) : 0;
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Voters"
-        description="Manage voter registration and precinct records"
+        description="COMELEC voter records imported for this barangay"
         breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "Records" }, { label: "Voters" }]}
-        actions={
-          <div className="flex items-center gap-2">
-            <button className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors"><Upload className="h-4 w-4" /> Import BIMS</button>
-            <button className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors"><Download className="h-4 w-4" /> Export</button>
-            <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}><Plus className="h-4 w-4" /> Add Voter</button>
-          </div>
-        }
+        actions={null}
       />
 
       {/* Mabini AI Insight */}
       <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-accent-bg/30 border border-accent-primary/20">
         <Bot className="h-4 w-4 shrink-0" style={{ color: "var(--accent-primary)" }} />
-        <p className="text-[11px] text-muted-foreground"><span className="font-semibold text-foreground">Mabini:</span> 87.5% voter registration rate. 1 resident is unregistered. 2 SK-eligible voters identified from recent registrations.</p>
+        <p className="text-[11px] text-muted-foreground">
+          <span className="font-semibold text-foreground">Mabini:</span>{" "}
+          {stats
+            ? `${stats.total.toLocaleString()} voter records on file. ${stats.matched.toLocaleString()} matched to residents (${matchRate}%). Import the latest COMELEC PDF to keep records up to date.`
+            : "Loading voter insights..."}
+        </p>
       </div>
 
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatCard label="Total Voters" value={mockVoters.length} icon={<ClipboardList className="h-5 w-5" />} />
-        <StatCard label="Registered" value={registeredCount} icon={<CheckCircle2 className="h-5 w-5" />} />
-        <StatCard label="SK Voters" value={skVoterCount} icon={<Users className="h-5 w-5" />} />
-        <StatCard label="Voted (Oct 2025)" value={votedLastElection} icon={<Calendar className="h-5 w-5" />} trend={{ value: Math.round((votedLastElection / registeredCount) * 100), label: "turnout" }} />
-      </div>
-
-      <div className="space-y-3">
-        <div className="flex items-center justify-between gap-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              placeholder="Search by name, voter ID, or precinct..."
-              className="w-full pl-9 pr-4 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+      {/* Stat Cards */}
+      <div className="grid grid-cols-3 gap-4">
+        <StatCard
+          label="Total Voters"
+          value={loadingStats ? "—" : (stats?.total ?? 0).toLocaleString()}
+          icon={<ClipboardList className="h-5 w-5" />}
+        />
+        <StatCard
+          label="Total Match"
+          value={loadingStats ? "—" : (stats?.matched ?? 0).toLocaleString()}
+          icon={<UserCheck className="h-5 w-5" />}
+        />
+        <div className="glass rounded-2xl p-5 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Date of Upload</p>
+            <p className="text-2xl font-bold text-foreground">
+              {loadingStats
+                ? "—"
+                : stats?.last_import_date
+                ? new Date(stats.last_import_date).toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" })
+                : "—"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {stats?.last_import_date ? "Last COMELEC PDF import" : "No import yet"}
+            </p>
           </div>
-          <button onClick={() => setShowFilters(!showFilters)}
-            className={cn("flex items-center gap-2 px-3 py-2 text-sm rounded-lg border transition-colors",
-              showFilters ? "border-accent-primary bg-accent-bg text-accent-text" : "border-border hover:bg-muted")}>
-            <Filter className="h-4 w-4" /> Filters
+          <div className="p-3 rounded-xl bg-accent-bg text-accent-text shrink-0">
+            <Calendar className="h-5 w-5" />
+          </div>
+        </div>
+      </div>
+
+      {/* Toolbar */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name, precinct, or address..."
+              className="w-full pl-9 pr-4 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring"
+            />
+          </div>
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={cn(
+              "p-2 rounded-lg border transition-colors",
+              showFilters ? "border-accent-primary bg-accent-bg text-accent-text" : "border-border hover:bg-muted"
+            )}
+            title="Filters"
+          >
+            <Filter className="h-4 w-4" />
+          </button>
+          <button
+            onClick={openImport}
+            className="p-2 rounded-lg border border-border hover:bg-muted transition-colors"
+            title="Import COMELEC"
+          >
+            <Upload className="h-4 w-4" />
           </button>
         </div>
+
         {showFilters && (
           <div className="flex flex-wrap items-center gap-3 p-4 rounded-lg glass-subtle">
-            <select value={precinctFilter} onChange={(e) => { setPrecinctFilter(e.target.value); setPage(1); }}
-              className="px-3 py-1.5 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring">
-              {precincts.map((p) => <option key={p}>{p}</option>)}
+            <select
+              value={precinctFilter}
+              onChange={(e) => setPrecinctFilter(e.target.value)}
+              className="px-3 py-1.5 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring"
+            >
+              <option value="">All Precincts</option>
+              {precincts.map((p) => (
+                <option key={p} value={p}>{p}</option>
+              ))}
             </select>
-            <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-              className="px-3 py-1.5 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring">
-              {registrationStatuses.map((s) => <option key={s}>{s}</option>)}
-            </select>
-            <button onClick={() => { setPrecinctFilter("All Precincts"); setStatusFilter("All Status"); }}
-              className="flex items-center gap-1 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground"><X className="h-3 w-3" /> Clear</button>
+            {precinctFilter && (
+              <button
+                onClick={() => setPrecinctFilter("")}
+                className="flex items-center gap-1 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3 w-3" /> Clear
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -251,72 +297,67 @@ export default function VotersPage() {
             <thead>
               <tr className="border-b border-border bg-muted/50">
                 <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Voter</th>
-                <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Precinct</th>
-                <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Purok</th>
-                <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
-                <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Last Voted</th>
-                <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">SK</th>
-                <th className="px-4 py-3 w-12" />
+                <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-32">Precinct</th>
+                <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Address</th>
               </tr>
             </thead>
             <tbody>
-              {paged.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-16 text-center">
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center"><UserCheck className="w-6 h-6 text-muted-foreground" /></div>
-                    <div>
-                      <p className="text-sm font-medium text-foreground">No voter records found</p>
-                      <p className="text-xs text-muted-foreground mt-1">Add voter records manually or import from the COMELEC voter list.</p>
+              {loadingList ? (
+                <tr>
+                  <td colSpan={3} className="px-4 py-16 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
+                      <p className="text-sm text-muted-foreground">Loading voters...</p>
                     </div>
-                    <button onClick={() => openCreate()} className="mt-1 px-4 py-2 text-xs font-semibold rounded-lg text-white hover:opacity-90" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>+ Add Voter</button>
-                  </div>
-                </td></tr>
+                  </td>
+                </tr>
+              ) : voters.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="px-4 py-16 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                        <UserCheck className="w-6 h-6 text-muted-foreground" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">No voter records found</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {debouncedSearch || precinctFilter
+                            ? "No voters match your search."
+                            : "Import voter records from a COMELEC PDF using the Import button."}
+                        </p>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
               ) : (
-                paged.map((v) => {
-                  const fullName = `${v.last_name}, ${v.first_name}${v.middle_name ? ` ${v.middle_name.charAt(0)}.` : ""}${v.suffix ? ` ${v.suffix}` : ""}`;
-                  return (
-                    <tr key={v.id} className="border-b border-border last:border-0 hover:bg-muted/30 cursor-pointer transition-colors" onClick={() => setViewVoter(v)}>
-                      <td className="px-4 py-3">
-                        <p className="text-sm font-medium text-foreground">{fullName}</p>
-                        <p className="text-[11px] text-muted-foreground">{v.voter_id_number || "No Voter ID"}</p>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-foreground">{v.precinct_number}</td>
-                      <td className="px-4 py-3 text-sm text-muted-foreground">{v.purok}</td>
-                      <td className="px-4 py-3">
-                        {v.is_registered
-                          ? <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400"><CheckCircle2 className="h-3.5 w-3.5" /> Registered</span>
-                          : <span className="inline-flex items-center gap-1 text-xs font-medium text-red-500"><XCircle className="h-3.5 w-3.5" /> Not Registered</span>}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-muted-foreground">{v.last_voted || "\u2014"}</td>
-                      <td className="px-4 py-3">
-                        {v.is_sk_voter && <Badge variant="info">SK</Badge>}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="relative" onClick={(ev) => ev.stopPropagation()}>
-                          <button onClick={() => setActionMenu(actionMenu === v.id ? null : v.id)} className="p-1.5 rounded hover:bg-muted">
-                            <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
-                          </button>
-                          {actionMenu === v.id && (
-                            <div className="absolute right-0 top-8 z-20 w-44 glass rounded-lg shadow-lg py-1">
-                              <button onClick={() => { setViewVoter(v); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Eye className="h-3.5 w-3.5" /> View</button>
-                              <button onClick={() => { openEdit(v); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Edit className="h-3.5 w-3.5" /> Edit</button>
-                              <button onClick={() => { setViewVoter(v); setShowDelete(true); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-muted flex items-center gap-2"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
+                voters.map((v) => (
+                  <tr key={v.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+                    <td className="px-4 py-3">
+                      <p className="text-sm font-medium text-foreground">{v.full_name}</p>
+                      {v.resident_id && (
+                        <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-0.5">Matched to resident</p>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-accent-bg/50 text-[11px] font-mono font-semibold text-accent-text">
+                        {v.precinct_number}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground">{v.address || "—"}</td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {totalPages > 1 && (
+      {/* Pagination */}
+      {total > perPage && (
         <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">Showing {start + 1}–{Math.min(start + pageSize, filtered.length)} of {filtered.length}</p>
+          <p className="text-sm text-muted-foreground">
+            Showing {start}–{end} of {total.toLocaleString()}
+          </p>
           <div className="flex items-center gap-1">
             <button onClick={() => setPage(1)} disabled={safePage <= 1} className="p-1.5 rounded hover:bg-muted disabled:opacity-30"><ChevronsLeft className="h-4 w-4" /></button>
             <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage <= 1} className="p-1.5 rounded hover:bg-muted disabled:opacity-30"><ChevronLeft className="h-4 w-4" /></button>
@@ -327,89 +368,211 @@ export default function VotersPage() {
         </div>
       )}
 
-      {/* View Voter Modal */}
-      <Modal open={!!viewVoter && !showDelete} onClose={() => setViewVoter(null)} title={viewVoter ? `${viewVoter.first_name} ${viewVoter.last_name}` : ""} description="Voter Details" size="lg"
-        footer={<><ModalButton variant="secondary" onClick={() => setViewVoter(null)}>Close</ModalButton><ModalButton variant="primary" onClick={() => { if (viewVoter) { openEdit(viewVoter); setViewVoter(null); } }}>Edit Record</ModalButton></>}>
-        {viewVoter && (
-          <div className="space-y-5">
-            <div className="flex items-center gap-2">
-              {viewVoter.is_registered
-                ? <Badge variant="success">Registered Voter</Badge>
-                : <Badge variant="danger">Not Registered</Badge>}
-              {viewVoter.is_sk_voter && <Badge variant="info">SK Voter</Badge>}
+      {/* Import COMELEC Modal */}
+      <Modal
+        open={showImport}
+        onClose={closeImport}
+        title="Import COMELEC PDF"
+        description={
+          importStep === "pick" ? "Upload a COMELEC voter list PDF to import." :
+          importStep === "preview" ? "Preview parsed results before importing." :
+          importStep === "importing" ? "Importing voter records..." :
+          importStep === "done" ? "Import complete!" :
+          "Import failed."
+        }
+        size="lg"
+        disableOutsideClick={importStep === "importing"}
+        footer={
+          importStep === "pick" ? (
+            <>
+              <ModalButton variant="secondary" onClick={closeImport}>Cancel</ModalButton>
+              <ModalButton
+                variant="primary"
+                onClick={handlePreview}
+                disabled={!importFile || loadingPreview}
+              >
+                {loadingPreview ? (
+                  <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Parsing...</span>
+                ) : "Parse PDF"}
+              </ModalButton>
+            </>
+          ) : importStep === "preview" ? (
+            <>
+              <ModalButton variant="secondary" onClick={() => { setImportStep("pick"); setPreview(null); }}>Back</ModalButton>
+              <ModalButton variant="primary" onClick={handleImport}>
+                Import {preview?.count?.toLocaleString()} Records
+              </ModalButton>
+            </>
+          ) : importStep === "importing" ? (
+            <ModalButton variant="secondary" disabled>Please wait...</ModalButton>
+          ) : importStep === "done" ? (
+            <ModalButton variant="primary" onClick={closeImport}>Done</ModalButton>
+          ) : (
+            <>
+              <ModalButton variant="secondary" onClick={() => setImportStep("pick")}>Try Again</ModalButton>
+              <ModalButton variant="secondary" onClick={closeImport}>Close</ModalButton>
+            </>
+          )
+        }
+      >
+        {/* Step: Pick File */}
+        {importStep === "pick" && (
+          <div className="space-y-4">
+            <div
+              className={cn(
+                "border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer",
+                importFile ? "border-accent-primary bg-accent-bg/20" : "border-border hover:border-accent-primary/50"
+              )}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/pdf"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+              {importFile ? (
+                <div className="flex flex-col items-center gap-2">
+                  <FileText className="h-10 w-10 text-accent-primary" />
+                  <p className="text-sm font-medium text-foreground">{importFile.name}</p>
+                  <p className="text-xs text-muted-foreground">{(importFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                  <button
+                    className="text-xs text-muted-foreground hover:text-foreground underline mt-1"
+                    onClick={(e) => { e.stopPropagation(); setImportFile(null); setImportError(""); if (fileInputRef.current) fileInputRef.current.value = ""; }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-2">
+                  <Upload className="h-10 w-10 text-muted-foreground" />
+                  <p className="text-sm font-medium text-foreground">Click to select a PDF</p>
+                  <p className="text-xs text-muted-foreground">COMELEC Notice of Hearing PDF — max 50MB</p>
+                </div>
+              )}
             </div>
-            <div className="grid grid-cols-2 gap-x-8 gap-y-3">
-              <div><p className="text-[11px] text-muted-foreground uppercase">Resident Number</p><p className="text-sm">{viewVoter.resident_number}</p></div>
-              <div><p className="text-[11px] text-muted-foreground uppercase">Voter ID Number</p><p className="text-sm">{viewVoter.voter_id_number || "\u2014"}</p></div>
-              <div><p className="text-[11px] text-muted-foreground uppercase">Full Name</p><p className="text-sm">{viewVoter.first_name} {viewVoter.middle_name} {viewVoter.last_name}{viewVoter.suffix ? ` ${viewVoter.suffix}` : ""}</p></div>
-              <div><p className="text-[11px] text-muted-foreground uppercase">Sex</p><p className="text-sm">{viewVoter.sex}</p></div>
-              <div><p className="text-[11px] text-muted-foreground uppercase">Birth Date</p><p className="text-sm">{viewVoter.birth_date}</p></div>
-              <div><p className="text-[11px] text-muted-foreground uppercase">Precinct Number</p><p className="text-sm">{viewVoter.precinct_number}</p></div>
-              <div><p className="text-[11px] text-muted-foreground uppercase">Purok</p><p className="text-sm">{viewVoter.purok}</p></div>
-              <div><p className="text-[11px] text-muted-foreground uppercase">Registration Date</p><p className="text-sm">{viewVoter.registration_date || "\u2014"}</p></div>
-              <div><p className="text-[11px] text-muted-foreground uppercase">Last Election Voted</p><p className="text-sm">{viewVoter.last_voted || "Never voted"}</p></div>
+
+            {importError && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/50">
+                <AlertCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+                <p className="text-sm text-red-700 dark:text-red-300">{importError}</p>
+              </div>
+            )}
+
+            <div className="p-3 rounded-lg bg-muted/50 space-y-1">
+              <p className="text-xs font-semibold text-foreground">What happens on import:</p>
+              <ul className="text-xs text-muted-foreground space-y-0.5 list-disc list-inside">
+                <li>All previous voter records for this barangay will be replaced</li>
+                <li>Voters will be auto-matched to residents by name</li>
+                <li>Precinct numbers and addresses are extracted from the PDF</li>
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {/* Step: Preview */}
+        {importStep === "preview" && preview && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 rounded-xl bg-accent-bg/20 border border-accent-primary/20 text-center">
+                <p className="text-3xl font-bold text-foreground">{preview.count.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground mt-1">Voter records found in PDF</p>
+              </div>
+              <div className="p-4 rounded-xl bg-muted/50 border border-border text-center">
+                <p className="text-3xl font-bold text-foreground">{preview.rows?.length ?? 0}</p>
+                <p className="text-xs text-muted-foreground mt-1">Sample rows shown below</p>
+              </div>
+            </div>
+
+            {/* Sample rows */}
+            {preview.sample && preview.sample.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Sample (first 5 records)</p>
+                <div className="rounded-xl overflow-hidden border border-border">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-muted/50">
+                        <th className="text-left px-3 py-2 text-[10px] font-semibold text-muted-foreground uppercase">Name</th>
+                        <th className="text-left px-3 py-2 text-[10px] font-semibold text-muted-foreground uppercase w-24">Precinct</th>
+                        <th className="text-left px-3 py-2 text-[10px] font-semibold text-muted-foreground uppercase">Address</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {preview.sample.map((row, i) => (
+                        <tr key={i} className="border-t border-border">
+                          <td className="px-3 py-2 font-medium text-foreground">{row.full_name}</td>
+                          <td className="px-3 py-2 font-mono text-xs text-foreground">{row.precinct_number}</td>
+                          <td className="px-3 py-2 text-muted-foreground text-xs">{row.address || "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50">
+              <AlertCircle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-700 dark:text-amber-300">
+                This will replace all existing voter records for this barangay. This action cannot be undone.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Step: Importing */}
+        {importStep === "importing" && (
+          <div className="py-12 flex flex-col items-center gap-4">
+            <Loader2 className="h-12 w-12 animate-spin text-accent-primary" />
+            <div className="text-center">
+              <p className="text-sm font-medium text-foreground">Importing records...</p>
+              <p className="text-xs text-muted-foreground mt-1">Deleting old batch, inserting new records, matching residents.</p>
+            </div>
+          </div>
+        )}
+
+        {/* Step: Done */}
+        {importStep === "done" && importResult && (
+          <div className="py-8 flex flex-col items-center gap-5">
+            <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-950/50 flex items-center justify-center">
+              <CheckCircle2 className="h-8 w-8 text-emerald-500" />
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-bold text-foreground">Import Successful</p>
+              <p className="text-sm text-muted-foreground mt-1">{importResult.message}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-4 w-full">
+              <div className="p-4 rounded-xl bg-muted/50 border border-border text-center">
+                <p className="text-3xl font-bold text-foreground">{importResult.total.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground mt-1">Total voters imported</p>
+              </div>
+              <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50 text-center">
+                <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">{importResult.matched.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground mt-1">Matched to residents</p>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Imported on {new Date(importResult.imported_at).toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short" })}
+            </p>
+          </div>
+        )}
+
+        {/* Step: Error */}
+        {importStep === "error" && (
+          <div className="py-8 flex flex-col items-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-950/50 flex items-center justify-center">
+              <AlertCircle className="h-8 w-8 text-red-500" />
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-bold text-foreground">Import Failed</p>
+              <p className="text-sm text-muted-foreground mt-1">{importError}</p>
             </div>
           </div>
         )}
       </Modal>
 
-      {/* Create / Edit Voter Form Modal */}
-      <Modal open={showCreate || showEdit} onClose={() => { setShowCreate(false); setShowEdit(false); setFormErrors({}); }} title={showEdit ? "Edit Voter" : "Add Voter"} size="lg"
-        footer={<>
-          <ModalButton variant="secondary" onClick={() => { setShowCreate(false); setShowEdit(false); setFormErrors({}); }}>Cancel</ModalButton>
-          {formTab > 0 && <ModalButton variant="secondary" onClick={() => setFormTab((t) => t - 1)}>Previous</ModalButton>}
-          {formTab < formTabs.length - 1 ? <ModalButton variant="primary" onClick={() => setFormTab((t) => t + 1)}>Next</ModalButton> : <ModalButton variant="primary" onClick={handleFormSubmit}>{showEdit ? "Update" : "Save"}</ModalButton>}
-        </>}>
-        <div className="flex border-b border-border mb-6">
-          {formTabs.map((tab, i) => (
-            <button key={tab} onClick={() => setFormTab(i)} className={cn("px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors", formTab === i ? "border-accent-primary text-accent-text" : "border-transparent text-muted-foreground hover:text-foreground")}>{tab}</button>
-          ))}
-        </div>
-        {formTab === 0 && (
-          <div className="grid grid-cols-2 gap-4">
-            <FormInput onChange={handleFieldChange} label="First Name" name="first_name" value={form.first_name} placeholder="First name" required error={formErrors.first_name} />
-            <FormInput onChange={handleFieldChange} label="Middle Name" name="middle_name" value={form.middle_name} placeholder="Middle name" />
-            <FormInput onChange={handleFieldChange} label="Last Name" name="last_name" value={form.last_name} placeholder="Last name" required error={formErrors.last_name} />
-            <FormSelect onChange={handleFieldChange} label="Extension" name="extension" value={form.extension} options={suffixOptions} />
-            <FormSelect onChange={handleFieldChange} label="Sex" name="sex" value={form.sex} options={sexOptions} required error={formErrors.sex} />
-            <FormInput onChange={handleFieldChange} label="Date of Birth" name="date_of_birth" value={form.date_of_birth} type="date" max={today} error={formErrors.date_of_birth} />
-            <FormSelect onChange={handleFieldChange} label="Civil Status" name="civil_status" value={form.civil_status} options={civilStatusOptions} />
-          </div>
-        )}
-        {formTab === 1 && (
-          <div className="grid grid-cols-2 gap-4">
-            <FormInput onChange={handleFieldChange} label="Precinct Number" name="precinct_number" value={form.precinct_number} placeholder="0000X" required />
-            <div>
-              <FormInput onChange={handleFieldChange} label="Voter ID" name="voter_id" value={form.voter_id} placeholder="VRN-XXXX-XXXXX" error={formErrors.voter_id} />
-              <p className="text-[10px] text-muted-foreground mt-1">VRN format: VRN-YYYY-NNNNN (from COMELEC voter registration)</p>
-            </div>
-            <FormSelect onChange={handleFieldChange} label="Purok" name="purok" value={form.purok} options={purokOptions} />
-            <FormSelect onChange={handleFieldChange} label="Registration Status" name="registration_status" value={form.registration_status} options={regStatusOptions} />
-            <FormSelect onChange={handleFieldChange} label="SK Voter" name="is_sk_voter" value={form.is_sk_voter} options={yesNoOptions} />
-            <FormSelect onChange={handleFieldChange} label="Voter Type" name="voter_type" value={form.voter_type} options={voterTypeOptions} />
-          </div>
-        )}
-      </Modal>
-
-      {/* Delete Confirmation Modal */}
-      <Modal open={showDelete} onClose={() => setShowDelete(false)} title="Confirm Delete" description="This action cannot be undone." size="sm"
-        footer={<><ModalButton variant="secondary" onClick={() => { setShowDelete(false); setViewVoter(null); }}>Cancel</ModalButton><ModalButton variant="danger" onClick={() => { setShowDelete(false); setViewVoter(null); addToast("Voter Removed"); }}>Delete</ModalButton></>}>
-        <p className="text-sm text-muted-foreground">Are you sure you want to delete the voter record for <span className="font-medium text-foreground">{viewVoter ? `${viewVoter.first_name} ${viewVoter.last_name}` : ""}</span>? This will permanently remove this record.</p>
-      </Modal>
-
-      {/* Toast Notifications */}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
-        {toasts.map((t) => (
-          <div key={t.id} className="flex items-center gap-2 px-4 py-3 rounded-lg border border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/50 shadow-lg animate-in slide-in-from-bottom-2">
-            <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <span className="text-sm font-medium text-emerald-800 dark:text-emerald-200">{t.message}</span>
-            <button onClick={() => dismissToast(t.id)} className="ml-2 p-0.5 rounded hover:bg-emerald-200/50 dark:hover:bg-emerald-800/50">
-              <X className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-            </button>
-          </div>
-        ))}
-      </div>
-      <MabiniButton pageContext="You are on the Voters page. This page manages voter records and precinct assignments for the barangay." />
+      <MabiniButton pageContext="You are on the Voters page. This page manages COMELEC voter records imported via PDF for the barangay. Voters are matched to residents by name." />
     </div>
   );
 }

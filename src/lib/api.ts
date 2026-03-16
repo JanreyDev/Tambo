@@ -1,4 +1,4 @@
-import type { AiConversation, AiConversationSummary, AiCredits, AiStreamEvent, ApiError, BarangaySettings, BarangayUsage, DashboardCredits, DashboardStats, DocumentTemplate, DuplicateMatch, IssuedDocument, IssueDocumentPayload, LoginResponse, PaginatedResponse, ResidentDetail, ResidentSummary, User } from "./types";
+import type { AiConversation, AiConversationSummary, AiCredits, AiStreamEvent, ApiError, BarangaySettings, BarangayUsage, DashboardCredits, DashboardStats, DocumentTemplate, DuplicateMatch, Establishment, EstablishmentFormPayload, IssuedDocument, IssueDocumentPayload, LoginResponse, LotBuilding, PaginatedResponse, ResidentDetail, ResidentSummary, User } from "./types";
 
 // In dev, requests go through Next.js rewrite proxy (/api/v1 -> bcmp-api:8000/api/v1)
 // In production, NEXT_PUBLIC_API_URL points directly to the API domain
@@ -54,9 +54,10 @@ async function request<T>(
   body?: unknown,
   options?: RequestOptions
 ): Promise<T> {
+  const isFormData = body instanceof FormData;
   const headers: Record<string, string> = {
     Accept: "application/json",
-    "Content-Type": "application/json",
+    ...(isFormData ? {} : { "Content-Type": "application/json" }),
     ...options?.headers,
   };
 
@@ -70,7 +71,7 @@ async function request<T>(
   const res = await fetch(`${BASE_URL}${path}`, {
     method,
     headers,
-    body: body ? JSON.stringify(body) : undefined,
+    body: isFormData ? body : (body ? JSON.stringify(body) : undefined),
   });
 
   if (res.status === 401) {
@@ -490,6 +491,32 @@ const api = {
     checkDuplicate: (data: { first_name: string; last_name: string; middle_name?: string; date_of_birth: string }) =>
       api.post<{ has_duplicates: boolean; matches: DuplicateMatch[] }>("/residents/check-duplicate", data),
 
+    sendSms: (id: string, message: string) =>
+      api.post<{ message: string; segments: number; cost: number; remaining_balance: number }>(
+        `/residents/${id}/sms`,
+        { message }
+      ),
+
+    smsHistory: (id: string, params?: { page?: number; per_page?: number }) => {
+      const query = new URLSearchParams();
+      if (params?.page) query.set("page", String(params.page));
+      if (params?.per_page) query.set("per_page", String(params.per_page));
+      const qs = query.toString();
+      return api.get<{
+        data: Array<{
+          id: string;
+          recipient_phone: string;
+          message: string;
+          credit_cost: string;
+          status: string;
+          created_at: string;
+        }>;
+        current_page: number;
+        last_page: number;
+        total: number;
+      }>(`/residents/${id}/sms-history${qs ? `?${qs}` : ""}`);
+    },
+
     /**
      * Generate a PDF record card for a resident.
      * Returns a Blob (application/pdf) — open in new tab or trigger download.
@@ -651,8 +678,23 @@ const api = {
     update: (id: string, data: Partial<IssueDocumentPayload> & { status?: string }) =>
       api.put<{ message: string; issued_document: IssuedDocument }>(`/issued-documents/${id}`, data),
 
+    stats: () =>
+      api.get<{ total: number; issued: number; released: number; cancelled: number; expired: number }>("/issued-documents/stats"),
+
     delete: (id: string) =>
       api.delete<{ message: string }>(`/issued-documents/${id}`),
+
+    aiFill: (data: {
+      template_id: string;
+      resident_id?: string | null;
+      message: string;
+      current_fields?: Record<string, string>;
+    }) =>
+      api.post<{
+        message: string;
+        fields: Record<string, string>;
+        all_required_filled: boolean;
+      }>("/issued-documents/ai-fill", data),
   },
 
   map: {
@@ -683,9 +725,216 @@ const api = {
       }>("/map/stats"),
   },
 
+  establishments: {
+    list: (params?: {
+      page?: number;
+      per_page?: number;
+      search?: string;
+      type?: string;
+      status?: string;
+      sort_by?: string;
+      sort_dir?: string;
+    }) => {
+      const query = new URLSearchParams();
+      if (params?.page) query.set("page", String(params.page));
+      if (params?.per_page) query.set("per_page", String(params.per_page));
+      if (params?.search) query.set("search", params.search);
+      if (params?.type) query.set("type", params.type);
+      if (params?.status) query.set("status", params.status);
+      if (params?.sort_by) query.set("sort_by", params.sort_by);
+      if (params?.sort_dir) query.set("sort_dir", params.sort_dir);
+      const qs = query.toString();
+      return api.get<PaginatedResponse<Establishment>>(`/establishments${qs ? `?${qs}` : ""}`);
+    },
+
+    get: (id: string) =>
+      api.get<{ establishment: Establishment }>(`/establishments/${id}`).then(r => r.establishment),
+
+    checkDuplicate: (businessName: string, businessType?: string, excludeId?: string) =>
+      api.post<{ duplicate: boolean; establishment?: Establishment }>("/establishments/check-duplicate", {
+        business_name: businessName,
+        ...(businessType ? { business_type: businessType } : {}),
+        ...(excludeId ? { exclude_id: excludeId } : {}),
+      }),
+
+    create: (data: EstablishmentFormPayload) =>
+      api.post<{ message: string; establishment: Establishment }>("/establishments", data),
+
+    update: (id: string, data: Partial<EstablishmentFormPayload>) =>
+      api.put<{ message: string; establishment: Establishment }>(`/establishments/${id}`, data),
+
+    delete: (id: string) =>
+      api.delete<{ message: string }>(`/establishments/${id}`),
+
+    sendSms: (id: string, message: string) =>
+      api.post<{ message: string; segments: number; cost: number; remaining_balance: number }>(
+        `/establishments/${id}/sms`,
+        { message },
+      ),
+
+    smsHistory: (id: string) =>
+      api.get<{ data: Array<{ id: string; recipient_phone: string; message: string; status: string; credit_cost: number; created_at: string }>; total: number }>(
+        `/establishments/${id}/sms-history`,
+      ),
+
+    permit: (id: string) =>
+      api.post<{ message: string; establishment: Establishment }>(`/establishments/${id}/permit`),
+
+    renew: (id: string) =>
+      api.post<{ message: string; establishment: Establishment }>(`/establishments/${id}/renew`),
+
+    close: (id: string) =>
+      api.post<{ message: string; establishment: Establishment }>(`/establishments/${id}/close`),
+
+    transactions: (id: string) =>
+      api.get<{ transactions: Array<{ id: string; transaction_type: string; year: number; notes: string | null; created_at: string; generated_by?: string }> }>(`/establishments/${id}/transactions`),
+
+    activity: (id: string, params?: { page?: number; per_page?: number }) => {
+      const query = new URLSearchParams();
+      if (params?.page) query.set("page", String(params.page));
+      if (params?.per_page) query.set("per_page", String(params.per_page));
+      const qs = query.toString();
+      return api.get<{
+        data: Array<{
+          id: string;
+          action: string;
+          changes: Record<string, { from: unknown; to: unknown }> | null;
+          ip_address: string | null;
+          user_agent: string | null;
+          created_at: string;
+          user?: { id: string; username: string; first_name: string; middle_name: string | null; last_name: string };
+        }>;
+        total: number;
+        last_page: number;
+      }>(`/establishments/${id}/activity${qs ? `?${qs}` : ""}`);
+    },
+
+    stats: () =>
+      api.get<{
+        total: number;
+        active: number;
+        total_documents: number;
+        current_year: number;
+      }>("/establishments/stats"),
+  },
+
+  lotsBuildings: {
+    list: (params?: {
+      search?: string;
+      classification?: string;
+      property_classification?: string;
+      status?: string;
+      sort_by?: string;
+      sort_dir?: "asc" | "desc";
+      per_page?: number;
+      page?: number;
+    }) => {
+      const q = new URLSearchParams();
+      if (params) {
+        Object.entries(params).forEach(([k, v]) => {
+          if (v !== undefined && v !== null && v !== "") q.append(k, String(v));
+        });
+      }
+      const qs = q.toString();
+      return api.get<PaginatedResponse<LotBuilding>>(`/lots-buildings${qs ? `?${qs}` : ""}`);
+    },
+
+    get: (id: string) =>
+      api.get<{ lot_building: LotBuilding }>(`/lots-buildings/${id}`).then(r => r.lot_building),
+
+    create: (data: Record<string, unknown>) =>
+      api.post<{ message: string; lot_building: LotBuilding }>("/lots-buildings", data),
+
+    update: (id: string, data: Record<string, unknown>) =>
+      api.put<{ message: string; lot_building: LotBuilding }>(`/lots-buildings/${id}`, data),
+
+    destroy: (id: string) =>
+      api.delete<{ message: string }>(`/lots-buildings/${id}`),
+
+    stats: () =>
+      api.get<{
+        total: number;
+        lots: number;
+        buildings: number;
+        lot_and_building: number;
+        active: number;
+        total_clearances_this_year: number;
+      }>("/lots-buildings/stats"),
+
+    activity: (id: string, page = 1) =>
+      api.get<PaginatedResponse<{
+        id: string;
+        action: string;
+        changes: Record<string, { from: unknown; to: unknown }> | null;
+        ip_address: string;
+        user_agent: string;
+        created_at: string;
+        user: { id: string; username: string; first_name: string; last_name: string } | null;
+      }>>(`/lots-buildings/${id}/activity?page=${page}`),
+
+    checkDuplicate: (params: {
+      tax_declaration_number?: string;
+      owner_name?: string;
+      exact_address?: string;
+      exclude_id?: string;
+    }) =>
+      api.post<{
+        duplicate: boolean;
+        reason?: "tax_declaration_number" | "owner_address";
+        message?: string;
+        lot_building?: { id: string; lot_building_number: string; owner_name: string; classification: string };
+      }>("/lots-buildings/check-duplicate", params),
+
+    clearance: (id: string, transactionType: string, notes?: string) =>
+      api.post<{ message: string; lot_building: LotBuilding }>(`/lots-buildings/${id}/clearance`, {
+        transaction_type: transactionType,
+        notes,
+      }),
+
+    transactions: (id: string) =>
+      api.get<{ transactions: Array<{
+        id: string; transaction_type: string; year: number; notes: string | null; created_at: string; generated_by?: string;
+      }> }>(`/lots-buildings/${id}/transactions`),
+
+    sendSms: (id: string, message: string) =>
+      api.post<{ message: string }>(`/lots-buildings/${id}/sms`, { message }),
+
+    smsHistory: (id: string) =>
+      api.get<{ data: Array<{
+        id: string; recipient_phone: string; message: string; status: string; credit_cost: number; created_at: string;
+      }> }>(`/lots-buildings/${id}/sms-history`),
+  },
+
   platformUpdates: {
     list: () =>
       api.get<{ updates: import("@/lib/types").PlatformUpdate[] }>("/platform-updates"),
+  },
+
+  voters: {
+    list: (params?: { search?: string; precinct?: string; per_page?: number; page?: number }) => {
+      const q = new URLSearchParams();
+      if (params) Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== "") q.append(k, String(v)); });
+      const qs = q.toString();
+      return api.get<import("@/lib/types").PaginatedResponse<import("@/lib/types").Voter>>(`/voters${qs ? `?${qs}` : ""}`);
+    },
+
+    stats: () =>
+      api.get<import("@/lib/types").VoterStats>("/voters/stats"),
+
+    precincts: () =>
+      api.get<string[]>("/voters/precincts"),
+
+    preview: (file: File) => {
+      const form = new FormData();
+      form.append("pdf", file);
+      return api.post<import("@/lib/types").VoterImportPreview>("/voters/preview", form);
+    },
+
+    import: (file: File) => {
+      const form = new FormData();
+      form.append("pdf", file);
+      return api.post<import("@/lib/types").VoterImportResult>("/voters/import", form);
+    },
   },
 };
 
