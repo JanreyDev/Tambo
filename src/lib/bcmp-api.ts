@@ -249,6 +249,8 @@ export interface CreateBarangayPayload {
   province?: string;
   population?: number;
   zip_code?: string;
+  latitude?: number;
+  longitude?: number;
   subscription_plan: SubscriptionTier;
   kapitan: {
     first_name: string;
@@ -347,4 +349,96 @@ export const bcmpApi = {
       return api.get(`/founder/psgc/cities/${cityCode}/barangays`);
     },
   },
+
+  documentTemplates: {
+    list(params?: {
+      search?: string;
+      category?: string;
+      per_page?: number;
+    }): Promise<SystemDocumentTemplateList> {
+      const p: Record<string, string> = {
+        per_page: String(params?.per_page ?? 100),
+        sort_by: "sort_order",
+      };
+      if (params?.search) p.search = params.search;
+      if (params?.category) p.category = params.category;
+      return api.get("/founder/bcmp/document-templates", { params: p });
+    },
+
+    get(id: string): Promise<SystemDocumentTemplateDetail> {
+      return api.get(`/founder/bcmp/document-templates/${id}`);
+    },
+
+    create(data: SystemDocumentTemplatePayload): Promise<SystemDocumentTemplateDetail> {
+      return api.post("/founder/bcmp/document-templates", data);
+    },
+
+    update(id: string, data: Partial<SystemDocumentTemplatePayload>): Promise<SystemDocumentTemplateDetail> {
+      return api.patch(`/founder/bcmp/document-templates/${id}`, data);
+    },
+
+    delete(id: string): Promise<{ message: string }> {
+      return api.delete(`/founder/bcmp/document-templates/${id}`);
+    },
+  },
 };
+
+// ── Document Template types (system-level, barangay_id = null) ──
+
+export interface SystemDocumentTemplateCustomInput {
+  name: string;
+  type: "text" | "number" | "date" | "select" | "textarea";
+  label: string;
+  required: boolean;
+  options?: string[];
+}
+
+export interface SystemDocumentTemplate {
+  id: string;
+  barangay_id: null;
+  name: string;
+  category: string;
+  constituent_type: "resident" | "establishment" | "lot_building" | "case";
+  title: string | null;
+  salutation: string | null;
+  content: string | null;
+  merge_fields: string[] | null;
+  custom_inputs: SystemDocumentTemplateCustomInput[] | null;
+  custom_tables: Record<string, unknown>[] | null;
+  approval_config: {
+    left?: { label: string; position: string };
+    right?: { label: string; position: string };
+  } | null;
+  settings: {
+    show_qr?: boolean;
+    show_ctc?: boolean;
+    show_or?: boolean;
+    show_doc_no?: boolean;
+    show_expiry?: boolean;
+    show_photo?: boolean;
+    show_thumbmark?: boolean;
+    expiry_months?: number;
+  } | null;
+  status: "active" | "draft" | "archived";
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SystemDocumentTemplateList {
+  data: SystemDocumentTemplate[];
+  total: number;
+  per_page: number;
+  current_page: number;
+  last_page: number;
+}
+
+export interface SystemDocumentTemplateDetail {
+  document_template?: SystemDocumentTemplate;
+  message?: string;
+  // index returns paginated, show returns single wrapped in document_template
+  data?: SystemDocumentTemplate[];
+}
+
+export type SystemDocumentTemplatePayload = Omit<SystemDocumentTemplate,
+  "id" | "barangay_id" | "created_at" | "updated_at">;

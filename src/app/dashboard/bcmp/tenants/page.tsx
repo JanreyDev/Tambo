@@ -636,6 +636,10 @@ function AddBarangayForm({ onClose, onSuccess }: { onClose: () => void; onSucces
   const [provinceName, setProvinceName] = useState("");
   const [subscriptionPlan, setSubscriptionPlan] = useState<SubscriptionTier>("munti");
 
+  // Map center coordinates
+  const [latitude, setLatitude] = useState("");
+  const [longitude, setLongitude] = useState("");
+
   // Initial account fields
   const [kapRole, setKapRole] = useState<OnboardRole>("kapitan");
   const [kapFirstName, setKapFirstName] = useState("");
@@ -801,6 +805,8 @@ function AddBarangayForm({ onClose, onSuccess }: { onClose: () => void; onSucces
       province: provinceName ? uc(provinceName) : undefined,
       population: population ? parseInt(population, 10) : undefined,
       zip_code: zipCode || undefined,
+      latitude: latitude ? parseFloat(latitude) : undefined,
+      longitude: longitude ? parseFloat(longitude) : undefined,
       subscription_plan: subscriptionPlan,
       kapitan: {
         first_name: uc(kapFirstName),
@@ -959,6 +965,25 @@ function AddBarangayForm({ onClose, onSuccess }: { onClose: () => void; onSucces
                   disabled
                 />
               </div>
+              <div className="grid grid-cols-2 gap-2">
+                <FormInput
+                  label="Map Center Latitude *"
+                  value={latitude}
+                  onChange={(val) => setLatitude(val.replace(/[^0-9.\-]/g, ""))}
+                  placeholder="e.g. 14.517775"
+                  error={fieldError("latitude")}
+                />
+                <FormInput
+                  label="Map Center Longitude *"
+                  value={longitude}
+                  onChange={(val) => setLongitude(val.replace(/[^0-9.\-]/g, ""))}
+                  placeholder="e.g. 120.989666"
+                  error={fieldError("longitude")}
+                />
+              </div>
+              <p className="text-[10px] text-muted-foreground -mt-1">
+                Center coordinates for the barangay map. Get from Google Maps: right-click a location and copy coordinates.
+              </p>
             </div>
           </div>
         )}
