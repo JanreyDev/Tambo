@@ -11,6 +11,8 @@ import {
   Building2,
   CreditCard,
   BarChart3,
+  FileText,
+  ShoppingBag,
   Landmark,
   Vote,
   Users,
@@ -57,6 +59,8 @@ const navGroups: NavGroup[] = [
       { label: "Barangay Tenants", href: "/dashboard/bcmp/tenants", icon: Building2, badge: 52 },
       { label: "Subscriptions", href: "/dashboard/bcmp/subscriptions", icon: CreditCard },
       { label: "Analytics", href: "/dashboard/bcmp/analytics", icon: BarChart3 },
+      { label: "Doc Templates", href: "/dashboard/bcmp/templates", icon: FileText },
+      { label: "Marketplace", href: "/dashboard/marketplace", icon: ShoppingBag },
     ],
   },
   {
