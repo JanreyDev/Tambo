@@ -3,24 +3,9 @@
 import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
-  AlertTriangle,
-  Plus,
-  MapPin,
-  Users,
-  ShieldAlert,
-  Flame,
-  Waves,
-  Wind,
-  Calendar,
-  MoreHorizontal,
-  Edit,
-  Trash2,
-  Bot,
-  CloudRain,
-  X,
-  CheckCircle2,
-  Info,
-  RefreshCw,
+  AlertTriangle, Plus, MapPin, Users, ShieldAlert, Flame, Waves, Wind,
+  Calendar, MoreHorizontal, Edit, Trash2, Bot, CloudRain, X, CheckCircle2,
+  Info, RefreshCw, Navigation, Loader2,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/badge";
@@ -29,6 +14,19 @@ import { Modal, ModalButton } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
 import { MabiniButton } from "@/components/ui/mabini-button";
 import { api } from "@/lib/api";
+
+// ── Types ──────────────────────────────────────────────────────────────────────
+
+interface HazardPin {
+  id: string;
+  name: string | null;
+  hazard_type: string;
+  description: string | null;
+  latitude: string;
+  longitude: string;
+  severity: "low" | "medium" | "high" | "critical";
+  status: "active" | "resolved" | "monitoring";
+}
 
 interface Evacuation {
   id: string;
@@ -43,13 +41,21 @@ interface Evacuation {
   remarks: string | null;
 }
 
-interface PaginatedEvacuations {
-  data: Evacuation[];
-  total: number;
-  last_page: number;
+interface EvacuationFamily {
+  id: string;
+  head_name: string;
+  member_count: number;
+  special_needs: string | null;
+  relief_received: string[] | null;
 }
 
-const formTabs = ["Event", "Impact", "Response"];
+interface PaginatedHazardPins { data: HazardPin[]; total: number; }
+interface PaginatedEvacuations { data: Evacuation[]; total: number; }
+
+type ToastType = "success" | "error" | "info";
+type Tab = "events" | "hazard" | "families";
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
 
 function FormInput({ label, name, value, placeholder, required, type, error, onChange }: {
   label: string; name: string; value: string; placeholder?: string; required?: boolean;
@@ -60,7 +66,8 @@ function FormInput({ label, name, value, placeholder, required, type, error, onC
       <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
         {label}{required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
-      <input type={type || "text"} value={value} onChange={(e) => onChange(name, e.target.value)} placeholder={placeholder}
+      <input type={type || "text"} value={value} onChange={(e) => onChange(name, e.target.value)}
+        placeholder={placeholder}
         className={cn("w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring", error ? "border-red-500" : "border-border")} />
       {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
     </div>
@@ -68,7 +75,8 @@ function FormInput({ label, name, value, placeholder, required, type, error, onC
 }
 
 function FormSelect({ label, name, value, options, required, error, onChange }: {
-  label: string; name: string; value: string; options: string[]; required?: boolean;
+  label: string; name: string; value: string;
+  options: { value: string; label: string }[]; required?: boolean;
   error?: string; onChange: (n: string, v: string) => void;
 }) {
   return (
@@ -78,7 +86,7 @@ function FormSelect({ label, name, value, options, required, error, onChange }: 
       </label>
       <select value={value} onChange={(e) => onChange(name, e.target.value)}
         className={cn("w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring", error ? "border-red-500" : "border-border")}>
-        {options.map((o) => <option key={o} value={o}>{o || "— Select —"}</option>)}
+        {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
       {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
     </div>
@@ -86,34 +94,75 @@ function FormSelect({ label, name, value, options, required, error, onChange }: 
 }
 
 function FormTextarea({ label, name, value, placeholder, onChange }: {
-  label: string; name: string; value: string; placeholder?: string; onChange: (n: string, v: string) => void;
+  label: string; name: string; value: string; placeholder?: string;
+  onChange: (n: string, v: string) => void;
 }) {
   return (
     <div className="col-span-2">
       <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{label}</label>
-      <textarea value={value} onChange={(e) => onChange(name, e.target.value)} placeholder={placeholder} rows={3}
+      <textarea value={value} onChange={(e) => onChange(name, e.target.value)}
+        placeholder={placeholder} rows={3}
         className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
     </div>
   );
 }
 
-type ToastType = "success" | "error" | "warning" | "info";
+function SeverityBadge({ severity }: { severity: string }) {
+  const map: Record<string, { label: string; cls: string }> = {
+    low: { label: "Low", cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400" },
+    medium: { label: "Medium", cls: "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400" },
+    high: { label: "High", cls: "bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-400" },
+    critical: { label: "Critical", cls: "bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-400" },
+  };
+  const s = map[severity] ?? { label: severity, cls: "bg-muted text-muted-foreground" };
+  return <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold", s.cls)}>{s.label}</span>;
+}
+
+const HAZARD_TYPES = ["", "Flood-prone", "Landslide", "Earthquake", "Fire", "Storm surge", "Volcanic", "Drought", "Disease outbreak", "Others"];
+const CAUSE_TYPES = ["", "Typhoon", "Flood", "Earthquake", "Fire", "Landslide", "Volcanic Activity", "Drought", "Epidemic", "Others"];
+const EVAC_FORM_TABS = ["Event", "Impact", "Response"];
+
+// ── Main Page ──────────────────────────────────────────────────────────────────
 
 export default function DisasterPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"events" | "preparedness">("events");
+  const [activeTab, setActiveTab] = useState<Tab>("events");
+
+  // ── Evacuations state ──
   const [evacuations, setEvacuations] = useState<Evacuation[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [evacLoading, setEvacLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("");
-  const [showCreate, setShowCreate] = useState(false);
-  const [showEdit, setShowEdit] = useState(false);
-  const [showDelete, setShowDelete] = useState(false);
-  const [formTab, setFormTab] = useState(0);
-  const [form, setForm] = useState<Record<string, string>>({});
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  const [formLoading, setFormLoading] = useState(false);
-  const [actionMenu, setActionMenu] = useState<string | null>(null);
+  const [showCreateEvac, setShowCreateEvac] = useState(false);
+  const [showEditEvac, setShowEditEvac] = useState(false);
+  const [showDeleteEvac, setShowDeleteEvac] = useState(false);
+  const [evacFormTab, setEvacFormTab] = useState(0);
+  const [evacForm, setEvacForm] = useState<Record<string, string>>({});
+  const [evacFormErrors, setEvacFormErrors] = useState<Record<string, string>>({});
+  const [evacFormLoading, setEvacFormLoading] = useState(false);
   const [selectedEvac, setSelectedEvac] = useState<Evacuation | null>(null);
+  const [evacActionMenu, setEvacActionMenu] = useState<string | null>(null);
+
+  // ── Hazard pins state ──
+  const [pins, setPins] = useState<HazardPin[]>([]);
+  const [pinsLoading, setPinsLoading] = useState(false);
+  const [pinsSearch, setPinsSearch] = useState("");
+  const [pinTypeFilter, setPinTypeFilter] = useState("");
+  const [pinSeverityFilter, setPinSeverityFilter] = useState("");
+  const [showCreatePin, setShowCreatePin] = useState(false);
+  const [showEditPin, setShowEditPin] = useState(false);
+  const [showDeletePin, setShowDeletePin] = useState(false);
+  const [pinForm, setPinForm] = useState<Record<string, string>>({});
+  const [pinFormErrors, setPinFormErrors] = useState<Record<string, string>>({});
+  const [pinFormLoading, setPinFormLoading] = useState(false);
+  const [selectedPin, setSelectedPin] = useState<HazardPin | null>(null);
+  const [pinActionMenu, setPinActionMenu] = useState<string | null>(null);
+
+  // ── Families state ──
+  const [familiesEvacId, setFamiliesEvacId] = useState("");
+  const [families, setFamilies] = useState<EvacuationFamily[]>([]);
+  const [familiesLoading, setFamiliesLoading] = useState(false);
+
+  // ── Toasts ──
   const [toasts, setToasts] = useState<{ id: string; type: ToastType; title: string; message?: string }[]>([]);
 
   const addToast = useCallback((type: ToastType, title: string, message?: string) => {
@@ -122,8 +171,9 @@ export default function DisasterPage() {
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
   }, []);
 
+  // ── Fetch evacuations ──
   const fetchEvacuations = useCallback(async () => {
-    setLoading(true);
+    setEvacLoading(true);
     try {
       const params = new URLSearchParams({ per_page: "50", sort_by: "start_date", sort_dir: "desc" });
       if (statusFilter) params.set("status", statusFilter);
@@ -132,88 +182,187 @@ export default function DisasterPage() {
     } catch {
       addToast("error", "Failed to load events");
     } finally {
-      setLoading(false);
+      setEvacLoading(false);
     }
   }, [statusFilter, addToast]);
 
+  // ── Fetch hazard pins ──
+  const fetchPins = useCallback(async () => {
+    setPinsLoading(true);
+    try {
+      const params = new URLSearchParams({ per_page: "100" });
+      if (pinsSearch) params.set("search", pinsSearch);
+      if (pinTypeFilter) params.set("hazard_type", pinTypeFilter);
+      if (pinSeverityFilter) params.set("severity", pinSeverityFilter);
+      const res = await api.get<PaginatedHazardPins>(`/hazard-pins?${params}`);
+      setPins((res as PaginatedHazardPins).data ?? []);
+    } catch {
+      addToast("error", "Failed to load hazard sites");
+    } finally {
+      setPinsLoading(false);
+    }
+  }, [pinsSearch, pinTypeFilter, pinSeverityFilter, addToast]);
+
+  // ── Fetch families for selected evacuation ──
+  const fetchFamilies = useCallback(async (evacId: string) => {
+    if (!evacId) { setFamilies([]); return; }
+    setFamiliesLoading(true);
+    try {
+      const res = await api.get<{ evacuation: Evacuation; families: EvacuationFamily[] }>(`/evacuations/${evacId}`);
+      setFamilies((res as { families: EvacuationFamily[] }).families ?? []);
+    } catch {
+      addToast("error", "Failed to load families");
+    } finally {
+      setFamiliesLoading(false);
+    }
+  }, [addToast]);
+
   useEffect(() => { fetchEvacuations(); }, [fetchEvacuations]);
+  useEffect(() => {
+    if (activeTab === "hazard" && pins.length === 0) fetchPins();
+  }, [activeTab, fetchPins, pins.length]);
 
-  const handleFieldChange = (name: string, value: string) => {
-    setForm((f) => ({ ...f, [name]: value }));
-    setFormErrors((prev) => { const next = { ...prev }; delete next[name]; return next; });
+  // ── Evac form handlers ──
+  const handleEvacField = (name: string, value: string) => {
+    setEvacForm((f) => ({ ...f, [name]: value }));
+    setEvacFormErrors((prev) => { const next = { ...prev }; delete next[name]; return next; });
   };
-
-  const validateForm = (): boolean => {
+  const validateEvacForm = (): boolean => {
     const errors: Record<string, string> = {};
-    if (!form.cause_type) errors.cause_type = "Cause type is required";
-    if (!form.evacuation_name?.trim()) errors.evacuation_name = "Event name is required";
-    if (!form.start_date) errors.start_date = "Start date is required";
-    if (!form.evacuation_center?.trim()) errors.evacuation_center = "Evacuation center is required";
-    if (!form.status) errors.status = "Status is required";
-    setFormErrors(errors);
+    if (!evacForm.cause_type) errors.cause_type = "Required";
+    if (!evacForm.evacuation_name?.trim()) errors.evacuation_name = "Required";
+    if (!evacForm.start_date) errors.start_date = "Required";
+    if (!evacForm.evacuation_center?.trim()) errors.evacuation_center = "Required";
+    if (!evacForm.status) errors.status = "Required";
+    setEvacFormErrors(errors);
     if (Object.keys(errors).length > 0) {
-      const tab0 = ["cause_type", "evacuation_name", "start_date"];
-      if (Object.keys(errors).some((k) => tab0.includes(k))) setFormTab(0);
-      else setFormTab(2);
+      if (["cause_type", "evacuation_name", "start_date"].some((k) => errors[k])) setEvacFormTab(0);
+      else setEvacFormTab(2);
       return false;
     }
     return true;
   };
-
-  const openCreate = () => { setForm({ status: "active" }); setFormErrors({}); setFormTab(0); setShowCreate(true); };
-  const openEdit = (e: Evacuation) => {
-    setForm({
+  const openCreateEvac = () => { setEvacForm({ status: "active" }); setEvacFormErrors({}); setEvacFormTab(0); setShowCreateEvac(true); };
+  const openEditEvac = (e: Evacuation) => {
+    setEvacForm({
       evacuation_name: e.evacuation_name, cause_type: e.cause_type,
       start_date: e.start_date, end_date: e.end_date ?? "",
       evacuation_center: e.evacuation_center,
       evacuee_count: String(e.evacuee_count), family_count: String(e.family_count),
       status: e.status, remarks: e.remarks ?? "",
     });
-    setFormErrors({}); setFormTab(0); setSelectedEvac(e); setShowEdit(true); setActionMenu(null);
+    setEvacFormErrors({}); setEvacFormTab(0); setSelectedEvac(e); setShowEditEvac(true); setEvacActionMenu(null);
   };
-
-  const handleSubmit = async () => {
-    if (!validateForm()) return;
-    setFormLoading(true);
+  const handleEvacSubmit = async () => {
+    if (!validateEvacForm()) return;
+    setEvacFormLoading(true);
     try {
       const payload = {
-        evacuation_name: form.evacuation_name, cause_type: form.cause_type,
-        start_date: form.start_date, end_date: form.end_date || null,
-        evacuation_center: form.evacuation_center,
-        evacuee_count: form.evacuee_count ? parseInt(form.evacuee_count, 10) : null,
-        family_count: form.family_count ? parseInt(form.family_count, 10) : null,
-        status: form.status, remarks: form.remarks || null,
+        evacuation_name: evacForm.evacuation_name, cause_type: evacForm.cause_type,
+        start_date: evacForm.start_date, end_date: evacForm.end_date || null,
+        evacuation_center: evacForm.evacuation_center,
+        evacuee_count: evacForm.evacuee_count ? parseInt(evacForm.evacuee_count, 10) : null,
+        family_count: evacForm.family_count ? parseInt(evacForm.family_count, 10) : null,
+        status: evacForm.status, remarks: evacForm.remarks || null,
       };
-      if (showEdit && selectedEvac) {
+      if (showEditEvac && selectedEvac) {
         await api.put(`/evacuations/${selectedEvac.id}`, payload);
-        addToast("success", "Event updated", `"${form.evacuation_name}" has been updated.`);
+        addToast("success", "Event updated", `"${evacForm.evacuation_name}" has been updated.`);
       } else {
         await api.post("/evacuations", payload);
-        addToast("success", "Event logged", `"${form.evacuation_name}" has been recorded.`);
+        addToast("success", "Event logged", `"${evacForm.evacuation_name}" has been recorded.`);
       }
-      setShowCreate(false); setShowEdit(false); setSelectedEvac(null);
+      setShowCreateEvac(false); setShowEditEvac(false); setSelectedEvac(null);
       fetchEvacuations();
     } catch {
       addToast("error", "Save failed", "Please check your inputs and try again.");
     } finally {
-      setFormLoading(false);
+      setEvacFormLoading(false);
     }
   };
-
-  const handleDelete = async () => {
+  const handleEvacDelete = async () => {
     if (!selectedEvac) return;
-    setFormLoading(true);
+    setEvacFormLoading(true);
     try {
       await api.delete(`/evacuations/${selectedEvac.id}`);
-      addToast("success", "Event deleted", `"${selectedEvac.evacuation_name}" has been removed.`);
-      setShowDelete(false); setSelectedEvac(null);
+      addToast("success", "Event deleted");
+      setShowDeleteEvac(false); setSelectedEvac(null);
       fetchEvacuations();
     } catch {
       addToast("error", "Delete failed");
     } finally {
-      setFormLoading(false);
+      setEvacFormLoading(false);
     }
   };
+
+  // ── Hazard pin form handlers ──
+  const handlePinField = (name: string, value: string) => {
+    setPinForm((f) => ({ ...f, [name]: value }));
+    setPinFormErrors((prev) => { const next = { ...prev }; delete next[name]; return next; });
+  };
+  const validatePinForm = (): boolean => {
+    const errors: Record<string, string> = {};
+    if (!pinForm.hazard_type) errors.hazard_type = "Required";
+    if (!pinForm.latitude) errors.latitude = "Required";
+    if (!pinForm.longitude) errors.longitude = "Required";
+    setPinFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+  const openCreatePin = () => { setPinForm({ severity: "medium", status: "active" }); setPinFormErrors({}); setShowCreatePin(true); };
+  const openEditPin = (p: HazardPin) => {
+    setPinForm({
+      hazard_type: p.hazard_type, name: p.name ?? "",
+      description: p.description ?? "",
+      latitude: p.latitude, longitude: p.longitude,
+      severity: p.severity, status: p.status,
+    });
+    setPinFormErrors({}); setSelectedPin(p); setShowEditPin(true); setPinActionMenu(null);
+  };
+  const handlePinSubmit = async () => {
+    if (!validatePinForm()) return;
+    setPinFormLoading(true);
+    try {
+      const payload = {
+        hazard_type: pinForm.hazard_type, name: pinForm.name || null,
+        description: pinForm.description || null,
+        latitude: parseFloat(pinForm.latitude), longitude: parseFloat(pinForm.longitude),
+        severity: pinForm.severity || null, status: pinForm.status || null,
+      };
+      if (showEditPin && selectedPin) {
+        await api.put(`/hazard-pins/${selectedPin.id}`, payload);
+        addToast("success", "Hazard site updated");
+      } else {
+        await api.post("/hazard-pins", payload);
+        addToast("success", "Hazard site added");
+      }
+      setShowCreatePin(false); setShowEditPin(false); setSelectedPin(null);
+      fetchPins();
+    } catch {
+      addToast("error", "Save failed");
+    } finally {
+      setPinFormLoading(false);
+    }
+  };
+  const handlePinDelete = async () => {
+    if (!selectedPin) return;
+    setPinFormLoading(true);
+    try {
+      await api.delete(`/hazard-pins/${selectedPin.id}`);
+      addToast("success", "Hazard site removed");
+      setShowDeletePin(false); setSelectedPin(null);
+      fetchPins();
+    } catch {
+      addToast("error", "Delete failed");
+    } finally {
+      setPinFormLoading(false);
+    }
+  };
+
+  // ── Derived stats ──
+  const activeEvacuations = evacuations.filter((e) => e.status === "active");
+  const totalEvacuees = activeEvacuations.reduce((s, e) => s + (e.evacuee_count ?? 0), 0);
+  const highRiskPins = pins.filter((p) => p.severity === "high" || p.severity === "critical");
+  const statusLabel = (s: string) => ({ active: "active", closed: "inactive", standby: "pending" }[s] ?? s);
 
   const eventIcon = (cause: string) => {
     const lc = cause.toLowerCase();
@@ -223,29 +372,33 @@ export default function DisasterPage() {
     return <AlertTriangle className="h-5 w-5 text-amber-500" />;
   };
 
-  const activeEvacuations = evacuations.filter((e) => e.status === "active");
-  const totalEvacuees = activeEvacuations.reduce((s, e) => s + (e.evacuee_count ?? 0), 0);
-  const totalFamilies = activeEvacuations.reduce((s, e) => s + (e.family_count ?? 0), 0);
-  const statusLabel = (s: string) => ({ active: "active", closed: "inactive", standby: "pending" }[s] ?? s);
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" onClick={() => { setEvacActionMenu(null); setPinActionMenu(null); }}>
       <PageHeader
         title="Disaster / DRRM"
         description="Disaster Risk Reduction and Management"
         breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "Operations" }, { label: "Disaster/DRRM" }]}
         actions={
           <div className="flex items-center gap-2">
-            <button onClick={fetchEvacuations} className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors">
+            <button onClick={() => { fetchEvacuations(); if (activeTab === "hazard") fetchPins(); }}
+              className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors">
               <RefreshCw className="h-4 w-4" /> Refresh
             </button>
-            <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>
-              <Plus className="h-4 w-4" /> Log Event
-            </button>
+            {activeTab === "events" && (
+              <button onClick={openCreateEvac} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>
+                <Plus className="h-4 w-4" /> Log Event
+              </button>
+            )}
+            {activeTab === "hazard" && (
+              <button onClick={openCreatePin} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>
+                <Plus className="h-4 w-4" /> Add Hazard Site
+              </button>
+            )}
           </div>
         }
       />
 
+      {/* Mabini AI Insight */}
       <div className="flex items-start gap-3 px-4 py-3 rounded-xl border border-accent-primary/20 bg-accent-bg/30">
         <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: "var(--accent-primary)", opacity: 0.15 }}>
           <Bot className="w-4 h-4" style={{ color: "var(--accent-primary)" }} />
@@ -255,7 +408,7 @@ export default function DisasterPage() {
           <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
             {activeEvacuations.length > 0
               ? `${activeEvacuations.length} active event(s) with ${totalEvacuees} evacuees currently sheltered. BDRRMC monitoring ongoing.`
-              : "No active disaster events. Maintain readiness — verify evacuation center capacity before typhoon season."}
+              : `No active evacuations. ${pins.length > 0 ? `${highRiskPins.length} high/critical hazard sites on record.` : "Maintain readiness — verify evacuation center capacity before typhoon season."}`}
           </p>
         </div>
         <button onClick={() => router.push("/dashboard/ai")} className="shrink-0 px-3 py-1.5 text-[10px] font-semibold rounded-lg transition-colors hover:opacity-80" style={{ background: "var(--accent-primary)", color: "#fff" }}>
@@ -263,13 +416,15 @@ export default function DisasterPage() {
         </button>
       </div>
 
+      {/* Stat Cards */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatCard label="Total Events" value={loading ? "—" : evacuations.length} icon={<AlertTriangle className="h-5 w-5" />} />
-        <StatCard label="Active" value={loading ? "—" : activeEvacuations.length} icon={<ShieldAlert className="h-5 w-5" />} />
-        <StatCard label="Current Evacuees" value={loading ? "—" : totalEvacuees} icon={<Users className="h-5 w-5" />} />
-        <StatCard label="Families Affected" value={loading ? "—" : totalFamilies} icon={<MapPin className="h-5 w-5" />} />
+        <StatCard label="Hazard Sites" value={pinsLoading || pins.length === 0 && activeTab !== "hazard" ? "—" : pins.length} icon={<MapPin className="h-5 w-5" />} />
+        <StatCard label="High / Critical Risk" value={pinsLoading || pins.length === 0 && activeTab !== "hazard" ? "—" : highRiskPins.length} icon={<ShieldAlert className="h-5 w-5" />} />
+        <StatCard label="Active Evacuations" value={evacLoading ? "—" : activeEvacuations.length} icon={<AlertTriangle className="h-5 w-5" />} />
+        <StatCard label="Total Evacuees" value={evacLoading ? "—" : totalEvacuees} icon={<Users className="h-5 w-5" />} />
       </div>
 
+      {/* Active Situation Banner */}
       {totalEvacuees > 0 && (
         <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 flex items-start gap-3">
           <ShieldAlert className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
@@ -280,13 +435,18 @@ export default function DisasterPage() {
         </div>
       )}
 
+      {/* Tabs */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-1 p-1 rounded-lg glass-subtle">
-          {(["events", "preparedness"] as const).map((tab) => (
-            <button key={tab} onClick={() => setActiveTab(tab)}
-              className={cn("px-4 py-2 text-sm font-medium rounded-md transition-colors capitalize",
-                activeTab === tab ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
-              {tab === "events" ? "Evacuation Events" : "Preparedness"}
+          {([
+            { id: "events", label: "Evacuation Events" },
+            { id: "hazard", label: "Hazard Map" },
+            { id: "families", label: "Families" },
+          ] as { id: Tab; label: string }[]).map((tab) => (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+              className={cn("px-4 py-2 text-sm font-medium rounded-md transition-colors",
+                activeTab === tab.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+              {tab.label}
             </button>
           ))}
         </div>
@@ -299,14 +459,34 @@ export default function DisasterPage() {
             <option value="closed">Closed</option>
           </select>
         )}
+        {activeTab === "hazard" && (
+          <>
+            <input value={pinsSearch} onChange={(e) => setPinsSearch(e.target.value)} placeholder="Search hazard sites..."
+              className="px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring w-56" />
+            <select value={pinTypeFilter} onChange={(e) => setPinTypeFilter(e.target.value)}
+              className="px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring">
+              <option value="">All Types</option>
+              {HAZARD_TYPES.filter(Boolean).map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <select value={pinSeverityFilter} onChange={(e) => setPinSeverityFilter(e.target.value)}
+              className="px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring">
+              <option value="">All Severity</option>
+              {["low", "medium", "high", "critical"].map((s) => <option key={s} value={s} className="capitalize">{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+            </select>
+            <button onClick={fetchPins} className="px-3 py-2 text-sm rounded-xl border border-border hover:bg-muted transition-colors flex items-center gap-1.5">
+              <RefreshCw className="h-3.5 w-3.5" /> Search
+            </button>
+          </>
+        )}
       </div>
 
+      {/* ── Evacuation Events Tab ── */}
       {activeTab === "events" && (
         <div className="space-y-3">
-          {loading ? (
+          {evacLoading ? (
             <div className="p-12 rounded-xl glass flex items-center justify-center">
               <div className="flex items-center gap-3 text-muted-foreground">
-                <RefreshCw className="h-5 w-5 animate-spin" />
+                <Loader2 className="h-5 w-5 animate-spin" />
                 <span className="text-sm">Loading events...</span>
               </div>
             </div>
@@ -320,7 +500,7 @@ export default function DisasterPage() {
                   <p className="text-sm font-medium text-foreground">No disaster events recorded</p>
                   <p className="text-xs text-muted-foreground mt-1">Record incidents and manage evacuations when disasters occur.</p>
                 </div>
-                <button onClick={openCreate} className="mt-1 px-4 py-2 text-xs font-semibold rounded-lg text-white" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>
+                <button onClick={openCreateEvac} className="mt-1 px-4 py-2 text-xs font-semibold rounded-lg text-white" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>
                   + Log First Event
                 </button>
               </div>
@@ -334,7 +514,7 @@ export default function DisasterPage() {
                     <h3 className="text-sm font-bold text-foreground">{e.evacuation_name}</h3>
                     <StatusBadge status={statusLabel(e.status)} />
                   </div>
-                  <p className="text-xs text-muted-foreground mb-2">{e.remarks || e.cause_type}</p>
+                  <p className="text-xs text-muted-foreground mb-2">{e.cause_type}{e.remarks ? ` — ${e.remarks}` : ""}</p>
                   <div className="flex items-center gap-4 text-[12px] text-muted-foreground flex-wrap">
                     <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {e.start_date}{e.end_date ? ` – ${e.end_date}` : ""}</span>
                     <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {e.evacuation_center}</span>
@@ -342,13 +522,15 @@ export default function DisasterPage() {
                   </div>
                 </div>
                 <div className="relative" onClick={(ev) => ev.stopPropagation()}>
-                  <button onClick={() => setActionMenu(actionMenu === e.id ? null : e.id)} className="p-1.5 rounded hover:bg-muted">
+                  <button onClick={() => setEvacActionMenu(evacActionMenu === e.id ? null : e.id)} className="p-1.5 rounded hover:bg-muted">
                     <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
                   </button>
-                  {actionMenu === e.id && (
+                  {evacActionMenu === e.id && (
                     <div className="absolute right-0 top-8 z-20 w-44 glass rounded-lg shadow-lg py-1">
-                      <button onClick={() => openEdit(e)} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Edit className="h-3.5 w-3.5" /> Edit</button>
-                      <button onClick={() => { setSelectedEvac(e); setShowDelete(true); setActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-muted flex items-center gap-2"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
+                      <button onClick={() => openEditEvac(e)} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Edit className="h-3.5 w-3.5" /> Edit</button>
+                      <button onClick={() => { setActiveTab("families"); setFamiliesEvacId(e.id); fetchFamilies(e.id); setEvacActionMenu(null); }}
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Users className="h-3.5 w-3.5" /> View Families</button>
+                      <button onClick={() => { setSelectedEvac(e); setShowDeleteEvac(true); setEvacActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-muted flex items-center gap-2"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
                     </div>
                   )}
                 </div>
@@ -358,82 +540,224 @@ export default function DisasterPage() {
         </div>
       )}
 
-      {activeTab === "preparedness" && (
-        <div className="p-5 rounded-xl glass">
-          <h3 className="text-sm font-semibold text-foreground mb-3">BDRRMC Readiness Checklist</h3>
-          <div className="space-y-2">
-            {[
-              { label: "Evacuation plan updated", done: true },
-              { label: "Emergency contact list current", done: true },
-              { label: "Relief goods stockpile adequate", done: true },
-              { label: "Evacuation centers inspected", done: false },
-              { label: "BDRRMC members trained (2026)", done: false },
-              { label: "Early warning system functional", done: true },
-              { label: "Community drill conducted (annual)", done: false },
-            ].map((item, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <div className={cn("w-5 h-5 rounded flex items-center justify-center text-white text-xs", item.done ? "bg-emerald-500" : "bg-muted border border-border")}>
-                  {item.done && "✓"}
-                </div>
-                <span className={cn("text-sm", item.done ? "text-foreground" : "text-muted-foreground")}>{item.label}</span>
+      {/* ── Hazard Map Tab ── */}
+      {activeTab === "hazard" && (
+        <div className="rounded-xl glass overflow-hidden">
+          {pinsLoading ? (
+            <div className="p-12 flex items-center justify-center">
+              <div className="flex items-center gap-3 text-muted-foreground">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span className="text-sm">Loading hazard sites...</span>
               </div>
-            ))}
-          </div>
-          <p className="text-xs text-muted-foreground mt-3">4 of 7 items complete (57%)</p>
+            </div>
+          ) : pins.length === 0 ? (
+            <div className="p-12 flex items-center justify-center">
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                  <Navigation className="w-6 h-6 text-muted-foreground" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-medium text-foreground">No hazard sites recorded</p>
+                  <p className="text-xs text-muted-foreground mt-1">Pin flood-prone areas, landslide zones, and other risks on the map.</p>
+                </div>
+                <button onClick={openCreatePin} className="px-4 py-2 text-xs font-semibold rounded-lg text-white" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>
+                  + Add First Hazard Site
+                </button>
+              </div>
+            </div>
+          ) : (
+            <table className="w-full">
+              <thead className="border-b border-border">
+                <tr>
+                  {["Name / Type", "Severity", "Status", "Coordinates", ""].map((h) => (
+                    <th key={h} className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {pins.map((pin) => (
+                  <tr key={pin.id} className="hover:bg-muted/30 transition-colors">
+                    <td className="px-4 py-3">
+                      <p className="text-sm font-semibold text-foreground">{pin.name || pin.hazard_type}</p>
+                      <p className="text-[11px] text-muted-foreground">{pin.hazard_type}</p>
+                    </td>
+                    <td className="px-4 py-3"><SeverityBadge severity={pin.severity} /></td>
+                    <td className="px-4 py-3"><StatusBadge status={pin.status === "active" ? "active" : pin.status === "resolved" ? "inactive" : "pending"} /></td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground font-mono">{pin.latitude}, {pin.longitude}</td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="relative inline-block" onClick={(ev) => ev.stopPropagation()}>
+                        <button onClick={() => setPinActionMenu(pinActionMenu === pin.id ? null : pin.id)} className="p-1.5 rounded hover:bg-muted">
+                          <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                        </button>
+                        {pinActionMenu === pin.id && (
+                          <div className="absolute right-0 top-8 z-20 w-36 glass rounded-lg shadow-lg py-1">
+                            <button onClick={() => openEditPin(pin)} className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2"><Edit className="h-3.5 w-3.5" /> Edit</button>
+                            <button onClick={() => { setSelectedPin(pin); setShowDeletePin(true); setPinActionMenu(null); }} className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-muted flex items-center gap-2"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
 
-      {/* Create/Edit Modal */}
-      <Modal open={showCreate || showEdit} onClose={() => { setShowCreate(false); setShowEdit(false); setSelectedEvac(null); }}
-        title={showEdit ? "Edit Evacuation Event" : "Log Evacuation Event"} size="lg"
+      {/* ── Families Tab ── */}
+      {activeTab === "families" && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <label className="text-sm font-medium text-foreground whitespace-nowrap">Select Evacuation:</label>
+            <select value={familiesEvacId}
+              onChange={(e) => { setFamiliesEvacId(e.target.value); fetchFamilies(e.target.value); }}
+              className="flex-1 max-w-sm px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring">
+              <option value="">— Select an evacuation event —</option>
+              {evacuations.map((e) => <option key={e.id} value={e.id}>{e.evacuation_name} ({e.start_date})</option>)}
+            </select>
+          </div>
+          {!familiesEvacId ? (
+            <div className="p-12 rounded-xl glass flex items-center justify-center">
+              <div className="text-center">
+                <Users className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground">Select an evacuation event above to view families</p>
+              </div>
+            </div>
+          ) : familiesLoading ? (
+            <div className="p-12 rounded-xl glass flex items-center justify-center">
+              <div className="flex items-center gap-3 text-muted-foreground">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span className="text-sm">Loading families...</span>
+              </div>
+            </div>
+          ) : families.length === 0 ? (
+            <div className="p-12 rounded-xl glass flex items-center justify-center">
+              <div className="text-center">
+                <p className="text-sm font-medium text-foreground">No family records for this event</p>
+                <p className="text-xs text-muted-foreground mt-1">Family intake records will appear here once logged.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-xl glass overflow-hidden">
+              <table className="w-full">
+                <thead className="border-b border-border">
+                  <tr>
+                    {["Family Head", "Members", "Special Needs", "Relief Received"].map((h) => (
+                      <th key={h} className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {families.map((fam) => (
+                    <tr key={fam.id} className="hover:bg-muted/30 transition-colors">
+                      <td className="px-4 py-3 text-sm font-medium text-foreground">{fam.head_name}</td>
+                      <td className="px-4 py-3 text-sm text-foreground">{fam.member_count}</td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">{fam.special_needs || "—"}</td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">
+                        {fam.relief_received && fam.relief_received.length > 0
+                          ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400">{fam.relief_received.length} item(s)</span>
+                          : "None"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="px-4 py-3 border-t border-border flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">{families.length} families · {families.reduce((s, f) => s + f.member_count, 0)} total members</p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Evacuation CRUD Modals ── */}
+      <Modal open={showCreateEvac || showEditEvac} onClose={() => { setShowCreateEvac(false); setShowEditEvac(false); setSelectedEvac(null); }}
+        title={showEditEvac ? "Edit Evacuation Event" : "Log Evacuation Event"} size="lg"
         footer={<>
-          <ModalButton variant="secondary" onClick={() => { setShowCreate(false); setShowEdit(false); setSelectedEvac(null); }}>Cancel</ModalButton>
-          {formTab > 0 && <ModalButton variant="secondary" onClick={() => setFormTab((t) => t - 1)}>Previous</ModalButton>}
-          {formTab < formTabs.length - 1
-            ? <ModalButton variant="primary" onClick={() => setFormTab((t) => t + 1)}>Next</ModalButton>
-            : <ModalButton variant="primary" onClick={handleSubmit} disabled={formLoading}>{formLoading ? "Saving..." : showEdit ? "Update" : "Save"}</ModalButton>}
+          <ModalButton variant="secondary" onClick={() => { setShowCreateEvac(false); setShowEditEvac(false); setSelectedEvac(null); }}>Cancel</ModalButton>
+          {evacFormTab > 0 && <ModalButton variant="secondary" onClick={() => setEvacFormTab((t) => t - 1)}>Previous</ModalButton>}
+          {evacFormTab < EVAC_FORM_TABS.length - 1
+            ? <ModalButton variant="primary" onClick={() => setEvacFormTab((t) => t + 1)}>Next</ModalButton>
+            : <ModalButton variant="primary" onClick={handleEvacSubmit} disabled={evacFormLoading}>{evacFormLoading ? "Saving..." : showEditEvac ? "Update" : "Save"}</ModalButton>}
         </>}>
         <div className="flex border-b border-border mb-6">
-          {formTabs.map((tab, i) => (
-            <button key={tab} onClick={() => setFormTab(i)}
-              className={cn("px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors", formTab === i ? "border-accent-primary text-accent-text" : "border-transparent text-muted-foreground hover:text-foreground")}>
+          {EVAC_FORM_TABS.map((tab, i) => (
+            <button key={tab} onClick={() => setEvacFormTab(i)}
+              className={cn("px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors", evacFormTab === i ? "border-accent-primary text-accent-text" : "border-transparent text-muted-foreground hover:text-foreground")}>
               {tab}
             </button>
           ))}
         </div>
-        {formTab === 0 && (
+        {evacFormTab === 0 && (
           <div className="grid grid-cols-2 gap-4">
-            <FormSelect label="Cause Type" name="cause_type" value={form.cause_type || ""}
-              options={["", "Typhoon", "Flood", "Earthquake", "Fire", "Landslide", "Volcanic Activity", "Drought", "Epidemic", "Others"]}
-              required error={formErrors.cause_type} onChange={handleFieldChange} />
-            <FormInput label="Event Name" name="evacuation_name" value={form.evacuation_name || ""} placeholder="e.g. Typhoon Aghon" required error={formErrors.evacuation_name} onChange={handleFieldChange} />
-            <FormInput label="Start Date" name="start_date" value={form.start_date || ""} type="date" required error={formErrors.start_date} onChange={handleFieldChange} />
-            <FormInput label="End Date" name="end_date" value={form.end_date || ""} type="date" onChange={handleFieldChange} />
+            <FormSelect label="Cause Type" name="cause_type" value={evacForm.cause_type || ""}
+              options={CAUSE_TYPES.map((c) => ({ value: c, label: c || "— Select —" }))}
+              required error={evacFormErrors.cause_type} onChange={handleEvacField} />
+            <FormInput label="Event Name" name="evacuation_name" value={evacForm.evacuation_name || ""} placeholder="e.g. Typhoon Aghon" required error={evacFormErrors.evacuation_name} onChange={handleEvacField} />
+            <FormInput label="Start Date" name="start_date" value={evacForm.start_date || ""} type="date" required error={evacFormErrors.start_date} onChange={handleEvacField} />
+            <FormInput label="End Date" name="end_date" value={evacForm.end_date || ""} type="date" onChange={handleEvacField} />
           </div>
         )}
-        {formTab === 1 && (
+        {evacFormTab === 1 && (
           <div className="grid grid-cols-2 gap-4">
-            <FormInput label="Families Affected" name="family_count" value={form.family_count || ""} placeholder="e.g. 45" type="number" onChange={handleFieldChange} />
-            <FormInput label="Evacuees" name="evacuee_count" value={form.evacuee_count || ""} placeholder="e.g. 180" type="number" onChange={handleFieldChange} />
+            <FormInput label="Families Affected" name="family_count" value={evacForm.family_count || ""} placeholder="e.g. 45" type="number" onChange={handleEvacField} />
+            <FormInput label="Evacuees" name="evacuee_count" value={evacForm.evacuee_count || ""} placeholder="e.g. 180" type="number" onChange={handleEvacField} />
           </div>
         )}
-        {formTab === 2 && (
+        {evacFormTab === 2 && (
           <div className="grid grid-cols-2 gap-4">
-            <FormInput label="Evacuation Center" name="evacuation_center" value={form.evacuation_center || ""} placeholder="e.g. Barangay Covered Court" required error={formErrors.evacuation_center} onChange={handleFieldChange} />
-            <FormSelect label="Status" name="status" value={form.status || ""}
-              options={["", "active", "standby", "closed"]} required error={formErrors.status} onChange={handleFieldChange} />
-            <FormTextarea label="Remarks" name="remarks" value={form.remarks || ""} placeholder="Additional notes..." onChange={handleFieldChange} />
+            <FormInput label="Evacuation Center" name="evacuation_center" value={evacForm.evacuation_center || ""} placeholder="e.g. Barangay Covered Court" required error={evacFormErrors.evacuation_center} onChange={handleEvacField} />
+            <FormSelect label="Status" name="status" value={evacForm.status || ""}
+              options={[{ value: "", label: "— Select —" }, { value: "active", label: "Active" }, { value: "standby", label: "Standby" }, { value: "closed", label: "Closed" }]}
+              required error={evacFormErrors.status} onChange={handleEvacField} />
+            <FormTextarea label="Remarks" name="remarks" value={evacForm.remarks || ""} placeholder="Additional notes..." onChange={handleEvacField} />
           </div>
         )}
       </Modal>
 
-      {/* Delete Modal */}
-      <Modal open={showDelete} onClose={() => { setShowDelete(false); setSelectedEvac(null); }} title="Confirm Delete" description="This action cannot be undone." size="sm"
+      <Modal open={showDeleteEvac} onClose={() => { setShowDeleteEvac(false); setSelectedEvac(null); }} title="Confirm Delete" size="sm"
         footer={<>
-          <ModalButton variant="secondary" onClick={() => { setShowDelete(false); setSelectedEvac(null); }}>Cancel</ModalButton>
-          <ModalButton variant="danger" onClick={handleDelete} disabled={formLoading}>{formLoading ? "Deleting..." : "Delete"}</ModalButton>
+          <ModalButton variant="secondary" onClick={() => { setShowDeleteEvac(false); setSelectedEvac(null); }}>Cancel</ModalButton>
+          <ModalButton variant="danger" onClick={handleEvacDelete} disabled={evacFormLoading}>{evacFormLoading ? "Deleting..." : "Delete"}</ModalButton>
         </>}>
-        <p className="text-sm text-muted-foreground">Are you sure you want to delete <span className="font-semibold text-foreground">{selectedEvac?.evacuation_name}</span>? This event record will be permanently removed.</p>
+        <p className="text-sm text-muted-foreground">Delete <span className="font-semibold text-foreground">{selectedEvac?.evacuation_name}</span>? This cannot be undone.</p>
+      </Modal>
+
+      {/* ── Hazard Pin CRUD Modals ── */}
+      <Modal open={showCreatePin || showEditPin} onClose={() => { setShowCreatePin(false); setShowEditPin(false); setSelectedPin(null); }}
+        title={showEditPin ? "Edit Hazard Site" : "Add Hazard Site"} size="md"
+        footer={<>
+          <ModalButton variant="secondary" onClick={() => { setShowCreatePin(false); setShowEditPin(false); setSelectedPin(null); }}>Cancel</ModalButton>
+          <ModalButton variant="primary" onClick={handlePinSubmit} disabled={pinFormLoading}>{pinFormLoading ? "Saving..." : "Save"}</ModalButton>
+        </>}>
+        <div className="grid grid-cols-2 gap-4">
+          <FormSelect label="Hazard Type" name="hazard_type" value={pinForm.hazard_type || ""}
+            options={HAZARD_TYPES.map((t) => ({ value: t, label: t || "— Select —" }))}
+            required error={pinFormErrors.hazard_type} onChange={handlePinField} />
+          <FormInput label="Name / Label" name="name" value={pinForm.name || ""} placeholder="e.g. Estero ng Tambo" onChange={handlePinField} />
+          <FormInput label="Latitude" name="latitude" value={pinForm.latitude || ""} placeholder="e.g. 14.4793" type="number" required error={pinFormErrors.latitude} onChange={handlePinField} />
+          <FormInput label="Longitude" name="longitude" value={pinForm.longitude || ""} placeholder="e.g. 121.0198" type="number" required error={pinFormErrors.longitude} onChange={handlePinField} />
+          <FormSelect label="Severity" name="severity" value={pinForm.severity || "medium"}
+            options={[
+              { value: "low", label: "Low" }, { value: "medium", label: "Medium" },
+              { value: "high", label: "High" }, { value: "critical", label: "Critical" },
+            ]} onChange={handlePinField} />
+          <FormSelect label="Status" name="status" value={pinForm.status || "active"}
+            options={[
+              { value: "active", label: "Active" }, { value: "monitoring", label: "Monitoring" },
+              { value: "resolved", label: "Resolved" },
+            ]} onChange={handlePinField} />
+          <FormTextarea label="Description" name="description" value={pinForm.description || ""} placeholder="Describe the hazard and area affected..." onChange={handlePinField} />
+        </div>
+      </Modal>
+
+      <Modal open={showDeletePin} onClose={() => { setShowDeletePin(false); setSelectedPin(null); }} title="Confirm Delete" size="sm"
+        footer={<>
+          <ModalButton variant="secondary" onClick={() => { setShowDeletePin(false); setSelectedPin(null); }}>Cancel</ModalButton>
+          <ModalButton variant="danger" onClick={handlePinDelete} disabled={pinFormLoading}>{pinFormLoading ? "Deleting..." : "Delete"}</ModalButton>
+        </>}>
+        <p className="text-sm text-muted-foreground">Remove <span className="font-semibold text-foreground">{selectedPin?.name || selectedPin?.hazard_type}</span> from the hazard map? This cannot be undone.</p>
       </Modal>
 
       {/* Toasts */}
@@ -459,10 +783,9 @@ export default function DisasterPage() {
                 {toast.message && <p className={cn("text-xs mt-0.5",
                   toast.type === "success" && "text-emerald-700 dark:text-emerald-300",
                   toast.type === "error" && "text-red-700 dark:text-red-300",
-                  toast.type === "info" && "text-blue-700 dark:text-blue-300",
                 )}>{toast.message}</p>}
               </div>
-              <button onClick={() => setToasts((p) => p.filter((t) => t.id !== toast.id))} className="shrink-0 p-0.5 rounded hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
+              <button onClick={() => setToasts((p) => p.filter((t) => t.id !== toast.id))} className="shrink-0 p-0.5 rounded hover:bg-black/5 dark:hover:bg-white/10">
                 <X className="w-3.5 h-3.5 text-muted-foreground" />
               </button>
             </div>
@@ -470,7 +793,7 @@ export default function DisasterPage() {
         </div>
       )}
 
-      <MabiniButton pageContext="You are on the Disaster Risk Reduction Management (DRRM) page. This page manages evacuation events, disaster response records, and emergency preparedness tracking." />
+      <MabiniButton pageContext="You are on the Disaster Risk Reduction Management (DRRM) page. This page manages evacuation events, hazard sites, evacuation family records, and emergency preparedness tracking." />
     </div>
   );
 }
