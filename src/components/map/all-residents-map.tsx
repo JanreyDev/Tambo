@@ -137,17 +137,30 @@ export default function AllResidentsMap({
         icon: makePin(r.status, isSelected),
       });
       marker.bindPopup(
-        `<div style="font-size:12px;line-height:1.5;min-width:160px;">
-          <p style="font-weight:700;margin:0 0 2px;">${r.full_name}</p>
-          <p style="margin:0;color:#64748b;">${r.resident_number}</p>
-          ${r.purok ? `<p style="margin:2px 0 0;color:#475569;">${r.purok}</p>` : ""}
-          <p style="margin:4px 0 0;"><span style="
-            display:inline-block;padding:1px 7px;border-radius:9999px;font-size:10px;font-weight:600;
-            background:${STATUS_COLOR[r.status ?? ""] ?? "#3b82f6"}22;
-            color:${STATUS_COLOR[r.status ?? ""] ?? "#3b82f6"};
-          ">${r.status ?? "unknown"}</span></p>
+        `<div style="font-size:12px;line-height:1.5;min-width:180px;">
+          <p style="font-weight:700;margin:0 0 2px;font-size:13px;">${r.full_name}</p>
+          <p style="margin:0;color:#64748b;font-family:monospace;font-size:10px;">${r.resident_number}</p>
+          ${r.purok ? `<p style="margin:3px 0 0;color:#475569;font-size:11px;">${r.purok}</p>` : ""}
+          <div style="display:flex;align-items:center;gap:6px;margin:6px 0 0;">
+            <span style="
+              display:inline-block;padding:2px 8px;border-radius:9999px;font-size:10px;font-weight:600;
+              background:${STATUS_COLOR[r.status ?? ""] ?? "#3b82f6"}22;
+              color:${STATUS_COLOR[r.status ?? ""] ?? "#3b82f6"};
+              text-transform:capitalize;
+            ">${r.status ?? "unknown"}</span>
+            ${r.sex ? `<span style="font-size:10px;color:#94a3b8;">${r.sex === "M" ? "Male" : "Female"}</span>` : ""}
+          </div>
+          <a href="/dashboard/residents/${r.id}" style="
+            display:flex;align-items:center;justify-content:center;gap:4px;
+            margin:8px 0 0;padding:6px 12px;border-radius:8px;
+            background:var(--accent-primary, #3b82f6);color:#fff;
+            font-size:11px;font-weight:600;text-decoration:none;
+            transition:opacity 0.15s;
+          " onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+            View Profile
+          </a>
         </div>`,
-        { maxWidth: 220, className: "resident-popup" }
+        { maxWidth: 240, className: "resident-popup" }
       );
       marker.on("click", () => {
         onSelectRef.current?.(r);
