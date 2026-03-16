@@ -7,6 +7,7 @@ namespace App\Models\Tenant;
 use App\Enums\CivilStatus;
 use App\Enums\ResidentStatus;
 use App\Models\Admin\File;
+use App\Models\Tenant\Judicial;
 use App\Models\Tenant\Records\Household;
 use App\Models\Tenant\Records\ResidentSectoralTag;
 use App\Traits\BelongsToBarangay;
@@ -191,6 +192,21 @@ class Resident extends Model
     public function crossBarangayFlags(): HasMany
     {
         return $this->hasMany(Records\ResidentCrossBarangayFlag::class);
+    }
+
+    public function blotterRecordsAsComplainant(): HasMany
+    {
+        return $this->hasMany(Judicial\BlotterRecord::class, 'complainant_resident_id');
+    }
+
+    public function blotterRecordsAsRespondent(): HasMany
+    {
+        return $this->hasMany(Judicial\BlotterRecord::class, 'respondent_resident_id');
+    }
+
+    public function kpCaseParties(): HasMany
+    {
+        return $this->hasMany(Judicial\KpCaseParty::class);
     }
 
     public function photoFile(): BelongsTo

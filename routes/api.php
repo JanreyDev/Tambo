@@ -38,6 +38,7 @@ use App\Http\Controllers\Api\V1\Tenant\KpCaseHearingController;
 use App\Http\Controllers\Api\V1\Tenant\KpCasePartyController;
 use App\Http\Controllers\Api\V1\Tenant\LotBuildingController;
 use App\Http\Controllers\Api\V1\Tenant\MapController;
+use App\Http\Controllers\Api\V1\Tenant\VoterController;
 use App\Http\Controllers\Api\V1\Tenant\OfficialController;
 use App\Http\Controllers\Api\V1\Tenant\PaymentController;
 use App\Http\Controllers\Api\V1\Tenant\PettyCashVoucherController;
@@ -201,6 +202,13 @@ Route::prefix('v1')->group(function () {
             Route::get('files/{id}/url', [FileController::class, 'url']);
             Route::delete('files/{id}', [FileController::class, 'destroy']);
 
+            // ── Voters ──
+            Route::get('voters/stats', [VoterController::class, 'stats']);
+            Route::get('voters/precincts', [VoterController::class, 'precincts']);
+            Route::post('voters/preview', [VoterController::class, 'preview']);
+            Route::post('voters/import', [VoterController::class, 'import']);
+            Route::apiResource('voters', VoterController::class)->only(['index']);
+
             // ── Records ──
             Route::post('residents/check-duplicate', [ResidentController::class, 'checkDuplicate']);
             Route::get('residents/export', [ResidentController::class, 'export']);
@@ -210,6 +218,9 @@ Route::prefix('v1')->group(function () {
             Route::delete('residents/import/batches/{batchId}', [ResidentController::class, 'rollbackImport']);
             Route::get('residents/{resident}/activity', [ResidentController::class, 'activity']);
             Route::get('residents/{resident}/print', [ResidentController::class, 'printRecord']);
+            Route::post('residents/{resident}/sms', [ResidentController::class, 'sendSms'])
+                ->middleware('throttle:10,1'); // 10 SMS per minute per user
+            Route::get('residents/{resident}/sms-history', [ResidentController::class, 'smsHistory']);
             Route::apiResource('residents', ResidentController::class);
 
             // ── Map ──
@@ -217,7 +228,23 @@ Route::prefix('v1')->group(function () {
                 Route::get('residents', [MapController::class, 'residents']);
                 Route::get('stats', [MapController::class, 'stats']);
             });
+            Route::get('establishments/stats', [EstablishmentController::class, 'stats']);
+            Route::post('establishments/check-duplicate', [EstablishmentController::class, 'checkDuplicate']);
+            Route::post('establishments/{id}/permit', [EstablishmentController::class, 'permit']);
+            Route::post('establishments/{id}/renew', [EstablishmentController::class, 'renew']);
+            Route::post('establishments/{id}/close', [EstablishmentController::class, 'close']);
+            Route::get('establishments/{id}/transactions', [EstablishmentController::class, 'transactions']);
+            Route::post('establishments/{id}/sms', [EstablishmentController::class, 'sendSms']);
+            Route::get('establishments/{id}/sms-history', [EstablishmentController::class, 'smsHistory']);
+            Route::get('establishments/{id}/activity', [EstablishmentController::class, 'activity']);
             Route::apiResource('establishments', EstablishmentController::class);
+            Route::get('lots-buildings/stats', [LotBuildingController::class, 'stats']);
+            Route::post('lots-buildings/check-duplicate', [LotBuildingController::class, 'checkDuplicate']);
+            Route::post('lots-buildings/{id}/clearance', [LotBuildingController::class, 'clearance']);
+            Route::get('lots-buildings/{id}/transactions', [LotBuildingController::class, 'transactions']);
+            Route::post('lots-buildings/{id}/sms', [LotBuildingController::class, 'sendSms']);
+            Route::get('lots-buildings/{id}/sms-history', [LotBuildingController::class, 'smsHistory']);
+            Route::get('lots-buildings/{id}/activity', [LotBuildingController::class, 'activity']);
             Route::apiResource('lots-buildings', LotBuildingController::class);
             Route::apiResource('households', HouseholdController::class);
 
@@ -229,7 +256,11 @@ Route::prefix('v1')->group(function () {
 
             // ── Documents ──
             Route::apiResource('document-templates', DocumentTemplateController::class);
+            Route::get('issued-documents/stats', [IssuedDocumentController::class, 'stats']);
+            Route::post('issued-documents/ai-fill', [IssuedDocumentController::class, 'aiFill']);
             Route::apiResource('issued-documents', IssuedDocumentController::class);
+            Route::get('issued-documents/{id}/pdf', [IssuedDocumentController::class, 'downloadPdf']);
+            Route::post('issued-documents/{id}/regenerate', [IssuedDocumentController::class, 'regeneratePdf']);
             Route::apiResource('document-routes', DocumentRouteController::class);
 
             // ── Judicial ──

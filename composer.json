@@ -19,6 +19,7 @@
         "meilisearch/meilisearch-php": "^1.16",
         "pragmarx/google2fa": "^9.0",
         "sentry/sentry-laravel": "^4.21",
+        "smalot/pdfparser": "^2.12",
         "spatie/laravel-permission": "^7.2"
     },
     "require-dev": {

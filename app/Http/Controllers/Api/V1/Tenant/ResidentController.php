@@ -10,9 +10,12 @@ use App\Models\Platform\AuditLog;
 use App\Models\Tenant\Documents\IssuedDocument;
 use App\Models\Tenant\Records\Household;
 use App\Models\Tenant\Records\ImportBatch;
+use App\Models\Tenant\Judicial\BlotterRecord;
+use App\Models\Tenant\Judicial\KpCaseParty;
 use App\Models\Tenant\Records\ResidentCrossBarangayFlag;
 use App\Models\Tenant\Records\ResidentSectoralTag;
 use App\Models\Tenant\Resident;
+use App\Models\Tenant\Voter;
 use App\Services\FileUploadService;
 use App\Services\ResidentPdfService;
 use App\Services\SmsService;
@@ -39,7 +42,12 @@ class ResidentController extends Controller
         $barangayId = $request->user()->barangay_id;
 
         $query = Resident::where('barangay_id', $barangayId)
-            ->with(['sectoralTags', 'crossBarangayFlags', 'photoFile']);
+            ->with(['sectoralTags', 'crossBarangayFlags', 'photoFile'])
+            ->withCount([
+                'blotterRecordsAsComplainant as blotter_complainant_count',
+                'blotterRecordsAsRespondent as blotter_respondent_count',
+                'kpCaseParties as kp_case_count',
+            ]);
 
         // Search
         if ($search = $request->get('search')) {
@@ -111,10 +119,36 @@ class ResidentController extends Controller
         $perPage = min((int) $request->get('per_page', 25), 100);
         $residents = $query->paginate($perPage);
 
-        $residents->getCollection()->transform(function ($resident) {
+        // Pre-load barangay names for cross-barangay flags
+        $crossBarangayIds = $residents->getCollection()
+            ->flatMap(fn ($r) => $r->crossBarangayFlags->pluck('other_barangay_id'))
+            ->unique()
+            ->values();
+        $barangayNames = $crossBarangayIds->isNotEmpty()
+            ? Barangay::whereIn('id', $crossBarangayIds)->pluck('name', 'id')
+            : collect();
+
+        $residents->getCollection()->transform(function ($resident) use ($barangayNames) {
             $resident->photo_url = $resident->photoFile?->is_public
                 ? $this->fileUploadService->getPublicUrl($resident->photoFile)
                 : null;
+
+            // Format cross-barangay flags with barangay name
+            $resident->cross_barangay_flags = $resident->crossBarangayFlags
+                ->map(fn ($flag) => [
+                    'id' => $flag->id,
+                    'barangay_name' => $barangayNames->get($flag->other_barangay_id, 'Unknown Barangay'),
+                    'detected_at' => $flag->detected_at?->toDateString(),
+                    'acknowledged_at' => $flag->acknowledged_at?->toDateString(),
+                ])
+                ->values()
+                ->all();
+
+            // Build case_records flag array for red flag indicator
+            $caseCount = ($resident->blotter_complainant_count ?? 0)
+                + ($resident->blotter_respondent_count ?? 0)
+                + ($resident->kp_case_count ?? 0);
+            $resident->case_records = $caseCount > 0 ? array_fill(0, $caseCount, true) : [];
 
             return $resident;
         });
@@ -192,13 +226,24 @@ class ResidentController extends Controller
             ], 422);
         }
 
-        // Check for same-barangay duplicate (exact match = block)
-        $exactDuplicate = Resident::where('barangay_id', $barangayId)
+        // Check for same-barangay duplicate (fname + lname + dob match = block)
+        // If middle_name is provided on both sides, require it to also match.
+        $dupQuery = Resident::where('barangay_id', $barangayId)
             ->whereRaw('LOWER(first_name) = ?', [mb_strtolower(trim($validated['first_name']))])
             ->whereRaw('LOWER(last_name) = ?', [mb_strtolower(trim($validated['last_name']))])
             ->where('date_of_birth', $validated['date_of_birth'])
-            ->whereNull('deleted_at')
-            ->exists();
+            ->whereNull('deleted_at');
+
+        $incomingMiddle = mb_strtolower(trim($validated['middle_name'] ?? ''));
+        if ($incomingMiddle !== '') {
+            $dupQuery->where(function ($q) use ($incomingMiddle) {
+                $q->whereRaw('LOWER(COALESCE(middle_name, \'\')) = ?', [$incomingMiddle])
+                  ->orWhereNull('middle_name')
+                  ->orWhereRaw('middle_name = \'\'');
+            });
+        }
+
+        $exactDuplicate = $dupQuery->exists();
 
         if ($exactDuplicate) {
             return response()->json([
@@ -306,6 +351,12 @@ class ResidentController extends Controller
 
             // Cross-barangay duplicate detection (gray flag)
             $this->detectCrossBarangayDuplicates($resident);
+
+            // Auto-link voter record if name matches (sets is_voter + precinct)
+            $this->autoLinkVoter($resident);
+
+            // Auto-link cases where name matches (sets red flag source)
+            $this->autoLinkCases($resident);
 
             Log::info('Resident created', [
                 'resident_id' => $resident->id,
@@ -643,6 +694,82 @@ class ResidentController extends Controller
                     'detected_at' => now(),
                 ]
             );
+        }
+    }
+
+    /**
+     * Auto-link voter record on new resident registration.
+     * If a voter with matching last_name + first_name exists (same barangay, not yet linked),
+     * link it and mark the resident as a registered voter.
+     */
+    private function autoLinkVoter(Resident $resident): void
+    {
+        if (! $resident->first_name || ! $resident->last_name) {
+            return;
+        }
+
+        $voter = Voter::where('barangay_id', $resident->barangay_id)
+            ->whereNull('resident_id')
+            ->whereRaw('LOWER(last_name) = LOWER(?)', [$resident->last_name])
+            ->whereRaw('LOWER(first_name) = LOWER(?)', [$resident->first_name])
+            ->first();
+
+        if ($voter) {
+            $voter->update(['resident_id' => $resident->id]);
+            $resident->update([
+                'is_voter' => true,
+                'voter_precinct_number' => $voter->precinct_number,
+            ]);
+
+            Log::info('Voter auto-linked on resident registration', [
+                'resident_id' => $resident->id,
+                'voter_id' => $voter->id,
+                'precinct' => $voter->precinct_number,
+            ]);
+        }
+    }
+
+    /**
+     * Auto-link existing case records (blotter, KP) on new resident registration.
+     * Updates unlinked records where the complainant/respondent/party name matches.
+     */
+    private function autoLinkCases(Resident $resident): void
+    {
+        if (! $resident->first_name || ! $resident->last_name) {
+            return;
+        }
+
+        $firstName = $resident->first_name;
+        $lastName = $resident->last_name;
+
+        // Blotter — complainant
+        $blotterComplainant = BlotterRecord::where('barangay_id', $resident->barangay_id)
+            ->whereNull('complainant_resident_id')
+            ->whereRaw('LOWER(complainant_name) LIKE LOWER(?)', ["%{$lastName}%"])
+            ->whereRaw('LOWER(complainant_name) LIKE LOWER(?)', ["%{$firstName}%"])
+            ->update(['complainant_resident_id' => $resident->id]);
+
+        // Blotter — respondent
+        $blotterRespondent = BlotterRecord::where('barangay_id', $resident->barangay_id)
+            ->whereNull('respondent_resident_id')
+            ->whereRaw('LOWER(respondent_name) LIKE LOWER(?)', ["%{$lastName}%"])
+            ->whereRaw('LOWER(respondent_name) LIKE LOWER(?)', ["%{$firstName}%"])
+            ->update(['respondent_resident_id' => $resident->id]);
+
+        // KP case parties
+        $kpParties = KpCaseParty::where('barangay_id', $resident->barangay_id)
+            ->whereNull('resident_id')
+            ->whereRaw('LOWER(full_name) LIKE LOWER(?)', ["%{$lastName}%"])
+            ->whereRaw('LOWER(full_name) LIKE LOWER(?)', ["%{$firstName}%"])
+            ->update(['resident_id' => $resident->id]);
+
+        if ($blotterComplainant + $blotterRespondent + $kpParties > 0) {
+            Log::info('Cases auto-linked on resident registration', [
+                'resident_id' => $resident->id,
+                'blotter_complainant' => $blotterComplainant,
+                'blotter_respondent' => $blotterRespondent,
+                'kp_parties' => $kpParties,
+            ]);
         }
     }
 
@@ -1310,6 +1437,95 @@ class ResidentController extends Controller
             'Content-Disposition' => 'inline; filename="'.$filename.'"',
             'Cache-Control' => 'no-store, no-cache',
         ]);
+    }
+
+    /**
+     * Send an SMS to a specific resident via TxtBox.
+     * Validates credits, sends, logs to sms_transactions, records audit trail.
+     *
+     * POST /api/v1/residents/{resident}/sms
+     */
+    public function sendSms(Request $request, string $id): JsonResponse
+    {
+        $resident = Resident::where('barangay_id', $request->user()->barangay_id)
+            ->findOrFail($id);
+
+        if (empty($resident->mobile_number)) {
+            return response()->json([
+                'message' => 'This resident has no registered mobile number.',
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'message' => ['required', 'string', 'max:636'], // max 4 segments
+        ]);
+
+        $userMessage = trim($validated['message']);
+        $barangay = $request->user()->barangay;
+
+        // Prepend barangay sender header so recipient knows who sent it
+        $message = SmsService::formatWithSenderHeader($userMessage, $barangay);
+        $cost = SmsService::calculateCost($message);
+        $segments = SmsService::calculateSegments($message);
+
+        if (! $barangay->hasSmsCredits($cost)) {
+            return response()->json([
+                'message' => 'Insufficient SMS credits. Balance: ₱'.number_format((float) $barangay->sms_credit_balance, 2).', required: ₱'.number_format($cost, 2).'.',
+            ], 422);
+        }
+
+        $sent = $this->smsService->send(
+            phone: $resident->mobile_number,
+            message: $message,
+            barangay: $barangay,
+            source: 'resident_sms',
+            sourceId: $resident->id,
+        );
+
+        // Always log to audit so it appears in the Activity tab
+        $this->logAudit($request, 'sms_sent', $resident, [
+            'segments' => $segments,
+            'cost' => $cost,
+            'status' => $sent ? 'sent' : 'failed',
+            'phone_masked' => substr($resident->mobile_number, 0, 4).'****'.substr($resident->mobile_number, -2),
+        ]);
+
+        if (! $sent) {
+            return response()->json([
+                'message' => 'SMS failed to send. Check TxtBox configuration or credits and try again.',
+            ], 500);
+        }
+
+        $barangay->refresh();
+
+        return response()->json([
+            'message' => 'SMS sent successfully.',
+            'segments' => $segments,
+            'cost' => $cost,
+            'remaining_balance' => (float) $barangay->sms_credit_balance,
+        ]);
+    }
+
+    /**
+     * Get SMS history for a specific resident.
+     * Returns paginated sms_transactions where source = resident_sms and source_id = resident.id
+     *
+     * GET /api/v1/residents/{resident}/sms-history
+     */
+    public function smsHistory(Request $request, string $id): JsonResponse
+    {
+        $resident = Resident::where('barangay_id', $request->user()->barangay_id)
+            ->findOrFail($id);
+
+        $perPage = min((int) $request->get('per_page', 20), 50);
+
+        $logs = \App\Models\Platform\SmsTransaction::where('barangay_id', $request->user()->barangay_id)
+            ->where('source', 'resident_sms')
+            ->where('source_id', $resident->id)
+            ->orderByDesc('created_at')
+            ->paginate($perPage);
+
+        return response()->json($logs);
     }
 
     private function logAudit(Request $request, string $action, Resident $resident, ?array $changes = null): void
