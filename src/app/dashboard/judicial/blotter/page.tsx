@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   Gavel,
   Plus,
   Search,
   Filter,
-  Download,
+  FileBarChart,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
@@ -27,78 +27,73 @@ import {
   Printer,
   RefreshCw,
   Bot,
+  CheckCircle,
+  ArrowRight,
+  FileText,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
-import { Badge, StatusBadge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/stat-card";
 import { Modal, ModalButton } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
-import { CheckCircle } from "lucide-react";
-import { MabiniButton } from '@/components/ui/mabini-button';
+import { MabiniButton } from "@/components/ui/mabini-button";
+import { api } from "@/lib/api";
+import type { BlotterRecord, BlotterStats } from "@/lib/types";
 
-// ── Types ──
-interface BlotterRecord {
-  id: string;
-  blotter_number: string;
-  incident_type: string;
-  narrative: string;
-  complainant_name: string;
-  complainant_contact: string;
-  complainant_address: string;
-  respondent_name: string;
-  respondent_contact: string;
-  respondent_address: string;
-  incident_date: string;
-  incident_time: string;
-  incident_location: string;
-  incident_purok: string;
-  severity: string;
-  status: string;
-  action_taken: string;
-  recorded_by: string;
-  recorded_at: string;
-  witness_names: string;
-  evidence_notes: string;
-}
-
-const mockBlotters: BlotterRecord[] = [
-  { id: "1", blotter_number: "BLO-2026-001", incident_type: "Theft", narrative: "Complainant reported that their motorcycle (Honda Click 125i, red) was stolen from in front of their residence between 2:00 AM and 5:00 AM. No CCTV footage available.", complainant_name: "Maria Dela Cruz", complainant_contact: "0917-123-4567", complainant_address: "Purok Sampaguita, Rizal St.", respondent_name: "Unknown", respondent_contact: "", respondent_address: "Unknown", incident_date: "2026-03-06", incident_time: "05:30", incident_location: "Rizal St.", incident_purok: "Purok Sampaguita", severity: "High", status: "open", action_taken: "Forwarded to PNP Station 7", recorded_by: "Tanod Chief Garcia", recorded_at: "2026-03-06 06:00", witness_names: "", evidence_notes: "" },
-  { id: "2", blotter_number: "BLO-2026-002", incident_type: "Domestic Dispute", narrative: "Neighbors reported shouting and breaking of objects from the residence. Upon investigation, couple admitted to verbal argument over finances. No physical injuries.", complainant_name: "Neighbor (Anonymous)", complainant_contact: "", complainant_address: "Purok Rosal", respondent_name: "Juan Santos / Wife", respondent_contact: "0918-234-5678", respondent_address: "Purok Rosal, Mabini St.", incident_date: "2026-03-04", incident_time: "22:30", incident_location: "Mabini St.", incident_purok: "Purok Rosal", severity: "Medium", status: "resolved", action_taken: "Mediation conducted. Both parties signed agreement.", recorded_by: "Kag. Lopez", recorded_at: "2026-03-05 08:00", witness_names: "Rosa De Los Santos", evidence_notes: "" },
-  { id: "3", blotter_number: "BLO-2026-003", incident_type: "Physical Altercation", narrative: "Complainant was punched in the face by respondent during a basketball game argument. Visible bruising on left cheek. Medical certificate obtained.", complainant_name: "Angelo Pascual", complainant_contact: "0919-345-6789", complainant_address: "Purok Dahlia, J.P. Rizal St.", respondent_name: "Pedro Reyes", respondent_contact: "0920-456-7890", respondent_address: "Purok Dahlia, Mabini St.", incident_date: "2026-02-28", incident_time: "16:00", incident_location: "Barangay Basketball Court", incident_purok: "Purok Dahlia", severity: "High", status: "active", action_taken: "KP case filed (KP-2026-003). Respondent summoned.", recorded_by: "Secretary Santos", recorded_at: "2026-02-28 17:00", witness_names: "Mark Chavez, Roberto Manalo", evidence_notes: "Medical certificate attached" },
-  { id: "4", blotter_number: "BLO-2025-009", incident_type: "Vandalism", narrative: "Barangay Hall wall spray-painted with graffiti. CCTV captured 2 male juveniles. Identified through community cooperation.", complainant_name: "Barangay Tambo", complainant_contact: "044-123-4567", complainant_address: "Barangay Hall", respondent_name: "2 Minor Respondents", respondent_contact: "", respondent_address: "Purok Dahlia", incident_date: "2025-12-15", incident_time: "23:00", incident_location: "Barangay Hall", incident_purok: "Purok Dahlia", severity: "Medium", status: "closed", action_taken: "Parents summoned. Restitution made. Minors counseled by BCPC.", recorded_by: "Tanod Chief Garcia", recorded_at: "2025-12-16 08:00", witness_names: "", evidence_notes: "CCTV footage saved" },
+// ── Constants ──
+const INCIDENT_TYPES = [
+  "Theft", "Robbery", "Physical Injury", "Oral Defamation", "Trespassing",
+  "Property Damage", "Domestic Dispute", "Noise Complaint", "Disturbance",
+  "Harassment", "Vandalism", "Illegal Parking", "Stray Animals", "Other",
 ];
 
-const incidentTypeOptions = ["Theft", "Domestic Dispute", "Physical Altercation", "Vandalism", "Trespassing", "Disturbance", "Property Damage", "Harassment", "Noise Complaint", "Other"];
-const incidentTypes = ["All Types", ...incidentTypeOptions];
-const statusOptions = ["All Status", "Open", "Active", "Resolved", "Closed"];
-const severityOptions = ["Low", "Medium", "High"];
-const purokOptions = ["Purok Sampaguita", "Purok Rosal", "Purok Dahlia", "Purok Ilang-Ilang", "Purok Camia", "Purok Orchid", "Purok Jasmine", "Purok Santan"];
-const updateStatusOptions = ["open", "active", "resolved", "closed"];
+const STATUS_OPTIONS: { value: string; label: string; color: string }[] = [
+  { value: "filed",        label: "Filed",          color: "#64748b" },
+  { value: "for_hearing",  label: "For Hearing",    color: "#f59e0b" },
+  { value: "for_subpoena", label: "For Subpoena",   color: "#8b5cf6" },
+  { value: "settled",      label: "Settled",        color: "#22c55e" },
+  { value: "closed",       label: "Closed",         color: "#94a3b8" },
+];
 
-const emptyForm: Record<string, string> = {
-  incident_type: "", incident_date: "", incident_time: "", incident_purok: "", incident_location: "", severity: "",
-  complainant_name: "", complainant_contact: "", complainant_address: "", respondent_name: "", respondent_contact: "", respondent_address: "", respondent_unknown: "",
-  narrative: "", action_taken: "", recorded_by: "", witness_names: "", evidence_notes: "",
+const emptyForm = {
+  incident_type: "", incident_date: "", incident_time: "", incident_place: "",
+  narrative: "", resolution: "",
+  complainant_name: "", complainant_address: "", complainant_mobile: "", respondent_unknown: "",
+  respondent_name: "", respondent_address: "", respondent_mobile: "",
 };
 
-// ── Form Field Components (module-level) ──
-function FormInput({ label, value, onChange, required, type = "text", placeholder = "", disabled = false, error }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; type?: string; placeholder?: string; disabled?: boolean; error?: string }) {
+// ── Form Field Components ──
+function FormInput({ label, value, onChange, required, type = "text", placeholder = "", disabled = false, error }: {
+  label: string; value: string; onChange: (v: string) => void;
+  required?: boolean; type?: string; placeholder?: string; disabled?: boolean; error?: string;
+}) {
   return (
     <div>
-      <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} disabled={disabled}
-        className={cn("w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2", error ? "border-red-500 focus:ring-red-300" : "focus:ring-accent-ring", disabled && "opacity-50 cursor-not-allowed")} />
+      <label className="block text-xs font-medium text-muted-foreground mb-1">
+        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+      </label>
+      <input type={type} value={value} onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder} disabled={disabled}
+        className={cn("w-full px-3 py-2 text-sm rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2",
+          error ? "border-red-500 focus:ring-red-300" : "focus:ring-accent-ring",
+          disabled && "opacity-50 cursor-not-allowed")} />
       {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
     </div>
   );
 }
 
-function FormSelect({ label, value, onChange, options, required, error }: { label: string; value: string; onChange: (value: string) => void; options: string[]; required?: boolean; error?: string }) {
+function FormSelect({ label, value, onChange, options, required, error }: {
+  label: string; value: string; onChange: (v: string) => void;
+  options: string[]; required?: boolean; error?: string;
+}) {
   return (
     <div>
-      <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
+      <label className="block text-xs font-medium text-muted-foreground mb-1">
+        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+      </label>
       <select value={value} onChange={(e) => onChange(e.target.value)}
-        className={cn("w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2", error ? "border-red-500 focus:ring-red-300" : "focus:ring-accent-ring")}>
+        className={cn("w-full px-3 py-2 text-sm rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2",
+          error ? "border-red-500 focus:ring-red-300" : "focus:ring-accent-ring")}>
         <option value="">Select {label}</option>
         {options.map((o) => <option key={o} value={o}>{o}</option>)}
       </select>
@@ -107,90 +102,136 @@ function FormSelect({ label, value, onChange, options, required, error }: { labe
   );
 }
 
-function FormTextarea({ label, value, onChange, required, rows = 3, placeholder = "" }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; rows?: number; placeholder?: string }) {
+function FormTextarea({ label, value, onChange, required, rows = 3, placeholder = "" }: {
+  label: string; value: string; onChange: (v: string) => void;
+  required?: boolean; rows?: number; placeholder?: string;
+}) {
   return (
     <div>
-      <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={rows} placeholder={placeholder}
-        className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
+      <label className="block text-xs font-medium text-muted-foreground mb-1">
+        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+      </label>
+      <textarea value={value} onChange={(e) => onChange(e.target.value)}
+        rows={rows} placeholder={placeholder}
+        className="w-full px-3 py-2 text-sm rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none" />
     </div>
   );
 }
 
+function statusColor(status: string): string {
+  return STATUS_OPTIONS.find((s) => s.value === status)?.color ?? "#64748b";
+}
+
+function statusLabel(status: string): string {
+  return STATUS_OPTIONS.find((s) => s.value === status)?.label ?? status;
+}
+
+// ── Page ──
 export default function BlotterPage() {
   const router = useRouter();
-  const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState("All Types");
-  const [statusFilter, setStatusFilter] = useState("All Status");
-  const [showFilters, setShowFilters] = useState(false);
-  const [page, setPage] = useState(1);
-  const pageSize = 10;
 
-  // View modal
-  const [viewBlotter, setViewBlotter] = useState<BlotterRecord | null>(null);
+  // Data
+  const [blotters, setBlotters]   = useState<BlotterRecord[]>([]);
+  const [stats, setStats]         = useState<BlotterStats | null>(null);
+  const [loading, setLoading]     = useState(true);
+  const [total, setTotal]         = useState(0);
+  const [lastPage, setLastPage]   = useState(1);
 
-  // Record Blotter form modal
-  const [showCreate, setShowCreate] = useState(false);
-  const [showEdit, setShowEdit] = useState(false);
-  const [formTab, setFormTab] = useState(0);
-  const [form, setForm] = useState<Record<string, string>>({ ...emptyForm });
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  // Filters
+  const [search, setSearch]           = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [statusFilter, setStatusFilter]   = useState("");
+  const [typeFilter, setTypeFilter]       = useState("");
+  const [showFilters, setShowFilters]     = useState(false);
+  const [page, setPage]                   = useState(1);
+  const perPage = 15;
 
-  // Delete confirmation
-  const [showDelete, setShowDelete] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<BlotterRecord | null>(null);
-
-  // Update status modal
+  // Modals
+  const [viewBlotter, setViewBlotter]     = useState<BlotterRecord | null>(null);
+  const [showCreate, setShowCreate]       = useState(false);
+  const [showEdit, setShowEdit]           = useState(false);
+  const [editTarget, setEditTarget]       = useState<BlotterRecord | null>(null);
+  const [formTab, setFormTab]             = useState(0);
+  const [form, setForm]                   = useState({ ...emptyForm });
+  const [formErrors, setFormErrors]       = useState<Record<string, string>>({});
+  const [saving, setSaving]               = useState(false);
+  const [showDelete, setShowDelete]       = useState(false);
+  const [deleteTarget, setDeleteTarget]   = useState<BlotterRecord | null>(null);
+  const [deleting, setDeleting]           = useState(false);
   const [showUpdateStatus, setShowUpdateStatus] = useState(false);
-  const [updateTarget, setUpdateTarget] = useState<BlotterRecord | null>(null);
-  const [newStatus, setNewStatus] = useState("");
-
-  // Action menu
+  const [updateTarget, setUpdateTarget]   = useState<BlotterRecord | null>(null);
+  const [newStatus, setNewStatus]         = useState("");
+  const [updatingStatus, setUpdatingStatus] = useState(false);
   const [actionMenuOpen, setActionMenuOpen] = useState<string | null>(null);
 
-  // Toast system
-  const [toasts, setToasts] = useState<{ id: number; message: string }[]>([]);
-  const addToast = useCallback((message: string) => {
+  // Toast
+  const [toasts, setToasts] = useState<{ id: number; message: string; type?: "success" | "error" }[]>([]);
+  const addToast = useCallback((message: string, type: "success" | "error" = "success") => {
     const id = Date.now();
-    setToasts((prev) => [...prev, { id, message }]);
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3000);
   }, []);
-  const removeToast = useCallback((id: number) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
+
+  // Debounce search
   useEffect(() => {
-    if (toasts.length === 0) return;
-    const timer = setTimeout(() => { setToasts((prev) => prev.slice(1)); }, 3000);
-    return () => clearTimeout(timer);
-  }, [toasts]);
+    const t = setTimeout(() => setDebouncedSearch(search), 400);
+    return () => clearTimeout(t);
+  }, [search]);
 
-  const filtered = mockBlotters.filter((b) => {
-    if (search) {
-      const q = search.toLowerCase();
-      if (!b.blotter_number.toLowerCase().includes(q) && !b.complainant_name.toLowerCase().includes(q)
-        && !b.respondent_name.toLowerCase().includes(q) && !b.incident_type.toLowerCase().includes(q)) return false;
+  // Reset page on filter change
+  useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter, typeFilter]);
+
+  // Fetch stats
+  const fetchStats = useCallback(async () => {
+    try {
+      const res = await api.blotters.stats();
+      if (res) setStats(res);
+    } catch { /* silent */ }
+  }, []);
+
+  // Fetch blotters
+  const fetchBlotters = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api.blotters.list({
+        search: debouncedSearch || undefined,
+        status: statusFilter || undefined,
+        incident_type: typeFilter || undefined,
+        page,
+        per_page: perPage,
+      });
+      if (res) {
+        setBlotters(res.data);
+        setTotal(res.total);
+        setLastPage(res.last_page);
+      }
+    } catch {
+      addToast("Failed to load blotter records", "error");
+    } finally {
+      setLoading(false);
     }
-    if (typeFilter !== "All Types" && b.incident_type !== typeFilter) return false;
-    if (statusFilter !== "All Status" && b.status !== statusFilter.toLowerCase()) return false;
-    return true;
-  });
+  }, [debouncedSearch, statusFilter, typeFilter, page, addToast]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const safePage = Math.min(page, totalPages);
-  const start = (safePage - 1) * pageSize;
-  const paged = filtered.slice(start, start + pageSize);
+  useEffect(() => { fetchStats(); }, [fetchStats]);
+  useEffect(() => { fetchBlotters(); }, [fetchBlotters]);
 
-  const activeCount = mockBlotters.filter((b) => b.status === "open" || b.status === "active").length;
-  const resolvedCount = mockBlotters.filter((b) => b.status === "resolved" || b.status === "closed").length;
-
-  const statusColor = (status: string): string => {
-    switch (status) { case "open": return "#ef4444"; case "active": return "#f59e0b"; case "resolved": return "#22c55e"; default: return "#64748b"; }
-  };
+  // Mabini insight
+  const mabiniInsight = useMemo(() => {
+    if (!stats) return "Loading blotter analysis...";
+    if (stats.total === 0) return "No blotter records yet. Record incidents as they are reported to the barangay.";
+    const parts: string[] = [];
+    if (stats.active > 0) parts.push(`${stats.active} active case(s) pending resolution.`);
+    if (stats.for_hearing > 0) parts.push(`${stats.for_hearing} set for hearing.`);
+    if (stats.for_subpoena > 0) parts.push(`${stats.for_subpoena} awaiting subpoena.`);
+    if (stats.this_month > 0) parts.push(`${stats.this_month} recorded this month.`);
+    if (parts.length === 0) return `${stats.settled} cases settled, ${stats.closed} closed. All active cases resolved.`;
+    return parts.join(" ");
+  }, [stats]);
 
   // ── Form helpers ──
   const updateForm = (key: string, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
     setFormErrors((prev) => {
-      if (!prev[key]) return prev;
       const next = { ...prev };
       delete next[key];
       return next;
@@ -199,48 +240,43 @@ export default function BlotterPage() {
 
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
-    if (!form.incident_type) errors.incident_type = "Incident type is required";
-    if (!form.incident_date) errors.incident_date = "Incident date is required";
-    if (!form.incident_location) errors.incident_location = "Location is required";
-    if (!form.complainant_name) errors.complainant_name = "Complainant name is required";
-    if (!form.incident_purok) errors.incident_purok = "Purok / Zone is required";
+    if (!form.incident_type)   errors.incident_type   = "Required";
+    if (!form.complainant_name) errors.complainant_name = "Required";
+    if (!form.respondent_name && form.respondent_unknown !== "yes") errors.respondent_name = "Required (or check Unknown)";
+    if (!form.narrative)       errors.narrative        = "Required";
     setFormErrors(errors);
     if (Object.keys(errors).length > 0) {
-      // Jump to the tab that contains the first error
-      if (errors.incident_type || errors.incident_date || errors.incident_location || errors.incident_purok) setFormTab(0);
-      else if (errors.complainant_name) setFormTab(1);
+      if (errors.incident_type) setFormTab(0);
+      else if (errors.complainant_name || errors.respondent_name) setFormTab(1);
+      else setFormTab(2);
       return false;
     }
     return true;
   };
 
-  const openRecordModal = () => {
+  const openCreate = () => {
     setForm({ ...emptyForm });
     setFormErrors({});
     setFormTab(0);
     setShowCreate(true);
   };
 
-  const openEditBlotter = (b: BlotterRecord) => {
+  const openEdit = (b: BlotterRecord) => {
+    setEditTarget(b);
     setForm({
-      incident_type: b.incident_type,
-      incident_date: b.incident_date,
-      incident_time: b.incident_time,
-      incident_purok: b.incident_purok,
-      incident_location: b.incident_location,
-      severity: b.severity,
-      complainant_name: b.complainant_name,
-      complainant_contact: b.complainant_contact,
-      complainant_address: b.complainant_address,
-      respondent_name: b.respondent_name,
-      respondent_contact: b.respondent_contact,
-      respondent_address: b.respondent_address,
-      respondent_unknown: b.respondent_name === "Unknown" ? "yes" : "",
-      narrative: b.narrative,
-      action_taken: b.action_taken,
-      recorded_by: b.recorded_by,
-      witness_names: b.witness_names,
-      evidence_notes: b.evidence_notes,
+      incident_type:       b.incident_type,
+      incident_date:       b.incident_date ?? "",
+      incident_time:       b.incident_time ?? "",
+      incident_place:      b.incident_place ?? "",
+      narrative:           b.narrative,
+      resolution:          b.resolution ?? "",
+      complainant_name:    b.complainant_name,
+      complainant_address: b.complainant_address ?? "",
+      complainant_mobile:  b.complainant_mobile ?? "",
+      respondent_unknown:  b.respondent_name === "Unknown" ? "yes" : "",
+      respondent_name:     b.respondent_name,
+      respondent_address:  b.respondent_address ?? "",
+      respondent_mobile:   b.respondent_mobile ?? "",
     });
     setFormErrors({});
     setFormTab(0);
@@ -248,102 +284,158 @@ export default function BlotterPage() {
     setActionMenuOpen(null);
   };
 
-  const openDeleteBlotter = (b: BlotterRecord) => {
-    setDeleteTarget(b);
-    setShowDelete(true);
-    setActionMenuOpen(null);
+  const closeFormModal = () => {
+    setShowCreate(false);
+    setShowEdit(false);
+    setEditTarget(null);
   };
 
-  const openUpdateStatus = (b: BlotterRecord) => {
-    setUpdateTarget(b);
-    setNewStatus(b.status);
-    setShowUpdateStatus(true);
-    setActionMenuOpen(null);
+  const handleSubmit = async () => {
+    if (!validateForm()) return;
+    setSaving(true);
+    try {
+      const payload: Record<string, unknown> = {
+        incident_type:       form.incident_type,
+        incident_date:       form.incident_date || null,
+        incident_time:       form.incident_time || null,
+        incident_place:      form.incident_place || null,
+        narrative:           form.narrative,
+        resolution:          form.resolution || null,
+        complainant_name:    form.complainant_name,
+        complainant_address: form.complainant_address || null,
+        complainant_mobile:  form.complainant_mobile || null,
+        respondent_name:     form.respondent_unknown === "yes" ? "Unknown" : form.respondent_name,
+        respondent_address:  form.respondent_unknown === "yes" ? null : (form.respondent_address || null),
+        respondent_mobile:   form.respondent_unknown === "yes" ? null : (form.respondent_mobile || null),
+      };
+
+      if (showEdit && editTarget) {
+        const res = await api.blotters.update(editTarget.id, payload);
+        if (res.blotter) {
+          addToast("Blotter record updated");
+          closeFormModal();
+          fetchBlotters();
+          fetchStats();
+        }
+      } else {
+        const res = await api.blotters.create(payload);
+        if (res.blotter) {
+          addToast("Blotter recorded");
+          closeFormModal();
+          fetchBlotters();
+          fetchStats();
+        }
+      }
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Failed to save. Please try again.";
+      addToast(msg, "error");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const openViewFromAction = (b: BlotterRecord) => {
-    setViewBlotter(b);
-    setActionMenuOpen(null);
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await api.blotters.destroy(deleteTarget.id);
+      addToast("Record deleted");
+      setShowDelete(false);
+      setDeleteTarget(null);
+      fetchBlotters();
+      fetchStats();
+    } catch {
+      addToast("Failed to delete record", "error");
+    } finally {
+      setDeleting(false);
+    }
   };
 
-  const openEditFromView = () => {
-    if (!viewBlotter) return;
-    const b = viewBlotter;
-    setViewBlotter(null);
-    openEditBlotter(b);
+  const handleUpdateStatus = async () => {
+    if (!updateTarget || !newStatus) return;
+    setUpdatingStatus(true);
+    try {
+      await api.blotters.update(updateTarget.id, { status: newStatus });
+      addToast("Status updated");
+      setShowUpdateStatus(false);
+      setUpdateTarget(null);
+      fetchBlotters();
+      fetchStats();
+    } catch {
+      addToast("Failed to update status", "error");
+    } finally {
+      setUpdatingStatus(false);
+    }
   };
 
   const formTabs = ["Incident", "Parties", "Details"];
 
-
-  // ── Render Form Tab Content ──
   const renderFormTab = () => {
     switch (formTab) {
       case 0: return (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <FormSelect label="Incident Type" value={form["incident_type"] || ""} onChange={(v) => updateForm("incident_type", v)} options={incidentTypeOptions} required error={formErrors.incident_type} />
-            <FormSelect label="Severity" value={form["severity"] || ""} onChange={(v) => updateForm("severity", v)} options={severityOptions} required />
+            <FormSelect label="Incident Type" value={form.incident_type} onChange={(v) => updateForm("incident_type", v)}
+              options={INCIDENT_TYPES} required error={formErrors.incident_type} />
+            <div className="grid grid-cols-2 gap-2">
+              <FormInput label="Date" value={form.incident_date} onChange={(v) => updateForm("incident_date", v)} type="date" />
+              <FormInput label="Time" value={form.incident_time} onChange={(v) => updateForm("incident_time", v)} type="time" />
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <FormInput label="Date of Incident" value={form["incident_date"] || ""} onChange={(v) => updateForm("incident_date", v)} type="date" required error={formErrors.incident_date} />
-            <FormInput label="Time of Incident" value={form["incident_time"] || ""} onChange={(v) => updateForm("incident_time", v)} type="time" required />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <FormSelect label="Purok / Zone" value={form["incident_purok"] || ""} onChange={(v) => updateForm("incident_purok", v)} options={purokOptions} required error={formErrors.incident_purok} />
-            <FormInput label="Street / Address" value={form["incident_location"] || ""} onChange={(v) => updateForm("incident_location", v)} placeholder="e.g. Rizal St. near sari-sari store" required error={formErrors.incident_location} />
-          </div>
+          <FormInput label="Place of Incident" value={form.incident_place} onChange={(v) => updateForm("incident_place", v)}
+            placeholder="e.g. Purok Sampaguita, Rizal St. near sari-sari store" />
         </div>
       );
       case 1: return (
         <div className="space-y-4">
-          <h4 className="text-sm font-semibold text-foreground">Complainant Information</h4>
+          <h4 className="text-sm font-semibold text-foreground">Complainant</h4>
           <div className="grid grid-cols-2 gap-4">
-            <FormInput label="Full Name" value={form["complainant_name"] || ""} onChange={(v) => updateForm("complainant_name", v)} required placeholder="e.g. Maria Dela Cruz" error={formErrors.complainant_name} />
-            <FormInput label="Contact Number" value={form["complainant_contact"] || ""} onChange={(v) => updateForm("complainant_contact", v)} placeholder="e.g. 0917-123-4567" />
+            <FormInput label="Full Name" value={form.complainant_name} onChange={(v) => updateForm("complainant_name", v)}
+              required placeholder="e.g. Maria Dela Cruz" error={formErrors.complainant_name} />
+            <FormInput label="Mobile Number" value={form.complainant_mobile} onChange={(v) => updateForm("complainant_mobile", v)}
+              placeholder="e.g. 09171234567" />
           </div>
-          <FormInput label="Address" value={form["complainant_address"] || ""} onChange={(v) => updateForm("complainant_address", v)} placeholder="e.g. Purok Sampaguita, Rizal St." />
-          <hr className="border-border my-2" />
+          <FormInput label="Address" value={form.complainant_address} onChange={(v) => updateForm("complainant_address", v)}
+            placeholder="e.g. Purok Sampaguita, Rizal St." />
+          <hr className="border-border" />
           <div className="flex items-center justify-between">
-            <h4 className="text-sm font-semibold text-foreground">Respondent Information</h4>
+            <h4 className="text-sm font-semibold text-foreground">Respondent</h4>
             <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={form.respondent_unknown === "yes"} onChange={(e) => {
-                if (e.target.checked) {
-                  setForm((prev) => ({ ...prev, respondent_unknown: "yes", respondent_name: "Unknown", respondent_contact: "", respondent_address: "Unknown" }));
-                } else {
-                  setForm((prev) => ({ ...prev, respondent_unknown: "", respondent_name: "", respondent_contact: "", respondent_address: "" }));
-                }
-              }}
-                className="w-4 h-4 rounded border-border text-accent-primary focus:ring-accent-ring" />
-              <span className="text-sm text-muted-foreground">Unknown Respondent</span>
+              <input type="checkbox" checked={form.respondent_unknown === "yes"}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setForm((prev) => ({ ...prev, respondent_unknown: "yes", respondent_name: "Unknown", respondent_mobile: "", respondent_address: "" }));
+                  } else {
+                    setForm((prev) => ({ ...prev, respondent_unknown: "", respondent_name: "", respondent_mobile: "", respondent_address: "" }));
+                  }
+                }}
+                className="w-4 h-4 rounded border-border" />
+              <span className="text-sm text-muted-foreground">Unknown respondent</span>
             </label>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <FormInput label="Full Name" value={form["respondent_name"] || ""} onChange={(v) => updateForm("respondent_name", v)} required placeholder="e.g. Juan Santos" disabled={form.respondent_unknown === "yes"} />
-            <FormInput label="Contact Number" value={form["respondent_contact"] || ""} onChange={(v) => updateForm("respondent_contact", v)} placeholder="e.g. 0918-234-5678" disabled={form.respondent_unknown === "yes"} />
+            <FormInput label="Full Name" value={form.respondent_name} onChange={(v) => updateForm("respondent_name", v)}
+              required placeholder="e.g. Juan Santos" disabled={form.respondent_unknown === "yes"}
+              error={formErrors.respondent_name} />
+            <FormInput label="Mobile Number" value={form.respondent_mobile} onChange={(v) => updateForm("respondent_mobile", v)}
+              placeholder="e.g. 09181234567" disabled={form.respondent_unknown === "yes"} />
           </div>
-          <FormInput label="Address" value={form["respondent_address"] || ""} onChange={(v) => updateForm("respondent_address", v)} placeholder="e.g. Purok Rosal, Mabini St." disabled={form.respondent_unknown === "yes"} />
+          <FormInput label="Address" value={form.respondent_address} onChange={(v) => updateForm("respondent_address", v)}
+            placeholder="e.g. Purok Rosal, Mabini St." disabled={form.respondent_unknown === "yes"} />
         </div>
       );
       case 2: return (
         <div className="space-y-4">
-          <div>
-            <FormTextarea label="Incident Narrative" value={form["narrative"] || ""} onChange={(v) => updateForm("narrative", v)} required rows={4} placeholder="Describe the incident in detail. Include what happened, when, where, and how it was reported." />
-            <p className="text-[10px] text-muted-foreground mt-1">Include: what happened, when, where, who was involved, and any witnesses.</p>
-          </div>
-          <FormTextarea label="Action Taken" value={form["action_taken"] || ""} onChange={(v) => updateForm("action_taken", v)} rows={3} placeholder="e.g. Forwarded to PNP, mediation conducted, parties summoned..." />
-          <div className="grid grid-cols-2 gap-4">
-            <FormInput label="Recorded By" value={form["recorded_by"] || ""} onChange={(v) => updateForm("recorded_by", v)} required placeholder="e.g. Secretary Santos" />
-            <FormInput label="Witness Names" value={form["witness_names"] || ""} onChange={(v) => updateForm("witness_names", v)} placeholder="e.g. Juan Dela Cruz, Maria Santos" />
-          </div>
-          <FormInput label="Evidence / Attachments Note" value={form["evidence_notes"] || ""} onChange={(v) => updateForm("evidence_notes", v)} placeholder="e.g. CCTV footage saved, medical certificate attached" />
+          <FormTextarea label="Incident Narrative" value={form.narrative} onChange={(v) => updateForm("narrative", v)}
+            required rows={5} placeholder="Describe the incident in detail — what happened, when, where, who was involved, and how it was reported." />
+          {formErrors.narrative && <p className="text-[11px] text-red-500 -mt-3">{formErrors.narrative}</p>}
+          <FormTextarea label="Action Taken / Resolution" value={form.resolution} onChange={(v) => updateForm("resolution", v)}
+            rows={3} placeholder="e.g. Parties summoned for hearing, referred to PNP, mediation conducted..." />
         </div>
       );
       default: return null;
     }
   };
-
-  const closeFormModal = () => { setShowCreate(false); setShowEdit(false); };
 
   return (
     <div className="space-y-6">
@@ -351,12 +443,6 @@ export default function BlotterPage() {
         title="Blotter Records"
         description="Record and track barangay incident reports"
         breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "Judicial" }, { label: "Blotter Records" }]}
-        actions={
-          <div className="flex items-center gap-2">
-            <button className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors"><Download className="h-4 w-4" /> Export</button>
-            <button onClick={openRecordModal} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}><Plus className="h-4 w-4" /> Record Blotter</button>
-          </div>
-        }
       />
 
       {/* Mabini AI Insight */}
@@ -365,68 +451,117 @@ export default function BlotterPage() {
           <Bot className="w-4 h-4" style={{ color: "var(--accent-primary)" }} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold text-foreground">Mabini AI Blotter Analysis</p>
-          <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-            2 open cases pending resolution for over 7 days. Theft incidents increased 25% this month compared to last. Purok 3 has the highest incident density.
-          </p>
+          <p className="text-xs font-semibold text-foreground">Mabini AI — Blotter Analysis</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">{mabiniInsight}</p>
         </div>
-        <button onClick={() => router.push("/dashboard/ai")} className="shrink-0 px-3 py-1.5 text-[10px] font-semibold rounded-lg transition-colors hover:opacity-80" style={{ background: "var(--accent-primary)", color: "#fff" }}>
+        <button onClick={() => router.push("/dashboard/ai")}
+          className="shrink-0 px-3 py-1.5 text-[10px] font-semibold rounded-lg transition-colors hover:opacity-80"
+          style={{ background: "var(--accent-primary)", color: "#fff" }}>
           Ask Mabini
         </button>
       </div>
 
+      {/* Stat Cards */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatCard label="Total Records" value={mockBlotters.length} icon={<Gavel className="h-5 w-5" />} />
-        <StatCard label="Active / Open" value={activeCount} icon={<AlertTriangle className="h-5 w-5" />} trend={{ value: -1, label: "this month" }} />
-        <StatCard label="Resolved / Closed" value={resolvedCount} icon={<Shield className="h-5 w-5" />} />
-        <StatCard label="This Month" value={mockBlotters.filter((b) => b.incident_date >= "2026-03-01").length} icon={<Calendar className="h-5 w-5" />} />
+        <StatCard label="Total Records"   value={stats?.total      ?? "—"} icon={<Gavel className="h-5 w-5" />} />
+        <StatCard label="Active / Open"   value={stats?.active     ?? "—"} icon={<AlertTriangle className="h-5 w-5" />} />
+        <StatCard label="Settled / Closed" value={stats ? stats.settled + stats.closed : "—"} icon={<Shield className="h-5 w-5" />} />
+        <StatCard label="This Month"      value={stats?.this_month ?? "—"} icon={<Calendar className="h-5 w-5" />} />
       </div>
 
-      <div className="space-y-3">
-        <div className="flex items-center justify-between gap-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              placeholder="Search by blotter number, party names, or type..."
-              className="w-full pl-9 pr-4 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+      {/* Status Flow */}
+      <div className="flex items-center gap-1.5">
+        {STATUS_OPTIONS.map((s, i) => (
+          <div key={s.value} className="contents">
+            <button onClick={() => setStatusFilter(statusFilter === s.value ? "" : s.value)}
+              className={cn("flex-1 flex flex-col items-center gap-1 px-3 py-2.5 rounded-xl border transition-all hover:shadow-sm",
+                statusFilter === s.value ? "shadow-sm" : "border-border bg-card hover:bg-muted/50")}
+              style={statusFilter === s.value ? { borderColor: s.color, background: `${s.color}15` } : {}}>
+              <span className="w-2.5 h-2.5 rounded-full" style={{ background: s.color }} />
+              <span className="text-[11px] font-semibold text-foreground">{s.label}</span>
+              <span className="text-xs font-bold" style={{ color: s.color }}>
+                {stats ? (s.value === "filed" ? stats.filed : s.value === "for_hearing" ? stats.for_hearing : s.value === "for_subpoena" ? stats.for_subpoena : s.value === "settled" ? stats.settled : stats.closed) : "—"}
+              </span>
+            </button>
+            {i < STATUS_OPTIONS.length - 1 && <ArrowRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
           </div>
-          <button onClick={() => setShowFilters(!showFilters)}
-            className={cn("flex items-center gap-2 px-3 py-2 text-sm rounded-lg border transition-colors",
-              showFilters ? "border-accent-primary bg-accent-bg text-accent-text" : "border-border hover:bg-muted")}>
-            <Filter className="h-4 w-4" /> Filters
+        ))}
+        {statusFilter && (
+          <button onClick={() => setStatusFilter("")}
+            className="shrink-0 flex items-center justify-center w-7 h-7 rounded-lg border border-border hover:bg-muted text-muted-foreground transition-colors ml-1">
+            <X className="h-3.5 w-3.5" />
           </button>
+        )}
+      </div>
+
+      {/* Search & Filters */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by blotter number, party names, or incident type..."
+              className="w-full pl-9 pr-4 py-2 text-sm rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+          </div>
+          <div className="flex items-center gap-2 ml-auto">
+            <button onClick={() => setShowFilters(!showFilters)}
+              className={cn("flex items-center justify-center w-9 h-9 rounded-lg border transition-colors",
+                showFilters ? "border-accent-primary bg-accent-bg text-accent-text" : "border-border hover:bg-muted text-muted-foreground")}>
+              <Filter className="h-4 w-4" />
+            </button>
+            <button className="flex items-center justify-center w-9 h-9 rounded-lg border border-border hover:bg-muted text-muted-foreground transition-colors">
+              <FileBarChart className="h-4 w-4" />
+            </button>
+            <button onClick={openCreate}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors"
+              style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>
+              <Plus className="h-4 w-4" /> Record Blotter
+            </button>
+          </div>
         </div>
         {showFilters && (
           <div className="flex flex-wrap items-center gap-3 p-4 rounded-lg glass-subtle">
-            <select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}
-              className="px-3 py-1.5 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring">
-              {incidentTypes.map((t) => <option key={t}>{t}</option>)}
+            <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}
+              className="px-3 py-1.5 text-sm rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent-ring">
+              <option value="">All Types</option>
+              {INCIDENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
-            <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-              className="px-3 py-1.5 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring">
-              {statusOptions.map((s) => <option key={s}>{s}</option>)}
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-3 py-1.5 text-sm rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent-ring">
+              <option value="">All Status</option>
+              {STATUS_OPTIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
             </select>
-            <button onClick={() => { setTypeFilter("All Types"); setStatusFilter("All Status"); }}
-              className="flex items-center gap-1 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground"><X className="h-3 w-3" /> Clear</button>
+            <button onClick={() => { setTypeFilter(""); setStatusFilter(""); }}
+              className="flex items-center gap-1 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground">
+              <X className="h-3 w-3" /> Clear
+            </button>
           </div>
         )}
       </div>
 
       {/* Blotter Cards */}
       <div className="space-y-3">
-        {paged.length === 0 ? (
+        {loading ? (
+          <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-24 rounded-xl glass animate-pulse" />)}</div>
+        ) : blotters.length === 0 ? (
           <div className="p-16 text-center rounded-xl glass">
             <div className="flex flex-col items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center"><Shield className="w-6 h-6 text-muted-foreground" /></div>
+              <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                <Shield className="w-6 h-6 text-muted-foreground" />
+              </div>
               <div>
                 <p className="text-sm font-medium text-foreground">No blotter records found</p>
-                <p className="text-xs text-muted-foreground mt-1">All clear! Record new incidents as they are reported to the barangay.</p>
+                <p className="text-xs text-muted-foreground mt-1">Record new incidents as they are reported to the barangay.</p>
               </div>
-              <button onClick={() => openRecordModal()} className="mt-1 px-4 py-2 text-xs font-semibold rounded-lg text-white hover:opacity-90" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>+ Record Blotter</button>
+              <button onClick={openCreate}
+                className="mt-1 px-4 py-2 text-xs font-semibold rounded-lg text-white hover:opacity-90"
+                style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>
+                + Record Blotter
+              </button>
             </div>
           </div>
         ) : (
-          paged.map((b) => (
+          blotters.map((b) => (
             <div key={b.id} className="p-5 rounded-xl glass hover:shadow-md transition-all"
               style={{ borderLeftWidth: "4px", borderLeftColor: statusColor(b.status) }}>
               <div className="flex items-start justify-between">
@@ -435,24 +570,43 @@ export default function BlotterPage() {
                     style={{ background: `${statusColor(b.status)}15` }}>
                     <Gavel className="h-5 w-5" style={{ color: statusColor(b.status) }} />
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <span className="text-sm font-bold text-foreground">{b.blotter_number}</span>
-                      <StatusBadge status={b.status} />
+                      <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full"
+                        style={{ background: `${statusColor(b.status)}20`, color: statusColor(b.status) }}>
+                        {statusLabel(b.status)}
+                      </span>
                       <Badge variant="muted">{b.incident_type}</Badge>
-                      {b.severity === "High" && <Badge variant="danger">High Severity</Badge>}
+                      {b.linked_kp_case_id && <Badge variant="info">KP Linked</Badge>}
                     </div>
                     <p className="text-sm text-foreground line-clamp-2">{b.narrative}</p>
-                    <div className="flex items-center gap-4 mt-2 text-[12px] text-muted-foreground">
-                      <span className="flex items-center gap-1"><Users className="h-3 w-3" /> {b.complainant_name} vs. {b.respondent_name}</span>
-                      <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {b.incident_purok}, {b.incident_location}</span>
+                    <div className="flex items-center gap-4 mt-2 text-[12px] text-muted-foreground flex-wrap">
+                      <span className="flex items-center gap-1">
+                        <Users className="h-3 w-3" /> {b.complainant_name} vs. {b.respondent_name}
+                      </span>
+                      {b.incident_place && (
+                        <span className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3" /> {b.incident_place}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
                 <div className="flex items-start gap-3 shrink-0 ml-4">
                   <div className="text-right">
-                    <p className="text-[11px] text-muted-foreground flex items-center gap-1 justify-end"><Calendar className="h-3 w-3" /> {b.incident_date}</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5"><Clock className="h-3 w-3 inline mr-1" />{b.incident_time}</p>
+                    {b.incident_date && (
+                      <p className="text-[11px] text-muted-foreground flex items-center gap-1 justify-end">
+                        <Calendar className="h-3 w-3" />
+                        {b.incident_date.includes("T") ? b.incident_date.split("T")[0] : b.incident_date}
+                      </p>
+                    )}
+                    {b.incident_time && (
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        <Clock className="h-3 w-3 inline mr-1" />{b.incident_time}
+                      </p>
+                    )}
+                    <p className="text-[10px] text-muted-foreground mt-1">Filed: {b.filing_date?.split("T")[0] ?? b.filing_date}</p>
                   </div>
                   {/* Action Menu */}
                   <div className="relative">
@@ -463,16 +617,16 @@ export default function BlotterPage() {
                     {actionMenuOpen === b.id && (
                       <>
                         <div className="fixed inset-0 z-40" onClick={() => setActionMenuOpen(null)} />
-                        <div className="absolute right-0 top-8 z-50 w-48 py-1 rounded-lg glass shadow-lg">
-                          <button onClick={() => openViewFromAction(b)}
+                        <div className="absolute right-0 top-8 z-50 w-48 py-1 rounded-lg bg-white dark:bg-slate-800 border border-border shadow-lg">
+                          <button onClick={() => { setViewBlotter(b); setActionMenuOpen(null); }}
                             className="flex items-center gap-2 w-full px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors">
                             <Eye className="h-4 w-4" /> View Details
                           </button>
-                          <button onClick={() => openEditBlotter(b)}
+                          <button onClick={() => openEdit(b)}
                             className="flex items-center gap-2 w-full px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors">
                             <Edit className="h-4 w-4" /> Edit
                           </button>
-                          <button onClick={() => openUpdateStatus(b)}
+                          <button onClick={() => { setUpdateTarget(b); setNewStatus(b.status); setShowUpdateStatus(true); setActionMenuOpen(null); }}
                             className="flex items-center gap-2 w-full px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors">
                             <RefreshCw className="h-4 w-4" /> Update Status
                           </button>
@@ -481,7 +635,7 @@ export default function BlotterPage() {
                             <Printer className="h-4 w-4" /> Print Report
                           </button>
                           <div className="border-t border-border my-1" />
-                          <button onClick={() => openDeleteBlotter(b)}
+                          <button onClick={() => { setDeleteTarget(b); setShowDelete(true); setActionMenuOpen(null); }}
                             className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 hover:bg-muted transition-colors">
                             <Trash2 className="h-4 w-4" /> Delete
                           </button>
@@ -496,24 +650,30 @@ export default function BlotterPage() {
         )}
       </div>
 
-      {totalPages > 1 && (
+      {/* Pagination */}
+      {lastPage > 1 && (
         <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">Showing {start + 1}–{Math.min(start + pageSize, filtered.length)} of {filtered.length}</p>
+          <p className="text-sm text-muted-foreground">
+            Showing {((page - 1) * perPage) + 1}–{Math.min(page * perPage, total)} of {total}
+          </p>
           <div className="flex items-center gap-1">
-            <button onClick={() => setPage(1)} disabled={safePage <= 1} className="p-1.5 rounded hover:bg-muted disabled:opacity-30"><ChevronsLeft className="h-4 w-4" /></button>
-            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage <= 1} className="p-1.5 rounded hover:bg-muted disabled:opacity-30"><ChevronLeft className="h-4 w-4" /></button>
-            <span className="px-3 py-1 text-sm">{safePage} / {totalPages}</span>
-            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={safePage >= totalPages} className="p-1.5 rounded hover:bg-muted disabled:opacity-30"><ChevronRight className="h-4 w-4" /></button>
-            <button onClick={() => setPage(totalPages)} disabled={safePage >= totalPages} className="p-1.5 rounded hover:bg-muted disabled:opacity-30"><ChevronsRight className="h-4 w-4" /></button>
+            <button onClick={() => setPage(1)} disabled={page <= 1} className="p-1.5 rounded hover:bg-muted disabled:opacity-30"><ChevronsLeft className="h-4 w-4" /></button>
+            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} className="p-1.5 rounded hover:bg-muted disabled:opacity-30"><ChevronLeft className="h-4 w-4" /></button>
+            <span className="px-3 py-1 text-sm">{page} / {lastPage}</span>
+            <button onClick={() => setPage((p) => Math.min(lastPage, p + 1))} disabled={page >= lastPage} className="p-1.5 rounded hover:bg-muted disabled:opacity-30"><ChevronRight className="h-4 w-4" /></button>
+            <button onClick={() => setPage(lastPage)} disabled={page >= lastPage} className="p-1.5 rounded hover:bg-muted disabled:opacity-30"><ChevronsRight className="h-4 w-4" /></button>
           </div>
         </div>
       )}
 
       {/* Record / Edit Blotter Form Modal */}
-      <Modal open={showCreate || showEdit} onClose={closeFormModal} title={showEdit ? "Edit Blotter Record" : "Record Blotter"} description={showEdit ? "Update an existing incident report" : "File a new barangay incident report"} size="lg"
+      <Modal open={showCreate || showEdit} onClose={closeFormModal}
+        title={showEdit ? "Edit Blotter Record" : "Record Blotter"}
+        description={showEdit ? "Update an existing incident report" : "File a new barangay incident report"}
+        size="lg"
         footer={
           <div className="flex items-center justify-between w-full">
-            <div className="flex items-center gap-2">
+            <div>
               {formTab > 0 && (
                 <ModalButton variant="secondary" onClick={() => setFormTab((t) => t - 1)}>
                   <ChevronLeft className="w-4 h-4 mr-1" /> Previous
@@ -527,15 +687,14 @@ export default function BlotterPage() {
                   Next <ChevronRight className="w-4 h-4 ml-1" />
                 </ModalButton>
               ) : (
-                <ModalButton variant="primary" onClick={() => { if (validateForm()) { addToast(showEdit ? "Blotter Updated" : "Blotter Recorded"); closeFormModal(); } }}>
-                  <Save className="w-4 h-4 mr-1" /> {showEdit ? "Update" : "Record Blotter"}
+                <ModalButton variant="primary" onClick={handleSubmit} disabled={saving}>
+                  <Save className="w-4 h-4 mr-1" /> {saving ? "Saving..." : showEdit ? "Update" : "Record Blotter"}
                 </ModalButton>
               )}
             </div>
           </div>
         }>
-        {/* Tab Navigation */}
-        <div className="flex gap-1 mb-6 overflow-x-auto pb-1">
+        <div className="flex gap-1 mb-6">
           {formTabs.map((tab, i) => (
             <button key={tab} onClick={() => setFormTab(i)}
               className={cn("px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap transition-colors",
@@ -551,52 +710,40 @@ export default function BlotterPage() {
         {renderFormTab()}
       </Modal>
 
-      {/* Delete Confirmation Modal */}
-      <Modal open={showDelete} onClose={() => { setShowDelete(false); setDeleteTarget(null); }} title="Delete Blotter Record" size="sm"
-        footer={
-          <>
-            <ModalButton variant="secondary" onClick={() => { setShowDelete(false); setDeleteTarget(null); }}>Cancel</ModalButton>
-            <ModalButton variant="danger" onClick={() => { addToast("Record Deleted"); setShowDelete(false); setDeleteTarget(null); }}>Delete Record</ModalButton>
-          </>
-        }>
-        {deleteTarget && (
-          <div className="space-y-3">
-            <p className="text-sm text-foreground">Are you sure you want to delete blotter record <span className="font-bold">{deleteTarget.blotter_number}</span>?</p>
-            <p className="text-sm text-muted-foreground">This action cannot be undone. The record for &ldquo;{deleteTarget.incident_type}&rdquo; involving {deleteTarget.complainant_name} vs. {deleteTarget.respondent_name} will be permanently removed.</p>
-          </div>
-        )}
-      </Modal>
-
       {/* View Blotter Modal */}
-      <Modal open={!!viewBlotter} onClose={() => setViewBlotter(null)} title={viewBlotter?.blotter_number || ""} description={`${viewBlotter?.incident_type} — ${viewBlotter?.incident_date}`} size="lg"
+      <Modal open={!!viewBlotter} onClose={() => setViewBlotter(null)}
+        title={viewBlotter?.blotter_number ?? ""}
+        description={`${viewBlotter?.incident_type ?? ""} — ${viewBlotter?.incident_date?.split("T")[0] ?? viewBlotter?.filing_date ?? ""}`}
+        size="lg"
         footer={
           <>
             <ModalButton variant="secondary" onClick={() => setViewBlotter(null)}>Close</ModalButton>
-            <ModalButton variant="primary" onClick={openEditFromView}>Update Record</ModalButton>
+            <ModalButton variant="primary" onClick={() => { const b = viewBlotter; setViewBlotter(null); if (b) openEdit(b); }}>
+              Edit Record
+            </ModalButton>
           </>
         }>
         {viewBlotter && (
           <div className="space-y-5">
-            <div className="flex items-center gap-2">
-              <StatusBadge status={viewBlotter.status} />
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="px-2.5 py-1 text-xs font-semibold rounded-full"
+                style={{ background: `${statusColor(viewBlotter.status)}20`, color: statusColor(viewBlotter.status) }}>
+                {statusLabel(viewBlotter.status)}
+              </span>
               <Badge variant="muted">{viewBlotter.incident_type}</Badge>
-              {viewBlotter.severity && (
-                <Badge variant={viewBlotter.severity === "High" ? "danger" : viewBlotter.severity === "Medium" ? "warning" : "muted"}>
-                  {viewBlotter.severity} Severity
-                </Badge>
-              )}
+              {viewBlotter.linked_kp_case_id && <Badge variant="info">Linked to KP Case</Badge>}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="p-4 rounded-lg glass-subtle">
                 <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Complainant</p>
                 <p className="text-sm text-foreground font-medium">{viewBlotter.complainant_name}</p>
-                {viewBlotter.complainant_contact && <p className="text-xs text-muted-foreground mt-1">{viewBlotter.complainant_contact}</p>}
+                {viewBlotter.complainant_mobile && <p className="text-xs text-muted-foreground mt-1">{viewBlotter.complainant_mobile}</p>}
                 {viewBlotter.complainant_address && <p className="text-xs text-muted-foreground">{viewBlotter.complainant_address}</p>}
               </div>
               <div className="p-4 rounded-lg glass-subtle">
                 <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Respondent</p>
                 <p className="text-sm text-foreground font-medium">{viewBlotter.respondent_name}</p>
-                {viewBlotter.respondent_contact && <p className="text-xs text-muted-foreground mt-1">{viewBlotter.respondent_contact}</p>}
+                {viewBlotter.respondent_mobile && <p className="text-xs text-muted-foreground mt-1">{viewBlotter.respondent_mobile}</p>}
                 {viewBlotter.respondent_address && <p className="text-xs text-muted-foreground">{viewBlotter.respondent_address}</p>}
               </div>
             </div>
@@ -604,17 +751,72 @@ export default function BlotterPage() {
               <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Incident Narrative</p>
               <p className="text-sm text-foreground leading-relaxed">{viewBlotter.narrative}</p>
             </div>
-            <div className="grid grid-cols-2 gap-x-8 gap-y-3">
-              <div><p className="text-[11px] text-muted-foreground uppercase">Date & Time</p><p className="text-sm">{viewBlotter.incident_date} at {viewBlotter.incident_time}</p></div>
-              <div><p className="text-[11px] text-muted-foreground uppercase">Location</p><p className="text-sm">{viewBlotter.incident_purok}, {viewBlotter.incident_location}</p></div>
-              <div><p className="text-[11px] text-muted-foreground uppercase">Recorded By</p><p className="text-sm">{viewBlotter.recorded_by}</p></div>
-              <div><p className="text-[11px] text-muted-foreground uppercase">Recorded At</p><p className="text-sm">{viewBlotter.recorded_at}</p></div>
-              {viewBlotter.witness_names && <div><p className="text-[11px] text-muted-foreground uppercase">Witnesses</p><p className="text-sm">{viewBlotter.witness_names}</p></div>}
-              {viewBlotter.evidence_notes && <div><p className="text-[11px] text-muted-foreground uppercase">Evidence / Attachments</p><p className="text-sm">{viewBlotter.evidence_notes}</p></div>}
+            <div className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
+              <div><p className="text-[11px] text-muted-foreground uppercase mb-0.5">Filing Date</p><p>{viewBlotter.filing_date?.split("T")[0] ?? viewBlotter.filing_date}</p></div>
+              {viewBlotter.incident_date && <div><p className="text-[11px] text-muted-foreground uppercase mb-0.5">Incident Date</p><p>{viewBlotter.incident_date.split("T")[0]} {viewBlotter.incident_time ? `at ${viewBlotter.incident_time}` : ""}</p></div>}
+              {viewBlotter.incident_place && <div className="col-span-2"><p className="text-[11px] text-muted-foreground uppercase mb-0.5">Location</p><p>{viewBlotter.incident_place}</p></div>}
             </div>
-            <div className="p-4 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900">
-              <p className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400 uppercase tracking-wider mb-1">Action Taken</p>
-              <p className="text-sm text-emerald-800 dark:text-emerald-300">{viewBlotter.action_taken || "No action recorded yet."}</p>
+            {viewBlotter.resolution && (
+              <div className="p-4 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900">
+                <p className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400 uppercase tracking-wider mb-1">
+                  <FileText className="h-3 w-3 inline mr-1" /> Action Taken / Resolution
+                </p>
+                <p className="text-sm text-emerald-800 dark:text-emerald-300">{viewBlotter.resolution}</p>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      {/* Delete Modal */}
+      <Modal open={showDelete} onClose={() => { setShowDelete(false); setDeleteTarget(null); }}
+        title="Delete Blotter Record" size="sm"
+        footer={
+          <>
+            <ModalButton variant="secondary" onClick={() => { setShowDelete(false); setDeleteTarget(null); }}>Cancel</ModalButton>
+            <ModalButton variant="danger" onClick={handleDelete} disabled={deleting}>
+              {deleting ? "Deleting..." : "Delete Record"}
+            </ModalButton>
+          </>
+        }>
+        {deleteTarget && (
+          <div className="space-y-3">
+            <p className="text-sm text-foreground">Are you sure you want to delete <span className="font-bold">{deleteTarget.blotter_number}</span>?</p>
+            <p className="text-sm text-muted-foreground">
+              {deleteTarget.incident_type} — {deleteTarget.complainant_name} vs. {deleteTarget.respondent_name}. This cannot be undone.
+            </p>
+          </div>
+        )}
+      </Modal>
+
+      {/* Update Status Modal */}
+      <Modal open={showUpdateStatus} onClose={() => { setShowUpdateStatus(false); setUpdateTarget(null); }}
+        title="Update Status" description={updateTarget?.blotter_number ?? ""} size="sm"
+        footer={
+          <>
+            <ModalButton variant="secondary" onClick={() => { setShowUpdateStatus(false); setUpdateTarget(null); }}>Cancel</ModalButton>
+            <ModalButton variant="primary" onClick={handleUpdateStatus} disabled={updatingStatus}>
+              <Save className="w-4 h-4 mr-1" /> {updatingStatus ? "Saving..." : "Update Status"}
+            </ModalButton>
+          </>
+        }>
+        {updateTarget && (
+          <div className="space-y-4">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1">Current Status</p>
+              <span className="px-2.5 py-1 text-xs font-semibold rounded-full"
+                style={{ background: `${statusColor(updateTarget.status)}20`, color: statusColor(updateTarget.status) }}>
+                {statusLabel(updateTarget.status)}
+              </span>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">
+                New Status<span className="text-red-500 ml-0.5">*</span>
+              </label>
+              <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)}
+                className="w-full px-3 py-2 text-sm rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent-ring">
+                {STATUS_OPTIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+              </select>
             </div>
           </div>
         )}
@@ -624,40 +826,17 @@ export default function BlotterPage() {
       <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
         {toasts.map((t) => (
           <div key={t.id} className="flex items-center gap-2 px-4 py-3 rounded-lg glass shadow-lg animate-in slide-in-from-bottom-2 fade-in duration-200">
-            <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
+            {t.type === "error"
+              ? <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
+              : <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />}
             <span className="text-sm font-medium text-foreground">{t.message}</span>
-            <button onClick={() => removeToast(t.id)} className="ml-2 text-muted-foreground hover:text-foreground"><X className="w-3.5 h-3.5" /></button>
+            <button onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}
+              className="ml-2 text-muted-foreground hover:text-foreground"><X className="w-3.5 h-3.5" /></button>
           </div>
         ))}
       </div>
 
-      {/* Update Status Modal */}
-      <Modal open={showUpdateStatus} onClose={() => { setShowUpdateStatus(false); setUpdateTarget(null); }} title="Update Blotter Status" description={updateTarget?.blotter_number || ""} size="sm"
-        footer={
-          <>
-            <ModalButton variant="secondary" onClick={() => { setShowUpdateStatus(false); setUpdateTarget(null); }}>Cancel</ModalButton>
-            <ModalButton variant="primary" onClick={() => { addToast("Status Updated"); setShowUpdateStatus(false); setUpdateTarget(null); }}>
-              <Save className="w-4 h-4 mr-1" /> Update Status
-            </ModalButton>
-          </>
-        }>
-        {updateTarget && (
-          <div className="space-y-4">
-            <div>
-              <p className="text-xs font-medium text-muted-foreground mb-1">Current Status</p>
-              <StatusBadge status={updateTarget.status} />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">New Status<span className="text-red-500 ml-0.5">*</span></label>
-              <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring">
-                {updateStatusOptions.map((s) => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
-              </select>
-            </div>
-          </div>
-        )}
-      </Modal>
-      <MabiniButton pageContext="You are on the Blotter page. This page manages barangay blotter reports, complaints, and incident records." />
+      <MabiniButton pageContext="You are on the Blotter Records page. This page manages barangay blotter reports, complaints, and incident records. Status flow: filed → for_hearing → for_subpoena → settled → closed." />
     </div>
   );
 }

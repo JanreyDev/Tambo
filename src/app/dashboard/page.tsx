@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { api } from "@/lib/api";
-import type { DashboardCredits } from "@/lib/types";
+import type { DashboardCredits, PlatformUpdate } from "@/lib/types";
 import {
   Users,
   FileText,
@@ -27,6 +27,11 @@ import {
   Zap,
   Eye,
   Calendar,
+  Sparkles,
+  ArrowUp,
+  Bug,
+  Shield,
+  Wrench,
 } from "lucide-react";
 
 // ── Mini SVG Charts ──────────────────────────────────────────────
@@ -154,6 +159,28 @@ interface RecentResident {
   purok: string; time: string;
 }
 
+// ── Update Type Config ───────────────────────────────────────────
+
+const UPDATE_TYPE_CFG: Record<string, { icon: React.ElementType; color: string; bg: string; label: string }> = {
+  feature:     { icon: Sparkles, color: "text-violet-600 dark:text-violet-400", bg: "bg-violet-100 dark:bg-violet-900/30", label: "Feature" },
+  improvement: { icon: ArrowUp,  color: "text-blue-600 dark:text-blue-400",   bg: "bg-blue-100 dark:bg-blue-900/30",   label: "Improvement" },
+  bugfix:      { icon: Bug,      color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-100 dark:bg-amber-900/30", label: "Bug Fix" },
+  security:    { icon: Shield,   color: "text-red-600 dark:text-red-400",     bg: "bg-red-100 dark:bg-red-900/30",     label: "Security" },
+  maintenance: { icon: Wrench,   color: "text-slate-600 dark:text-slate-400", bg: "bg-slate-100 dark:bg-slate-800/50", label: "Maintenance" },
+};
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(dateStr).toLocaleDateString("en-PH", { month: "short", day: "numeric" });
+}
+
 // ── Main Dashboard ────────────────────────────────────────────────
 
 function formatPeso(amount: number): string {
@@ -164,12 +191,19 @@ export default function DashboardPage() {
   const router = useRouter();
   const [credits, setCredits] = useState<DashboardCredits | null>(null);
   const [creditsLoading, setCreditsLoading] = useState(true);
+  const [platformUpdates, setPlatformUpdates] = useState<PlatformUpdate[]>([]);
+  const [updatesLoading, setUpdatesLoading] = useState(true);
 
   useEffect(() => {
     api.dashboard.getCredits()
       .then(setCredits)
       .catch(() => {/* silently fail -- cards show skeleton */})
       .finally(() => setCreditsLoading(false));
+
+    api.platformUpdates.list()
+      .then((res) => setPlatformUpdates((res.updates || []).slice(0, 5)))
+      .catch(() => {})
+      .finally(() => setUpdatesLoading(false));
   }, []);
 
   const activities: ActivityRow[] = [
@@ -451,6 +485,59 @@ export default function DashboardPage() {
           </div>
         </Widget>
       </div>
+
+      {/* Row 6: Platform Updates (What's New) */}
+      <Widget>
+        <WidgetHeader title="What's New" icon={Sparkles} badge={platformUpdates.length || undefined} action="View All" actionHref="/dashboard/updates" />
+        {updatesLoading ? (
+          <div className="px-5 pb-4 space-y-3">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="flex items-start gap-3 animate-pulse">
+                <div className="w-8 h-8 rounded-lg bg-muted shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-3 w-3/4 bg-muted rounded" />
+                  <div className="h-2.5 w-full bg-muted rounded" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : platformUpdates.length === 0 ? (
+          <div className="px-5 pb-5 text-center">
+            <p className="text-xs text-muted-foreground">Wala pang updates. Check back soon.</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-border">
+            {platformUpdates.map((u) => {
+              const cfg = UPDATE_TYPE_CFG[u.type] || UPDATE_TYPE_CFG.maintenance;
+              const TypeIcon = cfg.icon;
+              return (
+                <div
+                  key={u.id}
+                  className="flex items-start gap-3 px-5 py-3 hover:bg-muted/30 transition-colors cursor-pointer"
+                  onClick={() => router.push("/dashboard/updates")}
+                >
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${cfg.bg}`}>
+                    <TypeIcon className={`w-4 h-4 ${cfg.color}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-xs font-semibold text-foreground">{u.title}</p>
+                      <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${cfg.bg} ${cfg.color}`}>
+                        {cfg.label}
+                      </span>
+                      {u.version && (
+                        <span className="text-[9px] font-mono text-muted-foreground">{u.version}</span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">{u.description}</p>
+                  </div>
+                  <span className="text-[9px] text-muted-foreground shrink-0 mt-1 whitespace-nowrap">{timeAgo(u.published_at)}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Widget>
     </div>
   );
 }

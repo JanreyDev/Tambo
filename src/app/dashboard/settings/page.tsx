@@ -190,6 +190,7 @@ export default function SettingsPage() {
   const [cedulaFee, setCedulaFee] = useState("0");
   const [signatoryName, setSignatoryName] = useState("");
   const [signatoryTitle, setSignatoryTitle] = useState("PUNONG BARANGAY");
+  const [docLayout, setDocLayout] = useState<"klasiko" | "moderno" | "elegante" | "digital">("klasiko");
   // Usage/billing data
   const [usage, setUsage] = useState<BarangayUsage | null>(null);
   const [usageLoading, setUsageLoading] = useState(false);
@@ -227,6 +228,7 @@ export default function SettingsPage() {
         setCedulaFee(String(s.cedula_fee ?? 0));
         setSignatoryName(s.default_signatory_name || "");
         setSignatoryTitle(s.default_signatory_title || "PUNONG BARANGAY");
+        setDocLayout((s.document_layout as "klasiko" | "moderno" | "elegante" | "digital") || "klasiko");
       } catch {
         addToast("Failed to load settings", "error");
       } finally {
@@ -284,6 +286,7 @@ export default function SettingsPage() {
       indigency_fee: indigencyFee ? parseFloat(indigencyFee) : 0,
       id_fee: idFee ? parseFloat(idFee) : 0,
       cedula_fee: cedulaFee ? parseFloat(cedulaFee) : 0,
+      document_layout: docLayout,
     },
   });
 
@@ -686,6 +689,266 @@ export default function SettingsPage() {
                       <p className="text-[9px] text-gray-500 text-center italic">{docFooter || "Footer text will appear here"}</p>
                     </div>
                   </div>
+                </div>
+              </div>
+
+              {/* Certificate Design */}
+              <div className="glass rounded-xl p-6">
+                <h3 className="text-sm font-semibold text-foreground mb-1">Certificate Design</h3>
+                <p className="text-xs text-muted-foreground mb-4">Choose the layout style for all generated PDF certificates and clearances. Anti-epal compliant (DILG MC 2026-006).</p>
+                <div className="grid grid-cols-2 gap-4">
+                  {[
+                    {
+                      id: "klasiko",
+                      label: "Klasiko",
+                      desc: "Traditional layout with dual seals and double-border header. Standard Philippine government style.",
+                      preview: (
+                        /* ── KLASIKO: double-border header, dual seals, centered text, navy ── */
+                        <div className="w-full bg-white rounded-t-lg overflow-hidden border border-gray-200 font-sans" style={{ fontSize: 0 }}>
+                          {/* Header */}
+                          <div className="px-3 pt-3 pb-2 border-b-2 border-double border-[#1a3a6e]">
+                            <div className="flex items-center justify-between gap-1">
+                              {/* Left seal */}
+                              <div className="w-7 h-7 rounded-full border-2 border-gray-300 bg-gray-50 flex-shrink-0 flex items-center justify-center">
+                                <div className="w-4 h-4 rounded-full border border-gray-300 bg-gray-100" />
+                              </div>
+                              {/* Center text */}
+                              <div className="flex-1 text-center space-y-0.5">
+                                <div className="h-1 bg-gray-400 rounded mx-4" />
+                                <div className="h-1 bg-gray-500 rounded mx-6" />
+                                <div className="h-2 bg-[#1a3a6e] rounded mx-3" />
+                                <div className="h-1 bg-gray-400 rounded mx-8" />
+                              </div>
+                              {/* Right seal */}
+                              <div className="w-7 h-7 rounded-full border-2 border-gray-300 bg-gray-50 flex-shrink-0 flex items-center justify-center">
+                                <div className="w-4 h-4 rounded-full border border-gray-300 bg-gray-100" />
+                              </div>
+                            </div>
+                          </div>
+                          {/* Title */}
+                          <div className="px-3 py-1.5 text-center space-y-0.5">
+                            <div className="h-2 bg-[#1a3a6e] rounded mx-6" />
+                            <div className="h-1 bg-gray-300 rounded mx-10" />
+                          </div>
+                          {/* Body lines */}
+                          <div className="px-4 py-1 space-y-1">
+                            <div className="h-1 bg-gray-200 rounded" />
+                            <div className="h-1 bg-gray-200 rounded w-5/6" />
+                            <div className="h-1 bg-gray-200 rounded w-4/5" />
+                            <div className="h-1 bg-gray-200 rounded w-full" />
+                          </div>
+                          {/* Signature row */}
+                          <div className="px-3 pt-1.5 pb-2.5 flex justify-between">
+                            <div className="w-14 text-center space-y-0.5">
+                              <div className="h-px bg-gray-400" />
+                              <div className="h-1 bg-gray-300 rounded" />
+                            </div>
+                            <div className="w-14 text-center space-y-0.5">
+                              <div className="h-px bg-gray-400" />
+                              <div className="h-1 bg-gray-300 rounded" />
+                            </div>
+                          </div>
+                          {/* Footer */}
+                          <div className="px-3 py-1 border-t border-gray-200 flex justify-between items-center">
+                            <div className="space-y-0.5">
+                              <div className="h-0.5 w-10 bg-gray-200 rounded" />
+                              <div className="h-0.5 w-8 bg-gray-200 rounded" />
+                            </div>
+                            <div className="w-5 h-5 border border-gray-300 rounded-sm bg-gray-50" />
+                          </div>
+                        </div>
+                      ),
+                    },
+                    {
+                      id: "moderno",
+                      label: "Moderno",
+                      desc: "Clean modern design with a blue accent bar, single left-aligned seal, and minimal borders.",
+                      preview: (
+                        /* ── MODERNO: 4px blue top bar, single seal left, text right, minimal ── */
+                        <div className="w-full bg-white rounded-t-lg overflow-hidden border border-gray-200" style={{ fontSize: 0 }}>
+                          {/* Blue top accent bar */}
+                          <div className="h-1.5 bg-[#1a56db]" />
+                          {/* Header: seal left, text right */}
+                          <div className="px-3 pt-2 pb-1.5 flex items-start gap-2.5 border-b border-gray-100">
+                            <div className="w-7 h-7 rounded-full border-2 border-gray-300 bg-gray-50 flex-shrink-0 flex items-center justify-center mt-0.5">
+                              <div className="w-4 h-4 rounded-full border border-gray-300 bg-gray-100" />
+                            </div>
+                            <div className="flex-1 space-y-0.5 pt-0.5">
+                              <div className="h-1 bg-gray-400 rounded w-4/5" />
+                              <div className="h-1 bg-gray-400 rounded w-3/5" />
+                              <div className="h-1.5 bg-[#1a3a6e] rounded w-full" />
+                              <div className="h-1 bg-gray-300 rounded w-2/3" />
+                            </div>
+                          </div>
+                          {/* Title with blue underline */}
+                          <div className="px-3 py-1.5">
+                            <div className="h-2 bg-[#1a3a6e] rounded w-3/5" />
+                            <div className="mt-0.5 h-0.5 bg-[#1a56db] rounded w-3/5" />
+                          </div>
+                          {/* Body lines */}
+                          <div className="px-3 space-y-1 pb-1">
+                            <div className="h-1 bg-gray-200 rounded w-full" />
+                            <div className="h-1 bg-gray-200 rounded w-5/6" />
+                            <div className="h-1 bg-gray-200 rounded w-4/5" />
+                          </div>
+                          {/* Signature row */}
+                          <div className="px-3 pt-1 pb-2 flex justify-between">
+                            <div className="w-14 space-y-0.5">
+                              <div className="h-px bg-gray-400" />
+                              <div className="h-1 bg-gray-300 rounded" />
+                            </div>
+                            <div className="w-14 space-y-0.5">
+                              <div className="h-px bg-gray-400" />
+                              <div className="h-1 bg-gray-300 rounded" />
+                            </div>
+                          </div>
+                          {/* Footer */}
+                          <div className="px-3 py-1 border-t border-gray-100 flex justify-between items-center">
+                            <div className="space-y-0.5">
+                              <div className="h-0.5 w-10 bg-gray-200 rounded" />
+                              <div className="h-0.5 w-8 bg-gray-200 rounded" />
+                            </div>
+                            <div className="w-5 h-5 border border-gray-300 rounded-sm bg-gray-50" />
+                          </div>
+                        </div>
+                      ),
+                    },
+                    {
+                      id: "elegante",
+                      label: "Elegante",
+                      desc: "Formal style with decorative double-border frame, centered seal, and flanked title rules.",
+                      preview: (
+                        /* ── ELEGANTE: outer+inner navy border, centered, flanked title rules ── */
+                        <div className="w-full bg-white rounded-t-lg overflow-hidden border-2 border-[#1a3a6e]" style={{ fontSize: 0 }}>
+                          <div className="m-1 border border-[#8b9dc3] rounded-sm">
+                            {/* Centered header */}
+                            <div className="px-2 pt-2 pb-1.5 flex flex-col items-center border-b border-[#8b9dc3]/50">
+                              <div className="w-7 h-7 rounded-full border-2 border-gray-300 bg-gray-50 flex items-center justify-center">
+                                <div className="w-4 h-4 rounded-full border border-gray-300 bg-gray-100" />
+                              </div>
+                              <div className="mt-1 space-y-0.5 w-full text-center">
+                                <div className="h-1 bg-gray-400 rounded mx-4" />
+                                <div className="h-1 bg-gray-400 rounded mx-6" />
+                                <div className="h-1.5 bg-[#1a3a6e] rounded mx-4" />
+                              </div>
+                            </div>
+                            {/* Title with flanking rules */}
+                            <div className="px-2 py-1.5 flex items-center justify-center gap-1">
+                              <div className="flex-1 h-px bg-[#8b9dc3]" />
+                              <div className="h-2 bg-[#1a3a6e] rounded w-16" />
+                              <div className="flex-1 h-px bg-[#8b9dc3]" />
+                            </div>
+                            {/* Body lines */}
+                            <div className="px-3 space-y-1 pb-1">
+                              <div className="h-1 bg-gray-200 rounded" />
+                              <div className="h-1 bg-gray-200 rounded w-5/6 mx-auto" />
+                              <div className="h-1 bg-gray-200 rounded w-4/5 mx-auto" />
+                            </div>
+                            {/* Signature centered */}
+                            <div className="px-3 pt-1 pb-2 flex justify-center">
+                              <div className="w-20 space-y-0.5 text-center">
+                                <div className="h-px bg-gray-400" />
+                                <div className="h-1 bg-gray-300 rounded" />
+                              </div>
+                            </div>
+                            {/* Footer */}
+                            <div className="px-2 py-1 border-t border-[#8b9dc3]/50 flex justify-between items-center">
+                              <div className="space-y-0.5">
+                                <div className="h-0.5 w-8 bg-gray-200 rounded" />
+                                <div className="h-0.5 w-6 bg-gray-200 rounded" />
+                              </div>
+                              <div className="w-5 h-5 border border-gray-300 rounded-sm bg-gray-50" />
+                            </div>
+                          </div>
+                        </div>
+                      ),
+                    },
+                    {
+                      id: "digital",
+                      label: "Digital",
+                      desc: "Minimal dark-header design with SHA hash, blue accent title, and prominent QR code.",
+                      preview: (
+                        /* ── DIGITAL: dark slate header band, blue title, hash line, footer band ── */
+                        <div className="w-full bg-white rounded-t-lg overflow-hidden border border-gray-200" style={{ fontSize: 0 }}>
+                          {/* Dark header band */}
+                          <div className="bg-[#0f172a] px-3 py-2.5 flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full border border-white/30 bg-white/10 flex-shrink-0 flex items-center justify-center">
+                              <div className="w-3.5 h-3.5 rounded-full border border-white/40 bg-white/20" />
+                            </div>
+                            <div className="flex-1 space-y-0.5">
+                              <div className="h-1 bg-white/70 rounded w-3/4" />
+                              <div className="h-1 bg-white/50 rounded w-1/2" />
+                              <div className="h-1.5 bg-white/90 rounded w-full" />
+                            </div>
+                          </div>
+                          {/* Blue title + hash line */}
+                          <div className="px-3 pt-2 pb-1">
+                            <div className="h-2 bg-[#2563eb] rounded w-2/3" />
+                            <div className="h-0.5 bg-[#3b82f6]/50 rounded w-4/5 mt-0.5 font-mono" />
+                          </div>
+                          {/* Body lines */}
+                          <div className="px-3 space-y-1 pb-1">
+                            <div className="h-1 bg-gray-200 rounded" />
+                            <div className="h-1 bg-gray-200 rounded w-5/6" />
+                            <div className="h-1 bg-gray-200 rounded w-4/5" />
+                          </div>
+                          {/* Signature row */}
+                          <div className="px-3 pt-0.5 pb-1.5 flex justify-between">
+                            <div className="w-12 space-y-0.5">
+                              <div className="h-px bg-gray-400" />
+                              <div className="h-1 bg-gray-300 rounded" />
+                            </div>
+                            <div className="w-12 space-y-0.5">
+                              <div className="h-px bg-gray-400" />
+                              <div className="h-1 bg-gray-300 rounded" />
+                            </div>
+                          </div>
+                          {/* Footer band */}
+                          <div className="px-3 py-1.5 bg-[#f8fafc] border-t border-gray-200 flex justify-between items-center">
+                            <div className="space-y-0.5">
+                              <div className="h-0.5 w-10 bg-gray-300 rounded" />
+                              <div className="h-0.5 w-12 bg-[#3b82f6]/50 rounded font-mono" />
+                            </div>
+                            <div className="w-6 h-6 border-2 border-gray-400 rounded-sm bg-white flex items-center justify-center">
+                              <div className="grid grid-cols-3 gap-px w-3 h-3">
+                                {Array.from({ length: 9 }).map((_, i) => (
+                                  <div key={i} className={cn("rounded-px", [0,2,6,8,4].includes(i) ? "bg-gray-700" : "bg-gray-200")} />
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ),
+                    },
+                  ].map((layout) => (
+                    <button
+                      key={layout.id}
+                      type="button"
+                      onClick={() => setDocLayout(layout.id as typeof docLayout)}
+                      className={cn(
+                        "text-left rounded-xl border-2 transition-all overflow-hidden group",
+                        docLayout === layout.id
+                          ? "border-[var(--accent-primary)] ring-2 ring-[var(--accent-primary)]/20"
+                          : "border-border hover:border-muted-foreground/40"
+                      )}
+                    >
+                      {/* Preview — scales up slightly on hover */}
+                      <div className="overflow-hidden transition-transform duration-200 group-hover:scale-[1.015] origin-top">
+                        {layout.preview}
+                      </div>
+                      <div className="px-3 py-2 border-t border-border/60">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs font-semibold text-foreground">{layout.label}</p>
+                          {docLayout === layout.id && (
+                            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full text-white flex-shrink-0" style={{ background: "var(--accent-primary)" }}>
+                              Active
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed">{layout.desc}</p>
+                      </div>
+                    </button>
+                  ))}
                 </div>
               </div>
 

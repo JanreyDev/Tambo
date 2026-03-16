@@ -313,9 +313,9 @@ export interface ResidentSummary {
   registration_date: string | null;
   created_at: string;
   sectoral_tags?: Array<{ id: string; sector: string }>;
-  cross_barangay_flags?: Array<{ id: string; other_barangay_id: string; match_confidence: string; other_barangay_name?: string }>;
+  cross_barangay_flags?: Array<{ id: string; barangay_name: string; detected_at: string | null; acknowledged_at: string | null }>;
   // Optional fields that may be included by the API for list views
-  case_records?: Array<Record<string, string>>;
+  case_records?: Array<{ source: string; case_number: string; description: string; status: string; party_type: string; filing_date: string }>;
   last_document?: { type?: string; generated_by?: string } | null;
   precinct_number?: string | null;
   voter_id?: string | null;
@@ -655,6 +655,122 @@ export interface VoterImportResult {
   total: number;
   matched: number;
   imported_at: string;
+}
+
+// ── KP Cases (Katarungang Pambarangay) ───────────────────────────────────
+
+export interface KpCaseParty {
+  id: string;
+  case_id: string;
+  resident_id: string | null;
+  party_type: "complainant" | "respondent" | "witness";
+  party_mode: "individual" | "group";
+  first_name: string | null;
+  middle_name: string | null;
+  last_name: string | null;
+  full_name: string;
+  address: string | null;
+  mobile_number: string | null;
+  created_at: string;
+}
+
+export interface KpCaseHearing {
+  id: string;
+  case_id: string;
+  hearing_type: "mediation" | "conciliation" | "arbitration";
+  hearing_date: string;
+  hearing_time: string | null;
+  venue: string | null;
+  minutes: string | null;
+  attendees: Array<{ name: string; role?: string }> | null;
+  outcome: string | null;
+  next_hearing_date: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KpCaseListItem {
+  id: string;
+  case_number: string;
+  filing_date: string;
+  case_level: "mediation" | "conciliation" | "arbitration";
+  nature: string;
+  nature_of_complaint: string;
+  rpc_article: string | null;
+  case_description: string | null;
+  status: string;
+  remarks: string | null;
+  mediation_deadline: string | null;
+  conciliation_deadline: string | null;
+  conciliation_extended_deadline: string | null;
+  settlement_date: string | null;
+  cfa_date: string | null;
+  certification_to_file_action: boolean;
+  created_at: string;
+  parties: KpCaseParty[];
+}
+
+export interface KpCaseDetail extends KpCaseListItem {
+  complainant_type: string;
+  respondent_type: string;
+  presiding_officer_id: string | null;
+  lupon_secretary_id: string | null;
+  pangkat_chairman_id: string | null;
+  pangkat_members: Array<{ official_id: string; name: string }> | null;
+  first_meeting_date: string | null;
+  pangkat_constituted_date: string | null;
+  pangkat_convene_date: string | null;
+  action_taken: string | null;
+  settlement_text: string | null;
+  arbitration_award: string | null;
+  arbitration_date: string | null;
+  repudiation_deadline: string | null;
+  execution_date: string | null;
+  certification_to_file_action: boolean;
+  cfa_reason: string | null;
+  blockchain_hash: string | null;
+  hearings: KpCaseHearing[];
+}
+
+// ── Blotter Records ───────────────────────────────────────────────────────
+
+export type BlotterStatus = 'filed' | 'for_hearing' | 'for_subpoena' | 'settled' | 'closed';
+
+export interface BlotterRecord {
+  id: string;
+  blotter_number: string;
+  filing_date: string;
+  incident_type: string;
+  incident_date: string | null;
+  incident_time: string | null;
+  incident_place: string | null;
+  narrative: string;
+  resolution: string | null;
+  complainant_name: string;
+  complainant_address: string | null;
+  complainant_mobile: string | null;
+  complainant_resident_id: string | null;
+  respondent_name: string;
+  respondent_address: string | null;
+  respondent_mobile: string | null;
+  respondent_resident_id: string | null;
+  officer_on_duty_id: string | null;
+  status: BlotterStatus;
+  linked_kp_case_id: string | null;
+  attachment_file_ids: string[] | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BlotterStats {
+  total: number;
+  filed: number;
+  for_hearing: number;
+  for_subpoena: number;
+  settled: number;
+  closed: number;
+  active: number;
+  this_month: number;
 }
 
 // ── Platform Updates ──────────────────────────────────────────────────────

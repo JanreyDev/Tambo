@@ -30,6 +30,8 @@ import {
   ChevronDown,
   HelpCircle,
   Sparkles,
+  Mail,
+  ShoppingBag,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -83,6 +85,8 @@ const navGroupDefs: NavGroupDef[] = [
     titleKey: "tools",
     items: [
       { labelKey: "mabiniAi", href: "/dashboard/ai", icon: Bot },
+      { labelKey: "email", href: "/dashboard/email", icon: Mail },
+      { labelKey: "marketplace", href: "/dashboard/marketplace", icon: ShoppingBag },
       { labelKey: "drive", href: "/dashboard/drive", icon: HardDrive },
       { labelKey: "publicPortal", href: "/dashboard/public-portal", icon: Globe },
       { labelKey: "supportTickets", href: "/dashboard/support", icon: MessageCircle },

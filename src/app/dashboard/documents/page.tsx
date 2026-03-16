@@ -1,686 +1,430 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   FileText,
   Plus,
   Search,
-  Filter,
   Download,
   Printer,
   MoreHorizontal,
   ChevronLeft,
   ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
   X,
   Clock,
   CheckCircle2,
-  FileCheck2,
   QrCode,
   User,
-  CreditCard,
-  Save,
   Eye,
-  Edit,
   Ban,
-  Calendar,
-  Hash,
-  DollarSign,
   AlertTriangle,
-  Trash2,
-  Bot,
+  Shield,
+  Loader2,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
-import { StatusBadge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/stat-card";
-import { Modal, ModalButton } from "@/components/ui/modal";
 import { SortableHeader } from "@/components/ui/sortable-header";
 import { cn } from "@/lib/utils";
-import { MabiniButton } from '@/components/ui/mabini-button';
+import { MabiniButton } from "@/components/ui/mabini-button";
+import { useRouter, useSearchParams } from "next/navigation";
+import { api } from "@/lib/api";
+import { GenerateDocumentWizard } from "@/components/documents/GenerateDocumentWizard";
+import type {
+  DocumentTemplate,
+  IssuedDocument,
+  PaginatedResponse,
+} from "@/lib/types";
 
-interface IssuedDocument {
-  id: string;
-  document_number: string;
-  resident_name: string;
-  resident_number: string;
-  document_type: string;
-  purpose: string;
-  status: string;
-  amount_paid: number;
-  or_number: string;
-  issued_by: string;
-  issued_at: string;
-  valid_until: string;
-  blockchain_hash: string;
-  payment_method: string;
-  validity_period: string;
-  notes: string;
-}
-
-// ── Mock Residents for Search ──
-const mockResidentsList = [
-  { id: "1", resident_number: "RES-2026-0001", name: "Dela Cruz, Maria S.", purok: "Sampaguita", age: 41, sex: "Female", mobile: "09171234567" },
-  { id: "2", resident_number: "RES-2026-0002", name: "Santos, Juan R. Jr.", purok: "Rosal", age: 35, sex: "Male", mobile: "09281234567" },
-  { id: "3", resident_number: "RES-2026-0003", name: "Garcia, Ana L.", purok: "Ilang-Ilang", age: 53, sex: "Female", mobile: "09351234567" },
-  { id: "4", resident_number: "RES-2026-0004", name: "Reyes, Pedro A.", purok: "Sampaguita", age: 28, sex: "Male", mobile: "09451234567" },
-  { id: "5", resident_number: "RES-2026-0005", name: "De Los Santos, Rosa B.", purok: "Dahlia", age: 60, sex: "Female", mobile: "09161234567" },
-  { id: "6", resident_number: "RES-2026-0006", name: "Manalo, Roberto C.", purok: "Rosal", age: 37, sex: "Male", mobile: "09271234567" },
-  { id: "7", resident_number: "RES-2026-0007", name: "Villanueva, Liza T.", purok: "Jasmine", age: 24, sex: "Female", mobile: "09381234567" },
-  { id: "8", resident_number: "RES-2026-0008", name: "Rivera, Carlos M. III", purok: "Sunflower", age: 70, sex: "Male", mobile: "09191234567" },
-];
-
-const mockDocuments: IssuedDocument[] = [
-  { id: "1", document_number: "DOC-2026-0342", resident_name: "Dela Cruz, Maria S.", resident_number: "RES-2026-0001", document_type: "Barangay Clearance", purpose: "Local Employment", status: "released", amount_paid: 50, or_number: "OR-2026-0342", issued_by: "Secretary Santos", issued_at: "2026-03-07 10:30", valid_until: "2026-09-07", blockchain_hash: "0x8a4f...", payment_method: "Cash", validity_period: "6 months", notes: "" },
-  { id: "2", document_number: "DOC-2026-0341", resident_name: "Santos, Juan R.", resident_number: "RES-2026-0002", document_type: "Certificate of Residency", purpose: "School Enrollment", status: "released", amount_paid: 30, or_number: "OR-2026-0341", issued_by: "Secretary Santos", issued_at: "2026-03-07 09:15", valid_until: "2026-06-07", blockchain_hash: "0x7b3e...", payment_method: "Cash", validity_period: "3 months", notes: "" },
-  { id: "3", document_number: "DOC-2026-0340", resident_name: "Garcia, Ana L.", resident_number: "RES-2026-0003", document_type: "Certificate of Indigency", purpose: "Medical Assistance", status: "released", amount_paid: 0, or_number: "", issued_by: "Kap. Reyes", issued_at: "2026-03-06 14:00", valid_until: "2026-06-06", blockchain_hash: "0x6c2d...", payment_method: "Waived", validity_period: "3 months", notes: "For PhilHealth coverage application" },
-  { id: "4", document_number: "DOC-2026-0339", resident_name: "Reyes, Pedro A.", resident_number: "RES-2026-0004", document_type: "Barangay Clearance", purpose: "NBI Clearance", status: "pending", amount_paid: 50, or_number: "OR-2026-0339", issued_by: "", issued_at: "", valid_until: "", blockchain_hash: "", payment_method: "Cash", validity_period: "6 months", notes: "" },
-  { id: "5", document_number: "DOC-2026-0338", resident_name: "De Los Santos, Rosa B.", resident_number: "RES-2026-0005", document_type: "Business Permit Endorsement", purpose: "Business Permit Renewal", status: "released", amount_paid: 200, or_number: "OR-2026-0338", issued_by: "Kap. Reyes", issued_at: "2026-03-05 11:00", valid_until: "2027-03-05", blockchain_hash: "0x5d1c...", payment_method: "Cash", validity_period: "1 year", notes: "Sari-sari store renewal" },
-  { id: "6", document_number: "DOC-2026-0337", resident_name: "Manalo, Roberto C.", resident_number: "RES-2026-0006", document_type: "Barangay Clearance", purpose: "Overseas Employment", status: "released", amount_paid: 50, or_number: "OR-2026-0337", issued_by: "Secretary Santos", issued_at: "2026-03-05 09:30", valid_until: "2026-09-05", blockchain_hash: "0x4e0b...", payment_method: "Cash", validity_period: "6 months", notes: "" },
-  { id: "7", document_number: "DOC-2026-0336", resident_name: "Villanueva, Liza T.", resident_number: "RES-2026-0007", document_type: "Certificate of Good Moral", purpose: "Job Application", status: "draft", amount_paid: 0, or_number: "", issued_by: "", issued_at: "", valid_until: "", blockchain_hash: "", payment_method: "", validity_period: "6 months", notes: "" },
-  { id: "8", document_number: "DOC-2026-0335", resident_name: "Rivera, Carlos M.", resident_number: "RES-2026-0008", document_type: "Certificate of Residency", purpose: "Pension Application", status: "released", amount_paid: 30, or_number: "OR-2026-0335", issued_by: "Secretary Santos", issued_at: "2026-03-04 15:00", valid_until: "2026-06-04", blockchain_hash: "0x3f9a...", payment_method: "Check", validity_period: "3 months", notes: "For GSIS pension claim" },
-];
-
-const documentTypes = ["All Types", "Barangay Clearance", "Certificate of Residency", "Certificate of Indigency", "Business Permit Endorsement", "Certificate of Good Moral"];
-const statusOptions = ["All Status", "Draft", "Pending", "Released", "Revoked"];
-
-// Document type -> default fee mapping
-const documentFees: Record<string, number> = {
-  "Barangay Clearance": 50,
-  "Certificate of Residency": 30,
-  "Certificate of Indigency": 0,
-  "Business Permit Endorsement": 200,
-  "Certificate of Good Moral": 30,
-  "Cedula": 50,
+const STATUS_CFG: Record<string, { label: string; color: string; bg: string }> = {
+  issued: { label: "Issued", color: "text-blue-700 dark:text-blue-400", bg: "bg-blue-100 dark:bg-blue-900/30" },
+  released: { label: "Released", color: "text-emerald-700 dark:text-emerald-400", bg: "bg-emerald-100 dark:bg-emerald-900/30" },
+  cancelled: { label: "Cancelled", color: "text-red-700 dark:text-red-400", bg: "bg-red-100 dark:bg-red-900/30" },
+  expired: { label: "Expired", color: "text-amber-700 dark:text-amber-400", bg: "bg-amber-100 dark:bg-amber-900/30" },
 };
 
-const issueDocumentTypes = ["Barangay Clearance", "Certificate of Residency", "Certificate of Indigency", "Business Permit Endorsement", "Certificate of Good Moral", "Cedula"];
-const validityOptions = [
-  { value: "3 months", label: "3 Months" },
-  { value: "6 months", label: "6 Months" },
-  { value: "1 year", label: "1 Year" },
-];
-const paymentMethods = ["Cash", "Check", "Waived"];
-
-// ── Form Field Components (module-level to avoid re-creation during render) ──
-function FormInput({ label, value, onChange, required, type = "text", placeholder = "", disabled = false, error }: { label: string; value: string; onChange: (value: string) => void; required?: boolean; type?: string; placeholder?: string; disabled?: boolean; error?: string }) {
-  return (
-    <div>
-      <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} disabled={disabled}
-        className={cn("w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring", error ? "border-red-500" : "border-border", disabled && "opacity-60 cursor-not-allowed bg-muted")} />
-      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
-    </div>
-  );
-}
-
-function FormSelect({ label, value, onChange, options, required, disabled = false, error }: { label: string; value: string; onChange: (value: string) => void; options: { value: string; label: string }[]; required?: boolean; disabled?: boolean; error?: string }) {
-  return (
-    <div>
-      <label className="block text-xs font-medium text-muted-foreground mb-1">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <select value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled}
-        className={cn("w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring", error ? "border-red-500" : "border-border", disabled && "opacity-60 cursor-not-allowed bg-muted")}>
-        <option value="" disabled>Select {label}</option>
-        {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
-      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
-    </div>
-  );
-}
-
 export default function DocumentsPage() {
-  const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState("All Types");
-  const [statusFilter, setStatusFilter] = useState("All Status");
-  const [showFilters, setShowFilters] = useState(false);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // ── List state ──
+  const [documents, setDocuments] = useState<IssuedDocument[]>([]);
+  const [templates, setTemplates] = useState<DocumentTemplate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [totalDocs, setTotalDocs] = useState(0);
   const [page, setPage] = useState(1);
-  const [sortKey, setSortKey] = useState<string | null>(null);
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
-  const pageSize = 10;
+  const [perPage] = useState(20);
+  const [lastPage, setLastPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [filterTemplate, setFilterTemplate] = useState("");
+  const [sortBy, setSortBy] = useState("created_at");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
-  // Modal states
-  const [showIssue, setShowIssue] = useState(false);
-  const [showEdit, setShowEdit] = useState(false);
-  const [showDelete, setShowDelete] = useState(false);
-  const [viewDocument, setViewDocument] = useState<IssuedDocument | null>(null);
-  const [showRevoke, setShowRevoke] = useState(false);
-  const [revokeTarget, setRevokeTarget] = useState<IssuedDocument | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<IssuedDocument | null>(null);
-  const [actionMenu, setActionMenu] = useState<string | null>(null);
+  // ── Stat counts ──
+  const [stats, setStats] = useState({ total: 0, issued: 0, released: 0, cancelled: 0 });
 
-  // Issue Document form state
-  const [issueTab, setIssueTab] = useState(0);
-  const [form, setForm] = useState<Record<string, string>>({
-    resident_search: "",
-    selected_resident_id: "",
-    selected_resident_name: "",
-    selected_resident_number: "",
-    selected_resident_purok: "",
-    selected_resident_age: "",
-    selected_resident_sex: "",
-    selected_resident_mobile: "",
-    document_type: "",
-    purpose: "",
-    validity_period: "6 months",
-    amount: "",
-    or_number: "",
-    payment_method: "Cash",
-    notes: "",
-  });
-  const [residentSearchResults, setResidentSearchResults] = useState<typeof mockResidentsList>([]);
-  const [showResidentDropdown, setShowResidentDropdown] = useState(false);
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  // ── Wizard state (passed to GenerateDocumentWizard) ──
+  const [showWizard, setShowWizard] = useState(false);
+  const [wizardResidentId, setWizardResidentId] = useState<string | null>(null);
+  const [wizardTemplateCategory, setWizardTemplateCategory] = useState<string | null>(null);
 
-  // Submission state
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // ── View modal ──
+  const [viewDoc, setViewDoc] = useState<IssuedDocument | null>(null);
 
-  // Toast state
-  const [toasts, setToasts] = useState<{ id: number; title: string; description: string }[]>([]);
-  const addToast = useCallback((title: string, description: string) => {
-    const id = Date.now();
-    setToasts((prev) => [...prev, { id, title, description }]);
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
+  // ── Dropdown ──
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // ── Toast notifications ──
+  const [toast, setToast] = useState<{ msg: string; type: "ok" | "err" | "info" } | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const showToast = (msg: string, type: "ok" | "err" | "info" = "ok") => {
+    clearTimeout(toastTimer.current);
+    setToast({ msg, type });
+    toastTimer.current = setTimeout(() => setToast(null), 3500);
+  };
+
+  // ── Fetch documents ──
+  const fetchDocuments = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api.issuedDocuments.list({
+        page,
+        per_page: perPage,
+        search: search || undefined,
+        status: filterStatus || undefined,
+        template_id: filterTemplate || undefined,
+        sort_by: sortBy,
+        sort_dir: sortDir,
+      });
+      setDocuments(res.data);
+      setTotalDocs(res.total);
+      setLastPage(res.last_page);
+    } catch {
+      // silent
+    } finally {
+      setLoading(false);
+    }
+  }, [page, perPage, search, filterStatus, filterTemplate, sortBy, sortDir]);
+
+  // ── Fetch templates ──
+  const fetchTemplates = useCallback(async () => {
+    try {
+      const res = await api.documentTemplates.list({ is_active: true, per_page: 100 });
+      setTemplates(res.data);
+    } catch {
+      // silent
+    }
   }, []);
 
-  const filtered = mockDocuments.filter((d) => {
-    if (search) {
-      const q = search.toLowerCase();
-      if (!d.resident_name.toLowerCase().includes(q) && !d.document_number.toLowerCase().includes(q) && !d.document_type.toLowerCase().includes(q)) return false;
+  // ── Fetch stats ──
+  const fetchStats = useCallback(async () => {
+    try {
+      const data = await api.issuedDocuments.stats();
+      setStats({
+        total: data.total,
+        issued: data.issued,
+        released: data.released,
+        cancelled: data.cancelled,
+      });
+    } catch {
+      // silent
     }
-    if (typeFilter !== "All Types" && d.document_type !== typeFilter) return false;
-    if (statusFilter !== "All Status" && d.status !== statusFilter.toLowerCase()) return false;
-    return true;
-  });
+  }, []);
 
-  const sorted = [...filtered].sort((a, b) => {
-    if (!sortKey) return 0;
-    const aVal = a[sortKey as keyof IssuedDocument];
-    const bVal = b[sortKey as keyof IssuedDocument];
-    return sortDir === "asc" ? String(aVal).localeCompare(String(bVal), undefined, { numeric: true }) : String(bVal).localeCompare(String(aVal), undefined, { numeric: true });
-  });
+  useEffect(() => {
+    fetchDocuments();
+  }, [fetchDocuments]);
 
-  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
-  const safePage = Math.min(page, totalPages);
-  const start = (safePage - 1) * pageSize;
-  const paged = sorted.slice(start, start + pageSize);
+  useEffect(() => {
+    fetchTemplates();
+    fetchStats();
+  }, [fetchTemplates, fetchStats]);
 
-  const toggleSort = (key: string) => {
-    if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else { setSortKey(key); setSortDir("asc"); }
-  };
+  // ── Search debounce ──
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setSearch(searchInput);
+      setPage(1);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
-  const releasedCount = mockDocuments.filter((d) => d.status === "released").length;
-  const pendingCount = mockDocuments.filter((d) => d.status === "pending" || d.status === "draft").length;
-  const totalRevenue = mockDocuments.reduce((sum, d) => sum + d.amount_paid, 0);
+  // ── URL param: open wizard from direct link (e.g. shared link) ──
+  useEffect(() => {
+    const residentId = searchParams.get("resident_id");
+    if (!residentId) return;
+    setWizardResidentId(residentId);
+    setWizardTemplateCategory(searchParams.get("template_category"));
+    setShowWizard(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
-  const docTypeColor = (type: string): string => {
-    if (type.includes("Clearance")) return "#3b82f6";
-    if (type.includes("Residency")) return "#8b5cf6";
-    if (type.includes("Indigency")) return "#22c55e";
-    if (type.includes("Business")) return "#f59e0b";
-    if (type.includes("Good Moral")) return "#06b6d4";
-    if (type.includes("Cedula")) return "#ec4899";
-    return "#64748b";
-  };
-
-  // ── Issue Document Helpers ──
-  const openIssueModal = () => {
-    setForm({
-      resident_search: "", selected_resident_id: "", selected_resident_name: "",
-      selected_resident_number: "", selected_resident_purok: "", selected_resident_age: "",
-      selected_resident_sex: "", selected_resident_mobile: "",
-      document_type: "", purpose: "", validity_period: "6 months",
-      amount: "", or_number: "", payment_method: "Cash", notes: "",
-    });
-    setIssueTab(0);
-    setResidentSearchResults([]);
-    setShowResidentDropdown(false);
-    setFormErrors({});
-    setShowIssue(true);
-  };
-
-  const updateForm = (key: string, value: string) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
-    if (formErrors[key]) setFormErrors((prev) => { const next = { ...prev }; delete next[key]; return next; });
-  };
-
-  const validateForm = (): Record<string, string> => {
-    const errors: Record<string, string> = {};
-    if (!form.selected_resident_id) errors.resident = "Resident is required. Please search and select a resident.";
-    if (!form.document_type) errors.document_type = "Document type is required.";
-    if (!form.purpose || !form.purpose.trim()) errors.purpose = "Purpose is required.";
-    if (form.amount && (isNaN(Number(form.amount)) || Number(form.amount) < 0)) errors.amount = "Amount must be a non-negative number.";
-    setFormErrors(errors);
-    return errors;
-  };
-
-  const handleFormSubmit = () => {
-    if (isSubmitting) return;
-    const errors = validateForm();
-    if (Object.keys(errors).length > 0) {
-      // Jump to the first tab that has errors
-      if (errors.resident) { setIssueTab(0); return; }
-      if (errors.document_type || errors.purpose) { setIssueTab(1); return; }
-      if (errors.amount) { setIssueTab(2); return; }
-      return;
-    }
-    setIsSubmitting(true);
-    setTimeout(() => {
-      if (showEdit) {
-        addToast("Document Updated", "Document details have been saved successfully.");
-      } else {
-        addToast("Document Issued", `${form.document_type} has been issued for ${form.selected_resident_name}.`);
+  // ── Close dropdown on outside click ──
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpenDropdown(null);
       }
-      setShowIssue(false);
-      setShowEdit(false);
-      setFormErrors({});
-      setIsSubmitting(false);
-    }, 300);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  // ── Sort handler ──
+  const handleSort = (col: string) => {
+    if (sortBy === col) {
+      setSortDir(sortDir === "asc" ? "desc" : "asc");
+    } else {
+      setSortBy(col);
+      setSortDir("desc");
+    }
+    setPage(1);
   };
 
-  const handleResidentSearch = (query: string) => {
-    updateForm("resident_search", query);
-    if (query.length >= 2) {
-      const q = query.toLowerCase();
-      const results = mockResidentsList.filter(
-        (r) => r.name.toLowerCase().includes(q) || r.resident_number.toLowerCase().includes(q)
-      );
-      setResidentSearchResults(results);
-      setShowResidentDropdown(true);
-    } else {
-      setResidentSearchResults([]);
-      setShowResidentDropdown(false);
+  // ── Open wizard (manual button) ──
+  const openGenerateWizard = () => {
+    setWizardResidentId(null);
+    setWizardTemplateCategory(null);
+    setShowWizard(true);
+  };
+
+  // ── Open PDF in new tab ──
+  const handleViewPdf = (doc: IssuedDocument) => {
+    if (doc.pdf_url) {
+      window.open(`/api/v1/issued-documents/${doc.id}/pdf`, "_blank");
     }
   };
 
-  const selectResident = (resident: typeof mockResidentsList[0]) => {
-    setForm((prev) => ({
-      ...prev,
-      resident_search: resident.name,
-      selected_resident_id: resident.id,
-      selected_resident_name: resident.name,
-      selected_resident_number: resident.resident_number,
-      selected_resident_purok: resident.purok,
-      selected_resident_age: String(resident.age),
-      selected_resident_sex: resident.sex,
-      selected_resident_mobile: resident.mobile,
-    }));
-    setShowResidentDropdown(false);
-    setResidentSearchResults([]);
-    if (formErrors.resident) setFormErrors((prev) => { const next = { ...prev }; delete next.resident; return next; });
+  // ── Download PDF ──
+  const handleDownloadPdf = async (doc: IssuedDocument) => {
+    try {
+      const response = await fetch(`/api/v1/issued-documents/${doc.id}/pdf`);
+      if (!response.ok) return;
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${doc.document_number}-${(doc.template_name || "document").replace(/\s+/g, "-").toLowerCase()}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      showToast("Download failed. Try opening the PDF instead.", "err");
+    }
   };
 
-  const clearSelectedResident = () => {
-    setForm((prev) => ({
-      ...prev,
-      resident_search: "", selected_resident_id: "", selected_resident_name: "",
-      selected_resident_number: "", selected_resident_purok: "", selected_resident_age: "",
-      selected_resident_sex: "", selected_resident_mobile: "",
-    }));
-    if (formErrors.resident) setFormErrors((prev) => { const next = { ...prev }; delete next.resident; return next; });
+  // ── Update document status ──
+  const handleStatusChange = async (docId: string, newStatus: string) => {
+    try {
+      await api.issuedDocuments.update(docId, { status: newStatus });
+      fetchDocuments();
+      fetchStats();
+      setOpenDropdown(null);
+      if (viewDoc?.id === docId) {
+        setViewDoc((prev) => prev ? { ...prev, status: newStatus as IssuedDocument["status"] } : null);
+      }
+      const label = newStatus === "released" ? "marked as released" : newStatus === "cancelled" ? "cancelled" : `updated to ${newStatus}`;
+      showToast(`Document ${label}.`, "ok");
+    } catch {
+      showToast("Failed to update document status. Try again.", "err");
+    }
   };
 
-  const openRevoke = (doc: IssuedDocument) => {
-    setRevokeTarget(doc);
-    setShowRevoke(true);
-    setActionMenu(null);
-  };
-
-  const openEdit = (doc: IssuedDocument) => {
-    setForm({
-      resident_search: doc.resident_name,
-      selected_resident_id: doc.id,
-      selected_resident_name: doc.resident_name,
-      selected_resident_number: doc.resident_number,
-      selected_resident_purok: "",
-      selected_resident_age: "",
-      selected_resident_sex: "",
-      selected_resident_mobile: "",
-      document_type: doc.document_type,
-      purpose: doc.purpose,
-      validity_period: doc.validity_period || "6 months",
-      amount: String(doc.amount_paid),
-      or_number: doc.or_number,
-      payment_method: doc.payment_method || "Cash",
-      notes: doc.notes,
-    });
-    setIssueTab(0);
-    setFormErrors({});
-    setShowEdit(true);
-    setActionMenu(null);
-  };
-
-  const openDelete = (doc: IssuedDocument) => {
-    setDeleteTarget(doc);
-    setShowDelete(true);
-    setActionMenu(null);
-  };
-
-  const issueTabs = ["Resident", "Document", "Payment"];
-
-
-  // ── Render Issue Tab Content ──
-  const renderIssueTab = () => {
-    switch (issueTab) {
-      case 0: return (
-        <div className="space-y-4">
-          <p className="text-xs text-muted-foreground">Search and select a resident to issue a document for.</p>
-          {/* Resident Search */}
-          <div className="relative">
-            <label className="block text-xs font-medium text-muted-foreground mb-1">Resident Lookup<span className="text-red-500 ml-0.5">*</span></label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <input
-                type="text"
-                value={form.resident_search}
-                onChange={(e) => handleResidentSearch(e.target.value)}
-                onFocus={() => { if (residentSearchResults.length > 0) setShowResidentDropdown(true); }}
-                placeholder="Type resident name or number (e.g. Dela Cruz, RES-2026-0001)"
-                className="w-full pl-9 pr-4 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring"
-                disabled={!!form.selected_resident_id}
-              />
-              {form.selected_resident_id && (
-                <button onClick={clearSelectedResident} className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-muted">
-                  <X className="h-3.5 w-3.5 text-muted-foreground" />
-                </button>
-              )}
-            </div>
-            {/* Search Dropdown */}
-            {showResidentDropdown && residentSearchResults.length > 0 && (
-              <div className="absolute z-20 w-full mt-1 glass rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                {residentSearchResults.map((r) => (
-                  <button key={r.id} onClick={() => selectResident(r)}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted transition-colors border-b border-border last:border-0">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-xs font-bold text-white shrink-0">
-                      {r.name.split(",")[0][0]}{r.name.split(" ").pop()?.[0] || ""}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-foreground truncate">{r.name}</p>
-                      <p className="text-[11px] text-muted-foreground">{r.resident_number} | Purok {r.purok}</p>
-                    </div>
-                    <span className="text-xs text-muted-foreground">{r.sex}, {r.age} yrs</span>
-                  </button>
-                ))}
-              </div>
-            )}
-            {showResidentDropdown && form.resident_search.length >= 2 && residentSearchResults.length === 0 && (
-              <div className="absolute z-20 w-full mt-1 glass rounded-lg shadow-lg">
-                <div className="px-4 py-6 text-center text-sm text-muted-foreground">No residents found matching your search.</div>
-              </div>
-            )}
-          </div>
-
-          {formErrors.resident && !form.selected_resident_id && (
-            <p className="text-[11px] text-red-500 -mt-2">{formErrors.resident}</p>
-          )}
-
-          {/* Selected Resident Info */}
-          {form.selected_resident_id && (
-            <div className="p-4 rounded-lg glass-subtle space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-sm font-bold text-white shrink-0">
-                  {form.selected_resident_name.split(",")[0][0]}{form.selected_resident_name.split(" ").pop()?.[0] || ""}
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-foreground">{form.selected_resident_name}</p>
-                  <p className="text-[11px] text-muted-foreground">{form.selected_resident_number}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <InfoItem label="Purok" value={form.selected_resident_purok} />
-                <InfoItem label="Age" value={`${form.selected_resident_age} years old`} />
-                <InfoItem label="Sex" value={form.selected_resident_sex} />
-                <InfoItem label="Mobile" value={form.selected_resident_mobile} />
-              </div>
-            </div>
-          )}
-        </div>
-      );
-      case 1: return (
-        <div className="space-y-4">
-          <p className="text-xs text-muted-foreground">Select the document type and provide the purpose of request.</p>
-          <FormSelect label="Document Type" value={form["document_type"] || ""} onChange={(v) => updateForm("document_type", v)} required
-            options={issueDocumentTypes.map((t) => ({ value: t, label: t }))}
-            error={formErrors.document_type}
-          />
-          {form.document_type && (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs" style={{ background: `${docTypeColor(form.document_type)}15`, color: docTypeColor(form.document_type) }}>
-              <FileText className="h-3.5 w-3.5" />
-              <span className="font-medium">{form.document_type}</span>
-              <span className="text-muted-foreground ml-1">| Default fee: {documentFees[form.document_type] === 0 ? "Free" : `₱${documentFees[form.document_type]}`}</span>
-            </div>
-          )}
-          <div>
-            <FormInput label="Purpose" value={form["purpose"] || ""} onChange={(v) => updateForm("purpose", v)} required placeholder="e.g. Local Employment, School Enrollment, Medical Assistance" error={formErrors.purpose} />
-            <p className="text-[10px] text-muted-foreground mt-1">Common purposes: employment, travel, school enrollment, bank requirement</p>
-          </div>
-          <FormSelect label="Validity Period" value={form["validity_period"] || ""} onChange={(v) => updateForm("validity_period", v)} required
-            options={validityOptions}
-          />
-        </div>
-      );
-      case 2: return (
-        <div className="space-y-4">
-          <p className="text-xs text-muted-foreground">Enter payment details. Amount auto-fills based on document type.</p>
-          <div className="grid grid-cols-2 gap-4">
-            <FormInput label="Amount (PHP)" value={form["amount"] || ""} onChange={(v) => updateForm("amount", v)} required type="number" placeholder="0" error={formErrors.amount} />
-            <FormInput label="OR Number" value={form["or_number"] || ""} onChange={(v) => updateForm("or_number", v)} placeholder="e.g. OR-2026-0343" />
-          </div>
-          <FormSelect label="Payment Method" value={form["payment_method"] || ""} onChange={(v) => updateForm("payment_method", v)} required
-            options={paymentMethods.map((m) => ({ value: m, label: m }))}
-          />
-          {form.payment_method === "Waived" && (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 text-xs border border-amber-200 dark:border-amber-900">
-              <AlertTriangle className="h-3.5 w-3.5" />
-              Payment is waived. OR number is not required.
-            </div>
-          )}
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">Notes</label>
-            <textarea value={form.notes} onChange={(e) => updateForm("notes", e.target.value)}
-              placeholder="Optional notes about this document issuance..."
-              className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring resize-y min-h-[80px]" />
-          </div>
-
-          {/* Summary Card */}
-          <div className="p-4 rounded-lg glass-subtle space-y-2">
-            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Issuance Summary</h4>
-            <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
-              <div>
-                <span className="text-muted-foreground">Resident:</span>
-                <span className="ml-2 font-medium text-foreground">{form.selected_resident_name || "Not selected"}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Document:</span>
-                <span className="ml-2 font-medium text-foreground">{form.document_type || "Not selected"}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Purpose:</span>
-                <span className="ml-2 font-medium text-foreground">{form.purpose || "Not provided"}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Validity:</span>
-                <span className="ml-2 font-medium text-foreground">{form.validity_period}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Amount:</span>
-                <span className="ml-2 font-medium text-foreground">{Number(form.amount) > 0 ? `₱${Number(form.amount).toLocaleString()}` : "Free"}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Payment:</span>
-                <span className="ml-2 font-medium text-foreground">{form.payment_method || "Not selected"}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      );
-      default: return null;
+  // ── Format date ──
+  const fmtDate = (d: string | null) => {
+    if (!d) return "—";
+    try {
+      return new Date(d.includes("T") ? d : d + "T00:00:00").toLocaleDateString("en-PH", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+    } catch {
+      return d;
     }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
+      {/* ── Toast notification ── */}
+      {toast && (
+        <div
+          className={cn(
+            "fixed top-4 right-4 z-[100] flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg text-sm font-medium transition-all animate-in slide-in-from-top-2",
+            toast.type === "ok" && "bg-emerald-600 text-white",
+            toast.type === "err" && "bg-red-600 text-white",
+            toast.type === "info" && "bg-slate-800 text-white"
+          )}
+        >
+          {toast.type === "ok" && <CheckCircle2 className="w-4 h-4 flex-shrink-0" />}
+          {toast.type === "err" && <AlertTriangle className="w-4 h-4 flex-shrink-0" />}
+          <span>{toast.msg}</span>
+          <button onClick={() => setToast(null)} className="ml-1 opacity-70 hover:opacity-100">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       <PageHeader
         title="Documents"
-        description="Issue and manage barangay certificates, clearances, and permits"
-        breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "Services" }, { label: "Documents" }]}
+        description="Generate, manage, and track all barangay documents and certificates."
         actions={
           <div className="flex items-center gap-2">
-            <button className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors"><Download className="h-4 w-4" /> Export</button>
-            <button onClick={openIssueModal} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}><Plus className="h-4 w-4" /> Issue Document</button>
+            <button
+              onClick={() => router.push("/dashboard/documents/templates")}
+              className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold border border-border hover:bg-muted/50 transition-colors"
+            >
+              <FileText className="w-4 h-4" />
+              Manage Templates
+            </button>
+            <button
+              onClick={openGenerateWizard}
+              className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-all hover:opacity-90 shadow-sm"
+              style={{ background: "var(--accent-primary)" }}
+            >
+              <Plus className="w-4 h-4" />
+              Generate Document
+            </button>
           </div>
         }
       />
 
-      {/* Mabini AI Insight */}
-      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-accent-bg/30 border border-accent-primary/20">
-        <Bot className="h-4 w-4 shrink-0" style={{ color: "var(--accent-primary)" }} />
-        <p className="text-[11px] text-muted-foreground"><span className="font-semibold text-foreground">Mabini:</span> 2 documents pending review for over 24 hours. Barangay Clearance is the most issued document this month (45%). Revenue up 12% vs last month.</p>
+      {/* Stat Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatCard label="Total Issued" value={stats.total} icon={<FileText className="w-5 h-5" />} />
+        <StatCard label="Pending Release" value={stats.issued} icon={<Clock className="w-5 h-5" />} />
+        <StatCard label="Released" value={stats.released} icon={<CheckCircle2 className="w-5 h-5" />} />
+        <StatCard label="Cancelled" value={stats.cancelled} icon={<Ban className="w-5 h-5" />} />
       </div>
 
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatCard label="Total Issued" value={mockDocuments.length} icon={<FileText className="h-5 w-5" />} trend={{ value: 12, label: "vs last month" }} />
-        <StatCard label="Released" value={releasedCount} icon={<CheckCircle2 className="h-5 w-5" />} />
-        <StatCard label="Pending / Draft" value={pendingCount} icon={<Clock className="h-5 w-5" />} trend={{ value: -2, label: "processing" }} />
-        <StatCard label="Revenue This Month" value={`₱${totalRevenue.toLocaleString()}`} icon={<FileCheck2 className="h-5 w-5" />} trend={{ value: 8, label: "vs last month" }} />
-      </div>
-
-      <div className="space-y-3">
-        <div className="flex items-center justify-between gap-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              placeholder="Search by resident, document number, or type..."
-              className="w-full pl-9 pr-4 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring" />
-          </div>
-          <button onClick={() => setShowFilters(!showFilters)}
-            className={cn("flex items-center gap-2 px-3 py-2 text-sm rounded-lg border transition-colors",
-              showFilters ? "border-accent-primary bg-accent-bg text-accent-text" : "border-border hover:bg-muted")}>
-            <Filter className="h-4 w-4" /> Filters
-          </button>
+      {/* Filters Bar */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[200px] max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search documents, names, OR numbers..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20 focus:border-[var(--accent-primary)]"
+          />
         </div>
-        {showFilters && (
-          <div className="flex flex-wrap items-center gap-3 p-4 rounded-lg glass-subtle">
-            <select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}
-              className="px-3 py-1.5 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring">
-              {documentTypes.map((t) => <option key={t}>{t}</option>)}
-            </select>
-            <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-              className="px-3 py-1.5 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring">
-              {statusOptions.map((s) => <option key={s}>{s}</option>)}
-            </select>
-            <button onClick={() => { setTypeFilter("All Types"); setStatusFilter("All Status"); }}
-              className="flex items-center gap-1 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground"><X className="h-3 w-3" /> Clear</button>
-          </div>
-        )}
+
+        <select
+          value={filterStatus}
+          onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}
+          className="rounded-lg border border-border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20"
+        >
+          <option value="">All Status</option>
+          <option value="issued">Issued (Pending)</option>
+          <option value="released">Released</option>
+          <option value="cancelled">Cancelled</option>
+          <option value="expired">Expired</option>
+        </select>
+
+        <select
+          value={filterTemplate}
+          onChange={(e) => { setFilterTemplate(e.target.value); setPage(1); }}
+          className="rounded-lg border border-border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20"
+        >
+          <option value="">All Types</option>
+          {templates.map((t) => (
+            <option key={t.id} value={t.id}>{t.name}</option>
+          ))}
+        </select>
       </div>
 
-      <div className="rounded-xl glass overflow-hidden">
+      {/* Documents Table */}
+      <div className="glass-card rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-muted/50 border-b border-border">
-                <SortableHeader sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} label="Document" field="document_number" />
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Resident</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Type</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Purpose</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Amount</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Blockchain</th>
-                <th className="px-4 py-3 w-12" />
+              <tr className="border-b border-border/50">
+                <SortableHeader label="Doc #" field="document_number" sortKey={sortBy} sortDir={sortDir} onSort={handleSort} />
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Resident</th>
+                <SortableHeader label="Document Type" field="template_name" sortKey={sortBy} sortDir={sortDir} onSort={handleSort} />
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Purpose</th>
+                <SortableHeader label="Issued" field="issued_date" sortKey={sortBy} sortDir={sortDir} onSort={handleSort} />
+                <SortableHeader label="Status" field="status" sortKey={sortBy} sortDir={sortDir} onSort={handleSort} />
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground w-10" />
               </tr>
             </thead>
             <tbody>
-              {paged.length === 0 ? (
-                <tr><td colSpan={8} className="px-4 py-16 text-center">
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center">
-                      <FileText className="h-7 w-7 text-muted-foreground" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-foreground">No documents issued yet</p>
-                      <p className="text-xs text-muted-foreground mt-1">Issue your first barangay document.</p>
-                    </div>
-                    <button onClick={openIssueModal} className="flex items-center gap-1.5 px-4 py-2 mt-1 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>
-                      <Plus className="h-4 w-4" /> Issue Document
-                    </button>
-                  </div>
-                </td></tr>
+              {loading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i} className="border-b border-border/30">
+                    {Array.from({ length: 7 }).map((_, j) => (
+                      <td key={j} className="px-4 py-3.5">
+                        <div className="h-4 bg-muted/50 rounded animate-pulse" style={{ width: `${50 + Math.random() * 50}%` }} />
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              ) : documents.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="text-center py-16 text-muted-foreground">
+                    <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                    <p className="font-medium">No documents found</p>
+                    <p className="text-xs mt-1">Generate your first document to get started.</p>
+                  </td>
+                </tr>
               ) : (
-                paged.map((d) => {
-                  const typeColor = docTypeColor(d.document_type);
+                documents.map((doc) => {
+                  const st = STATUS_CFG[doc.status] || STATUS_CFG.issued;
                   return (
-                    <tr key={d.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors cursor-pointer"
-                      onClick={() => setViewDocument(d)}>
+                    <tr
+                      key={doc.id}
+                      className="border-b border-border/30 hover:bg-muted/30 transition-colors cursor-pointer"
+                      onClick={() => setViewDoc(doc)}
+                    >
+                      <td className="px-4 py-3 font-mono text-xs font-medium">{doc.document_number}</td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${typeColor}15` }}>
-                            <FileText className="h-4 w-4" style={{ color: typeColor }} />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-foreground">{d.document_number}</p>
-                            <p className="text-[11px] text-muted-foreground">{d.issued_at || "Not yet issued"}</p>
-                          </div>
+                        <div>
+                          <p className="font-medium text-foreground">{doc.constituent_name || "—"}</p>
+                          <p className="text-xs text-muted-foreground">{doc.constituent_number || ""}</p>
                         </div>
                       </td>
+                      <td className="px-4 py-3 text-foreground">{doc.template_name || "—"}</td>
+                      <td className="px-4 py-3 text-muted-foreground max-w-[200px] truncate">{doc.purpose || "—"}</td>
+                      <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{fmtDate(doc.issued_date)}</td>
                       <td className="px-4 py-3">
-                        <p className="text-sm text-foreground">{d.resident_name}</p>
-                        <p className="text-[11px] text-muted-foreground">{d.resident_number}</p>
+                        <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium", st.bg, st.color)}>
+                          {st.label}
+                        </span>
                       </td>
-                      <td className="px-4 py-3">
-                        <span className="px-2 py-0.5 rounded text-[11px] font-medium" style={{ background: `${typeColor}15`, color: typeColor }}>{d.document_type}</span>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-muted-foreground">{d.purpose}</td>
-                      <td className="px-4 py-3 text-sm text-foreground">{d.amount_paid > 0 ? `₱${d.amount_paid}` : "Free"}</td>
-                      <td className="px-4 py-3"><StatusBadge status={d.status} /></td>
-                      <td className="px-4 py-3">
-                        {d.blockchain_hash ? (
-                          <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
-                            <QrCode className="h-3.5 w-3.5" />
-                            <span className="text-[11px] font-mono">{d.blockchain_hash}</span>
-                          </div>
-                        ) : (
-                          <span className="text-[11px] text-muted-foreground">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right" onClick={(ev) => ev.stopPropagation()}>
-                        <div className="relative">
-                          <button onClick={() => setActionMenu(actionMenu === d.id ? null : d.id)} className="p-1.5 rounded hover:bg-muted transition-colors">
-                            <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                        <div className="relative" ref={openDropdown === doc.id ? dropdownRef : undefined}>
+                          <button
+                            onClick={() => setOpenDropdown(openDropdown === doc.id ? null : doc.id)}
+                            className="p-1 rounded hover:bg-muted/50 transition-colors"
+                          >
+                            <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
                           </button>
-                          {actionMenu === d.id && (
-                            <div className="absolute right-0 top-8 z-20 w-44 glass rounded-lg shadow-lg py-1">
-                              <button onClick={() => { setViewDocument(d); setActionMenu(null); }}
-                                className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted text-left">
-                                <Eye className="h-3.5 w-3.5" /> View Details
+                          {openDropdown === doc.id && (
+                            <div className="absolute right-0 top-8 z-50 w-44 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-border py-1">
+                              <button onClick={() => { setViewDoc(doc); setOpenDropdown(null); }} className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50 flex items-center gap-2">
+                                <Eye className="w-3.5 h-3.5" /> View Details
                               </button>
-                              <button onClick={() => openEdit(d)}
-                                className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted text-left">
-                                <Edit className="h-3.5 w-3.5" /> Edit
-                              </button>
-                              {d.status === "released" && (
-                                <button onClick={() => { setActionMenu(null); }}
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted text-left">
-                                  <Printer className="h-3.5 w-3.5" /> Print
+                              {doc.pdf_url && (
+                                <>
+                                  <button onClick={() => { handleViewPdf(doc); setOpenDropdown(null); }} className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50 flex items-center gap-2">
+                                    <Printer className="w-3.5 h-3.5" /> Print PDF
+                                  </button>
+                                  <button onClick={() => { handleDownloadPdf(doc); setOpenDropdown(null); }} className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50 flex items-center gap-2">
+                                    <Download className="w-3.5 h-3.5" /> Download PDF
+                                  </button>
+                                </>
+                              )}
+                              {doc.status === "issued" && (
+                                <button onClick={() => handleStatusChange(doc.id, "released")} className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50 flex items-center gap-2 text-emerald-600">
+                                  <CheckCircle2 className="w-3.5 h-3.5" /> Mark Released
                                 </button>
                               )}
-                              {(d.status === "released" || d.status === "pending") && (
-                                <>
-                                  <div className="border-t border-border my-1" />
-                                  <button onClick={() => openRevoke(d)}
-                                    className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted text-left text-red-600">
-                                    <Ban className="h-3.5 w-3.5" /> Revoke
-                                  </button>
-                                </>
-                              )}
-                              {d.status === "draft" && (
-                                <>
-                                  <div className="border-t border-border my-1" />
-                                  <button onClick={() => openDelete(d)}
-                                    className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted text-left text-red-600">
-                                    <Trash2 className="h-3.5 w-3.5" /> Delete
-                                  </button>
-                                </>
+                              {(doc.status === "issued" || doc.status === "released") && (
+                                <button onClick={() => handleStatusChange(doc.id, "cancelled")} className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50 flex items-center gap-2 text-red-600">
+                                  <Ban className="w-3.5 h-3.5" /> Cancel Document
+                                </button>
                               )}
                             </div>
                           )}
@@ -693,233 +437,196 @@ export default function DocumentsPage() {
             </tbody>
           </table>
         </div>
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-border">
-            <p className="text-sm text-muted-foreground">Showing {start + 1}–{Math.min(start + pageSize, sorted.length)} of {sorted.length}</p>
+
+        {/* Pagination */}
+        {!loading && totalDocs > perPage && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-border/50">
+            <p className="text-xs text-muted-foreground">
+              Showing {(page - 1) * perPage + 1}–{Math.min(page * perPage, totalDocs)} of {totalDocs}
+            </p>
             <div className="flex items-center gap-1">
-              <button onClick={() => setPage(1)} disabled={safePage <= 1} className="p-1.5 rounded hover:bg-muted disabled:opacity-30"><ChevronsLeft className="h-4 w-4" /></button>
-              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage <= 1} className="p-1.5 rounded hover:bg-muted disabled:opacity-30"><ChevronLeft className="h-4 w-4" /></button>
-              <span className="px-3 py-1 text-sm">{safePage} / {totalPages}</span>
-              <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={safePage >= totalPages} className="p-1.5 rounded hover:bg-muted disabled:opacity-30"><ChevronRight className="h-4 w-4" /></button>
-              <button onClick={() => setPage(totalPages)} disabled={safePage >= totalPages} className="p-1.5 rounded hover:bg-muted disabled:opacity-30"><ChevronsRight className="h-4 w-4" /></button>
+              <button onClick={() => setPage(1)} disabled={page === 1} className="p-1.5 rounded hover:bg-muted/50 disabled:opacity-30">
+                <ChevronLeft className="w-4 h-4" />
+                <ChevronLeft className="w-4 h-4 -ml-3" />
+              </button>
+              <button onClick={() => setPage(page - 1)} disabled={page === 1} className="p-1.5 rounded hover:bg-muted/50 disabled:opacity-30">
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="px-3 py-1 text-xs font-medium">Page {page} of {lastPage}</span>
+              <button onClick={() => setPage(page + 1)} disabled={page === lastPage} className="p-1.5 rounded hover:bg-muted/50 disabled:opacity-30">
+                <ChevronRight className="w-4 h-4" />
+              </button>
+              <button onClick={() => setPage(lastPage)} disabled={page === lastPage} className="p-1.5 rounded hover:bg-muted/50 disabled:opacity-30">
+                <ChevronRight className="w-4 h-4" />
+                <ChevronRight className="w-4 h-4 -ml-3" />
+              </button>
             </div>
           </div>
         )}
       </div>
 
-      {/* ── Issue / Edit Document Modal ── */}
-      <Modal open={showIssue || showEdit} onClose={() => { setShowIssue(false); setShowEdit(false); }}
-        title={showEdit ? "Edit Document" : "Issue Document"}
-        description={showEdit ? "Update document details" : "Create a new barangay document for a resident"}
-        size="lg"
-        footer={
-          <div className="flex items-center justify-between w-full">
-            <div className="flex items-center gap-2">
-              {issueTab > 0 && (
-                <ModalButton variant="secondary" onClick={() => setIssueTab((t) => t - 1)}>
-                  <ChevronLeft className="w-4 h-4 mr-1" /> Previous
-                </ModalButton>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <ModalButton variant="secondary" onClick={() => { setShowIssue(false); setShowEdit(false); }}>Cancel</ModalButton>
-              {issueTab < issueTabs.length - 1 ? (
-                <ModalButton variant="primary" onClick={() => setIssueTab((t) => t + 1)}
-                  disabled={issueTab === 0 && !form.selected_resident_id || issueTab === 1 && (!form.document_type || !form.purpose)}>
-                  Next <ChevronRight className="w-4 h-4 ml-1" />
-                </ModalButton>
-              ) : (
-                <ModalButton variant="primary" onClick={handleFormSubmit} disabled={isSubmitting}>
-                  <Save className="w-4 h-4 mr-1" /> {isSubmitting ? "Saving..." : showEdit ? "Update Document" : "Issue Document"}
-                </ModalButton>
-              )}
-            </div>
-          </div>
-        }>
-        {/* Tab Navigation */}
-        <div className="flex gap-1 mb-6 overflow-x-auto pb-1">
-          {issueTabs.map((tab, i) => {
-            const tabIcons = [<User key="u" className="h-3.5 w-3.5 mr-1.5" />, <FileText key="f" className="h-3.5 w-3.5 mr-1.5" />, <CreditCard key="c" className="h-3.5 w-3.5 mr-1.5" />];
-            return (
-              <button key={tab} onClick={() => setIssueTab(i)}
-                className={cn("flex items-center px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap transition-colors",
-                  issueTab === i ? "bg-accent-bg text-accent-text" : "text-muted-foreground hover:text-foreground hover:bg-muted")}>
-                <span className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold mr-1.5"
-                  style={issueTab === i ? { background: "var(--accent-primary)", color: "#fff" } : { background: "var(--muted)", color: "var(--muted-foreground)" }}>
-                  {i + 1}
-                </span>
-                {tabIcons[i]}
-                {tab}
+      {/* ═══ GENERATE DOCUMENT WIZARD ═══ */}
+      <GenerateDocumentWizard
+        open={showWizard}
+        onClose={() => { setShowWizard(false); setWizardResidentId(null); setWizardTemplateCategory(null); }}
+        onSuccess={(doc) => {
+          fetchDocuments();
+          fetchStats();
+          setViewDoc(doc);
+        }}
+        initialResidentId={wizardResidentId}
+        initialTemplateCategory={wizardTemplateCategory}
+      />
+      {/* ═══ VIEW DOCUMENT MODAL ═══ */}
+      {viewDoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-lg mx-4 bg-background rounded-2xl shadow-2xl border border-border max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-background rounded-t-2xl z-10">
+              <div>
+                <h3 className="text-base font-bold">Document Details</h3>
+                <p className="text-xs text-muted-foreground font-mono">{viewDoc.document_number}</p>
+              </div>
+              <button onClick={() => setViewDoc(null)} className="p-2 rounded-lg hover:bg-muted/50">
+                <X className="w-5 h-5" />
               </button>
-            );
-          })}
-        </div>
-        {renderIssueTab()}
-      </Modal>
+            </div>
 
-      {/* ── View Document Modal ── */}
-      <Modal open={!!viewDocument && !showRevoke} onClose={() => setViewDocument(null)}
-        title={viewDocument ? viewDocument.document_number : ""}
-        description={viewDocument ? viewDocument.document_type : ""}
-        size="lg"
-        footer={
-          <>
-            <ModalButton variant="secondary" onClick={() => setViewDocument(null)}>Close</ModalButton>
-            {viewDocument?.status === "released" && (
-              <ModalButton variant="primary"><Printer className="h-4 w-4 mr-1" /> Print</ModalButton>
-            )}
-          </>
-        }>
-        {viewDocument && (
-          <div className="space-y-6">
-            {/* Status Banner */}
-            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: `${docTypeColor(viewDocument.document_type)}15` }}>
-                  <FileText className="h-5 w-5" style={{ color: docTypeColor(viewDocument.document_type) }} />
+            <div className="p-6 space-y-5">
+              {/* Status */}
+              <div className="flex items-center justify-between">
+                <span className={cn(
+                  "inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold",
+                  STATUS_CFG[viewDoc.status]?.bg,
+                  STATUS_CFG[viewDoc.status]?.color
+                )}>
+                  {STATUS_CFG[viewDoc.status]?.label}
+                </span>
+                {viewDoc.blockchain_hash && (
+                  <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 font-mono">
+                    <Shield className="w-3 h-3" /> {viewDoc.blockchain_hash.slice(0, 16)}...
+                  </span>
+                )}
+              </div>
+
+              {/* Resident info */}
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/20 border border-border">
+                <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
+                  <User className="w-5 h-5 text-muted-foreground" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-foreground">{viewDocument.document_number}</p>
-                  <span className="px-2 py-0.5 rounded text-[11px] font-medium" style={{ background: `${docTypeColor(viewDocument.document_type)}15`, color: docTypeColor(viewDocument.document_type) }}>
-                    {viewDocument.document_type}
-                  </span>
+                  <p className="text-sm font-semibold">{viewDoc.constituent_name || "—"}</p>
+                  <p className="text-xs text-muted-foreground">{viewDoc.constituent_number}</p>
                 </div>
               </div>
-              <StatusBadge status={viewDocument.status} />
-            </div>
 
-            {/* Resident Info */}
-            <div>
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Resident Information</h4>
-              <div className="grid grid-cols-2 gap-x-8 gap-y-3">
-                <InfoItem icon={<User className="h-4 w-4" />} label="Name" value={viewDocument.resident_name} />
-                <InfoItem icon={<Hash className="h-4 w-4" />} label="Resident Number" value={viewDocument.resident_number} />
-              </div>
-            </div>
-
-            {/* Document Details */}
-            <div>
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Document Details</h4>
-              <div className="grid grid-cols-2 gap-x-8 gap-y-3">
-                <InfoItem icon={<FileText className="h-4 w-4" />} label="Purpose" value={viewDocument.purpose} />
-                <InfoItem icon={<Calendar className="h-4 w-4" />} label="Valid Until" value={viewDocument.valid_until || "Not yet issued"} />
-                <InfoItem label="Validity Period" value={viewDocument.validity_period || "—"} />
-                <InfoItem label="Issued By" value={viewDocument.issued_by || "Not yet issued"} />
-                <InfoItem label="Issue Date" value={viewDocument.issued_at || "Not yet issued"} />
-              </div>
-            </div>
-
-            {/* Payment Info */}
-            <div>
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Payment Information</h4>
-              <div className="grid grid-cols-2 gap-x-8 gap-y-3">
-                <InfoItem icon={<DollarSign className="h-4 w-4" />} label="Amount Paid" value={viewDocument.amount_paid > 0 ? `₱${viewDocument.amount_paid.toLocaleString()}` : "Free"} />
-                <InfoItem label="OR Number" value={viewDocument.or_number || "—"} />
-                <InfoItem icon={<CreditCard className="h-4 w-4" />} label="Payment Method" value={viewDocument.payment_method || "—"} />
-              </div>
-            </div>
-
-            {/* Blockchain Verification */}
-            {viewDocument.blockchain_hash && (
-              <div>
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Blockchain Verification</h4>
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900">
-                  <QrCode className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              {/* Details grid */}
+              <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Document Type</p>
+                  <p className="font-medium">{viewDoc.template_name || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Purpose</p>
+                  <p className="font-medium">{viewDoc.purpose || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Date Issued</p>
+                  <p className="font-medium">{fmtDate(viewDoc.issued_date)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Valid Until</p>
+                  <p className="font-medium">{fmtDate(viewDoc.valid_until)}</p>
+                </div>
+                {viewDoc.or_number && (
                   <div>
-                    <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Verified on Blockchain</p>
-                    <p className="text-[11px] font-mono text-emerald-600/80 dark:text-emerald-400/80">{viewDocument.blockchain_hash}</p>
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">OR Number</p>
+                    <p className="font-medium">{viewDoc.or_number}</p>
+                  </div>
+                )}
+                {viewDoc.or_amount && (
+                  <div>
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Amount</p>
+                    <p className="font-medium">₱{parseFloat(viewDoc.or_amount).toFixed(2)}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Custom field values */}
+              {viewDoc.custom_field_values && Object.keys(viewDoc.custom_field_values).length > 0 && (
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Additional Details</p>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                    {Object.entries(viewDoc.custom_field_values).map(([key, value]) => (
+                      <div key={key}>
+                        <p className="text-xs text-muted-foreground capitalize">{key.replace(/_/g, " ")}</p>
+                        <p className="font-medium">{value}</p>
+                      </div>
+                    ))}
                   </div>
                 </div>
+              )}
+
+              {/* PDF Actions */}
+              {viewDoc.pdf_url && (
+                <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-50/50 dark:bg-blue-900/10 border border-blue-200/50 dark:border-blue-800/30">
+                  <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  <span className="text-sm font-medium text-blue-700 dark:text-blue-300 flex-1">PDF Generated</span>
+                  <button
+                    onClick={() => handleViewPdf(viewDoc)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+                  >
+                    <Eye className="w-3.5 h-3.5" /> View
+                  </button>
+                  <button
+                    onClick={() => handleViewPdf(viewDoc)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+                  >
+                    <Printer className="w-3.5 h-3.5" /> Print
+                  </button>
+                  <button
+                    onClick={() => handleDownloadPdf(viewDoc)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+                  >
+                    <Download className="w-3.5 h-3.5" /> Download
+                  </button>
+                </div>
+              )}
+
+              {/* Status Actions */}
+              <div className="flex items-center gap-2 pt-2 border-t border-border">
+                {viewDoc.status === "issued" && (
+                  <button
+                    onClick={() => handleStatusChange(viewDoc.id, "released")}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 transition-colors"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Mark Released
+                  </button>
+                )}
+                {(viewDoc.status === "issued" || viewDoc.status === "released") && (
+                  <button
+                    onClick={() => handleStatusChange(viewDoc.id, "cancelled")}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-red-600 border border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                  >
+                    <Ban className="w-3.5 h-3.5" /> Cancel
+                  </button>
+                )}
+                <div className="flex-1" />
+                <button
+                  onClick={() => setViewDoc(null)}
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted/50 transition-colors"
+                >
+                  Close
+                </button>
               </div>
-            )}
-
-            {/* Notes */}
-            {viewDocument.notes && (
-              <div>
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Notes</h4>
-                <p className="text-sm text-foreground bg-muted/30 p-3 rounded-lg border border-border">{viewDocument.notes}</p>
-              </div>
-            )}
-          </div>
-        )}
-      </Modal>
-
-      {/* ── Revoke Confirmation Modal ── */}
-      <Modal open={showRevoke} onClose={() => { setShowRevoke(false); setRevokeTarget(null); }} title="Revoke Document" size="sm"
-        footer={
-          <>
-            <ModalButton variant="secondary" onClick={() => { setShowRevoke(false); setRevokeTarget(null); }}>Cancel</ModalButton>
-            <ModalButton variant="danger" onClick={() => { addToast("Document Revoked", `${revokeTarget?.document_number || "Document"} has been revoked.`); setShowRevoke(false); setRevokeTarget(null); setViewDocument(null); }}>Revoke Document</ModalButton>
-          </>
-        }>
-        <div className="space-y-3">
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900">
-            <AlertTriangle className="h-5 w-5 text-red-500 shrink-0" />
-            <p className="text-sm text-red-700 dark:text-red-400">This will permanently revoke the document. The resident will need to request a new one if needed.</p>
-          </div>
-          {revokeTarget && (
-            <div className="p-3 rounded-lg border border-border bg-muted/30 space-y-1">
-              <p className="text-sm font-medium text-foreground">{revokeTarget.document_number}</p>
-              <p className="text-xs text-muted-foreground">{revokeTarget.document_type} for {revokeTarget.resident_name}</p>
             </div>
-          )}
-          <p className="text-sm text-muted-foreground">Are you sure you want to revoke this document?</p>
-        </div>
-      </Modal>
-
-      {/* ── Delete Confirmation Modal ── */}
-      <Modal open={showDelete} onClose={() => { setShowDelete(false); setDeleteTarget(null); }} title="Delete Document" size="sm"
-        footer={
-          <>
-            <ModalButton variant="secondary" onClick={() => { setShowDelete(false); setDeleteTarget(null); }}>Cancel</ModalButton>
-            <ModalButton variant="danger" onClick={() => { setShowDelete(false); setDeleteTarget(null); setViewDocument(null); }}>Delete Document</ModalButton>
-          </>
-        }>
-        <div className="space-y-3">
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900">
-            <Trash2 className="h-5 w-5 text-red-500 shrink-0" />
-            <p className="text-sm text-red-700 dark:text-red-400">This will permanently delete this draft document. This action cannot be undone.</p>
           </div>
-          {deleteTarget && (
-            <div className="p-3 rounded-lg border border-border bg-muted/30 space-y-1">
-              <p className="text-sm font-medium text-foreground">{deleteTarget.document_number}</p>
-              <p className="text-xs text-muted-foreground">{deleteTarget.document_type} for {deleteTarget.resident_name}</p>
-            </div>
-          )}
-          <p className="text-sm text-muted-foreground">Are you sure you want to delete this document?</p>
-        </div>
-      </Modal>
-
-      {/* ── Toast Notifications ── */}
-      {toasts.length > 0 && (
-        <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
-          {toasts.map((toast) => (
-            <div key={toast.id} className="flex items-start gap-3 px-4 py-3 rounded-lg glass shadow-lg animate-in slide-in-from-bottom-2 max-w-sm">
-              <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-foreground">{toast.title}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{toast.description}</p>
-              </div>
-              <button onClick={() => setToasts((prev) => prev.filter((t) => t.id !== toast.id))} className="p-0.5 rounded hover:bg-muted shrink-0">
-                <X className="h-3.5 w-3.5 text-muted-foreground" />
-              </button>
-            </div>
-          ))}
         </div>
       )}
+
+      <MabiniButton
+        pageContext={`Documents & Certificates management page. Current data: ${stats.total} total documents issued, ${stats.issued} pending release, ${stats.released} released, ${stats.cancelled} cancelled. Available document templates: ${templates.map(t => t.name).join(", ")}. User can generate, print, download, release, and cancel barangay documents. Anti-epal compliant (DILG MC 2026-006). Document types: Barangay Clearance, Certificate of Residency, Certificate of Indigency, Good Moral Character, Business Clearance, and more.`}
+      />
     </div>
   );
 }
 
-function InfoItem({ icon, label, value }: { icon?: React.ReactNode; label: string; value: string }) {
-  return (
-    <div className="flex items-start gap-3">
-      {icon && <div className="mt-0.5 text-muted-foreground">{icon}</div>}
-      <div>
-        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
-        <p className="text-sm text-foreground">{value}</p>
-      </div>
-      <MabiniButton pageContext="You are on the Documents page. This page manages issuance of barangay clearances, certificates, and other official documents." />
-    </div>
-  );
-}

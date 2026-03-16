@@ -10,13 +10,17 @@ import {
   HandHeart, Link2, PawPrint, Globe, Fingerprint,
   ScrollText, Activity, FolderOpen, Clock, X, Plus,
   MessageSquare, Sparkles, CheckCircle2, ChevronRight, Search, Eye,
-  FileEdit, Trash2, UserPlus,
+  FileEdit, Trash2, UserPlus, Shield, Download,
 } from "lucide-react";
 import { Badge, StatusBadge } from "@/components/ui/badge";
 import { Tabs } from "@/components/ui/tabs";
 import { Markdown } from "@/components/ui/markdown";
+import { Modal, ModalButton } from "@/components/ui/modal";
 import { cn, resolvePhotoUrl } from "@/lib/utils";
 import ResidentPinMap from "@/components/map/resident-pin-map-dynamic";
+import { GenerateDocumentWizard } from "@/components/documents/GenerateDocumentWizard";
+import { GenerateIdModal } from "@/components/documents/GenerateIdModal";
+import { SendSmsModal, type SmsTargetResident } from "@/components/residents/SendSmsModal";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import { useAiStream } from "@/hooks/use-ai-stream";
@@ -169,6 +173,8 @@ function ActivityTab({ residentId }: { residentId: string }) {
     deleted: <Trash2 className="h-4 w-4" />,
     viewed: <Eye className="h-4 w-4" />,
     printed: <Printer className="h-4 w-4" />,
+    document_issued: <ScrollText className="h-4 w-4" />,
+    sms_sent: <MessageSquare className="h-4 w-4" />,
   };
   const actionColorMap: Record<string, string> = {
     created: "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400",
@@ -176,6 +182,8 @@ function ActivityTab({ residentId }: { residentId: string }) {
     deleted: "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400",
     viewed: "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400",
     printed: "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400",
+    document_issued: "bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400",
+    sms_sent: "bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400",
   };
   const actionLabelMap: Record<string, string> = {
     created: "created",
@@ -183,6 +191,8 @@ function ActivityTab({ residentId }: { residentId: string }) {
     deleted: "deleted",
     viewed: "viewed",
     printed: "printed a record for",
+    document_issued: "issued a document for",
+    sms_sent: "sent an SMS to",
   };
 
   function formatChanges(changes: Record<string, unknown> | null): React.ReactNode {
@@ -291,6 +301,114 @@ function ActivityTab({ residentId }: { residentId: string }) {
   );
 }
 
+// ── SMS History Tab ────────────────────────────────────────────────────────────
+
+type SmsHistoryEntry = {
+  id: string;
+  recipient_phone: string;
+  message: string;
+  credit_cost: string;
+  status: string;
+  created_at: string;
+};
+
+function SmsHistoryTab({ residentId }: { residentId: string }) {
+  const [logs, setLogs] = useState<SmsHistoryEntry[]>([]);
+  const [page, setPage] = useState(1);
+  const [lastPage, setLastPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    api.residents.smsHistory(residentId, { page, per_page: 20 })
+      .then((res) => {
+        if (cancelled) return;
+        setLogs(res.data);
+        setLastPage(res.last_page);
+        setTotal(res.total);
+      })
+      .catch(() => { /* ignore */ })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [residentId, page]);
+
+  const statusColor = (s: string) =>
+    s === "sent" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+    : s === "failed" ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+    : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <MessageSquare className="h-4 w-4 text-muted-foreground" />
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">SMS History</h3>
+        {total > 0 && (
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-muted text-muted-foreground">{total}</span>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : logs.length > 0 ? (
+        <>
+          <div className="space-y-2">
+            {logs.map((log) => (
+              <div key={log.id} className="p-4 rounded-xl border border-border glass-subtle space-y-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center shrink-0">
+                      <MessageSquare className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground">{log.recipient_phone}</p>
+                      <p className="text-[10px] text-muted-foreground/70">{timeAgo(log.created_at)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[10px] font-medium text-muted-foreground">
+                      ₱{parseFloat(log.credit_cost).toFixed(2)}
+                    </span>
+                    <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize", statusColor(log.status))}>
+                      {log.status}
+                    </span>
+                  </div>
+                </div>
+                <p className="text-sm text-foreground pl-10 leading-relaxed">{log.message}</p>
+              </div>
+            ))}
+          </div>
+
+          {lastPage > 1 && (
+            <div className="flex items-center justify-center gap-2 pt-2">
+              <button type="button" disabled={page <= 1} onClick={() => setPage(p => p - 1)}
+                className="px-3 py-1.5 text-xs rounded-lg border border-border hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                Previous
+              </button>
+              <span className="text-xs text-muted-foreground">Page {page} of {lastPage}</span>
+              <button type="button" disabled={page >= lastPage} onClick={() => setPage(p => p + 1)}
+                className="px-3 py-1.5 text-xs rounded-lg border border-border hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                Next
+              </button>
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="rounded-xl border-2 border-dashed border-border p-10 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto mb-4">
+            <MessageSquare className="h-7 w-7 text-muted-foreground/60" />
+          </div>
+          <p className="text-sm font-semibold text-foreground mb-1">No SMS sent yet</p>
+          <p className="text-xs text-muted-foreground">SMS messages sent to this resident will appear here.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Documents Tab ─────────────────────────────────────────────────────────────
 
 function DocumentsTab({ residentId }: { residentId: string }) {
@@ -380,7 +498,42 @@ function DocumentsTab({ residentId }: { residentId: string }) {
                     {doc.or_number && (
                       <span>O.R. #{doc.or_number}</span>
                     )}
+                    {doc.blockchain_hash && (
+                      <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                        <Shield className="h-3 w-3" />
+                        Verified
+                      </span>
+                    )}
                   </div>
+                  {/* PDF actions */}
+                  {doc.pdf_url && (
+                    <div className="flex items-center gap-1.5 mt-2">
+                      <button
+                        onClick={() => window.open(`/api/v1/issued-documents/${doc.id}/pdf`, "_blank")}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                      >
+                        <Printer className="h-3 w-3" /> Print
+                      </button>
+                      <button
+                        onClick={async () => {
+                          try {
+                            const response = await fetch(`/api/v1/issued-documents/${doc.id}/pdf`);
+                            if (!response.ok) return;
+                            const blob = await response.blob();
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = url;
+                            a.download = `${doc.document_number}.pdf`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                          } catch { /* silent */ }
+                        }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-medium text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                      >
+                        <Download className="h-3 w-3" /> Download
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -498,7 +651,7 @@ function PersonalInfoTab({
           {r.cross_barangay_flags?.map((fl, i) => (
             <div key={i} className="flex items-start gap-2.5 p-3 rounded-xl text-sm bg-gray-50 dark:bg-gray-900/30 text-gray-700 dark:text-gray-400 border border-gray-200 dark:border-gray-800">
               <Flag className="h-4 w-4 shrink-0 mt-0.5" />
-              <span>Cross-barangay record detected in another barangay (confidence: {fl.match_confidence}). Verify before issuing official documents.</span>
+              <span>Cross-barangay record detected in <strong>{fl.barangay_name}</strong>{fl.detected_at ? ` (${fl.detected_at})` : ""}. Verify before issuing official documents.</span>
             </div>
           ))}
         </div>
@@ -755,6 +908,32 @@ function PersonalInfoTab({
   );
 }
 
+// ── Toast ─────────────────────────────────────────────────────────────────────
+
+interface Toast { id: string; type: "success" | "error" | "warning" | "info"; title: string; message?: string; }
+
+function ToastContainer({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id: string) => void }) {
+  const colors: Record<string, string> = {
+    success: "bg-green-50 dark:bg-green-950/40 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200",
+    error: "bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200",
+    warning: "bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200",
+    info: "bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200",
+  };
+  return (
+    <div className="fixed bottom-6 right-6 z-[100] flex flex-col gap-3 pointer-events-none">
+      {toasts.map((t) => (
+        <div key={t.id} className={cn("flex items-start gap-3 px-4 py-3 rounded-xl border shadow-lg max-w-sm pointer-events-auto", colors[t.type])}>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold">{t.title}</p>
+            {t.message && <p className="text-xs mt-0.5 opacity-80">{t.message}</p>}
+          </div>
+          <button onClick={() => onDismiss(t.id)} className="shrink-0 p-0.5 rounded hover:opacity-60 transition-opacity"><X className="h-3.5 w-3.5" /></button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function ResidentDetailPage() {
@@ -766,6 +945,17 @@ export default function ResidentDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [mapModalOpen, setMapModalOpen] = useState(false);
+
+  // ── Action modals ──
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const [showSmsModal, setShowSmsModal] = useState(false);
+  const [smsTarget, setSmsTarget] = useState<SmsTargetResident | null>(null);
+  const [showDocWizard, setShowDocWizard] = useState(false);
+  const [docWizardCategory, setDocWizardCategory] = useState<string | null>(null);
+  const [showIdModal, setShowIdModal] = useState(false);
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
+  const [archiveReason, setArchiveReason] = useState("");
+  const [archiveSaving, setArchiveSaving] = useState(false);
 
   // ── Relatives search state ──
   const [relSearch, setRelSearch] = useState("");
@@ -791,6 +981,12 @@ export default function ResidentDetailPage() {
 
   const { streamingContent, isStreaming, error: streamError, sendMessage } = useAiStream();
   const aiTriggered = useRef(false);
+
+  const addToast = useCallback((t: Omit<Toast, "id">) => {
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+    setToasts((prev) => [...prev, { ...t, id }]);
+    setTimeout(() => setToasts((prev) => prev.filter((x) => x.id !== id)), 4000);
+  }, []);
 
   const fetchResident = useCallback(async (silent = false) => {
     if (!isAuthenticated) return;
@@ -1063,6 +1259,7 @@ export default function ResidentDetailPage() {
     { id: "assistance", label: "Assistance / Solicitation", icon: <HandHeart className="h-3.5 w-3.5" /> },
     { id: "relatives", label: "Linked Relatives", icon: <Link2 className="h-3.5 w-3.5" /> },
     { id: "pets", label: "Pets", icon: <PawPrint className="h-3.5 w-3.5" /> },
+    { id: "sms-history", label: "SMS History", icon: <MessageSquare className="h-3.5 w-3.5" /> },
     { id: "activity", label: "Activity", icon: <Activity className="h-3.5 w-3.5" /> },
   ];
 
@@ -1344,15 +1541,40 @@ export default function ResidentDetailPage() {
               <Edit className="h-4 w-4" />
               Edit Profile
             </button>
-            <button className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium rounded-xl border border-border hover:bg-muted transition-colors">
-              <Phone className="h-4 w-4 text-muted-foreground" />
+            <button
+              onClick={() => { setDocWizardCategory(null); setShowDocWizard(true); }}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium rounded-xl border border-emerald-200 dark:border-emerald-800/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-colors"
+            >
+              <ScrollText className="h-4 w-4" />
+              Generate Document
+            </button>
+            <button
+              disabled={!resident.mobile_number}
+              onClick={() => {
+                setSmsTarget({
+                  id: resident.id,
+                  name: `${resident.last_name}, ${resident.first_name}${resident.middle_name ? " " + resident.middle_name.charAt(0) + "." : ""}${resident.extension_name ? " " + resident.extension_name : ""}`.trim(),
+                  mobile_number: resident.mobile_number ?? null,
+                });
+                setShowSmsModal(true);
+              }}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium rounded-xl border border-orange-200 dark:border-orange-800/40 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              title={resident.mobile_number ? `Send SMS to ${resident.mobile_number}` : "No mobile number registered"}
+            >
+              <MessageSquare className="h-4 w-4" />
               Send SMS
             </button>
-            <button className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium rounded-xl border border-border hover:bg-muted transition-colors">
-              <Printer className="h-4 w-4 text-muted-foreground" />
+            <button
+              onClick={() => setShowIdModal(true)}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium rounded-xl border border-violet-200 dark:border-violet-800/40 text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/20 transition-colors"
+            >
+              <IdCard className="h-4 w-4" />
               Print Resident ID
             </button>
-            <button className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium rounded-xl border border-amber-300/60 dark:border-amber-800/40 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/20 transition-colors">
+            <button
+              onClick={() => setShowArchiveModal(true)}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium rounded-xl border border-amber-300/60 dark:border-amber-800/40 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/20 transition-colors"
+            >
               <Archive className="h-4 w-4" />
               Archive Record
             </button>
@@ -1382,7 +1604,7 @@ export default function ResidentDetailPage() {
                         {resident.cross_barangay_flags?.map((fl, i) => (
                           <div key={i} className="flex items-start gap-2.5 p-3 rounded-xl text-sm bg-gray-50 dark:bg-gray-900/30 border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-400">
                             <Flag className="h-4 w-4 shrink-0 mt-0.5" />
-                            <span>Cross-barangay record detected (confidence: {fl.match_confidence})</span>
+                            <span>Cross-barangay record detected in <strong>{fl.barangay_name}</strong>{fl.detected_at ? ` (${fl.detected_at})` : ""}</span>
                           </div>
                         ))}
                       </div>
@@ -1788,6 +2010,7 @@ export default function ResidentDetailPage() {
                   );
                 })()}
 
+                {active === "sms-history" && <SmsHistoryTab residentId={id} />}
                 {active === "activity" && <ActivityTab residentId={id} />}
 
               </div>
@@ -1959,6 +2182,97 @@ export default function ResidentDetailPage() {
       )}
 
       <MabiniButton pageContext="You are on the Resident Detail page. This page shows the complete profile of a specific resident, including personal information, address, sectoral data, government IDs, and activity history." />
+
+      {/* Generate Document Wizard */}
+      <GenerateDocumentWizard
+        open={showDocWizard}
+        onClose={() => { setShowDocWizard(false); setDocWizardCategory(null); }}
+        initialResidentId={resident?.id ?? null}
+        initialTemplateCategory={docWizardCategory}
+      />
+
+      {/* Send SMS Modal */}
+      <SendSmsModal
+        open={showSmsModal}
+        onClose={() => { setShowSmsModal(false); setSmsTarget(null); }}
+        resident={smsTarget}
+        creditBalance={user?.barangay?.sms_credit_balance != null ? parseFloat(String(user.barangay.sms_credit_balance)) : null}
+      />
+
+      {/* Generate ID Modal */}
+      <GenerateIdModal
+        open={showIdModal}
+        onClose={() => setShowIdModal(false)}
+        residentId={resident?.id ?? null}
+      />
+
+      {/* Archive Record Modal */}
+      <Modal
+        open={showArchiveModal}
+        onClose={() => { setShowArchiveModal(false); setArchiveReason(""); }}
+        title="Archive Resident Record"
+        size="sm"
+        footer={
+          <>
+            <ModalButton variant="secondary" onClick={() => { setShowArchiveModal(false); setArchiveReason(""); }}>Cancel</ModalButton>
+            <ModalButton
+              variant="danger"
+              disabled={!archiveReason || archiveSaving}
+              onClick={async () => {
+                if (!resident) return;
+                setArchiveSaving(true);
+                try {
+                  await api.residents.delete(resident.id);
+                  addToast({ type: "success", title: "Record archived", message: `${resident.first_name} ${resident.last_name} has been moved to archive.` });
+                  setShowArchiveModal(false);
+                  setArchiveReason("");
+                  router.push("/dashboard/residents");
+                } catch {
+                  addToast({ type: "error", title: "Archive failed", message: "Could not archive this record. Please try again." });
+                } finally {
+                  setArchiveSaving(false);
+                }
+              }}
+            >
+              {archiveSaving ? <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Archiving...</> : "Archive Record"}
+            </ModalButton>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
+            <div className="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shrink-0">
+              <Archive className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">{resident?.first_name} {resident?.last_name}</p>
+              <p className="text-xs text-amber-700 dark:text-amber-400">{resident?.resident_number}</p>
+            </div>
+          </div>
+          <p className="text-sm text-muted-foreground">This record will be moved to the archive. It will no longer appear in active resident lists but can be restored later.</p>
+          <div>
+            <label className="block text-xs font-medium text-foreground mb-1.5">Reason for archiving <span className="text-red-500">*</span></label>
+            <select
+              value={archiveReason}
+              onChange={(e) => setArchiveReason(e.target.value)}
+              className="w-full px-3 py-2.5 text-sm rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring"
+            >
+              <option value="">Select a reason...</option>
+              <option value="deceased">Deceased</option>
+              <option value="transferred">Transferred out of barangay</option>
+              <option value="duplicate">Duplicate record</option>
+              <option value="error">Data entry error</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Toast notifications */}
+      {createPortal(
+        <ToastContainer toasts={toasts} onDismiss={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))} />,
+        document.body
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import type { AiConversation, AiConversationSummary, AiCredits, AiStreamEvent, ApiError, BarangaySettings, BarangayUsage, DashboardCredits, DashboardStats, DocumentTemplate, DuplicateMatch, Establishment, EstablishmentFormPayload, IssuedDocument, IssueDocumentPayload, LoginResponse, LotBuilding, PaginatedResponse, ResidentDetail, ResidentSummary, User } from "./types";
+import type { AiConversation, AiConversationSummary, AiCredits, AiStreamEvent, ApiError, BarangaySettings, BarangayUsage, DashboardCredits, DashboardStats, DocumentTemplate, DuplicateMatch, Establishment, EstablishmentFormPayload, IssuedDocument, IssueDocumentPayload, KpCaseDetail, KpCaseHearing, KpCaseListItem, KpCaseParty, LoginResponse, LotBuilding, PaginatedResponse, ResidentDetail, ResidentSummary, User } from "./types";
 
 // In dev, requests go through Next.js rewrite proxy (/api/v1 -> bcmp-api:8000/api/v1)
 // In production, NEXT_PUBLIC_API_URL points directly to the API domain
@@ -908,6 +908,64 @@ const api = {
   platformUpdates: {
     list: () =>
       api.get<{ updates: import("@/lib/types").PlatformUpdate[] }>("/platform-updates"),
+  },
+
+  kpCases: {
+    stats: () =>
+      api.get<{ total: number; active: number; settled: number; mediation: number; conciliation: number; cfa_issued: number; overdue_mediation: number; overdue_conciliation: number }>("/kp-cases/stats"),
+
+    list: (params?: { search?: string; status?: string; case_level?: string; per_page?: number; page?: number; sort_by?: string; sort_dir?: string }) => {
+      const q = new URLSearchParams();
+      if (params) Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== "") q.append(k, String(v)); });
+      const qs = q.toString();
+      return api.get<PaginatedResponse<KpCaseListItem>>(`/kp-cases${qs ? `?${qs}` : ""}`);
+    },
+
+    show: (id: string) =>
+      api.get<{ kp_case: KpCaseDetail }>(`/kp-cases/${id}`),
+
+    create: (data: Record<string, unknown>) =>
+      api.post<{ message: string; kp_case: KpCaseDetail }>("/kp-cases", data),
+
+    update: (id: string, data: Record<string, unknown>) =>
+      api.put<{ message: string; kp_case: KpCaseDetail }>(`/kp-cases/${id}`, data),
+
+    addParty: (data: {
+      case_id: string; party_type: string; party_mode: "individual" | "group";
+      first_name?: string; middle_name?: string; last_name?: string;
+      full_name?: string; address?: string; mobile_number?: string; resident_id?: string;
+    }) =>
+      api.post<{ message: string; kp_case_party: KpCaseParty }>("/kp-case-parties", data),
+
+    addHearing: (data: { case_id: string; hearing_type: string; hearing_date: string; hearing_time?: string; venue?: string; minutes?: string; outcome?: string; next_hearing_date?: string }) =>
+      api.post<{ message: string; kp_case_hearing: KpCaseHearing }>("/kp-case-hearings", data),
+
+    updateHearing: (id: string, data: Record<string, unknown>) =>
+      api.put<{ message: string; kp_case_hearing: KpCaseHearing }>(`/kp-case-hearings/${id}`, data),
+  },
+
+  blotters: {
+    stats: () =>
+      api.get<import("@/lib/types").BlotterStats>("/blotters/stats"),
+
+    list: (params?: { search?: string; status?: string; incident_type?: string; per_page?: number; page?: number; sort_by?: string; sort_dir?: string }) => {
+      const q = new URLSearchParams();
+      if (params) Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== "") q.append(k, String(v)); });
+      const qs = q.toString();
+      return api.get<PaginatedResponse<import("@/lib/types").BlotterRecord>>(`/blotters${qs ? `?${qs}` : ""}`);
+    },
+
+    show: (id: string) =>
+      api.get<{ blotter: import("@/lib/types").BlotterRecord }>(`/blotters/${id}`),
+
+    create: (data: Record<string, unknown>) =>
+      api.post<{ message: string; blotter: import("@/lib/types").BlotterRecord }>("/blotters", data),
+
+    update: (id: string, data: Record<string, unknown>) =>
+      api.put<{ message: string; blotter: import("@/lib/types").BlotterRecord }>(`/blotters/${id}`, data),
+
+    destroy: (id: string) =>
+      api.delete<{ message: string }>(`/blotters/${id}`),
   },
 
   voters: {

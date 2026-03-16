@@ -12,6 +12,9 @@ interface ModalProps {
   children: React.ReactNode;
   size?: "sm" | "md" | "lg" | "xl" | "full";
   footer?: React.ReactNode;
+  hideCloseButton?: boolean;
+  /** When true: backdrop click and Escape key do NOT close the modal */
+  disableOutsideClick?: boolean;
 }
 
 const sizeStyles = {
@@ -30,14 +33,16 @@ export function Modal({
   children,
   size = "md",
   footer,
+  hideCloseButton = false,
+  disableOutsideClick = false,
 }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
 
   const handleEscape = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape" && !disableOutsideClick) onClose();
     },
-    [onClose]
+    [onClose, disableOutsideClick]
   );
 
   useEffect(() => {
@@ -54,12 +59,12 @@ export function Modal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
       {/* Overlay */}
       <div
         ref={overlayRef}
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
+        onClick={disableOutsideClick ? undefined : onClose}
       />
       {/* Dialog */}
       <div
@@ -86,7 +91,7 @@ export function Modal({
             </button>
           </div>
         )}
-        {!title && !description && (
+        {!title && !description && !hideCloseButton && (
           <button
             onClick={onClose}
             className="absolute right-4 top-4 p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground z-10"
@@ -98,8 +103,10 @@ export function Modal({
         <div className="px-6 py-4 max-h-[70vh] overflow-y-auto">{children}</div>
         {/* Footer */}
         {footer && (
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border">
-            {footer}
+          <div className="px-6 py-4 border-t border-border">
+            <div className="flex items-center justify-end gap-3 w-full">
+              {footer}
+            </div>
           </div>
         )}
       </div>

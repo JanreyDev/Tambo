@@ -3479,6 +3479,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                       {/* Full Name + Avatar + Last Transaction + Flags */}
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-3">
+                          {/* Avatar + flag badges — tooltip anchored to this container, NOT inside the badge span */}
                           <div className="relative shrink-0">
                             {r.photo_url ? (
                               <img src={resolvePhotoUrl(r.photo_url)!} alt={initials} className="w-11 h-11 rounded-xl object-cover" />
@@ -3488,73 +3489,97 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                                 r.sex === "female" ? "bg-gradient-to-br from-pink-400 to-pink-500" : "bg-gradient-to-br from-blue-400 to-blue-500"
                               )}>{initials}</div>
                             )}
+
+                            {/* Red flag badge */}
                             {hasRedFlag && (
                               <span
-                                className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 flex items-center justify-center ring-2 ring-white dark:ring-slate-900"
+                                className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 flex items-center justify-center ring-2 ring-white dark:ring-slate-900 cursor-default"
                                 onMouseEnter={(e) => { e.stopPropagation(); setHoveredTooltip("red-" + r.id); }}
                                 onMouseLeave={() => setHoveredTooltip(null)}
                               >
                                 <Flag className="h-2.5 w-2.5 text-white" />
-                                {hoveredTooltip === "red-" + r.id && (
-                                  <div className="absolute bottom-full right-0 mb-2 z-[70] pointer-events-none" style={{width: "220px"}}>
-                                    <div className="bg-red-950 border border-red-800 text-white rounded-xl shadow-2xl overflow-hidden">
-                                      <div className="px-3 py-2 bg-red-900/60 border-b border-red-800 flex items-center gap-1.5">
-                                        <Flag className="h-3 w-3 text-red-400" />
-                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-red-300">Case Record</p>
-                                      </div>
-                                      <div className="px-3 py-2 space-y-1.5">
-                                        {(r.case_records && r.case_records.length > 0) ? (
-                                          r.case_records.slice(0, 3).map((c: Record<string,string>, i: number) => (
-                                            <div key={i} className="flex items-start gap-2">
-                                              <span className="mt-1 w-1.5 h-1.5 rounded-full bg-red-400 shrink-0"></span>
-                                              <div>
-                                                <p className="text-xs text-red-200 font-medium">{c.case_type || c.type || "Case"}</p>
-                                                <p className="text-[10px] text-red-400">{c.case_number || c.number || "—"}</p>
-                                              </div>
-                                            </div>
-                                          ))
-                                        ) : (
-                                          <p className="text-xs text-red-300">Active case record on file. View profile for details.</p>
-                                        )}
-                                      </div>
-                                    </div>
-                                    <div className="absolute top-full right-2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-red-950"></div>
-                                  </div>
-                                )}
                               </span>
                             )}
+
+                            {/* Red flag tooltip — sibling of badge, positioned relative to avatar container */}
+                            {hasRedFlag && hoveredTooltip === "red-" + r.id && (
+                              <div className="absolute bottom-full right-0 mb-3 z-[9999] pointer-events-none" style={{width: "260px"}}>
+                                <div className="bg-red-950 border border-red-800 text-white rounded-xl shadow-2xl overflow-hidden">
+                                  <div className="px-3 py-2 bg-red-900/60 border-b border-red-800 flex items-center justify-between">
+                                    <div className="flex items-center gap-1.5">
+                                      <Flag className="h-3 w-3 text-red-400" />
+                                      <p className="text-[10px] font-semibold uppercase tracking-wider text-red-300">Case Record</p>
+                                    </div>
+                                    <span className="text-[10px] font-bold text-red-300 bg-red-800/60 px-1.5 py-0.5 rounded-full">{r.case_records?.length ?? 0}</span>
+                                  </div>
+                                  <div className="px-3 py-2 space-y-2">
+                                    {(r.case_records && r.case_records.length > 0) ? (
+                                      <>
+                                        {r.case_records.slice(0, 3).map((c, i) => (
+                                          <div key={i} className={i > 0 ? "border-t border-red-800/50 pt-2" : ""}>
+                                            <div className="flex items-center gap-1.5 mb-0.5">
+                                              <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${c.source === "kp_case" ? "bg-red-800 text-red-200" : "bg-orange-900 text-orange-300"}`}>
+                                                {c.source === "kp_case" ? "KP Case" : "Blotter"}
+                                              </span>
+                                              <span className="text-xs text-white font-semibold">{c.case_number}</span>
+                                            </div>
+                                            <p className="text-[10px] text-red-200 leading-tight mb-0.5">{c.description}</p>
+                                            <div className="flex items-center gap-2">
+                                              <span className="text-[9px] text-red-400 capitalize">{c.party_type}</span>
+                                              <span className="text-[9px] text-red-600">·</span>
+                                              <span className="text-[9px] text-red-400 capitalize">{c.status?.replace(/_/g, " ")}</span>
+                                            </div>
+                                          </div>
+                                        ))}
+                                        {r.case_records.length > 3 && (
+                                          <p className="text-[10px] text-red-500 border-t border-red-800/50 pt-1.5">+{r.case_records.length - 3} more — view profile</p>
+                                        )}
+                                      </>
+                                    ) : (
+                                      <p className="text-xs text-red-300">Active case record on file. View profile for details.</p>
+                                    )}
+                                  </div>
+                                </div>
+                                {/* Caret pointing down-right toward the badge */}
+                                <div className="absolute top-full right-3 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-red-950"></div>
+                              </div>
+                            )}
+
+                            {/* Grey flag badge */}
                             {hasGreyFlag && !hasRedFlag && (
                               <span
-                                className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-slate-500 flex items-center justify-center ring-2 ring-white dark:ring-slate-900"
+                                className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-slate-500 flex items-center justify-center ring-2 ring-white dark:ring-slate-900 cursor-default"
                                 onMouseEnter={(e) => { e.stopPropagation(); setHoveredTooltip("gray-" + r.id); }}
                                 onMouseLeave={() => setHoveredTooltip(null)}
                               >
                                 <Flag className="h-2.5 w-2.5 text-white" />
-                                {hoveredTooltip === "gray-" + r.id && (
-                                  <div className="absolute bottom-full right-0 mb-2 z-[70] pointer-events-none" style={{width: "240px"}}>
-                                    <div className="bg-slate-900 border border-slate-700 text-white rounded-xl shadow-2xl overflow-hidden">
-                                      <div className="px-3 py-2 bg-slate-800 border-b border-slate-700 flex items-center gap-1.5">
-                                        <Flag className="h-3 w-3 text-slate-400" />
-                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Other Barangay Record</p>
-                                      </div>
-                                      <div className="px-3 py-2 space-y-2">
-                                        {(r.cross_barangay_flags && r.cross_barangay_flags.length > 0) ? (
-                                          r.cross_barangay_flags.slice(0, 3).map((flag: Record<string,string>, i: number) => (
-                                            <div key={i}>
-                                              <p className="text-xs font-semibold text-slate-200">{flag.barangay_name || "Unknown Barangay"}</p>
-                                              {flag.last_transaction && <p className="text-[10px] text-slate-400">Last transaction: {flag.last_transaction}</p>}
-                                              {flag.transaction_type && <p className="text-[10px] text-slate-500">{flag.transaction_type}</p>}
-                                            </div>
-                                          ))
-                                        ) : (
-                                          <p className="text-[10px] text-slate-400">No flags</p>
-                                        )}
-                                      </div>
-                                    </div>
-                                    <div className="absolute top-full right-2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-slate-900"></div>
-                                  </div>
-                                )}
                               </span>
+                            )}
+
+                            {/* Grey flag tooltip — sibling of badge, positioned relative to avatar container */}
+                            {hasGreyFlag && !hasRedFlag && hoveredTooltip === "gray-" + r.id && (
+                              <div className="absolute bottom-full right-0 mb-3 z-[9999] pointer-events-none" style={{width: "240px"}}>
+                                <div className="bg-slate-900 border border-slate-700 text-white rounded-xl shadow-2xl overflow-hidden">
+                                  <div className="px-3 py-2 bg-slate-800 border-b border-slate-700 flex items-center gap-1.5">
+                                    <Flag className="h-3 w-3 text-slate-400" />
+                                    <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Other Barangay Record</p>
+                                  </div>
+                                  <div className="px-3 py-2 space-y-2">
+                                    {(r.cross_barangay_flags && r.cross_barangay_flags.length > 0) ? (
+                                      r.cross_barangay_flags.slice(0, 3).map((flag, i) => (
+                                        <div key={i}>
+                                          <p className="text-xs font-semibold text-slate-200">{flag.barangay_name || "Unknown Barangay"}</p>
+                                          {flag.detected_at && <p className="text-[10px] text-slate-400">Detected: {flag.detected_at}</p>}
+                                          {flag.acknowledged_at && <p className="text-[10px] text-slate-500">Acknowledged: {flag.acknowledged_at}</p>}
+                                        </div>
+                                      ))
+                                    ) : (
+                                      <p className="text-[10px] text-slate-400">No flags</p>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="absolute top-full right-3 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-slate-900"></div>
+                              </div>
                             )}
                           </div>
                           <div className="min-w-0">

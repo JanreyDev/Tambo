@@ -5,11 +5,12 @@ interface StatCardProps {
   label: string;
   value: string | number;
   icon: React.ReactNode;
+  subtitle?: string;
   trend?: { value: number; label: string };
   className?: string;
 }
 
-export function StatCard({ label, value, icon, trend, className }: StatCardProps) {
+export function StatCard({ label, value, icon, subtitle, trend, className }: StatCardProps) {
   const trendDirection = trend ? (trend.value > 0 ? "up" : trend.value < 0 ? "down" : "flat") : null;
 
   return (
@@ -22,6 +23,9 @@ export function StatCard({ label, value, icon, trend, className }: StatCardProps
       <div className="space-y-2">
         <p className="text-sm font-medium text-muted-foreground">{label}</p>
         <p className="text-2xl font-bold text-foreground">{typeof value === "number" ? value.toLocaleString() : value}</p>
+        {subtitle && (
+          <p className="text-[11px] text-muted-foreground/70">{subtitle}</p>
+        )}
         {trend && (
           <div className="flex items-center gap-1 text-xs">
             {trendDirection === "up" && (
