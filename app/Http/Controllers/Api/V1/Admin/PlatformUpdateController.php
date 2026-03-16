@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Platform\PlatformUpdate;
+use App\Models\PlatformUpdate;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
