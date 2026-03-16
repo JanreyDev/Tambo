@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import {
-  Building2, Plus, Search, Filter, Download, MapPin, Phone, Mail, User,
+  Building2, Plus, Search, Filter, MapPin, Phone, Mail, User,
   Clock, FileText, MoreHorizontal, ChevronLeft, ChevronRight, ChevronsLeft,
   ChevronsRight, X, Store, Wrench, ShoppingBag, UtensilsCrossed, Pill, Wifi,
   Droplets, Scissors, Hammer, Eye, Edit, Bot, CheckCircle2,
@@ -916,8 +916,6 @@ export default function EstablishmentsPage() {
   // Dynamic type filter options loaded from DB
   const [dbTypeOptions, setDbTypeOptions] = useState<string[]>([]);
 
-  // Export loading
-  const [exporting, setExporting] = useState(false);
 
   // Real-time duplicate detection (inline form warning)
   const [dupCheckResult, setDupCheckResult] = useState<Establishment | null>(null);
@@ -1335,66 +1333,6 @@ export default function EstablishmentsPage() {
     }
   };
 
-  const handleExport = async () => {
-    if (exporting) return;
-    setExporting(true);
-    try {
-      // Build all active filters for export
-      const params: Record<string, string> = {};
-      if (search) params.search = search;
-      if (typeFilter !== "All Types") params.type = typeFilter;
-      if (statusFilter !== "All Status") params.status = statusFilter;
-      params.sort_by = sortKey;
-      params.sort_dir = sortDir;
-
-      // Fetch all matching records (up to 1000) and export as CSV client-side
-      const query = new URLSearchParams(params);
-      query.set("per_page", "1000");
-      const res = await api.establishments.list({
-        per_page: 1000,
-        search: search || undefined,
-        type: typeFilter !== "All Types" ? typeFilter : undefined,
-        status: statusFilter !== "All Status" ? statusFilter : undefined,
-        sort_by: sortKey, sort_dir: sortDir,
-      });
-
-      const headers = ["Establishment No.", "Business Name", "Business Type", "Owner Name", "Owner Contact", "Owner Email", "Owner Address", "Purok", "Street", "Address", "Registration Type", "Registration No.", "Registration Date", "Status", "Registered On"];
-      const rows = res.data.map((e) => [
-        e.establishment_number,
-        e.business_name,
-        e.business_type ?? "",
-        e.owner_name ?? "",
-        e.owner_contact ?? "",
-        e.owner_email ?? "",
-        e.owner_address ?? "",
-        e.purok ?? "",
-        e.street ?? "",
-        e.exact_address ?? "",
-        e.registration_type ?? "",
-        e.registration_number ?? "",
-        e.registration_date ?? "",
-        e.status,
-        e.created_at ? new Date(e.created_at).toLocaleDateString("en-PH") : "",
-      ]);
-
-      const csvContent = [headers, ...rows]
-        .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
-        .join("\n");
-
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `establishments-${new Date().toISOString().slice(0, 10)}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-      addToast({ type: "success", title: "Export Complete", message: `${res.data.length} establishment${res.data.length !== 1 ? "s" : ""} exported.` });
-    } catch {
-      addToast({ type: "error", title: "Export Failed", message: "Could not export establishments. Please try again." });
-    } finally {
-      setExporting(false);
-    }
-  };
 
   const toggleSort = (key: string) => {
     if (sortKey === key) setSortDir((d) => d === "asc" ? "desc" : "asc");
@@ -1487,15 +1425,6 @@ export default function EstablishmentsPage() {
               {(typeFilter !== "All Types" || statusFilter !== "All Status") && (
                 <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-accent-primary" />
               )}
-            </button>
-            {/* Export */}
-            <button
-              onClick={handleExport}
-              disabled={exporting}
-              className="inline-flex items-center justify-center h-10 w-10 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all disabled:opacity-50"
-              title="Export CSV"
-            >
-              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
             </button>
             {/* New Establishment */}
             <button

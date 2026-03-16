@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import {
-  MapPin, Plus, Search, Filter, Download, Phone, Mail, User,
+  MapPin, Plus, Search, Filter, Phone, Mail, User,
   MoreHorizontal, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ChevronDown,
   X, Home, Building2, LandPlot, Ruler, Hash, FileText, Compass, Eye,
   Edit, Trash2, Bot, CheckCircle2, AlertTriangle, Loader2, Clock,
@@ -1095,8 +1095,6 @@ export default function LotsBuildingsPage() {
     return () => clearTimeout(timer);
   }, [toasts]);
 
-  // ── Export ──
-  const [exporting, setExporting] = useState(false);
 
   // ── Data fetching ──────────────────────────────────────────────────────
 
@@ -1411,48 +1409,6 @@ export default function LotsBuildingsPage() {
     }
   };
 
-  // ── Export ──────────────────────────────────────────────────────────────
-
-  const handleExport = async () => {
-    setExporting(true);
-    try {
-      const res = await api.lotsBuildings.list({
-        search: debouncedSearch || undefined,
-        classification: classFilter || undefined,
-        property_classification: propClassFilter || undefined,
-        status: statusFilter || undefined,
-        sort_by: "lot_building_number",
-        sort_dir: "asc",
-        per_page: 1000,
-      });
-      const header = ["Record #", "Type", "Classification", "Owner", "Contact", "Purok", "Street", "Size", "Assessed Value", "Status"];
-      const rows = res.data.map((r) => [
-        r.lot_building_number,
-        classificationLabels[r.classification] || r.classification,
-        r.property_classification || "",
-        r.owner_name || "",
-        r.owner_contact || "",
-        r.purok || "",
-        r.street || "",
-        r.size || "",
-        r.assessed_value || "",
-        r.status,
-      ]);
-      const csv = [header, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
-      const blob = new Blob([csv], { type: "text/csv" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `lots-buildings-${new Date().toISOString().split("T")[0]}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-      addToast({ type: "success", title: "Export Complete" });
-    } catch {
-      addToast({ type: "error", title: "Export Failed" });
-    } finally {
-      setExporting(false);
-    }
-  };
 
   // ── Render helpers ──────────────────────────────────────────────────────
 
@@ -1512,13 +1468,6 @@ export default function LotsBuildingsPage() {
             )}
           >
             <Filter className="h-4 w-4" />
-          </button>
-          <button
-            onClick={handleExport}
-            disabled={exporting}
-            className="flex items-center gap-2 px-3 py-2 text-sm rounded-xl border border-border hover:bg-muted transition-colors disabled:opacity-50"
-          >
-            {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
           </button>
           <button
             onClick={openCreate}

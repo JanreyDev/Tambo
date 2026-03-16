@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  Home, MapPin, Filter, Download, Upload, MoreHorizontal,
+  Home, MapPin, Filter, Upload, MoreHorizontal,
   Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X, Flag,
   AlertTriangle, Phone, Mail, Calendar, User, Heart, FileText, Edit,
   Camera, Printer, Eye, TrendingUp, ChevronDown, Plus, Fingerprint, CheckCircle, Loader2,
@@ -979,19 +979,6 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
   const [viewLoading, setViewLoading] = useState(false);
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
-  const [exporting, setExporting] = useState(false);
-  const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState<{ message: string; imported: number; skipped: number; errors: string[]; batch_id?: string } | null>(null);
-  const importFileRef = useRef<HTMLInputElement>(null);
-  const [importFile, setImportFile] = useState<File | null>(null);
-  const [importPreview, setImportPreview] = useState<{
-    headers: string[];
-    sample_rows: string[][];
-    total_rows: number;
-    auto_mapping: Record<string, number>;
-  } | null>(null);
-  const [importMapping, setImportMapping] = useState<Record<string, number | "">>({});
-  const [importPreviewLoading, setImportPreviewLoading] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [actionMenu, setActionMenu] = useState<string | null>(null);
   // Track which resident is currently generating a PDF (shows spinner on button)
@@ -1098,103 +1085,6 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
     }
   }, [mode, fetchResidents, fetchResidentStats]);
 
-  // ── Export CSV ──
-  const handleExport = useCallback(async () => {
-    setExporting(true);
-    try {
-      const params: Record<string, string> = {};
-      if (search) params.search = search;
-      if (purokFilter !== "All Puroks") params.purok = purokFilter;
-      if (statusFilter !== "All Status") params.status = statusFilter.toLowerCase();
-      if (sexFilter !== "All") params.sex = sexFilter.toLowerCase();
-      if (voterFilter === "voter") params.is_voter = "true";
-      if (voterFilter === "non-voter") params.is_voter = "false";
-      if (civilStatusFilter !== "All Civil Status") params.civil_status = civilStatusFilter.toLowerCase();
-      if (residentTypeFilter !== "All Resident Types") params.resident_type = residentTypeFilter.toLowerCase();
-      if (hohFilter === "hoh") params.is_head_of_household = "true";
-      if (hohFilter === "non-hoh") params.is_head_of_household = "false";
-      if (citizenshipFilter !== "All Citizenship") params.citizenship = citizenshipFilter;
-      if (religionFilter !== "All Religion") params.religion = religionFilter;
-      if (ethnicityFilter !== "All Ethnicity") params.ethnicity = ethnicityFilter;
-      if (sectorFilter !== "All Sectors") params.sector = sectorFilter;
-
-      const res = await api.residents.exportCsv(params);
-      if (!res.ok) throw new Error("Export failed");
-
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      // Extract filename from Content-Disposition header or use default
-      const cd = res.headers.get("Content-Disposition");
-      const match = cd?.match(/filename[^;=\n]*=([^;\n]*)/);
-      a.download = match?.[1]?.replace(/['"]/g, "") || `residents-${new Date().toISOString().slice(0, 10)}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch {
-      alert("Failed to export residents. Please try again.");
-    } finally {
-      setExporting(false);
-    }
-  }, [search, purokFilter, statusFilter, sexFilter, voterFilter, civilStatusFilter, residentTypeFilter, hohFilter, citizenshipFilter, religionFilter, ethnicityFilter, sectorFilter]);
-
-  // ── Import CSV — Step 1: Preview (column mapping) ──
-  const handleImportFileSelect = useCallback(async (file: File) => {
-    setImportFile(file);
-    setImportPreviewLoading(true);
-    setImportResult(null);
-    try {
-      const preview = await api.residents.importPreview(file);
-      setImportPreview(preview);
-      setImportMapping(preview.auto_mapping as Record<string, number | "">);
-    } catch (err: unknown) {
-      const msg = (err && typeof err === "object" && "message" in err) ? String((err as Record<string, unknown>).message) : "Failed to read file";
-      setImportResult({ message: msg, imported: 0, skipped: 0, errors: [] });
-      setImportFile(null);
-    } finally {
-      setImportPreviewLoading(false);
-      if (importFileRef.current) importFileRef.current.value = "";
-    }
-  }, []);
-
-  // ── Import CSV — Step 2: Confirm with mapping ──
-  const handleImportConfirm = useCallback(async () => {
-    if (!importFile) return;
-    // Validate required fields mapped
-    if (importMapping.first_name === "" || importMapping.first_name === undefined ||
-        importMapping.last_name === "" || importMapping.last_name === undefined) {
-      return;
-    }
-    setImporting(true);
-    try {
-      const cleanMapping: Record<string, number> = {};
-      Object.entries(importMapping).forEach(([k, v]) => { if (v !== "" && v !== undefined) cleanMapping[k] = Number(v); });
-      const result = await api.residents.importCsv(importFile, cleanMapping);
-      setImportResult(result);
-      setImportPreview(null);
-      setImportFile(null);
-      fetchResidents();
-    } catch (err: unknown) {
-      const msg = (err && typeof err === "object" && "message" in err) ? String((err as Record<string, unknown>).message) : "Import failed";
-      setImportResult({ message: msg, imported: 0, skipped: 0, errors: [] });
-    } finally {
-      setImporting(false);
-    }
-  }, [importFile, importMapping, fetchResidents]);
-
-  // ── Import — Rollback batch ──
-  const handleRollback = useCallback(async (batchId: string) => {
-    if (!confirm("This will permanently delete all residents from this import. Continue?")) return;
-    try {
-      const result = await api.residents.rollbackBatch(batchId);
-      setImportResult({ message: result.message, imported: 0, skipped: 0, errors: [] });
-      fetchResidents();
-    } catch {
-      alert("Failed to rollback import.");
-    }
-  }, [fetchResidents]);
 
   // Debounced search
   const handleSearchChange = useCallback((value: string) => {
@@ -3154,42 +3044,6 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                 <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-background" style={{ background: "var(--accent-primary)" }} />
               )}
             </button>
-            <button
-              onClick={() => importFileRef.current?.click()}
-              disabled={importing || importPreviewLoading}
-              className={cn(
-                "inline-flex items-center justify-center h-10 w-10 rounded-xl border transition-all",
-                (importing || importPreviewLoading)
-                  ? "border-accent-primary bg-accent-bg text-accent-text"
-                  : "border-border text-muted-foreground hover:text-foreground hover:bg-muted"
-              )}
-              title="Import CSV"
-            >
-              {(importing || importPreviewLoading) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-            </button>
-            <input
-              ref={importFileRef}
-              type="file"
-              accept=".csv,.txt"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) handleImportFileSelect(file);
-              }}
-            />
-            <button
-              onClick={handleExport}
-              disabled={exporting}
-              className={cn(
-                "inline-flex items-center justify-center h-10 w-10 rounded-xl border transition-all",
-                exporting
-                  ? "border-accent-primary bg-accent-bg text-accent-text"
-                  : "border-border text-muted-foreground hover:text-foreground hover:bg-muted"
-              )}
-              title="Export CSV"
-            >
-              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-            </button>
           </div>
           <button onClick={openCreate} className="inline-flex items-center gap-2 h-10 px-5 text-sm font-semibold rounded-xl text-white shadow-sm transition-all hover:opacity-90 hover:shadow-md active:scale-[0.98]" style={{ background: "var(--accent-primary)" }}>
             <Plus className="h-4 w-4" /> New Resident
@@ -3261,158 +3115,6 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
           </div>
         )}
       </div>
-
-      {/* Import Result Banner */}
-      {importResult && (
-        <div className={cn(
-          "flex items-start gap-3 rounded-xl border px-4 py-3",
-          importResult.imported > 0
-            ? "border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30"
-            : "border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30"
-        )}>
-          <div className="flex-1 text-sm">
-            <p className={cn("font-semibold", importResult.imported > 0 ? "text-green-800 dark:text-green-300" : "text-amber-800 dark:text-amber-300")}>
-              {importResult.message}
-            </p>
-            {importResult.errors.length > 0 && (
-              <ul className="mt-1.5 space-y-0.5 text-xs text-muted-foreground">
-                {importResult.errors.map((e, i) => <li key={i}>{e}</li>)}
-              </ul>
-            )}
-            {importResult.batch_id && importResult.imported > 0 && (
-              <button
-                onClick={() => handleRollback(importResult.batch_id!)}
-                className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-950/40 hover:bg-red-200 dark:hover:bg-red-950/60 transition-colors"
-              >
-                <Archive className="h-3.5 w-3.5" /> Undo Import (Rollback)
-              </button>
-            )}
-          </div>
-          <button onClick={() => setImportResult(null)} className="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
-            <X className="h-4 w-4 text-muted-foreground" />
-          </button>
-        </div>
-      )}
-
-      {/* Import Column Mapping Modal */}
-      {importPreview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => { setImportPreview(null); setImportFile(null); }}>
-          <div className="relative w-full max-w-2xl mx-4 rounded-2xl bg-background border border-border shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-              <div>
-                <h3 className="text-base font-bold text-foreground">Verify Column Mapping</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {importFile?.name} — {importPreview.total_rows.toLocaleString()} rows detected
-                </p>
-              </div>
-              <button onClick={() => { setImportPreview(null); setImportFile(null); }} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
-                <X className="h-4 w-4 text-muted-foreground" />
-              </button>
-            </div>
-
-            {/* Column mapping */}
-            <div className="px-6 py-4 space-y-4">
-              <p className="text-xs text-muted-foreground">
-                Map each CSV column to the correct resident field. Fields marked with <span className="text-red-500 font-bold">*</span> are required.
-              </p>
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { key: "first_name", label: "First Name", required: true },
-                  { key: "last_name", label: "Last Name", required: true },
-                  { key: "middle_name", label: "Middle Name", required: false },
-                  { key: "date_of_birth", label: "Date of Birth", required: false },
-                ].map((field) => (
-                  <div key={field.key}>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">
-                      {field.label} {field.required && <span className="text-red-500">*</span>}
-                    </label>
-                    <select
-                      value={importMapping[field.key] ?? ""}
-                      onChange={(e) => setImportMapping((prev) => ({ ...prev, [field.key]: e.target.value === "" ? "" : Number(e.target.value) }))}
-                      className={cn(
-                        "w-full h-9 px-3 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-accent-ring cursor-pointer transition-colors",
-                        field.required && (importMapping[field.key] === "" || importMapping[field.key] === undefined) ? "border-red-300 dark:border-red-800" : "border-border"
-                      )}
-                    >
-                      <option value="">— Skip —</option>
-                      {importPreview.headers.map((h, i) => (
-                        <option key={i} value={i}>{h}</option>
-                      ))}
-                    </select>
-                  </div>
-                ))}
-              </div>
-
-              {/* Data preview table */}
-              <div>
-                <p className="text-xs font-medium text-muted-foreground mb-2">Preview (first {importPreview.sample_rows.length} rows)</p>
-                <div className="overflow-x-auto rounded-lg border border-border">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="bg-muted/50">
-                        <th className="px-3 py-2 text-left font-medium text-muted-foreground whitespace-nowrap">#</th>
-                        {importPreview.headers.map((h, i) => {
-                          const mappedTo = Object.entries(importMapping).find(([, v]) => v === i);
-                          return (
-                            <th key={i} className="px-3 py-2 text-left font-medium whitespace-nowrap">
-                              <span className="text-muted-foreground">{h}</span>
-                              {mappedTo && (
-                                <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-                                  {mappedTo[0].replace("_", " ")}
-                                </span>
-                              )}
-                            </th>
-                          );
-                        })}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {importPreview.sample_rows.map((row, ri) => (
-                        <tr key={ri} className="border-t border-border">
-                          <td className="px-3 py-1.5 text-muted-foreground">{ri + 1}</td>
-                          {row.map((cell, ci) => (
-                            <td key={ci} className="px-3 py-1.5 text-foreground whitespace-nowrap max-w-[150px] truncate">{cell || <span className="text-muted-foreground/40 italic">empty</span>}</td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="flex items-center justify-between px-6 py-4 border-t border-border bg-muted/30">
-              <p className="text-xs text-muted-foreground">
-                Only First Name, Last Name, Middle Name, and Date of Birth will be imported. All other data can be added later.
-              </p>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => { setImportPreview(null); setImportFile(null); }}
-                  className="px-4 py-2 text-sm font-medium rounded-lg border border-border text-foreground hover:bg-muted transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleImportConfirm}
-                  disabled={importing || importMapping.first_name === "" || importMapping.first_name === undefined || importMapping.last_name === "" || importMapping.last_name === undefined}
-                  className={cn(
-                    "px-4 py-2 text-sm font-semibold rounded-lg text-white transition-all",
-                    importing || importMapping.first_name === "" || importMapping.first_name === undefined || importMapping.last_name === "" || importMapping.last_name === undefined
-                      ? "opacity-50 cursor-not-allowed bg-muted-foreground"
-                      : "hover:opacity-90 active:scale-[0.98]"
-                  )}
-                  style={{ background: (importing || importMapping.first_name === "" || importMapping.first_name === undefined || importMapping.last_name === "" || importMapping.last_name === undefined) ? undefined : "var(--accent-primary)" }}
-                >
-                  {importing ? <Loader2 className="h-4 w-4 animate-spin inline mr-1.5" /> : <Upload className="h-4 w-4 inline mr-1.5" />}
-                  Import {importPreview.total_rows.toLocaleString()} Rows
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Table */}
       <div className="rounded-xl glass overflow-hidden">
@@ -3503,7 +3205,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
 
                             {/* Red flag tooltip — sibling of badge, positioned relative to avatar container */}
                             {hasRedFlag && hoveredTooltip === "red-" + r.id && (
-                              <div className="absolute bottom-full right-0 mb-3 z-[9999] pointer-events-none" style={{width: "260px"}}>
+                              <div className="absolute bottom-full left-0 mb-3 z-[9999] pointer-events-none" style={{width: "260px"}}>
                                 <div className="bg-red-950 border border-red-800 text-white rounded-xl shadow-2xl overflow-hidden">
                                   <div className="px-3 py-2 bg-red-900/60 border-b border-red-800 flex items-center justify-between">
                                     <div className="flex items-center gap-1.5">
@@ -3540,8 +3242,8 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                                     )}
                                   </div>
                                 </div>
-                                {/* Caret pointing down-right toward the badge */}
-                                <div className="absolute top-full right-3 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-red-950"></div>
+                                {/* Caret pointing down-left toward the badge */}
+                                <div className="absolute top-full left-3 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-red-950"></div>
                               </div>
                             )}
 

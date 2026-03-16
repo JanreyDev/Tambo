@@ -6,7 +6,6 @@ import {
   Plus,
   Search,
   Filter,
-  FileBarChart,
   Download,
   ChevronLeft,
   ChevronRight,
@@ -16,7 +15,6 @@ import {
   Clock,
   Users,
   FileText,
-  Calendar,
   Eye,
   Edit,
   Printer,
@@ -26,21 +24,28 @@ import {
   Gavel,
   ArrowUpRight,
   AlertCircle,
-  FileSignature,
   BookOpen,
   ChevronDown,
   Phone,
   MapPin,
+  MessageSquare,
+  Loader2,
+  Smartphone,
+  CreditCard,
+  Sparkles,
+  CheckCircle2,
+  AlertTriangle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { createPortal } from "react-dom";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge, StatusBadge } from "@/components/ui/badge";
-import { StatCard } from "@/components/ui/stat-card";
 import { Modal, ModalButton } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
 import { MabiniButton } from "@/components/ui/mabini-button";
 import { api } from "@/lib/api";
-import type { KpCaseListItem, KpCaseDetail } from "@/lib/types";
+import { useAuth } from "@/contexts/auth-context";
+import type { KpCaseListItem, KpCaseDetail, KpCaseParty } from "@/lib/types";
 
 // ── KP Form Reference (RA 7160 / Katarungang Pambarangay Handbook) ──
 const KP_FORMS = [
@@ -73,6 +78,183 @@ const KP_FORMS = [
   { number: 27, name: "Notice of Execution", stage: "execution" },
   { number: 28, name: "Monthly Transmittal of Final Reports", stage: "reporting" },
 ];
+
+// Forms shown per case status in the Generate Document modal
+const KP_FORMS_BY_STATUS: Record<string, number[]> = {
+  filed:        [7, 8, 9],
+  mediation:    [7, 8, 9, 18, 19, 20],
+  conciliation: [10, 11, 12, 13, 18, 19, 21],
+  arbitration:  [14, 15],
+  settled:      [16, 17, 25, 26, 27],
+  cfa_issued:   [20, 21, 22, 23, 24],
+  dismissed:    [20, 21, 22, 23],
+};
+
+// ── KP Form print generator ──────────────────────────────────────────────────
+function generateKpFormHtml(
+  formNumber: number,
+  kpCase: { case_number: string; filing_date: string; case_level: string; nature: string; nature_of_complaint: string; case_description?: string | null; parties?: Array<{ party_type: string; party_mode: string; first_name?: string | null; middle_name?: string | null; last_name?: string | null; full_name: string; address?: string | null; mobile_number?: string | null }> },
+  barangay?: { name?: string; city_municipality?: string | null; province?: string | null; captain_name?: string | null } | null
+): string {
+  const form = KP_FORMS.find((f) => f.number === formNumber);
+  if (!form) return "";
+
+  const parties = kpCase.parties ?? [];
+  const complainants = parties.filter((p) => p.party_type === "complainant");
+  const respondents  = parties.filter((p) => p.party_type === "respondent");
+
+  const partyName = (p: typeof parties[0]) =>
+    p.party_mode === "group"
+      ? p.full_name
+      : [p.first_name, p.middle_name, p.last_name].filter(Boolean).join(" ");
+
+  const complainantNames  = complainants.map(partyName).join(", ") || "_______________";
+  const respondentNames   = respondents.map(partyName).join(", ")  || "_______________";
+  const complainantAddr   = complainants[0]?.address       || "";
+  const respondentAddr    = respondents[0]?.address        || "";
+  const complainantMobile = complainants[0]?.mobile_number || "";
+  const respondentMobile  = respondents[0]?.mobile_number  || "";
+
+  const filingDate = kpCase.filing_date
+    ? new Date(kpCase.filing_date).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" })
+    : "_______________";
+
+  const brgyName    = barangay?.name              ?? "_______________";
+  const munName     = barangay?.city_municipality ?? "_______________";
+  const provName    = barangay?.province          ?? "_______________";
+  const captainName = barangay?.captain_name      ?? "_______________";
+  const year        = new Date().getFullYear();
+
+  const css = `<style>
+    *{box-sizing:border-box}
+    body{font-family:"Times New Roman",Times,serif;margin:0;padding:22mm 20mm;font-size:11pt;color:#000}
+    @page{size:A4;margin:0}
+    table{border-collapse:collapse;width:100%}
+    td{padding:5px 4px;vertical-align:top}
+    .bb{border-bottom:1px solid #000}
+    .box{border:1px solid #000;padding:8px 10px;margin:10px 0}
+    .sig{border-top:1px solid #000;padding-top:4px;text-align:center;display:inline-block;min-width:220px}
+    .center{text-align:center}
+    .bold{font-weight:bold}
+  </style>`;
+
+  const letterhead = `
+    <div class="center" style="border-bottom:2px solid #000;padding-bottom:12px;margin-bottom:16px">
+      <p style="margin:0;font-size:10.5pt">Republic of the Philippines</p>
+      <p style="margin:2px 0;font-size:10.5pt">Province of ${provName}</p>
+      <p style="margin:2px 0;font-size:10.5pt">Municipality / City of ${munName}</p>
+      <p style="margin:4px 0;font-size:14pt;font-weight:bold">Barangay ${brgyName}</p>
+      <p style="margin:6px 0 0;font-size:11pt;font-weight:bold;text-transform:uppercase">Lupong Tagapamayapa</p>
+    </div>
+    <div class="center" style="margin-bottom:18px">
+      <span style="border:1px solid #000;font-size:9pt;padding:2px 10px">KP FORM NO. ${formNumber}</span>
+      <h2 style="font-size:13pt;font-weight:bold;text-transform:uppercase;margin:8px 0 4px">${form.name}</h2>
+      <p style="font-size:10pt;margin:0">Case No.: <strong>${kpCase.case_number}</strong></p>
+    </div>`;
+
+  const officerFooter = `
+    <div style="margin-top:40px;display:flex;gap:40px">
+      <div>
+        <p style="font-size:10pt;margin-bottom:28px">Signed this _____ day of _______________, ${year}</p>
+        <div class="sig"><p class="bold" style="margin:0">${captainName}</p><p style="font-size:9pt;margin:0">Punong Barangay / Lupon Chairman</p></div>
+      </div>
+      <div style="margin-top:38px">
+        <div class="sig"><p class="bold" style="margin:0">_______________________________</p><p style="font-size:9pt;margin:0">Lupon Secretary</p></div>
+      </div>
+    </div>`;
+
+  let body = "";
+
+  if (formNumber === 7) {
+    body = `
+      <p style="margin-bottom:14px">This is to certify that on <strong>${filingDate}</strong>, the undersigned personally appeared before the Punong Barangay and filed this complaint.</p>
+      <table style="margin-bottom:14px">
+        <tr><td style="width:32%" class="bold">Complainant:</td><td class="bb">${complainantNames}</td></tr>
+        <tr><td class="bold">Address:</td><td class="bb">${complainantAddr || "_______________"}</td></tr>
+        <tr><td class="bold">Contact No.:</td><td class="bb">${complainantMobile || "_______________"}</td></tr>
+        <tr><td class="bold" style="padding-top:10px">Respondent:</td><td class="bb">${respondentNames}</td></tr>
+        <tr><td class="bold">Address:</td><td class="bb">${respondentAddr || "_______________"}</td></tr>
+        <tr><td class="bold">Contact No.:</td><td class="bb">${respondentMobile || "_______________"}</td></tr>
+        <tr><td class="bold">Nature:</td><td class="bb">${kpCase.nature_of_complaint || kpCase.nature}</td></tr>
+        <tr><td class="bold" style="vertical-align:top">Facts:</td><td class="bb" style="padding-bottom:30px">${kpCase.case_description ?? ""}</td></tr>
+      </table>
+      <p style="font-size:9pt"><em>Filing Fee Paid: P_______ &nbsp; O.R. No. _______</em></p>
+      <div style="margin-top:30px;text-align:center">
+        <div class="sig"><p class="bold" style="margin:0">${complainantNames}</p><p style="font-size:9pt;margin:0">Complainant's Signature over Printed Name</p></div>
+      </div>
+      ${officerFooter}`;
+  } else if (formNumber === 8) {
+    body = `
+      <p>To: <strong>${complainantNames}</strong> and <strong>${respondentNames}</strong></p>
+      <p style="line-height:1.9;margin:14px 0">
+        You are hereby notified that there will be a <strong>MEDIATION HEARING</strong> on the above-captioned case on:<br/>
+        Date: <strong>_________________________________</strong><br/>
+        Time: <strong>_________________________________</strong><br/>
+        Venue: <strong>Barangay Hall, Barangay ${brgyName}</strong>
+      </p>
+      <p style="margin-bottom:16px">Please be punctual and bring all documents pertinent to the case.</p>
+      <div class="box"><p style="margin:0"><strong>NOTE:</strong> Failure to appear without justifiable cause shall subject the absent party to the sanctions under Section 417, R.A. 7160.</p></div>
+      ${officerFooter}`;
+  } else if (formNumber === 9) {
+    body = `
+      <p>To: <strong>${respondentNames}</strong><br/>Address: ${respondentAddr || "_______________"}</p>
+      <p style="line-height:1.9;margin:14px 0">
+        You are hereby summoned to appear before the undersigned on:<br/>
+        Date: <strong>_________________________________</strong><br/>
+        Time: <strong>_________________________________</strong><br/>
+        Venue: <strong>Barangay Hall, Barangay ${brgyName}</strong>
+      </p>
+      <p>in connection with the complaint filed against you by <strong>${complainantNames}</strong> regarding <em>${kpCase.nature_of_complaint || kpCase.nature}</em>.</p>
+      <p style="margin:14px 0">You are required to bring this summons with you and answer the complaint in writing or verbally.</p>
+      <div class="box"><p style="margin:0"><strong>IMPORTANT:</strong> Non-appearance without valid excuse is a ground for issuance of a Certification to File Action (CFA) against you per Sec. 417, R.A. 7160.</p></div>
+      ${officerFooter}`;
+  } else if (formNumber === 16) {
+    body = `
+      <p>This AMICABLE SETTLEMENT, entered into this _____ day of _______________, ${year}, between:</p>
+      <div class="box"><p style="margin:2px 0"><strong>COMPLAINANT:</strong> ${complainantNames}</p><p style="margin:2px 0">Address: ${complainantAddr || "_______________"}</p></div>
+      <p class="center" style="margin:8px 0">— and —</p>
+      <div class="box"><p style="margin:2px 0"><strong>RESPONDENT:</strong> ${respondentNames}</p><p style="margin:2px 0">Address: ${respondentAddr || "_______________"}</p></div>
+      <p style="margin:16px 0 6px"><strong>TERMS OF SETTLEMENT:</strong></p>
+      <div style="min-height:80px;border-bottom:1px solid #000;margin-bottom:4px"></div>
+      <div style="min-height:60px;border-bottom:1px solid #000;margin-bottom:16px"></div>
+      <p style="font-size:9pt"><em>This settlement shall have the force and effect of a final judgment of a court upon expiration of ten (10) days from the date hereof, unless repudiated within such period pursuant to Sec. 418, R.A. 7160.</em></p>
+      <div style="margin-top:30px;display:flex;gap:40px;justify-content:center">
+        <div class="sig"><p class="bold" style="margin:0">${complainantNames}</p><p style="font-size:9pt;margin:0">Complainant</p></div>
+        <div class="sig"><p class="bold" style="margin:0">${respondentNames}</p><p style="font-size:9pt;margin:0">Respondent</p></div>
+      </div>
+      <p class="center bold" style="margin-top:24px">ATTESTED BY:</p>
+      <div class="center" style="margin-top:12px"><div class="sig"><p class="bold" style="margin:0">${captainName}</p><p style="font-size:9pt;margin:0">Punong Barangay / Lupon Chairman</p></div></div>`;
+  } else if (formNumber === 20 || formNumber === 21 || formNumber === 22) {
+    const by = formNumber === 20 ? "Lupon Secretary" : formNumber === 21 ? "Pangkat Secretary" : "Lupon/Pangkat Secretary";
+    body = `
+      <p class="center" style="font-size:10pt;font-style:italic;margin-bottom:16px">(Pursuant to Sections 410 and 412, Chapter VII, Title I, Book III of R.A. 7160)</p>
+      <p>This is to certify that the dispute between:</p>
+      <p style="margin:10px 0"><strong>COMPLAINANT:</strong> ${complainantNames}</p>
+      <p style="margin:10px 0"><strong>RESPONDENT:</strong> ${respondentNames}</p>
+      <p style="margin:16px 0;line-height:1.9">
+        involving <em>${kpCase.nature_of_complaint || kpCase.nature}</em>, was duly submitted for mediation/conciliation proceedings before the Lupong Tagapamayapa of Barangay <strong>${brgyName}</strong>, ${munName}, ${provName}, but the same was not settled amicably. The complaint is hereby certified for the filing of the appropriate action in court or government office.
+      </p>
+      <p>Issued this _____ day of _______________, ${year} at Barangay ${brgyName}, ${munName}, ${provName}.</p>
+      <div style="margin-top:36px">
+        <div class="sig"><p class="bold" style="margin:0">_______________________________</p><p style="font-size:9pt;margin:0">${by}</p></div>
+      </div>
+      <p class="bold" style="margin-top:20px">NOTED BY:</p>
+      <div style="margin-top:10px"><div class="sig"><p class="bold" style="margin:0">${captainName}</p><p style="font-size:9pt;margin:0">Punong Barangay</p></div></div>`;
+  } else {
+    body = `
+      <table style="margin-bottom:14px">
+        <tr><td style="width:32%" class="bold">Case No.:</td><td class="bb">${kpCase.case_number}</td></tr>
+        <tr><td class="bold">Filing Date:</td><td class="bb">${filingDate}</td></tr>
+        <tr><td class="bold">Nature:</td><td class="bb">${kpCase.nature_of_complaint || kpCase.nature}</td></tr>
+        <tr><td class="bold">Complainant:</td><td class="bb">${complainantNames}</td></tr>
+        <tr><td class="bold">Respondent:</td><td class="bb">${respondentNames}</td></tr>
+      </table>
+      <p style="font-size:9pt;font-style:italic;margin-top:16px">Fill in remaining fields per the official KP Form No. ${formNumber} template.</p>
+      ${officerFooter}`;
+  }
+
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>KP Form ${formNumber} — ${kpCase.case_number}</title>${css}</head><body>${letterhead}${body}</body></html>`;
+}
 
 // Case nature options per RA 7160 jurisdiction
 const NATURE_OPTIONS = ["Civil", "Criminal"];
@@ -109,7 +291,7 @@ const STATUS_OPTIONS = [
   { value: "conciliation", label: "Conciliation", color: "bg-violet-500" },
   { value: "arbitration", label: "Arbitration", color: "bg-amber-500" },
   { value: "settled", label: "Settled", color: "bg-emerald-500" },
-  { value: "cfa_issued", label: "CFA Issued", color: "bg-red-500" },
+  { value: "cfa_issued", label: "Certification to File Action (CFA)", color: "bg-red-500" },
   { value: "dismissed", label: "Dismissed", color: "bg-gray-500" },
   { value: "closed", label: "Closed", color: "bg-gray-400" },
 ];
@@ -311,22 +493,295 @@ function CaseFlowIndicator({ level, status }: { level: string; status: string })
   );
 }
 
+// ── KP SMS Modal ─────────────────────────────────────────────────────────────
+const CHARS_PER_SEG = 159;
+const SMS_COST = 0.50;
+const MAX_SMS_CHARS = CHARS_PER_SEG * 4;
+const KP_SMS_TEMPLATES = [
+  { label: "Notice of Hearing", text: "Abiso: Mayroon kayong scheduled hearing para sa inyong KP case sa barangay hall. Mangyaring dumalo sa itinakdang oras. Pakikontak ang barangay para sa detalye." },
+  { label: "Mediation Reminder", text: "Paalaala: Ang mediation ng inyong kaso ay itutuloy sa barangay hall. Ang inyong kooperasyon ay lubos na kailangan. Maraming salamat." },
+  { label: "Settlement Notice", text: "Maligayang balita! Ang inyong kaso ay matagumpay na naayos. Mangyaring pumunta sa barangay hall para pumirma sa kasunduan. Salamat sa inyong pakikiisa." },
+  { label: "Summons", text: "Kayo ay isinasapanganib na dumalo sa hearing ng inyong KP case sa barangay hall. Mahalagang makilahok kayo. Para sa katanungan, makipag-ugnayan sa aming opisina." },
+] as const;
+
+function KpSmsModal({ caseNumber, parties, caseId, creditBalance, onClose }: {
+  caseNumber: string;
+  parties: KpCaseParty[];
+  caseId: string;
+  creditBalance: number | null;
+  onClose: () => void;
+}) {
+  const complainant = parties.find((p) => p.party_type === "complainant");
+  const respondent  = parties.find((p) => p.party_type === "respondent");
+  const [recipient, setRecipient] = useState<"complainant" | "respondent" | "both">("complainant");
+  const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
+  const [draftingAi, setDraftingAi] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
+  const [errorMsg, setErrorMsg] = useState("");
+  const [remainingBalance, setRemainingBalance] = useState<number | null>(null);
+  const [sentCount, setSentCount] = useState(0);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  useEffect(() => { setTimeout(() => textareaRef.current?.focus(), 100); }, []);
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape" && !sending) onClose(); };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [sending, onClose]);
+
+  const chars = message.length;
+  const segments = chars === 0 ? 0 : Math.ceil(chars / CHARS_PER_SEG);
+  const multiplier = recipient === "both" ? 2 : 1;
+  const cost = segments * SMS_COST * multiplier;
+  const balance = remainingBalance ?? creditBalance ?? 0;
+  const hasCredits = balance >= cost || chars === 0;
+
+  const phoneFor = (type: "complainant" | "respondent") =>
+    type === "complainant" ? complainant?.mobile_number : respondent?.mobile_number;
+  const nameFor = (type: "complainant" | "respondent") =>
+    type === "complainant" ? complainant?.full_name : respondent?.full_name;
+
+  const canSend = chars > 0 && chars <= MAX_SMS_CHARS && hasCredits && !sending &&
+    (recipient === "both"
+      ? (!!complainant?.mobile_number || !!respondent?.mobile_number)
+      : !!phoneFor(recipient));
+
+  const draftWithAi = useCallback(async () => {
+    if (draftingAi) return;
+    setDraftingAi(true);
+    try {
+      const name = recipient === "both" ? "both parties" : (nameFor(recipient) ?? "the party");
+      const prompt = `Draft a short, professional SMS message in Filipino (Tagalog) for a Katarungang Pambarangay case notification. Recipient: ${name}. Context: KP case ${caseNumber}. Keep it under 159 characters. Return only the SMS text, nothing else.`;
+      let draft = "";
+      await api.ai.createConversation(prompt, (event) => {
+        if (event.event === "content_delta") draft += event.data.text;
+      });
+      if (mounted.current && draft.trim()) setMessage(draft.trim().slice(0, MAX_SMS_CHARS));
+    } catch { /* silent */ } finally {
+      if (mounted.current) setDraftingAi(false);
+    }
+  }, [draftingAi, recipient, caseNumber]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleSend = async () => {
+    if (!canSend) return;
+    setSending(true);
+    setStatus("idle");
+    try {
+      const res = await api.kpCases.sendSms(caseId, { recipient, message: message.trim() });
+      if (mounted.current) {
+        setStatus("success");
+        setSentCount(res.sent);
+        setRemainingBalance(res.remaining_balance);
+      }
+    } catch (err: unknown) {
+      if (mounted.current) {
+        setStatus("error");
+        setErrorMsg((err as { message?: string })?.message || "Failed to send SMS. Please try again.");
+      }
+    } finally {
+      if (mounted.current) setSending(false);
+    }
+  };
+
+  const counterColor = chars > MAX_SMS_CHARS ? "text-red-500" : chars > CHARS_PER_SEG * 3 ? "text-amber-500" : "text-muted-foreground";
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+      onMouseDown={(e) => { if (e.target === e.currentTarget && !sending) onClose(); }}>
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+      <div className="relative z-10 w-full max-w-md bg-background rounded-2xl border border-border shadow-2xl overflow-hidden">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+              <MessageSquare className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">Send SMS</h2>
+              <p className="text-[11px] text-muted-foreground">{caseNumber}</p>
+            </div>
+          </div>
+          <button type="button" onClick={() => !sending && onClose()} disabled={sending}
+            className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground disabled:opacity-30">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Success */}
+        {status === "success" ? (
+          <div className="px-6 py-10 flex flex-col items-center text-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+              <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
+            </div>
+            <div>
+              <p className="text-base font-semibold text-foreground">SMS Sent</p>
+              <p className="text-sm text-muted-foreground mt-1">{sentCount} message{sentCount !== 1 ? "s" : ""} delivered</p>
+              {remainingBalance !== null && (
+                <p className="text-xs text-muted-foreground mt-2">Remaining balance: <span className="font-medium text-foreground">₱{remainingBalance.toFixed(2)}</span></p>
+              )}
+            </div>
+            <button type="button" onClick={onClose} className="mt-2 px-5 py-2 rounded-xl text-sm font-medium text-white" style={{ background: "var(--accent-primary)" }}>Done</button>
+          </div>
+        ) : (
+          <div className="px-6 py-5 space-y-4">
+
+            {/* Recipient selector */}
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-2">Recipient</label>
+              <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-muted/40 border border-border">
+                {(["complainant", "respondent", "both"] as const).map((r) => (
+                  <button key={r} type="button" onClick={() => setRecipient(r)}
+                    className={cn("py-1.5 text-xs font-medium rounded-lg transition-all capitalize",
+                      recipient === r ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}>
+                    {r === "complainant" ? "Complainant" : r === "respondent" ? "Respondent" : "Both"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Phone display */}
+            {recipient !== "both" ? (
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1.5">
+                  <Smartphone className="h-3.5 w-3.5" /> {nameFor(recipient) ?? "—"}
+                </label>
+                <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-border bg-muted/40 text-sm font-mono">
+                  {phoneFor(recipient) ?? <span className="text-muted-foreground italic text-xs">No mobile number registered</span>}
+                  <span className="ml-auto text-[10px] font-sans font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground">READ-ONLY</span>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                {(["complainant", "respondent"] as const).map((type) => (
+                  <div key={type} className="px-3 py-2 rounded-xl border border-border bg-muted/40">
+                    <p className="text-[10px] font-medium text-muted-foreground uppercase mb-0.5">{type}</p>
+                    <p className="text-xs font-mono text-foreground truncate">
+                      {phoneFor(type) ?? <span className="text-muted-foreground/60 italic">No number</span>}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Credit balance */}
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/40 border border-border text-xs">
+              <CreditCard className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <span className="text-muted-foreground">SMS Credits:</span>
+              <span className={cn("font-semibold ml-auto", balance < 1 ? "text-red-500" : balance < 5 ? "text-amber-500" : "text-green-600 dark:text-green-400")}>
+                ₱{(remainingBalance ?? creditBalance ?? 0).toFixed(2)}
+              </span>
+              {recipient === "both" && <span className="text-muted-foreground">(×2 recipients)</span>}
+            </div>
+
+            {/* Message */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Message</label>
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={draftWithAi} disabled={draftingAi || sending}
+                    className="flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-lg bg-violet-50 hover:bg-violet-100 dark:bg-violet-950/30 dark:hover:bg-violet-900/40 text-violet-600 dark:text-violet-400 transition-colors disabled:opacity-40">
+                    {draftingAi ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                    {draftingAi ? "Drafting..." : "Draft with AI"}
+                  </button>
+                  <div className="relative">
+                    <button type="button" onClick={() => setShowTemplates((v) => !v)} disabled={sending}
+                      className="flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 transition-colors disabled:opacity-40">
+                      Templates <ChevronDown className="h-3 w-3" />
+                    </button>
+                    {showTemplates && (
+                      <div className="absolute right-0 top-7 z-50 w-56 bg-white dark:bg-slate-800 border border-border rounded-xl shadow-lg py-1.5 text-xs">
+                        {KP_SMS_TEMPLATES.map((t) => (
+                          <button key={t.label} type="button" onClick={() => { setMessage(t.text); setShowTemplates(false); setTimeout(() => textareaRef.current?.focus(), 50); }}
+                            className="w-full px-3 py-2 text-left hover:bg-muted transition-colors text-foreground">
+                            {t.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <textarea ref={textareaRef} value={message} onChange={(e) => setMessage(e.target.value)}
+                disabled={sending || draftingAi} placeholder="I-type ang mensahe..." rows={4}
+                className={cn("w-full px-3 py-3 text-sm rounded-xl border bg-background resize-none focus:outline-none focus:ring-2 transition-colors disabled:opacity-50",
+                  chars > MAX_SMS_CHARS ? "border-red-400 focus:ring-red-300" : "border-border focus:ring-accent-ring")} />
+              <div className="flex items-center justify-between mt-1.5 px-0.5">
+                <div className="flex items-center gap-3 text-[11px]">
+                  {segments > 0 && <span className="text-muted-foreground">{segments} msg × {multiplier} — <span className="font-medium text-foreground">₱{cost.toFixed(2)}</span></span>}
+                  {!hasCredits && chars > 0 && <span className="text-red-500 font-medium">Insufficient credits</span>}
+                </div>
+                <span className={cn("text-[11px] font-medium tabular-nums", counterColor)}>{chars}/{MAX_SMS_CHARS}</span>
+              </div>
+              {chars > 0 && (
+                <div className="mt-1.5 flex gap-1">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className={cn("h-1 flex-1 rounded-full transition-all",
+                      i < segments ? (segments === 1 ? "bg-green-400" : segments === 2 ? "bg-amber-400" : "bg-red-400") : "bg-muted")} />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Error */}
+            {status === "error" && (
+              <div className="flex items-start gap-2.5 px-3.5 py-3 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 text-xs text-red-700 dark:text-red-400">
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>{errorMsg}</span>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex gap-2.5 pt-1">
+              <button type="button" onClick={() => !sending && onClose()} disabled={sending}
+                className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-40">
+                Cancel
+              </button>
+              <button type="button" onClick={handleSend} disabled={!canSend}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ background: canSend ? "var(--accent-primary)" : undefined }}>
+                {sending ? <><Loader2 className="h-4 w-4 animate-spin" /> Sending...</> : <><MessageSquare className="h-4 w-4" /> Send SMS</>}
+              </button>
+            </div>
+            <p className="text-[10px] text-muted-foreground text-center -mt-1">159 chars = 1 message = ₱0.50. Barangay sender header added automatically.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function KpCasesPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [levelFilter, setLevelFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [sortBy, setSortBy] = useState("filing_date");
+  const [sortDir, setSortDir] = useState("desc");
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [cases, setCases] = useState<KpCaseListItem[]>([]);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const [stats, setStats] = useState<{ total: number; active: number; settled: number; mediation: number; conciliation: number; cfa_issued: number; overdue_mediation: number; overdue_conciliation: number } | null>(null);
+  const [stats, setStats] = useState<{ year: number; total: number; active: number; settled: number; mediation: number; conciliation: number; arbitration: number; cfa_issued: number; dismissed: number; overdue_mediation: number; overdue_conciliation: number } | null>(null);
 
   // Modals
   const [viewCase, setViewCase] = useState<KpCaseDetail | null>(null);
   const [viewLoading, setViewLoading] = useState(false);
+  const [caseSmsHistory, setCaseSmsHistory] = useState<Array<{ id: string; recipient_number: string; message: string; segments: number; cost: number; status: string; created_at: string }>>([]);
+  const [caseActivity, setCaseActivity] = useState<Array<{ id: string; action: string; changes: Record<string, unknown> | null; created_at: string; user?: { first_name: string; last_name: string; username: string } }>>([]);
+  const [showSendSms, setShowSendSms] = useState(false);
+  const [smsCaseForm, setSmsCaseForm] = useState<{ recipient: string; message: string }>({ recipient: "complainant", message: "" });
+  const [smsSending, setSmsSending] = useState(false);
+  const [showRowSms, setShowRowSms] = useState(false);
+  const [rowSmsCase, setRowSmsCase] = useState<{ id: string; case_number: string; parties: KpCaseParty[] } | null>(null);
   const [showFileCase, setShowFileCase] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [editCaseId, setEditCaseId] = useState<string | null>(null);
@@ -336,6 +791,9 @@ const [showScheduleHearing, setShowScheduleHearing] = useState(false);
   const [hearingForm, setHearingForm] = useState<Record<string, string>>({ hearing_type: "mediation", date: "", time: "", venue: "Barangay Hall", notes: "" });
   const [showUpdateStatus, setShowUpdateStatus] = useState(false);
   const [statusForm, setStatusForm] = useState<Record<string, string>>({ status: "", remarks: "" });
+  const [showKpFormModal, setShowKpFormModal] = useState(false);
+  const [kpFormCase, setKpFormCase] = useState<KpCaseListItem | null>(null);
+  const [selectedFormNumber, setSelectedFormNumber] = useState<number | null>(null);
   const [showLibrary, setShowLibrary] = useState(false);
   const [libraryTab, setLibraryTab] = useState<"dilg" | "doj">("dilg");
   const [reviewFormNumber, setReviewFormNumber] = useState<number | null>(null);
@@ -436,10 +894,12 @@ const [showScheduleHearing, setShowScheduleHearing] = useState(false);
         search: debouncedSearch || undefined,
         status: statusFilter || undefined,
         case_level: levelFilter || undefined,
+        filing_date_from: dateFrom || undefined,
+        filing_date_to: dateTo || undefined,
         page,
         per_page: pageSize,
-        sort_by: "filing_date",
-        sort_dir: "desc",
+        sort_by: sortBy,
+        sort_dir: sortDir,
       });
       setCases(res.data);
       setTotalPages(res.last_page);
@@ -449,15 +909,16 @@ const [showScheduleHearing, setShowScheduleHearing] = useState(false);
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, statusFilter, levelFilter, page, addToast]);
+  }, [debouncedSearch, statusFilter, levelFilter, dateFrom, dateTo, sortBy, sortDir, page, addToast]);
 
-  // Fetch stats
+  // Fetch stats — per current year
+  const currentYear = new Date().getFullYear();
   const fetchStats = useCallback(async () => {
     try {
-      const s = await api.kpCases.stats();
+      const s = await api.kpCases.stats(currentYear);
       setStats(s);
     } catch { /* silent */ }
-  }, []);
+  }, [currentYear]);
 
   useEffect(() => { fetchCases(); }, [fetchCases]);
   useEffect(() => { fetchStats(); }, [fetchStats]);
@@ -469,18 +930,20 @@ const [showScheduleHearing, setShowScheduleHearing] = useState(false);
   const openViewCase = useCallback(async (id: string) => {
     setViewLoading(true);
     try {
-      const res = await api.kpCases.show(id);
-      setViewCase(res.kp_case);
+      const [caseRes, smsRes, actRes] = await Promise.all([
+        api.kpCases.show(id),
+        api.kpCases.smsHistory(id).catch(() => ({ data: [] })),
+        api.kpCases.activity(id).catch(() => ({ data: [] })),
+      ]);
+      setViewCase(caseRes.kp_case);
+      setCaseSmsHistory(smsRes.data ?? []);
+      setCaseActivity(actRes.data ?? []);
     } catch {
       addToast("Failed to load case details", "error");
     } finally {
       setViewLoading(false);
     }
   }, [addToast]);
-
-  // Helpers
-  const getParties = (c: KpCaseListItem, type: "complainant" | "respondent") =>
-    (c.parties || []).filter((p) => p.party_type === type).map((p) => p.full_name);
 
   const emptyForm: Record<string, string> = {
     nature: "", nature_of_complaint: "", rpc_article: "", filing_date: new Date().toISOString().split("T")[0],
@@ -539,6 +1002,40 @@ const [showScheduleHearing, setShowScheduleHearing] = useState(false);
     }
   };
 
+  const openEditFromView = (kp: KpCaseDetail) => {
+    const complainants = (kp.parties || []).filter((p) => p.party_type === "complainant");
+    const respondents  = (kp.parties || []).filter((p) => p.party_type === "respondent");
+    const cMode = (complainants[0]?.party_mode as "individual" | "group") || "individual";
+    const rMode = (respondents[0]?.party_mode  as "individual" | "group") || "individual";
+    setComplainantMode(cMode);
+    setRespondentMode(rMode);
+    setForm({
+      nature: kp.nature || "",
+      nature_of_complaint: kp.nature_of_complaint || "",
+      rpc_article: kp.rpc_article || "",
+      filing_date: kp.filing_date?.split("T")[0] || "",
+      case_description: kp.case_description || "",
+      remarks: kp.remarks || "",
+      complainant_first_name: complainants[0]?.first_name || "",
+      complainant_middle_name: complainants[0]?.middle_name || "",
+      complainant_last_name: complainants[0]?.last_name || "",
+      complainant_names: cMode === "group" ? complainants.map((p) => p.full_name).join(", ") : "",
+      complainant_contact: complainants[0]?.mobile_number || "",
+      complainant_address: complainants[0]?.address || "",
+      respondent_first_name: respondents[0]?.first_name || "",
+      respondent_middle_name: respondents[0]?.middle_name || "",
+      respondent_last_name: respondents[0]?.last_name || "",
+      respondent_names: rMode === "group" ? respondents.map((p) => p.full_name).join(", ") : "",
+      respondent_contact: respondents[0]?.mobile_number || "",
+      respondent_address: respondents[0]?.address || "",
+    });
+    setEditCaseId(kp.id);
+    setFormTab(0);
+    setFormErrors({});
+    setViewCase(null);
+    setShowEdit(true);
+  };
+
 const closeFormModal = () => {
     setShowFileCase(false);
     setShowEdit(false);
@@ -594,8 +1091,7 @@ const closeFormModal = () => {
         filing_date: form.filing_date,
         case_description: form.case_description || null,
         remarks: form.remarks || null,
-        status: "filed",
-        case_level: "mediation",
+        ...(!showEdit && { status: "filed", case_level: "mediation" }),
       };
 
       let caseId: string;
@@ -739,6 +1235,24 @@ const handleScheduleHearing = async () => {
       addToast((err as { message?: string })?.message || "Failed to update status", "error");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSendCaseSms = async () => {
+    if (!viewCase || !smsCaseForm.message.trim()) return;
+    setSmsSending(true);
+    try {
+      const res = await api.kpCases.sendSms(viewCase.id, smsCaseForm);
+      addToast(res.message, "success");
+      setShowSendSms(false);
+      setSmsCaseForm({ recipient: "complainant", message: "" });
+      // Refresh SMS history
+      const smsRes = await api.kpCases.smsHistory(viewCase.id).catch(() => ({ data: [] }));
+      setCaseSmsHistory(smsRes.data ?? []);
+    } catch (err) {
+      addToast((err as { message?: string })?.message || "Failed to send SMS", "error");
+    } finally {
+      setSmsSending(false);
     }
   };
 
@@ -903,118 +1417,332 @@ const handleScheduleHearing = async () => {
       </div>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatCard label="Total Cases" value={stats?.total ?? "—"} icon={<Scale className="h-5 w-5" />} />
-        <StatCard label="Active Cases" value={stats?.active ?? "—"} icon={<Gavel className="h-5 w-5" />} trend={stats?.overdue_mediation ? { value: -(stats.overdue_mediation), label: "overdue mediation" } : undefined} />
-        <StatCard label="Settled" value={stats?.settled ?? "—"} icon={<CheckCircle className="h-5 w-5" />} trend={stats && stats.total > 0 ? { value: Math.round((stats.settled / stats.total) * 100), label: "settlement rate" } : undefined} />
-        <StatCard label="CFA Issued" value={stats?.cfa_issued ?? "—"} icon={<ArrowUpRight className="h-5 w-5" />} />
-      </div>
+      {(() => {
+        const pct = (n: number) => stats && stats.total > 0 ? Math.round((n / stats.total) * 100) : 0;
+        const totalOverdue = (stats?.overdue_mediation ?? 0) + (stats?.overdue_conciliation ?? 0);
+        return (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between px-0.5">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Case Summary</p>
+              <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-accent-bg text-accent-text border border-accent-primary/20">
+                {stats?.year ?? currentYear} · Resets Jan 1
+              </span>
+            </div>
+            <div className="grid grid-cols-2 xl:grid-cols-5 gap-3">
 
-      {/* Case Flow — clickable stage cards */}
-      <div className="flex items-center gap-1.5">
-        {/* Filed */}
-        <button onClick={() => setStatusFilter("filed")}
-          className={cn("flex-1 flex flex-col items-center gap-1 px-3 py-2.5 rounded-xl border transition-all hover:shadow-sm",
-            statusFilter === "filed" ? "border-slate-400 bg-slate-50 dark:bg-slate-800/60" : "border-border bg-card hover:bg-muted/50")}>
-          <span className="w-2.5 h-2.5 rounded-full bg-slate-400" />
-          <span className="text-[11px] font-semibold text-foreground">Filed</span>
-          <span className="text-[10px] text-muted-foreground">New complaint</span>
-          <span className="text-xs font-bold text-slate-500">{stats ? (stats.total - stats.active - stats.settled - stats.cfa_issued) : "—"}</span>
-        </button>
-        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-        {/* Mediation */}
-        <button onClick={() => setStatusFilter("mediation")}
-          className={cn("flex-1 flex flex-col items-center gap-1 px-3 py-2.5 rounded-xl border transition-all hover:shadow-sm",
-            statusFilter === "mediation" ? "border-blue-400 bg-blue-50 dark:bg-blue-950/40" : "border-border bg-card hover:bg-muted/50")}>
-          <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-          <span className="text-[11px] font-semibold text-foreground">Mediation</span>
-          <span className="text-[10px] text-muted-foreground">Within 15 days</span>
-          <span className="text-xs font-bold text-blue-500">{stats?.mediation ?? "—"}</span>
-        </button>
-        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-        {/* Conciliation */}
-        <button onClick={() => setStatusFilter("conciliation")}
-          className={cn("flex-1 flex flex-col items-center gap-1 px-3 py-2.5 rounded-xl border transition-all hover:shadow-sm",
-            statusFilter === "conciliation" ? "border-violet-400 bg-violet-50 dark:bg-violet-950/40" : "border-border bg-card hover:bg-muted/50")}>
-          <span className="w-2.5 h-2.5 rounded-full bg-violet-500" />
-          <span className="text-[11px] font-semibold text-foreground">Conciliation</span>
-          <span className="text-[10px] text-muted-foreground">15–30 days</span>
-          <span className="text-xs font-bold text-violet-500">{stats?.conciliation ?? "—"}</span>
-        </button>
-        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-        {/* Arbitration */}
-        <button onClick={() => setStatusFilter("arbitration")}
-          className={cn("flex-1 flex flex-col items-center gap-1 px-3 py-2.5 rounded-xl border transition-all hover:shadow-sm",
-            statusFilter === "arbitration" ? "border-amber-400 bg-amber-50 dark:bg-amber-950/40" : "border-border bg-card hover:bg-muted/50")}>
-          <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-          <span className="text-[11px] font-semibold text-foreground">Arbitration</span>
-          <span className="text-[10px] text-muted-foreground">By agreement</span>
-          <span className="text-xs font-bold text-amber-500">—</span>
-        </button>
-        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-        {/* Settled */}
-        <button onClick={() => setStatusFilter("settled")}
-          className={cn("flex-1 flex flex-col items-center gap-1 px-3 py-2.5 rounded-xl border transition-all hover:shadow-sm",
-            statusFilter === "settled" ? "border-emerald-400 bg-emerald-50 dark:bg-emerald-950/40" : "border-border bg-card hover:bg-muted/50")}>
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-          <span className="text-[11px] font-semibold text-foreground">Settled</span>
-          <span className="text-[10px] text-muted-foreground">Amicable settlement</span>
-          <span className="text-xs font-bold text-emerald-500">{stats?.settled ?? "—"}</span>
-        </button>
-        <span className="text-[10px] text-muted-foreground shrink-0 px-1">or</span>
-        {/* CFA */}
-        <button onClick={() => setStatusFilter("cfa_issued")}
-          className={cn("flex-1 flex flex-col items-center gap-1 px-3 py-2.5 rounded-xl border transition-all hover:shadow-sm",
-            statusFilter === "cfa_issued" ? "border-red-400 bg-red-50 dark:bg-red-950/40" : "border-border bg-card hover:bg-muted/50")}>
-          <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
-          <span className="text-[11px] font-semibold text-foreground">CFA Issued</span>
-          <span className="text-[10px] text-muted-foreground">Referred to court</span>
-          <span className="text-xs font-bold text-red-500">{stats?.cfa_issued ?? "—"}</span>
-        </button>
-        {statusFilter && (
-          <button onClick={() => setStatusFilter("")} className="shrink-0 flex items-center justify-center w-7 h-7 rounded-lg border border-border hover:bg-muted text-muted-foreground transition-colors ml-1">
-            <X className="h-3.5 w-3.5" />
+              {/* Total Cases */}
+              <div className="relative overflow-hidden rounded-xl border border-border bg-card p-4 flex flex-col gap-3">
+                <div className="flex items-start justify-between">
+                  <div className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center">
+                    <Scale className="h-4 w-4 text-blue-500" />
+                  </div>
+                  <span className="text-[10px] font-medium text-blue-500 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded-full">{stats?.year ?? currentYear}</span>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-foreground">{stats?.total ?? "—"}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Total Cases Filed</p>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[10px] text-muted-foreground">
+                    <span>Active</span><span className="font-medium text-foreground">{pct(stats?.active ?? 0)}%</span>
+                  </div>
+                  <div className="h-1 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full rounded-full bg-blue-500 transition-all" style={{ width: `${pct(stats?.active ?? 0)}%` }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Active Cases */}
+              <div className={cn("relative overflow-hidden rounded-xl border bg-card p-4 flex flex-col gap-3", totalOverdue > 0 ? "border-amber-400/60" : "border-border")}>
+                <div className="flex items-start justify-between">
+                  <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center", totalOverdue > 0 ? "bg-amber-50 dark:bg-amber-950/40" : "bg-emerald-50 dark:bg-emerald-950/40")}>
+                    <Gavel className={cn("h-4 w-4", totalOverdue > 0 ? "text-amber-500" : "text-emerald-500")} />
+                  </div>
+                  {totalOverdue > 0 ? (
+                    <span className="flex items-center gap-1 text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-full">
+                      <AlertTriangle className="h-3 w-3" />{totalOverdue} overdue
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full">On track</span>
+                  )}
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-foreground">{stats?.active ?? "—"}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Active Cases</p>
+                </div>
+                <div className="flex gap-2 text-[10px]">
+                  <span className="flex items-center gap-1 text-muted-foreground"><span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block" />Med: {stats?.mediation ?? 0}</span>
+                  <span className="flex items-center gap-1 text-muted-foreground"><span className="w-1.5 h-1.5 rounded-full bg-violet-500 inline-block" />Con: {stats?.conciliation ?? 0}</span>
+                  <span className="flex items-center gap-1 text-muted-foreground"><span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />Arb: {stats?.arbitration ?? 0}</span>
+                </div>
+              </div>
+
+              {/* Settled */}
+              <div className="relative overflow-hidden rounded-xl border border-border bg-card p-4 flex flex-col gap-3">
+                <div className="flex items-start justify-between">
+                  <div className="w-9 h-9 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center">
+                    <CheckCircle className="h-4 w-4 text-emerald-500" />
+                  </div>
+                  <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full">{pct(stats?.settled ?? 0)}% rate</span>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-foreground">{stats?.settled ?? "—"}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Settled Amicably</p>
+                </div>
+                <div className="space-y-1">
+                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${pct(stats?.settled ?? 0)}%` }} />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Settlement rate vs total</p>
+                </div>
+              </div>
+
+              {/* CFA */}
+              <div className="relative overflow-hidden rounded-xl border border-border bg-card p-4 flex flex-col gap-3">
+                <div className="flex items-start justify-between">
+                  <div className="w-9 h-9 rounded-lg bg-red-50 dark:bg-red-950/40 flex items-center justify-center">
+                    <ArrowUpRight className="h-4 w-4 text-red-500" />
+                  </div>
+                  {(stats?.cfa_issued ?? 0) > 0 && (
+                    <span className="text-[10px] font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 px-2 py-0.5 rounded-full">{pct(stats?.cfa_issued ?? 0)}%</span>
+                  )}
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-foreground">{stats?.cfa_issued ?? "—"}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Cert. to File Action</p>
+                </div>
+                <p className="text-[10px] text-muted-foreground leading-tight">Dispute unresolved — parties referred to court per RA 7160 §412.</p>
+              </div>
+
+              {/* Dismissed */}
+              <div className="relative overflow-hidden rounded-xl border border-border bg-card p-4 flex flex-col gap-3">
+                <div className="flex items-start justify-between">
+                  <div className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                    <X className="h-4 w-4 text-slate-500" />
+                  </div>
+                  {(stats?.dismissed ?? 0) > 0 && (
+                    <span className="text-[10px] font-medium text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">{pct(stats?.dismissed ?? 0)}%</span>
+                  )}
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-foreground">{stats?.dismissed ?? "—"}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Dismissed</p>
+                </div>
+                <p className="text-[10px] text-muted-foreground leading-tight">Cases closed without settlement or referral.</p>
+              </div>
+
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Case Flow — RA 7160 topology: Mediation + Conciliation → Arbitration → Settled / CFA / Dismissed */}
+      <div className="flex items-stretch gap-2">
+
+        {/* Zone 1 — Entry levels */}
+        <div className="flex flex-col gap-2 flex-1">
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide text-center">Entry Levels</p>
+          <button onClick={() => setStatusFilter("mediation")}
+            className={cn("flex-1 flex flex-col items-center gap-1 px-3 py-2.5 rounded-xl border transition-all hover:shadow-sm",
+              statusFilter === "mediation" ? "border-blue-400 bg-blue-50 dark:bg-blue-950/40" : "border-border bg-card hover:bg-muted/50")}>
+            <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+            <span className="text-[11px] font-semibold text-foreground">Mediation</span>
+            <span className="text-[10px] text-muted-foreground">PB · 15 days</span>
+            <span className="text-xs font-bold text-blue-500">{stats?.mediation ?? "—"}</span>
           </button>
+          <button onClick={() => setStatusFilter("conciliation")}
+            className={cn("flex-1 flex flex-col items-center gap-1 px-3 py-2.5 rounded-xl border transition-all hover:shadow-sm",
+              statusFilter === "conciliation" ? "border-violet-400 bg-violet-50 dark:bg-violet-950/40" : "border-border bg-card hover:bg-muted/50")}>
+            <span className="w-2.5 h-2.5 rounded-full bg-violet-500" />
+            <span className="text-[11px] font-semibold text-foreground">Conciliation</span>
+            <span className="text-[10px] text-muted-foreground">Pangkat · 15–30 days</span>
+            <span className="text-xs font-bold text-violet-500">{stats?.conciliation ?? "—"}</span>
+          </button>
+        </div>
+
+        {/* Arrow 1 */}
+        <div className="flex flex-col items-center justify-center gap-0.5 shrink-0 pt-6">
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          <span className="text-[9px] text-muted-foreground leading-none">either</span>
+        </div>
+
+        {/* Zone 2 — Arbitration */}
+        <div className="flex flex-col gap-2 flex-1">
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide text-center">Arbitration</p>
+          <button onClick={() => setStatusFilter("arbitration")}
+            className={cn("flex-1 flex flex-col items-center justify-center gap-1 px-3 py-2.5 rounded-xl border transition-all hover:shadow-sm",
+              statusFilter === "arbitration" ? "border-amber-400 bg-amber-50 dark:bg-amber-950/40" : "border-border bg-card hover:bg-muted/50")}>
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+            <span className="text-[11px] font-semibold text-foreground">Arbitration</span>
+            <span className="text-[10px] text-muted-foreground">By agreement</span>
+            <span className="text-xs font-bold text-amber-500">{stats?.arbitration ?? "—"}</span>
+          </button>
+        </div>
+
+        {/* Arrow 2 */}
+        <div className="flex flex-col items-center justify-center gap-0.5 shrink-0 pt-6">
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          <span className="text-[9px] text-muted-foreground leading-none">outcome</span>
+        </div>
+
+        {/* Zone 3 — Terminal outcomes */}
+        <div className="flex flex-col gap-2 flex-1">
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide text-center">Outcomes</p>
+          <button onClick={() => setStatusFilter("settled")}
+            className={cn("flex-1 flex flex-col items-center gap-1 px-3 py-2 rounded-xl border transition-all hover:shadow-sm",
+              statusFilter === "settled" ? "border-emerald-400 bg-emerald-50 dark:bg-emerald-950/40" : "border-border bg-card hover:bg-muted/50")}>
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            <span className="text-[11px] font-semibold text-foreground">Settled</span>
+            <span className="text-xs font-bold text-emerald-500">{stats?.settled ?? "—"}</span>
+          </button>
+          <button onClick={() => setStatusFilter("cfa_issued")}
+            className={cn("flex-1 flex flex-col items-center gap-1 px-3 py-2 rounded-xl border transition-all hover:shadow-sm",
+              statusFilter === "cfa_issued" ? "border-red-400 bg-red-50 dark:bg-red-950/40" : "border-border bg-card hover:bg-muted/50")}>
+            <span className="w-2 h-2 rounded-full bg-red-500" />
+            <span className="text-[11px] font-semibold text-foreground leading-tight text-center">Cert. to File Action</span>
+            <span className="text-xs font-bold text-red-500">{stats?.cfa_issued ?? "—"}</span>
+          </button>
+          <button onClick={() => setStatusFilter("dismissed")}
+            className={cn("flex-1 flex flex-col items-center gap-1 px-3 py-2 rounded-xl border transition-all hover:shadow-sm",
+              statusFilter === "dismissed" ? "border-slate-400 bg-slate-50 dark:bg-slate-800/60" : "border-border bg-card hover:bg-muted/50")}>
+            <span className="w-2 h-2 rounded-full bg-slate-400" />
+            <span className="text-[11px] font-semibold text-foreground">Dismissed</span>
+            <span className="text-xs font-bold text-slate-500">{stats?.dismissed ?? "—"}</span>
+          </button>
+        </div>
+
+        {/* Clear filter button */}
+        {statusFilter && (
+          <div className="flex items-center justify-center pt-6 shrink-0">
+            <button onClick={() => setStatusFilter("")} className="flex items-center justify-center w-7 h-7 rounded-lg border border-border hover:bg-muted text-muted-foreground transition-colors">
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
         )}
       </div>
 
       {/* Search & Filters */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by case number, complaint type, or party names..."
-              className="w-full pl-9 pr-4 py-2 text-sm rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+      {(() => {
+        const activeFilterCount = [statusFilter, levelFilter, dateFrom, dateTo].filter(Boolean).length;
+        const clearAll = () => { setStatusFilter(""); setLevelFilter(""); setDateFrom(""); setDateTo(""); setSortBy("filing_date"); setSortDir("desc"); setPage(1); };
+        return (
+          <div className="space-y-3">
+            {/* Search row */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input type="text" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                  placeholder="Search by case number, complaint type, or party names..."
+                  className="w-full pl-9 pr-4 py-2 text-sm rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+              </div>
+              <div className="flex items-center gap-2 ml-auto">
+                <button onClick={() => setShowFilters(!showFilters)}
+                  className={cn("relative flex items-center gap-1.5 px-3 h-9 rounded-lg border text-sm font-medium transition-colors",
+                    showFilters || activeFilterCount > 0 ? "border-accent-primary bg-accent-bg text-accent-text" : "border-border hover:bg-muted text-muted-foreground")}>
+                  <Filter className="h-4 w-4" />
+                  <span>Filters</span>
+                  {activeFilterCount > 0 && (
+                    <span className="flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold text-white" style={{ background: "var(--accent-primary)" }}>{activeFilterCount}</span>
+                  )}
+                </button>
+                <button onClick={() => { setShowLibrary(true); setLibraryTab("dilg"); }} className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-violet-300 dark:border-violet-700 bg-violet-50 dark:bg-violet-950/30 text-violet-700 dark:text-violet-300 hover:bg-violet-100 dark:hover:bg-violet-950/50 transition-colors"><BookOpen className="h-4 w-4" /> KP Library</button>
+                <button onClick={openFileCase} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}><Plus className="h-4 w-4" /> File New Case</button>
+              </div>
+            </div>
+
+            {/* Filter panel */}
+            {showFilters && (
+              <div className="rounded-xl border border-border bg-card divide-y divide-border">
+
+                {/* Status */}
+                <div className="flex items-start gap-4 px-4 py-3">
+                  <span className="text-[11px] font-semibold text-muted-foreground w-16 shrink-0 pt-1">Status</span>
+                  <div className="flex flex-wrap gap-1.5 flex-1">
+                    {[{ value: "", label: "All" }, ...STATUS_OPTIONS.filter((s) => s.value !== "filed" && s.value !== "closed")].map((s) => (
+                      <button key={s.value} onClick={() => { setStatusFilter(s.value); setPage(1); }}
+                        className={cn("px-3 py-1 text-xs font-medium rounded-lg border transition-colors",
+                          statusFilter === s.value ? "border-accent-primary bg-accent-bg text-accent-text" : "border-border text-muted-foreground hover:bg-muted hover:text-foreground")}>
+                        {s.label === "Certification to File Action (CFA)" ? "CFA Issued" : s.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Case Level */}
+                <div className="flex items-start gap-4 px-4 py-3">
+                  <span className="text-[11px] font-semibold text-muted-foreground w-16 shrink-0 pt-1">Level</span>
+                  <div className="flex flex-wrap gap-1.5 flex-1">
+                    {[{ value: "", label: "All" }, ...CASE_LEVEL_OPTIONS.map((l) => ({ value: l.value, label: l.value === "mediation" ? "Mediation (PB)" : l.value === "conciliation" ? "Conciliation (Pangkat)" : "Arbitration" }))].map((l) => (
+                      <button key={l.value} onClick={() => { setLevelFilter(l.value); setPage(1); }}
+                        className={cn("px-3 py-1 text-xs font-medium rounded-lg border transition-colors",
+                          levelFilter === l.value ? "border-accent-primary bg-accent-bg text-accent-text" : "border-border text-muted-foreground hover:bg-muted hover:text-foreground")}>
+                        {l.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Date + Sort */}
+                <div className="flex items-center gap-6 px-4 py-3 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-semibold text-muted-foreground shrink-0">Filed</span>
+                    <input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
+                      className="px-2.5 py-1 text-xs rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+                    <span className="text-muted-foreground text-xs">→</span>
+                    <input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
+                      className="px-2.5 py-1 text-xs rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent-ring" />
+                  </div>
+                  <div className="flex items-center gap-2 ml-auto">
+                    <span className="text-[11px] font-semibold text-muted-foreground shrink-0">Sort</span>
+                    <select value={sortBy} onChange={(e) => { setSortBy(e.target.value); setPage(1); }}
+                      className="px-2.5 py-1 text-xs rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent-ring">
+                      <option value="filing_date">Filing Date</option>
+                      <option value="case_number">Case Number</option>
+                      <option value="status">Status</option>
+                      <option value="case_level">Case Level</option>
+                      <option value="created_at">Date Entered</option>
+                    </select>
+                    <button onClick={() => { setSortDir((d) => d === "asc" ? "desc" : "asc"); setPage(1); }}
+                      className="px-2.5 py-1 text-xs font-medium rounded-lg border border-border bg-background text-foreground hover:bg-muted transition-colors shrink-0">
+                      {sortDir === "desc" ? "↓ Newest" : "↑ Oldest"}
+                    </button>
+                    {activeFilterCount > 0 && (
+                      <button onClick={clearAll} className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-900/40 transition-colors">
+                        <X className="h-3 w-3" /> Clear
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+              </div>
+            )}
+
+            {/* Active filter chips */}
+            {activeFilterCount > 0 && !showFilters && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                {statusFilter && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-full bg-accent-bg border border-accent-primary/30 text-accent-text">
+                    Status: {STATUS_OPTIONS.find((s) => s.value === statusFilter)?.label ?? statusFilter}
+                    <button onClick={() => { setStatusFilter(""); setPage(1); }} className="ml-0.5 hover:opacity-70"><X className="h-3 w-3" /></button>
+                  </span>
+                )}
+                {levelFilter && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-full bg-accent-bg border border-accent-primary/30 text-accent-text">
+                    Level: {CASE_LEVEL_OPTIONS.find((l) => l.value === levelFilter)?.label ?? levelFilter}
+                    <button onClick={() => { setLevelFilter(""); setPage(1); }} className="ml-0.5 hover:opacity-70"><X className="h-3 w-3" /></button>
+                  </span>
+                )}
+                {(dateFrom || dateTo) && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-full bg-accent-bg border border-accent-primary/30 text-accent-text">
+                    Date: {dateFrom || "…"} → {dateTo || "…"}
+                    <button onClick={() => { setDateFrom(""); setDateTo(""); setPage(1); }} className="ml-0.5 hover:opacity-70"><X className="h-3 w-3" /></button>
+                  </span>
+                )}
+              </div>
+            )}
           </div>
-          <div className="flex items-center gap-2 ml-auto">
-            <button onClick={() => setShowFilters(!showFilters)}
-              className={cn("flex items-center justify-center w-9 h-9 rounded-lg border transition-colors",
-                showFilters ? "border-accent-primary bg-accent-bg text-accent-text" : "border-border hover:bg-muted text-muted-foreground")}>
-              <Filter className="h-4 w-4" />
-            </button>
-            <button className="flex items-center justify-center w-9 h-9 rounded-lg border border-border hover:bg-muted text-muted-foreground transition-colors"><FileBarChart className="h-4 w-4" /></button>
-            <button onClick={() => { setShowLibrary(true); setLibraryTab("dilg"); }} className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-violet-300 dark:border-violet-700 bg-violet-50 dark:bg-violet-950/30 text-violet-700 dark:text-violet-300 hover:bg-violet-100 dark:hover:bg-violet-950/50 transition-colors"><BookOpen className="h-4 w-4" /> KP Library</button>
-            <button onClick={openFileCase} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}><Plus className="h-4 w-4" /> File New Case</button>
-          </div>
-        </div>
-        {showFilters && (
-          <div className="flex flex-wrap items-center gap-3 p-4 rounded-lg glass-subtle">
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-1.5 text-sm rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent-ring">
-              <option value="">All Status</option>
-              {STATUS_OPTIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-            </select>
-            <select value={levelFilter} onChange={(e) => setLevelFilter(e.target.value)}
-              className="px-3 py-1.5 text-sm rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent-ring">
-              <option value="">All Levels</option>
-              {CASE_LEVEL_OPTIONS.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
-            </select>
-            <button onClick={() => { setStatusFilter(""); setLevelFilter(""); }}
-              className="flex items-center gap-1 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground"><X className="h-3 w-3" /> Clear</button>
-          </div>
-        )}
-      </div>
+        );
+      })()}
 
       {/* Case Cards */}
       <div className="space-y-3">
@@ -1057,7 +1785,7 @@ const handleScheduleHearing = async () => {
                     {/* Row 1: case number + badges */}
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-bold text-foreground">{c.case_number}</span>
-                      <StatusBadge status={c.status} />
+                      {c.status !== "filed" && <StatusBadge status={c.status} />}
                       <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold",
                         c.nature === "criminal" ? "bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400" : "bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400")}>
                         {c.nature === "criminal" ? "Criminal" : "Civil"}
@@ -1066,7 +1794,7 @@ const handleScheduleHearing = async () => {
                         {c.case_level}
                       </span>
                       {c.certification_to_file_action && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 dark:bg-orange-950/40 text-orange-700 dark:text-orange-400">CFA Issued</span>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 dark:bg-orange-950/40 text-orange-700 dark:text-orange-400">CFA</span>
                       )}
                     </div>
 
@@ -1082,9 +1810,6 @@ const handleScheduleHearing = async () => {
                       <span className="text-foreground font-medium truncate max-w-[220px]">{complainantName}</span>
                       <span className="text-muted-foreground/60 shrink-0">vs.</span>
                       <span className="text-foreground font-medium truncate max-w-[220px]">{respondentName}</span>
-                      {complainantParties[0]?.address && (
-                        <span className="text-muted-foreground truncate hidden xl:block">· {complainantParties[0].address}</span>
-                      )}
                     </div>
 
                     {/* Row 4: deadline + settlement info */}
@@ -1106,15 +1831,7 @@ const handleScheduleHearing = async () => {
 
                     {/* Inline action icons */}
                     <div className="flex items-center gap-1">
-                      {/* View */}
-                      <div className="relative group/tip">
-                        <button onClick={() => openViewCase(c.id)}
-                          className="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/60 transition-colors"
-                          title="View Case">
-                          <Eye className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-                        </button>
-                        <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-0.5 text-[10px] font-medium rounded bg-slate-900 text-white whitespace-nowrap opacity-0 group-hover/tip:opacity-100 transition-opacity z-50">View</span>
-                      </div>
+
                       {/* Edit */}
                       <div className="relative group/tip">
                         <button onClick={() => openEditCase(c)}
@@ -1124,14 +1841,14 @@ const handleScheduleHearing = async () => {
                         </button>
                         <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-0.5 text-[10px] font-medium rounded bg-slate-900 text-white whitespace-nowrap opacity-0 group-hover/tip:opacity-100 transition-opacity z-50">Edit</span>
                       </div>
-                      {/* Schedule Hearing */}
+                      {/* Generate Document */}
                       <div className="relative group/tip">
-                        <button onClick={() => openViewCase(c.id).then(() => { setHearingForm({ hearing_type: c.case_level, date: "", time: "", venue: "Barangay Hall", notes: "" }); setShowScheduleHearing(true); })}
-                          className="p-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/60 transition-colors"
-                          title="Schedule Hearing">
-                          <Calendar className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                        <button onClick={() => { setKpFormCase(c); setSelectedFormNumber(null); setShowKpFormModal(true); }}
+                          className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 transition-colors"
+                          title="Generate Document">
+                          <FileText className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                         </button>
-                        <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-0.5 text-[10px] font-medium rounded bg-slate-900 text-white whitespace-nowrap opacity-0 group-hover/tip:opacity-100 transition-opacity z-50">Schedule Hearing</span>
+                        <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-0.5 text-[10px] font-medium rounded bg-slate-900 text-white whitespace-nowrap opacity-0 group-hover/tip:opacity-100 transition-opacity z-50">Generate Document</span>
                       </div>
                       {/* Update Status */}
                       <div className="relative group/tip">
@@ -1142,14 +1859,14 @@ const handleScheduleHearing = async () => {
                         </button>
                         <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-0.5 text-[10px] font-medium rounded bg-slate-900 text-white whitespace-nowrap opacity-0 group-hover/tip:opacity-100 transition-opacity z-50">Update Status</span>
                       </div>
-                      {/* KP Forms */}
+                      {/* Send SMS */}
                       <div className="relative group/tip">
-                        <button onClick={() => { setShowLibrary(true); setLibraryTab("dilg"); setReviewFormNumber(null); setExpandedSections((prev) => ({ ...prev, "dilg-kpforms": true })); }}
-                          className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 transition-colors"
-                          title="KP Forms">
-                          <FileSignature className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                        <button onClick={() => { setRowSmsCase({ id: c.id, case_number: c.case_number, parties: c.parties || [] }); setShowRowSms(true); }}
+                          className="p-1.5 rounded-lg bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/40 dark:hover:bg-orange-900/60 transition-colors"
+                          title="Send SMS">
+                          <MessageSquare className="h-3.5 w-3.5 text-orange-600 dark:text-orange-400" />
                         </button>
-                        <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-0.5 text-[10px] font-medium rounded bg-slate-900 text-white whitespace-nowrap opacity-0 group-hover/tip:opacity-100 transition-opacity z-50">KP Forms</span>
+                        <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-0.5 text-[10px] font-medium rounded bg-slate-900 text-white whitespace-nowrap opacity-0 group-hover/tip:opacity-100 transition-opacity z-50">Send SMS</span>
                       </div>
                     </div>
                   </div>
@@ -1179,23 +1896,15 @@ const handleScheduleHearing = async () => {
       {/* ══ VIEW CASE MODAL ══ */}
       <Modal open={!!viewCase && !showScheduleHearing && !showUpdateStatus} onClose={() => setViewCase(null)} title={viewCase?.case_number || ""} description={viewCase?.nature_of_complaint} size="lg"
         footer={
-          <div className="flex items-center gap-2 w-full justify-end">
+          <div className="flex items-center justify-between w-full">
             <button onClick={() => setViewCase(null)}
               className="px-4 py-2 text-sm font-medium rounded-xl border border-border text-foreground hover:bg-muted transition-colors">
               Close
             </button>
-            <button onClick={() => { if (viewCase) { setHearingForm({ hearing_type: viewCase.case_level, date: "", time: "", venue: "Barangay Hall", notes: "" }); setShowScheduleHearing(true); } }}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-xl border border-border text-foreground hover:bg-muted transition-colors">
-              <Calendar className="h-3.5 w-3.5" /> Schedule Hearing
-            </button>
-            <button onClick={() => { if (viewCase) { setStatusForm({ status: viewCase.status, remarks: "" }); setShowUpdateStatus(true); } }}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-xl border border-border text-foreground hover:bg-muted transition-colors">
-              <FileText className="h-3.5 w-3.5" /> Update Status
-            </button>
-            <button onClick={() => { setViewCase(null); setShowLibrary(true); setLibraryTab("dilg"); setReviewFormNumber(null); setExpandedSections((prev) => ({ ...prev, "dilg-kpforms": true })); }}
+            <button onClick={() => { if (viewCase) openEditFromView(viewCase); }}
               className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-xl text-white transition-colors hover:opacity-90"
               style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>
-              <Printer className="h-3.5 w-3.5" /> KP Forms
+              <FileText className="h-3.5 w-3.5" /> Edit Record
             </button>
           </div>
         }>
@@ -1392,9 +2101,151 @@ const handleScheduleHearing = async () => {
                 <p className="text-sm text-foreground">{viewCase.remarks}</p>
               </div>
             )}
+
+            {/* SMS History */}
+            <div className="space-y-3">
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">SMS History</p>
+              {caseSmsHistory.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic">No SMS sent for this case yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {caseSmsHistory.map((sms) => (
+                    <div key={sms.id} className="p-3 rounded-lg glass-subtle">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10px] font-mono text-muted-foreground">{sms.recipient_number}</span>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded-full ${sms.status === "sent" ? "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400" : "bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400"}`}>{sms.status}</span>
+                          <span className="text-[10px] text-muted-foreground">{new Date(sms.created_at).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-foreground leading-snug">{sms.message}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">{sms.segments} segment{sms.segments !== 1 ? "s" : ""} · ₱{Number(sms.cost).toFixed(2)}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Activities */}
+            <div className="space-y-3">
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Activities</p>
+              {caseActivity.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic">No activity recorded yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {caseActivity.map((log) => {
+                    const META: Record<string, { label: string; color: string }> = {
+                      created:            { label: "Case Filed",          color: "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400" },
+                      updated:            { label: "Record Updated",      color: "bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400" },
+                      status_changed:     { label: "Status Changed",      color: "bg-violet-100 dark:bg-violet-950/40 text-violet-700 dark:text-violet-400" },
+                      hearing_scheduled:  { label: "Hearing Scheduled",   color: "bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400" },
+                      sms_sent:           { label: "SMS Sent",            color: "bg-orange-100 dark:bg-orange-950/40 text-orange-700 dark:text-orange-400" },
+                      document_generated: { label: "Document Generated",  color: "bg-teal-100 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400" },
+                    };
+                    const meta = META[log.action] ?? { label: log.action.replace(/_/g, " "), color: "bg-muted text-muted-foreground" };
+                    const userName = log.user ? `${log.user.first_name} ${log.user.last_name}` : "System";
+                    const ts = new Date(log.created_at).toLocaleString("en-PH", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" });
+
+                    // Build a human-readable detail line per action
+                    const detail = (() => {
+                      const c = log.changes as Record<string, unknown> | null;
+                      if (!c) return null;
+                      if (log.action === "status_changed") {
+                        const s = c.status as { from: string; to: string } | undefined;
+                        const r = c.remarks as { to: string } | undefined;
+                        return (
+                          <p className="text-[11px] text-foreground mt-1">
+                            {s ? <><span className="capitalize">{s.from}</span> → <span className="capitalize font-semibold">{s.to}</span></> : null}
+                            {r?.to ? <span className="text-muted-foreground"> — {r.to}</span> : null}
+                          </p>
+                        );
+                      }
+                      if (log.action === "document_generated") {
+                        return <p className="text-[11px] text-foreground mt-1">KP Form #{String(c.form_number)} — {String(c.form_name)}</p>;
+                      }
+                      if (log.action === "hearing_scheduled") {
+                        return (
+                          <p className="text-[11px] text-foreground mt-1 capitalize">
+                            {String(c.hearing_type)} · {String(c.hearing_date)}{c.venue ? ` · ${String(c.venue)}` : ""}
+                          </p>
+                        );
+                      }
+                      if (log.action === "sms_sent") {
+                        return <p className="text-[11px] text-foreground mt-1">To: {String(c.recipient)} · {String(c.segments)} segment(s)</p>;
+                      }
+                      // generic updated — show changed fields
+                      const entries = Object.entries(c).slice(0, 4);
+                      if (entries.length === 0) return null;
+                      return (
+                        <div className="mt-1 space-y-0.5">
+                          {entries.map(([k, v]) => (
+                            <p key={k} className="text-[10px] text-muted-foreground">
+                              <span className="font-medium text-foreground">{k.replace(/_/g, " ")}</span>
+                              {typeof v === "object" && v !== null && "from" in (v as object)
+                                ? `: ${String((v as {from:unknown;to:unknown}).from)} → ${String((v as {from:unknown;to:unknown}).to)}`
+                                : `: ${JSON.stringify(v)}`}
+                            </p>
+                          ))}
+                        </div>
+                      );
+                    })();
+
+                    return (
+                      <div key={log.id} className="flex items-start gap-3 p-3 rounded-lg glass-subtle">
+                        <div className="w-1.5 h-1.5 rounded-full bg-accent-primary shrink-0 mt-2" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={`text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded-full ${meta.color}`}>
+                              {meta.label}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">by <span className="font-medium text-foreground">{userName}</span></span>
+                            <span className="text-[10px] text-muted-foreground ml-auto">{ts}</span>
+                          </div>
+                          {detail}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </Modal>
+
+      {/* ══ SEND SMS MODAL ══ */}
+      <Modal open={showSendSms} onClose={() => setShowSendSms(false)} title="Send SMS" description={viewCase ? `${viewCase.case_number} — notify a party` : ""} size="sm"
+        footer={
+          <>
+            <ModalButton variant="secondary" onClick={() => setShowSendSms(false)}>Cancel</ModalButton>
+            <ModalButton variant="primary" onClick={handleSendCaseSms} disabled={smsSending || !smsCaseForm.message.trim()}>
+              {smsSending ? "Sending..." : "Send SMS"}
+            </ModalButton>
+          </>
+        }>
+        <div className="space-y-4">
+          <FormSelect label="Recipient" value={smsCaseForm.recipient} onChange={(v) => setSmsCaseForm((p) => ({ ...p, recipient: v }))}
+            options={[
+              { value: "complainant", label: "Complainant (Nagrereklamo)" },
+              { value: "respondent", label: "Respondent (Inireklamo)" },
+              { value: "both", label: "Both Parties" },
+            ]} required />
+          <FormTextarea label="Message" value={smsCaseForm.message} onChange={(v) => setSmsCaseForm((p) => ({ ...p, message: v }))} rows={4} placeholder="I-type ang mensahe..." />
+          <p className="text-[10px] text-muted-foreground">SMS credits will be deducted from your barangay balance.</p>
+        </div>
+      </Modal>
+
+      {/* ══ ROW SMS MODAL ══ */}
+      {showRowSms && rowSmsCase && typeof window !== "undefined" && createPortal(
+        <KpSmsModal
+          caseNumber={rowSmsCase.case_number}
+          parties={rowSmsCase.parties}
+          caseId={rowSmsCase.id}
+          creditBalance={user?.barangay?.sms_credit_balance != null ? parseFloat(String(user.barangay.sms_credit_balance)) : null}
+          onClose={() => { setShowRowSms(false); setRowSmsCase(null); }}
+        />,
+        document.body
+      )}
 
       {/* ══ FILE / EDIT CASE MODAL ══ */}
       <Modal open={showFileCase || showEdit} onClose={closeFormModal} title={showEdit ? "Edit KP Case" : "File New KP Case"} description={showEdit ? "Update case record" : "Complainant's Form -- Katarungang Pambarangay"} size="lg"
@@ -1479,15 +2330,110 @@ const handleScheduleHearing = async () => {
         </div>
       </Modal>
 
+      {/* ══ GENERATE KP DOCUMENT MODAL ══ */}
+      <Modal
+        open={showKpFormModal}
+        onClose={() => setShowKpFormModal(false)}
+        title="Generate KP Document"
+        description={kpFormCase ? `${kpFormCase.case_number} — ${kpFormCase.nature_of_complaint}` : ""}
+        size="lg"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <button onClick={() => setShowKpFormModal(false)} className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors">
+              Cancel
+            </button>
+            <button
+              disabled={selectedFormNumber === null}
+              onClick={() => {
+                if (!selectedFormNumber || !kpFormCase) return;
+                const form = KP_FORMS.find((f) => f.number === selectedFormNumber);
+                const html = generateKpFormHtml(selectedFormNumber, kpFormCase, user?.barangay);
+                const w = window.open("", "_blank");
+                if (w) { w.document.write(html); w.document.close(); w.focus(); w.print(); }
+                // Log to audit trail — fire and forget
+                if (form) {
+                  api.kpCases.logDocument(kpFormCase.id, selectedFormNumber, form.name)
+                    .catch(() => null);
+                }
+              }}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-colors",
+                selectedFormNumber !== null
+                  ? "text-white"
+                  : "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
+              )}
+              style={selectedFormNumber !== null ? { background: "var(--accent-primary)" } : undefined}
+            >
+              <Printer className="w-4 h-4" />
+              Generate &amp; Print
+            </button>
+          </div>
+        }
+      >
+        {kpFormCase && (
+          <div className="space-y-4">
+            {/* Status context */}
+            <div className="flex items-center gap-2 p-3 rounded-lg glass-subtle">
+              <span className="text-xs text-muted-foreground">Showing forms for:</span>
+              <StatusBadge status={kpFormCase.status} />
+              <span className="text-xs text-muted-foreground capitalize">({kpFormCase.case_level})</span>
+            </div>
+
+            {/* Form cards */}
+            <div className="grid grid-cols-2 gap-3">
+              {(KP_FORMS_BY_STATUS[kpFormCase.status] ?? KP_FORMS_BY_STATUS[kpFormCase.case_level] ?? []).map((num) => {
+                const f = KP_FORMS.find((x) => x.number === num);
+                if (!f) return null;
+                const selected = selectedFormNumber === num;
+                return (
+                  <button
+                    key={num}
+                    onClick={() => setSelectedFormNumber(selected ? null : num)}
+                    className={cn(
+                      "relative text-left p-3 rounded-xl border-2 transition-all group",
+                      selected
+                        ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30"
+                        : "border-border hover:border-emerald-300 dark:hover:border-emerald-700 hover:bg-muted/40"
+                    )}
+                  >
+                    {selected && (
+                      <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                      </span>
+                    )}
+                    <p className={cn("text-[10px] font-bold uppercase tracking-wider mb-1", selected ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")}>
+                      KP Form #{num}
+                    </p>
+                    <p className={cn("text-xs font-semibold leading-snug", selected ? "text-emerald-800 dark:text-emerald-200" : "text-foreground")}>
+                      {f.name}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+
+            {selectedFormNumber && (
+              <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900">
+                <p className="text-[11px] text-emerald-700 dark:text-emerald-400">
+                  KP Form #{selectedFormNumber} — <strong>{KP_FORMS.find((f) => f.number === selectedFormNumber)?.name}</strong> will be generated with case data pre-filled. A print dialog will open in a new tab.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+
       {/* ══ UPDATE STATUS MODAL ══ */}
       <Modal open={showUpdateStatus} onClose={() => setShowUpdateStatus(false)} title="Update Case Status" description={viewCase ? `${viewCase.case_number} -- ${viewCase.nature_of_complaint}` : ""} size="md"
         footer={
-          <>
-            <ModalButton variant="secondary" onClick={() => setShowUpdateStatus(false)}>Cancel</ModalButton>
+          <div className="flex items-center justify-between w-full">
+            <button onClick={() => setShowUpdateStatus(false)} className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors">
+              Cancel
+            </button>
             <ModalButton variant="primary" onClick={handleUpdateStatus} disabled={saving || !statusForm.status}>
-              <Save className="w-4 h-4 mr-1" /> {saving ? "Saving..." : "Update"}
+              {saving ? "Saving..." : "Update Status"}
             </ModalButton>
-          </>
+          </div>
         }>
         <div className="space-y-4">
           {viewCase && (
@@ -1497,7 +2443,7 @@ const handleScheduleHearing = async () => {
               <span className="text-xs text-muted-foreground capitalize">({viewCase.case_level})</span>
             </div>
           )}
-          <FormSelect label="New Status" value={statusForm.status} onChange={(v) => setStatusForm((p) => ({ ...p, status: v }))} options={STATUS_OPTIONS.map((s) => ({ value: s.value, label: s.label }))} required />
+          <FormSelect label="New Status" value={statusForm.status} onChange={(v) => setStatusForm((p) => ({ ...p, status: v }))} options={STATUS_OPTIONS.filter((s) => s.value !== "filed" && s.value !== "closed").map((s) => ({ value: s.value, label: s.label }))} required />
           <FormTextarea label="Remarks / Reason" value={statusForm.remarks} onChange={(v) => setStatusForm((p) => ({ ...p, remarks: v }))} rows={3} placeholder="Reason for status change..." />
           {statusForm.status === "mediation" && (
             <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900">

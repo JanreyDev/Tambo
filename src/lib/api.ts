@@ -911,10 +911,10 @@ const api = {
   },
 
   kpCases: {
-    stats: () =>
-      api.get<{ total: number; active: number; settled: number; mediation: number; conciliation: number; cfa_issued: number; overdue_mediation: number; overdue_conciliation: number }>("/kp-cases/stats"),
+    stats: (year?: number) =>
+      api.get<{ year: number; total: number; active: number; settled: number; mediation: number; conciliation: number; arbitration: number; cfa_issued: number; dismissed: number; overdue_mediation: number; overdue_conciliation: number }>(`/kp-cases/stats${year ? `?year=${year}` : ""}`),
 
-    list: (params?: { search?: string; status?: string; case_level?: string; per_page?: number; page?: number; sort_by?: string; sort_dir?: string }) => {
+    list: (params?: { search?: string; status?: string; case_level?: string; filing_date_from?: string; filing_date_to?: string; per_page?: number; page?: number; sort_by?: string; sort_dir?: string }) => {
       const q = new URLSearchParams();
       if (params) Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== "") q.append(k, String(v)); });
       const qs = q.toString();
@@ -942,6 +942,18 @@ const api = {
 
     updateHearing: (id: string, data: Record<string, unknown>) =>
       api.put<{ message: string; kp_case_hearing: KpCaseHearing }>(`/kp-case-hearings/${id}`, data),
+
+    sendSms: (id: string, data: { recipient: string; message: string }) =>
+      api.post<{ message: string; sent: number; cost: number; remaining_balance: number }>(`/kp-cases/${id}/sms`, data),
+
+    smsHistory: (id: string) =>
+      api.get<{ data: Array<{ id: string; recipient_number: string; message: string; segments: number; cost: number; status: string; created_at: string }> }>(`/kp-cases/${id}/sms-history`),
+
+    activity: (id: string) =>
+      api.get<{ data: Array<{ id: string; action: string; changes: Record<string, unknown> | null; created_at: string; user?: { first_name: string; last_name: string; username: string } }> }>(`/kp-cases/${id}/activity`),
+
+    logDocument: (id: string, formNumber: number, formName: string) =>
+      api.post<{ message: string }>(`/kp-cases/${id}/log-document`, { form_number: formNumber, form_name: formName }),
   },
 
   blotters: {
