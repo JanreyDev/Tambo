@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Tenant;
 
 use App\Http\Controllers\Controller;
+use App\Models\Platform\AuditLog;
+use App\Models\Tenant\Judicial\KpCase;
 use App\Models\Tenant\Judicial\KpCaseHearing;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -66,6 +68,27 @@ class KpCaseHearingController extends Controller
             ...$validated,
             'barangay_id' => $request->user()->barangay_id,
         ]);
+
+        // Log against the parent KP case so it appears in the case activity feed.
+        KpCase::where('barangay_id', $request->user()->barangay_id)
+            ->where('id', $validated['case_id'])
+            ->first()?->tap(function ($kpCase) use ($request, $hearing) {
+                AuditLog::create([
+                    'barangay_id'   => $kpCase->barangay_id,
+                    'user_id'       => $request->user()->id,
+                    'action'        => 'hearing_scheduled',
+                    'resource_type' => 'kp_case',
+                    'resource_id'   => $kpCase->id,
+                    'changes'       => [
+                        'hearing_type' => $hearing->hearing_type,
+                        'hearing_date' => $hearing->hearing_date,
+                        'venue'        => $hearing->venue,
+                    ],
+                    'ip_address'    => $request->ip(),
+                    'user_agent'    => $request->userAgent(),
+                    'module'        => 'judicial',
+                ]);
+            });
 
         return response()->json([
             'message' => 'Case hearing created.',

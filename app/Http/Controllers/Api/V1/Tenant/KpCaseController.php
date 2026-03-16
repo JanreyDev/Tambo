@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Tenant;
 
 use App\Http\Controllers\Controller;
+use App\Models\Platform\AuditLog;
 use App\Models\Tenant\Judicial\KpCase;
+use App\Services\SmsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class KpCaseController extends Controller
 {
+    public function __construct(private readonly SmsService $smsService) {}
+
     /**
      * List KP cases with search/filter/pagination.
      *
@@ -40,6 +44,14 @@ class KpCaseController extends Controller
             $query->where('case_level', $caseLevel);
         }
 
+        if ($dateFrom = $request->get('filing_date_from')) {
+            $query->where('filing_date', '>=', $dateFrom);
+        }
+
+        if ($dateTo = $request->get('filing_date_to')) {
+            $query->where('filing_date', '<=', $dateTo);
+        }
+
         $sortBy = $request->get('sort_by', 'filing_date');
         $sortDir = $request->get('sort_dir', 'desc');
         $allowedSorts = ['case_number', 'filing_date', 'status', 'case_level', 'created_at'];
@@ -61,7 +73,10 @@ class KpCaseController extends Controller
     public function stats(Request $request): JsonResponse
     {
         $barangayId = $request->user()->barangay_id;
-        $base = KpCase::where('barangay_id', $barangayId);
+        $year = $request->get('year') ? (int) $request->get('year') : now()->year;
+
+        $base = KpCase::where('barangay_id', $barangayId)
+            ->whereYear('filing_date', $year);
 
         $total = (clone $base)->count();
         $active = (clone $base)->whereNotIn('status', ['settled', 'dismissed', 'closed', 'cfa_issued'])->count();
@@ -69,6 +84,8 @@ class KpCaseController extends Controller
         $mediation = (clone $base)->where('case_level', 'mediation')->whereNotIn('status', ['settled', 'dismissed', 'closed', 'cfa_issued'])->count();
         $conciliation = (clone $base)->where('case_level', 'conciliation')->whereNotIn('status', ['settled', 'dismissed', 'closed', 'cfa_issued'])->count();
         $cfaIssued = (clone $base)->where('status', 'cfa_issued')->count();
+        $arbitration = (clone $base)->where('status', 'arbitration')->count();
+        $dismissed   = (clone $base)->where('status', 'dismissed')->count();
 
         // Overdue: mediation deadline passed but still in mediation
         $overdueMediation = (clone $base)
@@ -94,12 +111,15 @@ class KpCaseController extends Controller
             ->count();
 
         return response()->json([
+            'year'  => $year,
             'total' => $total,
             'active' => $active,
             'settled' => $settled,
             'mediation' => $mediation,
             'conciliation' => $conciliation,
+            'arbitration' => $arbitration,
             'cfa_issued' => $cfaIssued,
+            'dismissed' => $dismissed,
             'overdue_mediation' => $overdueMediation,
             'overdue_conciliation' => $overdueConciliation,
         ]);
@@ -132,12 +152,13 @@ class KpCaseController extends Controller
             'nature_of_complaint' => ['nullable', 'string'],
             'rpc_article' => ['nullable', 'string', 'max:100'],
             'case_description' => ['nullable', 'string'],
+            'remarks' => ['nullable', 'string'],
             'complainant_type' => ['nullable', 'string', 'max:50'],
             'respondent_type' => ['nullable', 'string', 'max:50'],
             'filing_date' => ['required', 'date'],
             'presiding_officer_id' => ['nullable', 'uuid'],
             'lupon_secretary_id' => ['nullable', 'uuid'],
-            'status' => ['nullable', 'in:filed,mediation,conciliation,arbitration,settled,dismissed,elevated'],
+            'status' => ['nullable', 'in:mediation,conciliation,arbitration,settled,dismissed,elevated'],
         ]);
 
         $barangayId = $request->user()->barangay_id;
@@ -160,9 +181,11 @@ class KpCaseController extends Controller
             ...$validated,
             'barangay_id' => $barangayId,
             'case_number' => $caseNumber,
-            'status' => $validated['status'] ?? 'filed',
+            'status' => $validated['status'] ?? 'mediation',
             'created_by' => $request->user()->id,
         ]);
+
+        $this->logAudit($request, 'created', $kpCase);
 
         return response()->json([
             'message' => 'KP case created.',
@@ -206,16 +229,178 @@ class KpCaseController extends Controller
             'certification_to_file_action' => ['boolean'],
             'cfa_date' => ['nullable', 'date'],
             'cfa_reason' => ['nullable', 'string'],
-            'status' => ['sometimes', 'in:filed,mediation,conciliation,arbitration,settled,dismissed,elevated'],
+            'status' => ['sometimes', 'in:mediation,conciliation,arbitration,settled,cfa_issued,dismissed,elevated'],
             'remarks' => ['nullable', 'string'],
         ]);
 
+        $old = $kpCase->only(array_keys($validated));
         $validated['updated_by'] = $request->user()->id;
         $kpCase->update($validated);
+
+        $changes = array_filter(
+            array_map(fn ($k) => isset($old[$k]) && $old[$k] != $kpCase->$k
+                ? ['from' => $old[$k], 'to' => $kpCase->$k] : null, array_keys($validated)),
+            fn ($v) => $v !== null
+        );
+        // Use distinct action for status transitions so the activity log is clear.
+        $action = array_key_exists('status', $changes) ? 'status_changed' : 'updated';
+        $this->logAudit($request, $action, $kpCase, $changes ?: null);
 
         return response()->json([
             'message' => 'KP case updated.',
             'kp_case' => $kpCase->fresh(),
+        ]);
+    }
+
+    /**
+     * Log a document generation event (print is client-side, so frontend calls this).
+     *
+     * POST /api/v1/kp-cases/{id}/log-document
+     */
+    public function logDocument(Request $request, string $id): JsonResponse
+    {
+        $kpCase = KpCase::where('barangay_id', $request->user()->barangay_id)
+            ->findOrFail($id);
+
+        $validated = $request->validate([
+            'form_number' => ['required', 'integer', 'min:1', 'max:28'],
+            'form_name'   => ['required', 'string', 'max:255'],
+        ]);
+
+        $this->logAudit($request, 'document_generated', $kpCase, [
+            'form_number' => $validated['form_number'],
+            'form_name'   => $validated['form_name'],
+        ]);
+
+        return response()->json(['message' => 'Document logged.']);
+    }
+
+    /**
+     * Send SMS to one or both parties.
+     *
+     * POST /api/v1/kp-cases/{id}/sms
+     */
+    public function sendSms(Request $request, string $id): JsonResponse
+    {
+        $kpCase = KpCase::where('barangay_id', $request->user()->barangay_id)
+            ->with('parties')
+            ->findOrFail($id);
+
+        $validated = $request->validate([
+            'recipient' => ['required', 'in:complainant,respondent,both'],
+            'message'   => ['required', 'string', 'max:636'],
+        ]);
+
+        $barangay = $request->user()->barangay;
+        $message  = SmsService::formatWithSenderHeader(trim($validated['message']), $barangay);
+        $cost     = SmsService::calculateCost($message);
+        $segments = SmsService::calculateSegments($message);
+
+        // Resolve target parties
+        $targets = $kpCase->parties->filter(function ($p) use ($validated) {
+            return $validated['recipient'] === 'both'
+                || $p->party_type === $validated['recipient'];
+        })->filter(fn ($p) => ! empty($p->mobile_number));
+
+        if ($targets->isEmpty()) {
+            return response()->json(['message' => 'No mobile number found for the selected recipient(s).'], 422);
+        }
+
+        $totalCost = $cost * $targets->count();
+
+        if (! $barangay->hasSmsCredits($totalCost)) {
+            return response()->json([
+                'message' => 'Insufficient SMS credits. Balance: ₱'.number_format((float) $barangay->sms_credit_balance, 2).', required: ₱'.number_format($totalCost, 2).'.',
+            ], 422);
+        }
+
+        $sentCount = 0;
+        foreach ($targets as $party) {
+            $sent = $this->smsService->send(
+                phone:    $party->mobile_number,
+                message:  $message,
+                barangay: $barangay,
+                source:   'kp_case_sms',
+                sourceId: $kpCase->id,
+            );
+            if ($sent) {
+                $sentCount++;
+            }
+        }
+
+        $this->logAudit($request, 'sms_sent', $kpCase, [
+            'recipient' => $validated['recipient'],
+            'segments'  => $segments,
+            'cost'      => $totalCost,
+            'sent'      => $sentCount,
+            'total'     => $targets->count(),
+        ]);
+
+        $barangay->refresh();
+
+        return response()->json([
+            'message'           => "SMS sent to {$sentCount} of {$targets->count()} recipient(s).",
+            'sent'              => $sentCount,
+            'cost'              => $totalCost,
+            'remaining_balance' => (float) $barangay->sms_credit_balance,
+        ]);
+    }
+
+    /**
+     * Get SMS history for a KP case.
+     *
+     * GET /api/v1/kp-cases/{id}/sms-history
+     */
+    public function smsHistory(Request $request, string $id): JsonResponse
+    {
+        $kpCase = KpCase::where('barangay_id', $request->user()->barangay_id)
+            ->findOrFail($id);
+
+        $perPage = min((int) $request->get('per_page', 20), 50);
+
+        $logs = \App\Models\Platform\SmsTransaction::where('barangay_id', $request->user()->barangay_id)
+            ->where('source', 'kp_case_sms')
+            ->where('source_id', $kpCase->id)
+            ->orderByDesc('created_at')
+            ->paginate($perPage);
+
+        return response()->json($logs);
+    }
+
+    /**
+     * Get activity log for a KP case.
+     *
+     * GET /api/v1/kp-cases/{id}/activity
+     */
+    public function activity(Request $request, string $id): JsonResponse
+    {
+        $kpCase = KpCase::where('barangay_id', $request->user()->barangay_id)
+            ->findOrFail($id);
+
+        $perPage = min((int) $request->get('per_page', 30), 100);
+
+        $logs = AuditLog::where('barangay_id', $request->user()->barangay_id)
+            ->where('resource_type', 'kp_case')
+            ->where('resource_id', $kpCase->id)
+            ->with('user:id,first_name,last_name,username')
+            ->orderByDesc('created_at')
+            ->paginate($perPage);
+
+        return response()->json($logs);
+    }
+
+    private function logAudit(Request $request, string $action, KpCase $kpCase, ?array $changes = null): void
+    {
+        AuditLog::create([
+            'barangay_id'   => $kpCase->barangay_id,
+            'user_id'       => $request->user()->id,
+            'action'        => $action,
+            'resource_type' => 'kp_case',
+            'resource_id'   => $kpCase->id,
+            'changes'       => $changes,
+            'ip_address'    => $request->ip(),
+            'user_agent'    => $request->userAgent(),
+            'module'        => 'judicial',
         ]);
     }
 

@@ -105,6 +105,7 @@ class BlotterController extends Controller
             'incident_time'           => ['nullable', 'string', 'max:10'],
             'incident_place'          => ['nullable', 'string', 'max:255'],
             'narrative'               => ['required', 'string'],
+            'resolution'              => ['nullable', 'string'],
             'complainant_name'        => ['required', 'string', 'max:200'],
             'complainant_address'     => ['nullable', 'string', 'max:500'],
             'complainant_mobile'      => ['nullable', 'string', 'max:20'],
