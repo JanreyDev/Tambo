@@ -154,7 +154,7 @@ class VawcCaseController extends Controller
             ...$validated,
             'barangay_id' => $barangayId,
             'case_number' => $caseNumber,
-            'status' => $validated['status'] ?? 'filed',
+            'status' => $validated['status'] ?? 'under_investigation',
             'access_log' => [
                 [
                     'user_id' => $request->user()->id,
