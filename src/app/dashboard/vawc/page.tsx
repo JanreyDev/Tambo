@@ -107,7 +107,6 @@ const INCOME_RANGES = [
 ];
 
 const CASE_STATUSES = [
-  { value: "filed", label: "Filed" },
   { value: "under_investigation", label: "Under Investigation" },
   { value: "protection_order", label: "Protection Order Issued" },
   { value: "referred", label: "Referred" },
@@ -121,7 +120,6 @@ const LOGBOOK_TYPES = [
 ];
 
 const STATUS_COLORS: Record<string, string> = {
-  filed: "#3b82f6",
   under_investigation: "#f59e0b",
   protection_order: "#ef4444",
   referred: "#8b5cf6",
@@ -130,7 +128,6 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const STATUS_LABELS: Record<string, string> = {
-  filed: "Filed",
   under_investigation: "Under Investigation",
   protection_order: "Protection Order",
   referred: "Referred",
@@ -188,7 +185,7 @@ const EMPTY_FORM: FormState = {
   incident_time: "",
   incident_place: "",
   narrative_encrypted: "",
-  status: "filed",
+  status: "under_investigation",
   logbook_type: "",
   logbook_page_number: "",
   victim_name_encrypted: "",
