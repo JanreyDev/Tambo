@@ -1424,9 +1424,6 @@ const handleScheduleHearing = async () => {
           <div className="space-y-2">
             <div className="flex items-center justify-between px-0.5">
               <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Case Summary</p>
-              <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-accent-bg text-accent-text border border-accent-primary/20">
-                {stats?.year ?? currentYear} · Resets Jan 1
-              </span>
             </div>
             <div className="grid grid-cols-2 xl:grid-cols-5 gap-3">
 
