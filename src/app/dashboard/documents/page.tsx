@@ -42,6 +42,15 @@ const STATUS_CFG: Record<string, { label: string; color: string; bg: string }> =
   expired: { label: "Expired", color: "text-amber-700 dark:text-amber-400", bg: "bg-amber-100 dark:bg-amber-900/30" },
 };
 
+const SOURCE_CFG: Record<string, { label: string; color: string; bg: string }> = {
+  resident: { label: "Resident", color: "text-blue-700 dark:text-blue-400", bg: "bg-blue-100 dark:bg-blue-900/30" },
+  establishment: { label: "Business", color: "text-emerald-700 dark:text-emerald-400", bg: "bg-emerald-100 dark:bg-emerald-900/30" },
+  lot_building: { label: "Lot/Bldg", color: "text-amber-700 dark:text-amber-400", bg: "bg-amber-100 dark:bg-amber-900/30" },
+  kp_case: { label: "KP Case", color: "text-violet-700 dark:text-violet-400", bg: "bg-violet-100 dark:bg-violet-900/30" },
+  vawc_case: { label: "VAWC", color: "text-red-700 dark:text-red-400", bg: "bg-red-100 dark:bg-red-900/30" },
+  blotter: { label: "Blotter", color: "text-slate-700 dark:text-slate-400", bg: "bg-slate-100 dark:bg-slate-900/30" },
+};
+
 export default function DocumentsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -58,6 +67,7 @@ export default function DocumentsPage() {
   const [searchInput, setSearchInput] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterTemplate, setFilterTemplate] = useState("");
+  const [filterSource, setFilterSource] = useState("");
   const [sortBy, setSortBy] = useState("created_at");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
@@ -95,6 +105,7 @@ export default function DocumentsPage() {
         search: search || undefined,
         status: filterStatus || undefined,
         template_id: filterTemplate || undefined,
+        constituent_type: filterSource || undefined,
         sort_by: sortBy,
         sort_dir: sortDir,
       });
@@ -106,7 +117,7 @@ export default function DocumentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, perPage, search, filterStatus, filterTemplate, sortBy, sortDir]);
+  }, [page, perPage, search, filterStatus, filterTemplate, filterSource, sortBy, sortDir]);
 
   // ── Fetch templates ──
   const fetchTemplates = useCallback(async () => {
@@ -324,6 +335,19 @@ export default function DocumentsPage() {
         </select>
 
         <select
+          value={filterSource}
+          onChange={(e) => { setFilterSource(e.target.value); setPage(1); }}
+          className="rounded-lg border border-border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20"
+        >
+          <option value="">All Sources</option>
+          <option value="resident">Residents</option>
+          <option value="establishment">Establishments</option>
+          <option value="lot_building">Lots &amp; Buildings</option>
+          <option value="kp_case">KP Cases</option>
+          <option value="vawc_case">VAWC Records</option>
+          <option value="blotter">Blotter</option>
+        </select>
+        <select
           value={filterTemplate}
           onChange={(e) => { setFilterTemplate(e.target.value); setPage(1); }}
           className="rounded-lg border border-border bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20"
@@ -385,7 +409,20 @@ export default function DocumentsPage() {
                           <p className="text-xs text-muted-foreground">{doc.constituent_number || ""}</p>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-foreground">{doc.template_name || "—"}</td>
+                      <td className="px-4 py-3 text-foreground">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-foreground">{doc.template_name || "—"}</span>
+                          {doc.constituent_type && SOURCE_CFG[doc.constituent_type] && (
+                            <span className={cn(
+                              "inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium w-fit",
+                              SOURCE_CFG[doc.constituent_type].bg,
+                              SOURCE_CFG[doc.constituent_type].color
+                            )}>
+                              {SOURCE_CFG[doc.constituent_type].label}
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-4 py-3 text-muted-foreground max-w-[200px] truncate">{doc.purpose || "—"}</td>
                       <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{fmtDate(doc.issued_date)}</td>
                       <td className="px-4 py-3">

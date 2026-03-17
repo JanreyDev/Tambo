@@ -2341,7 +2341,7 @@ const handleScheduleHearing = async () => {
             </button>
             <button
               disabled={selectedFormNumber === null}
-              onClick={() => {
+              onClick={async () => {
                 if (!selectedFormNumber || !kpFormCase) return;
                 const form = KP_FORMS.find((f) => f.number === selectedFormNumber);
                 const html = generateKpFormHtml(selectedFormNumber, kpFormCase, user?.barangay);
@@ -2352,6 +2352,19 @@ const handleScheduleHearing = async () => {
                   api.kpCases.logDocument(kpFormCase.id, selectedFormNumber, form.name)
                     .catch(() => null);
                 }
+                // Save to Documents module — map form number to document_type
+                const docTypeMap: Record<number, string> = {
+                  8: "notice_of_hearing", 12: "notice_of_hearing",
+                  9: "summons", 13: "summons",
+                  16: "settlement_agreement",
+                  20: "certification_to_file_action", 21: "certification_to_file_action",
+                  22: "certification_to_file_action", 23: "certification_to_file_action", 24: "certification_to_file_action",
+                };
+                const docType = docTypeMap[selectedFormNumber] ?? "case_summary";
+                try {
+                  await api.post(`/kp-cases/${kpFormCase.id}/generate-document`, { document_type: docType });
+                  addToast("KP Form saved to Documents module");
+                } catch { /* non-critical — browser print already succeeded */ }
               }}
               className={cn(
                 "flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-colors",

@@ -15,6 +15,8 @@ import {
   Users,
   Shield,
   CheckCircle,
+  Printer,
+  Loader2,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Modal, ModalButton } from "@/components/ui/modal";
@@ -186,6 +188,7 @@ export default function BlotterPage() {
   const [form, setForm]                   = useState({ ...emptyForm });
   const [formErrors, setFormErrors]       = useState<Record<string, string>>({});
   const [saving, setSaving]               = useState(false);
+  const [generatingCert, setGeneratingCert] = useState(false);
 
   // Toast
   const [toasts, setToasts] = useState<{ id: number; message: string; type?: "success" | "error" }[]>([]);
@@ -336,6 +339,22 @@ export default function BlotterPage() {
   };
 
   const formTabs = ["Incident", "Parties", "Details"];
+
+  // Generate blotter certification PDF via backend
+  const generateBlotterCertificate = async (b: BlotterRecord) => {
+    if (generatingCert) return;
+    setGeneratingCert(true);
+    try {
+      const res = await api.post<{ document: { id: string } }>(`/blotters/${b.id}/generate-document`, {});
+      const doc = (res as { document: { id: string } }).document;
+      addToast("Blotter Certification saved to Documents module");
+      window.open(`/api/v1/issued-documents/${doc.id}/pdf`, "_blank");
+    } catch {
+      addToast("Failed to generate Blotter Certification", "error");
+    } finally {
+      setGeneratingCert(false);
+    }
+  };
 
   const renderFormTab = () => {
     switch (formTab) {
@@ -609,7 +628,18 @@ export default function BlotterPage() {
         footer={
           <div className="flex items-center justify-between w-full">
             <ModalButton variant="secondary" onClick={() => setViewBlotter(null)}>Cancel</ModalButton>
-            <ModalButton variant="primary" onClick={() => { const b = viewBlotter; setViewBlotter(null); if (b) openEdit(b); }}>Edit</ModalButton>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => viewBlotter && generateBlotterCertificate(viewBlotter)}
+                disabled={generatingCert}
+                title="Generate Blotter Certification PDF"
+                className="flex items-center gap-1.5 px-3 h-9 text-xs font-medium rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors disabled:opacity-50"
+              >
+                {generatingCert ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Printer className="w-3.5 h-3.5" />}
+                Generate Cert
+              </button>
+              <ModalButton variant="primary" onClick={() => { const b = viewBlotter; setViewBlotter(null); if (b) openEdit(b); }}>Edit</ModalButton>
+            </div>
           </div>
         }>
         {viewBlotter && (

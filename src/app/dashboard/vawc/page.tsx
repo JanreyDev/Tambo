@@ -20,6 +20,7 @@ import {
   Download,
   Shield,
   Printer,
+  Loader2,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Modal, ModalButton } from "@/components/ui/modal";
@@ -432,6 +433,7 @@ export default function VawcPage() {
   const [form, setForm] = useState<FormState>({ ...EMPTY_FORM });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [generatingDoc, setGeneratingDoc] = useState<string | null>(null);
 
   // Toast
   const [toasts, setToasts] = useState<{ id: number; message: string; type: "success" | "error" }[]>([]);
@@ -541,193 +543,36 @@ export default function VawcPage() {
     }
   };
 
-  // Print Annex A — VAW DocS Intake Form
-  const printIntakeForm = (c: VawcCase) => {
-    const w = window.open("", "_blank", "width=900,height=700");
-    if (!w) return;
-    w.document.write(`<!DOCTYPE html><html><head>
-      <title>VAW DocS Intake Form — ${c.case_number}</title>
-      <style>
-        body { font-family: Arial, sans-serif; font-size: 11px; margin: 20px; color: #000; }
-        h1 { font-size: 14px; text-align: center; margin: 0; }
-        h2 { font-size: 12px; text-align: center; margin: 2px 0 8px; }
-        .sub { text-align: center; font-size: 10px; margin-bottom: 12px; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-        td, th { border: 1px solid #000; padding: 4px 6px; vertical-align: top; }
-        .label { font-weight: bold; background: #f0f0f0; width: 180px; }
-        .section { font-weight: bold; background: #ddd; text-align: center; }
-        .footer { margin-top: 20px; display: flex; justify-content: space-between; }
-        .sig { width: 45%; text-align: center; }
-        .sig-line { border-top: 1px solid #000; margin-top: 40px; padding-top: 2px; }
-        @media print { body { margin: 10px; } }
-      </style>
-    </head><body>
-      <h1>NATIONAL VAW DOCUMENTATION SYSTEM (VAW DocS)</h1>
-      <h2>Barangay Intake Form — Annex A</h2>
-      <div class="sub">JMC 2010-2 | Philippine Commission on Women (PCW)</div>
-      <table>
-        <tr><td class="section" colspan="4">CASE INFORMATION</td></tr>
-        <tr>
-          <td class="label">Case Number</td><td>${c.case_number}</td>
-          <td class="label">Filing Date</td><td>${c.filing_date?.slice(0, 10) ?? ""}</td>
-        </tr>
-        <tr>
-          <td class="label">Type of Violence</td><td>${c.incident_type}</td>
-          <td class="label">Incident Date</td><td>${c.incident_date?.slice(0, 10) ?? ""}</td>
-        </tr>
-        <tr>
-          <td class="label">Place of Incident</td><td colspan="3">${c.incident_place ?? ""}</td>
-        </tr>
-        <tr>
-          <td class="label">Status</td><td>${c.status?.replace(/_/g, " ").toUpperCase()}</td>
-          <td class="label">Logbook Type</td><td>${c.logbook_type ?? ""} ${c.logbook_page_number ? "/ Page " + c.logbook_page_number : ""}</td>
-        </tr>
-        <tr><td class="section" colspan="4">VICTIM-SURVIVOR INFORMATION</td></tr>
-        <tr>
-          <td class="label">Full Name</td><td colspan="3">${c.victim_name_encrypted ?? ""}</td>
-        </tr>
-        <tr>
-          <td class="label">Date of Birth</td><td>${c.victim_dob?.slice(0, 10) ?? ""}</td>
-          <td class="label">Civil Status</td><td>${c.victim_civil_status ?? ""}</td>
-        </tr>
-        <tr>
-          <td class="label">Address</td><td colspan="3">${c.victim_address_encrypted ?? ""}</td>
-        </tr>
-        <tr>
-          <td class="label">Contact Number</td><td>${c.victim_phone_encrypted ?? ""}</td>
-          <td class="label">Occupation</td><td>${c.victim_occupation ?? ""}</td>
-        </tr>
-        <tr>
-          <td class="label">Monthly Income</td><td colspan="3">${c.victim_income_range ?? ""}</td>
-        </tr>
-        <tr><td class="section" colspan="4">RESPONDENT INFORMATION</td></tr>
-        <tr>
-          <td class="label">Full Name</td><td colspan="3">${c.respondent_name_encrypted ?? ""}</td>
-        </tr>
-        <tr>
-          <td class="label">Date of Birth</td><td>${c.respondent_dob?.slice(0, 10) ?? ""}</td>
-          <td class="label">Civil Status</td><td>${c.respondent_civil_status ?? ""}</td>
-        </tr>
-        <tr>
-          <td class="label">Address</td><td colspan="3">${c.respondent_address_encrypted ?? ""}</td>
-        </tr>
-        <tr>
-          <td class="label">Contact Number</td><td>${c.respondent_phone_encrypted ?? ""}</td>
-          <td class="label">Occupation</td><td>${c.respondent_occupation ?? ""}</td>
-        </tr>
-        <tr>
-          <td class="label">Relationship to Victim</td><td colspan="3">${c.respondent_relationship ?? ""}</td>
-        </tr>
-        <tr><td class="section" colspan="4">INCIDENT NARRATIVE</td></tr>
-        <tr><td colspan="4" style="min-height:80px; padding: 6px;">${c.narrative_encrypted ?? ""}</td></tr>
-        <tr><td class="section" colspan="4">PROTECTION ORDERS & REFERRALS</td></tr>
-        <tr>
-          <td class="label">BPO Issued</td><td>${c.bpo_issued ? "YES — " + (c.bpo_issued_date?.slice(0, 10) ?? "") + (c.bpo_expiry_date ? " (exp. " + c.bpo_expiry_date.slice(0, 10) + ")" : "") : "No"}</td>
-          <td class="label">TPO Filed</td><td>${c.tpo_referred ? "YES — " + (c.tpo_date?.slice(0, 10) ?? "") : "No"}</td>
-        </tr>
-        <tr>
-          <td class="label">PPO Filed</td><td>${c.ppo_referred ? "YES — " + (c.ppo_date?.slice(0, 10) ?? "") : "No"}</td>
-          <td class="label">PNP Referred</td><td>${c.referred_to_pnp ? "YES — " + (c.pnp_referral_time?.slice(0, 16).replace("T", " ") ?? "") : "No"}</td>
-        </tr>
-        <tr>
-          <td class="label">C/MSWDO Referred</td><td colspan="3">${c.referred_to_dswd ? "YES — " + (c.dswd_referral_time?.slice(0, 16).replace("T", " ") ?? "") : "No"}</td>
-        </tr>
-      </table>
-      <div class="footer">
-        <div class="sig">
-          <div class="sig-line">VAW Desk Officer</div>
-        </div>
-        <div class="sig">
-          <div class="sig-line">Punong Barangay</div>
-        </div>
-      </div>
-      <p style="margin-top:16px;font-size:9px;color:#666;">CONFIDENTIAL — For official use only. Records kept under lock and accessible only to authorized VAW Desk personnel per JMC 2010-2.</p>
-    </body></html>`);
-    w.document.close();
-    w.focus();
-    setTimeout(() => { w.print(); }, 400);
+  // Generate Annex A — VAW DocS Intake Form via backend (creates IssuedDocument + PDF)
+  const printIntakeForm = async (c: VawcCase) => {
+    if (generatingDoc) return;
+    setGeneratingDoc("intake_form");
+    try {
+      const res = await api.post<{ document: { id: string; pdf_url?: string } }>(`/vawc-cases/${c.id}/generate-document`, { document_type: "intake_form" });
+      const doc = (res as { document: { id: string; pdf_url?: string } }).document;
+      showToast("Intake Form saved to Documents module");
+      window.open(`/api/v1/issued-documents/${doc.id}/pdf`, "_blank");
+    } catch {
+      showToast("Failed to generate Intake Form", "error");
+    } finally {
+      setGeneratingDoc(null);
+    }
   };
 
-  // Print Annex D — BPO Application Form
-  const printBPOForm = (c: VawcCase) => {
-    const w = window.open("", "_blank", "width=900,height=700");
-    if (!w) return;
-    w.document.write(`<!DOCTYPE html><html><head>
-      <title>BPO Application — ${c.case_number}</title>
-      <style>
-        body { font-family: Arial, sans-serif; font-size: 11px; margin: 20px; color: #000; }
-        h1 { font-size: 14px; text-align: center; margin: 0; }
-        h2 { font-size: 12px; text-align: center; margin: 2px 0 6px; }
-        .sub { text-align: center; font-size: 10px; margin-bottom: 14px; border-bottom: 2px solid #000; padding-bottom: 8px; }
-        .field { margin-bottom: 10px; }
-        .field label { font-weight: bold; display: block; margin-bottom: 2px; }
-        .line { border-bottom: 1px solid #000; min-height: 18px; padding: 2px 4px; }
-        .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-        .section-title { font-weight: bold; font-size: 11px; text-transform: uppercase; border-bottom: 1px solid #000; margin: 12px 0 6px; padding-bottom: 2px; }
-        .checkbox-list { list-style: none; padding: 0; margin: 6px 0; }
-        .checkbox-list li { margin-bottom: 4px; }
-        .box { display: inline-block; width: 12px; height: 12px; border: 1px solid #000; margin-right: 4px; vertical-align: middle; }
-        .sig-area { display: flex; justify-content: space-between; margin-top: 30px; }
-        .sig-block { width: 45%; text-align: center; }
-        .sig-line { border-top: 1px solid #000; margin-top: 50px; padding-top: 2px; font-size: 10px; }
-        @media print { body { margin: 10px; } }
-      </style>
-    </head><body>
-      <h1>BARANGAY PROTECTION ORDER</h1>
-      <h2>Application Form — Annex D</h2>
-      <div class="sub">Republic Act No. 9262 — Anti-Violence Against Women and Their Children Act of 2004</div>
-
-      <div class="section-title">I. APPLICANT (Victim-Survivor)</div>
-      <div class="grid2">
-        <div class="field"><label>Full Name</label><div class="line">${c.victim_name_encrypted ?? ""}</div></div>
-        <div class="field"><label>Date of Birth</label><div class="line">${c.victim_dob?.slice(0, 10) ?? ""}</div></div>
-      </div>
-      <div class="field"><label>Address</label><div class="line">${c.victim_address_encrypted ?? ""}</div></div>
-      <div class="grid2">
-        <div class="field"><label>Contact Number</label><div class="line">${c.victim_phone_encrypted ?? ""}</div></div>
-        <div class="field"><label>Civil Status</label><div class="line">${c.victim_civil_status ?? ""}</div></div>
-      </div>
-
-      <div class="section-title">II. RESPONDENT</div>
-      <div class="grid2">
-        <div class="field"><label>Full Name</label><div class="line">${c.respondent_name_encrypted ?? ""}</div></div>
-        <div class="field"><label>Relationship to Applicant</label><div class="line">${c.respondent_relationship ?? ""}</div></div>
-      </div>
-      <div class="field"><label>Address</label><div class="line">${c.respondent_address_encrypted ?? ""}</div></div>
-
-      <div class="section-title">III. NATURE OF VIOLENCE COMMITTED</div>
-      <ul class="checkbox-list">
-        <li><span class="box">${c.incident_type === "Physical Violence" ? "X" : " "}</span> Physical Violence — bodily harm, battering</li>
-        <li><span class="box">${c.incident_type === "Sexual Violence" ? "X" : " "}</span> Sexual Violence — rape, marital rape, sexual harassment, forced prostitution</li>
-        <li><span class="box">${c.incident_type === "Psychological Violence" ? "X" : " "}</span> Psychological Violence — emotional abuse, harassment, stalking, humiliation, controlling behavior</li>
-        <li><span class="box">${c.incident_type === "Economic Abuse" ? "X" : " "}</span> Economic Abuse — destruction of property, controlling finances, preventing employment</li>
-      </ul>
-
-      <div class="section-title">IV. BRIEF DESCRIPTION OF INCIDENT</div>
-      <div style="border: 1px solid #000; min-height: 80px; padding: 6px; margin-bottom: 10px;">${c.narrative_encrypted ?? ""}</div>
-
-      <div class="section-title">V. RELIEF SOUGHT</div>
-      <p style="margin: 6px 0; font-size: 10px;">The applicant respectfully prays that this Honorable Barangay issue a Barangay Protection Order directing the respondent to desist from performing, threatening to perform, or causing the above-described acts against the undersigned and their children.</p>
-
-      <p style="margin: 6px 0; font-size: 10px;">Case Reference: <strong>${c.case_number}</strong> &nbsp;&nbsp; Incident Date: <strong>${c.incident_date?.slice(0, 10) ?? ""}</strong></p>
-
-      <div class="sig-area">
-        <div class="sig-block">
-          <div class="sig-line">Signature of Applicant / Over Printed Name</div>
-        </div>
-        <div class="sig-block">
-          <div class="sig-line">Signature of Witness / Over Printed Name</div>
-        </div>
-      </div>
-      <div style="margin-top: 24px;">
-        <div style="font-weight: bold; margin-bottom: 4px;">SUBSCRIBED AND SWORN to before me this _______ day of ____________, ________.</div>
-        <div style="margin-top: 40px; text-align: center; width: 280px; border-top: 1px solid #000; padding-top: 2px; font-size: 10px;">Punong Barangay / Barangay Kagawad</div>
-      </div>
-      <p style="margin-top:16px;font-size:9px;color:#666;">CONFIDENTIAL — For official use only. BPO is issued on the day of filing after ex parte determination (RA 9262, Section 14).</p>
-    </body></html>`);
-    w.document.close();
-    w.focus();
-    setTimeout(() => { w.print(); }, 400);
+  // Generate Annex D — BPO Application Form via backend (creates IssuedDocument + PDF)
+  const printBPOForm = async (c: VawcCase) => {
+    if (generatingDoc) return;
+    setGeneratingDoc("bpo_application");
+    try {
+      const res = await api.post<{ document: { id: string; pdf_url?: string } }>(`/vawc-cases/${c.id}/generate-document`, { document_type: "bpo_application" });
+      const doc = (res as { document: { id: string; pdf_url?: string } }).document;
+      showToast("BPO Application saved to Documents module");
+      window.open(`/api/v1/issued-documents/${doc.id}/pdf`, "_blank");
+    } catch {
+      showToast("Failed to generate BPO Application", "error");
+    } finally {
+      setGeneratingDoc(null);
+    }
   };
 
   const openCreate = () => {
@@ -1379,17 +1224,21 @@ export default function VawcPage() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => printIntakeForm(viewCase)}
-                  title="Print Intake Form (Annex A)"
-                  className="flex items-center gap-1.5 px-3 h-8 text-xs font-medium rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+                  disabled={generatingDoc !== null}
+                  title="Generate Intake Form (Annex A)"
+                  className="flex items-center gap-1.5 px-3 h-8 text-xs font-medium rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors disabled:opacity-50"
                 >
-                  <Printer className="w-3.5 h-3.5" /> Intake Form
+                  {generatingDoc === "intake_form" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Printer className="w-3.5 h-3.5" />}
+                  Intake Form
                 </button>
                 <button
                   onClick={() => printBPOForm(viewCase)}
-                  title="Print BPO Application (Annex D)"
-                  className="flex items-center gap-1.5 px-3 h-8 text-xs font-medium rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-950/50 transition-colors"
+                  disabled={generatingDoc !== null}
+                  title="Generate BPO Application (Annex D)"
+                  className="flex items-center gap-1.5 px-3 h-8 text-xs font-medium rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-950/50 transition-colors disabled:opacity-50"
                 >
-                  <Printer className="w-3.5 h-3.5" /> BPO Form
+                  {generatingDoc === "bpo_application" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Printer className="w-3.5 h-3.5" />}
+                  BPO Form
                 </button>
                 <ModalButton variant="primary" onClick={() => openEdit(viewCase)}>Edit</ModalButton>
               </div>
