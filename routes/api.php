@@ -284,11 +284,14 @@ Route::prefix('v1')->group(function () {
             Route::get('kp-cases/{id}/sms-history', [KpCaseController::class, 'smsHistory']);
             Route::get('kp-cases/{id}/activity', [KpCaseController::class, 'activity']);
             Route::post('kp-cases/{id}/log-document', [KpCaseController::class, 'logDocument']);
+            Route::post('kp-cases/{id}/generate-document', [KpCaseController::class, 'generateDocument']);
             Route::apiResource('kp-cases', KpCaseController::class)->except(['destroy']);
             Route::apiResource('kp-case-parties', KpCasePartyController::class);
             Route::apiResource('kp-case-hearings', KpCaseHearingController::class);
             Route::get('blotters/stats', [BlotterController::class, 'stats']);
+            Route::post('blotters/{id}/generate-document', [BlotterController::class, 'generateDocument']);
             Route::apiResource('blotters', BlotterController::class);
+            Route::post('vawc-cases/{id}/generate-document', [VawcCaseController::class, 'generateDocument']);
             Route::apiResource('vawc-cases', VawcCaseController::class);
 
             // ── Tanod ──

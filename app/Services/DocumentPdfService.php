@@ -19,6 +19,73 @@ use Illuminate\Support\Str;
 class DocumentPdfService
 {
     /**
+     * Generate a case document PDF (KP, VAWC, Blotter), store it, and update the IssuedDocument.
+     * Unlike generateAndStore(), this does NOT require a DocumentTemplate — it uses custom_field_values.
+     */
+    public function generateCaseDocumentAndStore(
+        IssuedDocument $document,
+        Barangay $barangay,
+        ?User $issuedBy = null,
+    ): void {
+        $fields = $document->custom_field_values ?? [];
+
+        // Phase 1: generate without hash
+        $pdfBinary = $this->buildCasePdfBinary($document, $barangay, $fields, $issuedBy);
+
+        // Compute hash + QR
+        $hash = $this->computeHash($document, $pdfBinary);
+        $qrUrl = $this->buildQrUrl($hash);
+        $document->update(['blockchain_hash' => $hash, 'qr_code_url' => $qrUrl]);
+
+        // Phase 2: re-generate with hash in footer, store
+        $finalBinary = $this->buildCasePdfBinary($document->fresh(), $barangay, $fields, $issuedBy);
+        $file = $this->storePdf($finalBinary, $document, $barangay);
+        $document->update(['pdf_file_id' => $file->id]);
+    }
+
+    /**
+     * Internal: render the pdf.case-document Blade view to PDF binary.
+     */
+    private function buildCasePdfBinary(
+        IssuedDocument $document,
+        Barangay $barangay,
+        array $fields,
+        ?User $issuedBy,
+    ): string {
+        $sealDataUri = $this->getSealDataUri($barangay);
+        $qrDataUri = $document->qr_code_url
+            ? $this->generateQrSvgDataUri($document->qr_code_url)
+            : null;
+
+        $issuedByName = $issuedBy
+            ? trim(($issuedBy->first_name ?? '').' '.($issuedBy->last_name ?? '')) ?: $issuedBy->username
+            : 'System';
+
+        $data = [
+            'document'       => $document,
+            'barangay'       => $barangay,
+            'fields'         => $fields,
+            'sealDataUri'    => $sealDataUri,
+            'qrDataUri'      => $qrDataUri,
+            'issuedByName'   => $issuedByName,
+            'issuedAt'       => now()->setTimezone('Asia/Manila')->format('F d, Y h:i A'),
+            'caseType'       => $document->constituent_type,  // 'kp_case' | 'vawc_case' | 'blotter'
+            'documentTitle'  => $document->template_name,
+            'isConfidential' => (bool) ($fields['is_confidential'] ?? false),
+        ];
+
+        return Pdf::loadView('pdf.case-document', $data)
+            ->setPaper('letter', 'portrait')
+            ->setOptions([
+                'defaultFont'          => 'sans-serif',
+                'dpi'                  => 150,
+                'isHtml5ParserEnabled' => true,
+                'isRemoteEnabled'      => false,
+            ])
+            ->output();
+    }
+
+    /**
      * Generate a certificate PDF, store it, and return the File model.
      */
     public function generateAndStore(

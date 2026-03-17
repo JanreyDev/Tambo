@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Tenant;
 
 use App\Http\Controllers\Controller;
+use App\Models\Admin\Barangay;
 use App\Models\Platform\AuditLog;
 use App\Models\Tenant\Judicial\KpCase;
 use App\Services\SmsService;
@@ -387,6 +388,82 @@ class KpCaseController extends Controller
             ->paginate($perPage);
 
         return response()->json($logs);
+    }
+
+    /**
+     * Generate an official KP case document (summons, notice, settlement, CFA, summary).
+     *
+     * POST /api/v1/kp-cases/{id}/generate-document
+     */
+    public function generateDocument(Request $request, string $id): JsonResponse
+    {
+        $kpCase = KpCase::with('parties')->where('barangay_id', $request->user()->barangay_id)->findOrFail($id);
+
+        $validated = $request->validate([
+            'document_type' => ['required', 'in:summons,notice_of_hearing,settlement_agreement,certification_to_file_action,case_summary'],
+        ]);
+
+        $documentType = $validated['document_type'];
+        $templateNames = [
+            'summons'                      => 'KP Summons',
+            'notice_of_hearing'            => 'KP Notice of Hearing',
+            'settlement_agreement'         => 'KP Settlement Agreement',
+            'certification_to_file_action' => 'KP Certification to File Action',
+            'case_summary'                 => 'KP Case Summary',
+        ];
+
+        $complainants = $kpCase->parties->where('role', 'complainant')->pluck('full_name')->filter()->join(', ');
+        $respondents  = $kpCase->parties->where('role', 'respondent')->pluck('full_name')->filter()->join(', ');
+        $primaryParty = $kpCase->parties->where('role', 'complainant')->first();
+
+        $barangayId = $request->user()->barangay_id;
+
+        // Generate document number — same pattern as IssuedDocumentController
+        $lastDoc = \App\Models\Tenant\Documents\IssuedDocument::where('barangay_id', $barangayId)
+            ->max('document_number');
+        $nextSeq = $lastDoc ? ((int) $lastDoc) + 1 : 1;
+        $documentNumber = str_pad((string) $nextSeq, 8, '0', STR_PAD_LEFT);
+
+        $issuedDoc = \App\Models\Tenant\Documents\IssuedDocument::create([
+            'barangay_id'         => $barangayId,
+            'document_number'     => $documentNumber,
+            'constituent_type'    => 'kp_case',
+            'constituent_id'      => $kpCase->id,
+            'constituent_name'    => $primaryParty?->full_name ?? ($complainants ?: 'Unknown'),
+            'constituent_number'  => $kpCase->case_number,
+            'template_name'       => $templateNames[$documentType],
+            'purpose'             => 'KP Case '.$kpCase->case_number,
+            'issued_date'         => now()->toDateString(),
+            'status'              => 'issued',
+            'custom_field_values' => [
+                'document_type'        => $documentType,
+                'case_number'          => $kpCase->case_number,
+                'filing_date'          => $kpCase->filing_date?->format('F d, Y'),
+                'case_level'           => $kpCase->case_level,
+                'nature'               => $kpCase->nature ?? $kpCase->nature_of_complaint,
+                'nature_of_complaint'  => $kpCase->nature_of_complaint,
+                'complainants'         => $complainants ?: '—',
+                'respondents'          => $respondents ?: '—',
+                'status'               => $kpCase->status,
+                'settlement_text'      => $kpCase->settlement_text,
+                'cfa_reason'           => $kpCase->cfa_reason,
+                'settlement_date'      => $kpCase->settlement_date?->format('F d, Y'),
+                'cfa_date'             => $kpCase->cfa_date?->format('F d, Y'),
+                'is_confidential'      => false,
+            ],
+            'created_by' => $request->user()->id,
+        ]);
+
+        $barangay = Barangay::findOrFail($barangayId);
+        app(\App\Services\DocumentPdfService::class)->generateCaseDocumentAndStore($issuedDoc, $barangay, $request->user());
+
+        $this->logAudit($request, 'document_generated', $kpCase, [
+            'document_number' => $documentNumber,
+            'document_type'   => $documentType,
+            'template_name'   => $templateNames[$documentType],
+        ]);
+
+        return response()->json(['document' => $issuedDoc->fresh()], 201);
     }
 
     private function logAudit(Request $request, string $action, KpCase $kpCase, ?array $changes = null): void

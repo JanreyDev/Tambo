@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1\Tenant;
 
 use App\Http\Controllers\Controller;
+use App\Models\Admin\Barangay;
 use App\Models\Tenant\Judicial\BlotterRecord;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -183,6 +184,58 @@ class BlotterController extends Controller
             'message' => 'Blotter record updated.',
             'blotter' => $blotter->fresh(),
         ]);
+    }
+
+    /**
+     * Generate an official Blotter Certification document.
+     *
+     * POST /api/v1/blotters/{id}/generate-document
+     */
+    public function generateDocument(Request $request, string $id): JsonResponse
+    {
+        $blotter = BlotterRecord::where('barangay_id', $request->user()->barangay_id)->findOrFail($id);
+
+        $barangayId = $request->user()->barangay_id;
+
+        $lastDoc = \App\Models\Tenant\Documents\IssuedDocument::where('barangay_id', $barangayId)
+            ->max('document_number');
+        $nextSeq = $lastDoc ? ((int) $lastDoc) + 1 : 1;
+        $documentNumber = str_pad((string) $nextSeq, 8, '0', STR_PAD_LEFT);
+
+        $issuedDoc = \App\Models\Tenant\Documents\IssuedDocument::create([
+            'barangay_id'         => $barangayId,
+            'document_number'     => $documentNumber,
+            'constituent_type'    => 'blotter',
+            'constituent_id'      => $blotter->id,
+            'constituent_name'    => $blotter->complainant_name,
+            'constituent_number'  => $blotter->blotter_number,
+            'template_name'       => 'Blotter Certification',
+            'purpose'             => 'Certification of blotter entry '.$blotter->blotter_number,
+            'issued_date'         => now()->toDateString(),
+            'status'              => 'issued',
+            'custom_field_values' => [
+                'blotter_number'      => $blotter->blotter_number,
+                'filing_date'         => $blotter->filing_date?->format('F d, Y'),
+                'incident_type'       => $blotter->incident_type,
+                'incident_date'       => $blotter->incident_date?->format('F d, Y'),
+                'incident_time'       => $blotter->incident_time,
+                'incident_place'      => $blotter->incident_place,
+                'complainant_name'    => $blotter->complainant_name,
+                'complainant_address' => $blotter->complainant_address,
+                'respondent_name'     => $blotter->respondent_name,
+                'respondent_address'  => $blotter->respondent_address,
+                'narrative'           => $blotter->narrative,
+                'resolution'          => $blotter->resolution,
+                'status'              => $blotter->status,
+                'is_confidential'     => false,
+            ],
+            'created_by' => $request->user()->id,
+        ]);
+
+        $barangay = Barangay::findOrFail($barangayId);
+        app(\App\Services\DocumentPdfService::class)->generateCaseDocumentAndStore($issuedDoc, $barangay, $request->user());
+
+        return response()->json(['document' => $issuedDoc->fresh()], 201);
     }
 
     /**
