@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   FileText,
-  Plus,
   Search,
   Download,
   Printer,
@@ -13,7 +12,6 @@ import {
   X,
   Clock,
   CheckCircle2,
-  QrCode,
   User,
   Eye,
   Ban,
@@ -26,7 +24,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { SortableHeader } from "@/components/ui/sortable-header";
 import { cn } from "@/lib/utils";
 import { MabiniButton } from "@/components/ui/mabini-button";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { GenerateDocumentWizard } from "@/components/documents/GenerateDocumentWizard";
 import type {
@@ -52,7 +50,6 @@ const SOURCE_CFG: Record<string, { label: string; color: string; bg: string }> =
 };
 
 export default function DocumentsPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   // ── List state ──
@@ -194,13 +191,6 @@ export default function DocumentsPage() {
     setPage(1);
   };
 
-  // ── Open wizard (manual button) ──
-  const openGenerateWizard = () => {
-    setWizardResidentId(null);
-    setWizardTemplateCategory(null);
-    setShowWizard(true);
-  };
-
   // ── Open PDF in new tab ──
   const handleViewPdf = (doc: IssuedDocument) => {
     if (doc.pdf_url) {
@@ -279,26 +269,7 @@ export default function DocumentsPage() {
 
       <PageHeader
         title="Documents"
-        description="Generate, manage, and track all barangay documents and certificates."
-        actions={
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => router.push("/dashboard/documents/templates")}
-              className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold border border-border hover:bg-muted/50 transition-colors"
-            >
-              <FileText className="w-4 h-4" />
-              Manage Templates
-            </button>
-            <button
-              onClick={openGenerateWizard}
-              className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-all hover:opacity-90 shadow-sm"
-              style={{ background: "var(--accent-primary)" }}
-            >
-              <Plus className="w-4 h-4" />
-              Generate Document
-            </button>
-          </div>
-        }
+        description="Generated documents and certificates from all barangay modules."
       />
 
       {/* Stat Cards */}
