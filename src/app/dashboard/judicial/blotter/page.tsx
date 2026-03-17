@@ -428,7 +428,7 @@ export default function BlotterPage() {
             )}
           </div>
           <button onClick={() => setShowFilters(!showFilters)}
-            className={cn("flex items-center gap-1.5 px-3 h-9 text-sm rounded-lg border transition-colors",
+            className={cn("relative flex items-center justify-center w-9 h-9 shrink-0 rounded-lg border transition-colors",
               showFilters || typeFilter
                 ? "border-accent-primary bg-accent-bg text-accent-text"
                 : "border-border hover:bg-muted text-muted-foreground")}>
