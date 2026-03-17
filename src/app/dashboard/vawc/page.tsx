@@ -844,7 +844,7 @@ export default function VawcPage() {
       {/* Search + Filter */}
       <div className="space-y-3">
         <div className="flex items-center gap-3">
-          <div className="relative flex-1 max-w-md">
+          <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
               type="text" value={search}
@@ -861,11 +861,11 @@ export default function VawcPage() {
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={cn(
-              "relative flex items-center gap-2 px-3 py-2 text-sm rounded-lg border transition-colors",
-              showFilters ? "border-accent-primary bg-accent-bg text-accent-text" : "border-border hover:bg-muted"
+              "relative flex items-center justify-center w-9 h-9 shrink-0 rounded-lg border transition-colors",
+              showFilters || activeFilters > 0 ? "border-accent-primary bg-accent-bg text-accent-text" : "border-border hover:bg-muted text-muted-foreground"
             )}
           >
-            <Filter className="h-4 w-4" /> Filter
+            <Filter className="h-4 w-4" />
             {activeFilters > 0 && (
               <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center text-white" style={{ background: "var(--accent-primary)" }}>
                 {activeFilters}
@@ -874,10 +874,10 @@ export default function VawcPage() {
           </button>
           <button
             onClick={openCreate}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white shrink-0 transition-colors"
+            className="flex items-center justify-center w-9 h-9 shrink-0 rounded-lg text-white transition-colors"
             style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}
           >
-            <Plus className="h-4 w-4" /> Record VAWC Case
+            <Plus className="h-4 w-4" />
           </button>
         </div>
 
