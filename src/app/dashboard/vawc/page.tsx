@@ -223,7 +223,12 @@ function FormInput({
   label: string; value: string; onChange: (v: string) => void;
   required?: boolean; type?: string; placeholder?: string;
   error?: string; hint?: string; readOnly?: boolean;
+  maxLength?: number; digitsOnly?: boolean;
 }) {
+  const handleChange = (raw: string) => {
+    const v = digitsOnly ? raw.replace(/\D/g, "") : raw;
+    onChange(maxLength ? v.slice(0, maxLength) : v);
+  };
   return (
     <div>
       <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
@@ -231,9 +236,11 @@ function FormInput({
       </label>
       <input
         type={type} value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => handleChange(e.target.value)}
         placeholder={placeholder}
         readOnly={readOnly}
+        maxLength={maxLength}
+        inputMode={digitsOnly ? "numeric" : undefined}
         className={cn(
           "w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring",
           error && "border-red-500",
@@ -685,7 +692,8 @@ export default function VawcPage() {
           <FormInput
             label="Contact Number" value={form.victim_phone_encrypted}
             onChange={(v) => updateForm("victim_phone_encrypted", v)}
-            placeholder="09XXXXXXXXX (11 digits)" error={formErrors.victim_phone_encrypted}
+            placeholder="09XXXXXXXXX" error={formErrors.victim_phone_encrypted}
+            digitsOnly maxLength={11}
           />
           <div className="col-span-2">
             <FormInput
@@ -741,6 +749,7 @@ export default function VawcPage() {
             label="Contact Number" value={form.respondent_phone_encrypted}
             onChange={(v) => updateForm("respondent_phone_encrypted", v)}
             placeholder="09XXXXXXXXX"
+            digitsOnly maxLength={11}
           />
           <div className="col-span-2">
             <FormInput
