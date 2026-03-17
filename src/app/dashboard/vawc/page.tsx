@@ -874,10 +874,10 @@ export default function VawcPage() {
           </button>
           <button
             onClick={openCreate}
-            className="flex items-center justify-center w-9 h-9 shrink-0 rounded-lg text-white transition-colors"
+            className="flex items-center gap-2 px-4 h-9 shrink-0 text-sm font-medium rounded-lg text-white transition-colors"
             style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-4 w-4" /> Add VAWC Case
           </button>
         </div>
 
