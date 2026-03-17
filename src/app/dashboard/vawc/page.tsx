@@ -826,15 +826,6 @@ export default function VawcPage() {
         title="VAWC Records"
         description="Violence Against Women and Children — RA 9262 | VAW Desk (JMC 2010-2)"
         breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "VAWC Records" }]}
-        actions={
-          <button
-            onClick={openCreate}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors"
-            style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}
-          >
-            <Plus className="h-4 w-4" /> Record VAWC Case
-          </button>
-        }
       />
 
       {/* RA 9262 Confidential Banner */}
@@ -880,6 +871,13 @@ export default function VawcPage() {
                 {activeFilters}
               </span>
             )}
+          </button>
+          <button
+            onClick={openCreate}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white shrink-0 transition-colors"
+            style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}
+          >
+            <Plus className="h-4 w-4" /> Record VAWC Case
           </button>
         </div>
 
