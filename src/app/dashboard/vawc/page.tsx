@@ -14,6 +14,11 @@ import {
   Lock,
   CheckCircle2,
   AlertCircle,
+  BookOpen,
+  Clock,
+  Scale,
+  Download,
+  Shield,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Modal, ModalButton } from "@/components/ui/modal";
@@ -216,6 +221,23 @@ const EMPTY_FORM: FormState = {
   dswd_referral_time: "",
 };
 
+// ── Library Section Component ─────────────────────────────────────────────
+function LibrarySection({ id, title, children, accent = "red" }: {
+  id: string; title: string; children: React.ReactNode; accent?: "red" | "violet";
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div key={id} className="border-b border-border/60 last:border-0">
+      <button onClick={() => setOpen(!open)} className={cn("w-full flex items-center justify-between px-2 py-3 text-sm font-semibold text-foreground transition-colors text-left",
+        accent === "red" ? "hover:text-red-600 dark:hover:text-red-400" : "hover:text-violet-600 dark:hover:text-violet-400")}>
+        {title}
+        <ChevronRight className={cn("h-4 w-4 text-muted-foreground transition-transform shrink-0", open && "rotate-90")} />
+      </button>
+      {open && <div className="px-2 pb-4">{children}</div>}
+    </div>
+  );
+}
+
 // ── Form Field Components (module-level) ─────────────────────────────────
 function FormInput({
   label, value, onChange, required, type = "text", placeholder = "", error, hint, readOnly,
@@ -395,6 +417,10 @@ export default function VawcPage() {
   const [typeFilter, setTypeFilter] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Library
+  const [showLibrary, setShowLibrary] = useState(false);
+  const [libraryTab, setLibraryTab] = useState<"pcw" | "ra9262">("pcw");
 
   // Modals
   const [viewCase, setViewCase] = useState<VawcCase | null>(null);
@@ -924,6 +950,12 @@ export default function VawcPage() {
             )}
           </button>
           <button
+            onClick={() => { setShowLibrary(true); setLibraryTab("pcw"); }}
+            className="flex items-center gap-2 px-3 h-9 shrink-0 text-sm rounded-lg border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-950/50 transition-colors"
+          >
+            <BookOpen className="h-4 w-4" /> VAWC Library
+          </button>
+          <button
             onClick={openCreate}
             className="flex items-center gap-2 px-4 h-9 shrink-0 text-sm font-medium rounded-lg text-white transition-colors"
             style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}
@@ -1248,6 +1280,276 @@ export default function VawcPage() {
           </div>
         </Modal>
       )}
+
+      {/* VAWC Library Modal */}
+      <Modal open={showLibrary} onClose={() => setShowLibrary(false)} title="VAWC Reference Library" description="Official references for Violence Against Women and Children cases" size="xl"
+        footer={<ModalButton variant="secondary" onClick={() => setShowLibrary(false)}>Close</ModalButton>}>
+        {/* Tab Selector — Book Covers */}
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <button onClick={() => setLibraryTab("pcw")}
+            className={cn("relative p-5 rounded-xl border-2 text-left transition-all",
+              libraryTab === "pcw" ? "border-red-500 bg-red-50 dark:bg-red-950/30 shadow-md" : "border-border hover:border-red-300 hover:bg-red-50/50 dark:hover:bg-red-950/10")}>
+            <div className="flex items-start gap-3">
+              <div className={cn("w-12 h-14 rounded-lg flex items-center justify-center shrink-0 transition-colors",
+                libraryTab === "pcw" ? "bg-red-500 text-white" : "bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400")}>
+                <BookOpen className="w-6 h-6" />
+              </div>
+              <div>
+                <p className={cn("text-sm font-bold", libraryTab === "pcw" ? "text-red-700 dark:text-red-300" : "text-foreground")}>PCW VAW Desk Handbook</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">Barangay VAW Desk Handbook (PCW, 2012) — JMC 2010-2</p>
+                <p className="text-[10px] text-muted-foreground mt-1">Service protocol, BPO process, referral system, forms</p>
+              </div>
+            </div>
+            {libraryTab === "pcw" && <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-red-500" />}
+          </button>
+          <button onClick={() => setLibraryTab("ra9262")}
+            className={cn("relative p-5 rounded-xl border-2 text-left transition-all",
+              libraryTab === "ra9262" ? "border-violet-500 bg-violet-50 dark:bg-violet-950/30 shadow-md" : "border-border hover:border-violet-300 hover:bg-violet-50/50 dark:hover:bg-violet-950/10")}>
+            <div className="flex items-start gap-3">
+              <div className={cn("w-12 h-14 rounded-lg flex items-center justify-center shrink-0 transition-colors",
+                libraryTab === "ra9262" ? "bg-violet-500 text-white" : "bg-violet-100 dark:bg-violet-900 text-violet-600 dark:text-violet-400")}>
+                <Shield className="w-6 h-6" />
+              </div>
+              <div>
+                <p className={cn("text-sm font-bold", libraryTab === "ra9262" ? "text-violet-700 dark:text-violet-300" : "text-foreground")}>RA 9262 — Anti-VAWC Act</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">Republic Act No. 9262 (2004) — Anti-Violence Against Women and Their Children Act</p>
+                <p className="text-[10px] text-muted-foreground mt-1">Protection orders, penalties, victim rights, definitions</p>
+              </div>
+            </div>
+            {libraryTab === "ra9262" && <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-violet-500" />}
+          </button>
+        </div>
+
+        {/* Book Content */}
+        <div className="max-h-[55vh] overflow-y-auto rounded-xl border border-border bg-background">
+          {libraryTab === "pcw" ? (
+            <div className="p-6 space-y-1">
+              <div className="flex items-center justify-between pb-4 mb-4 border-b border-border">
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-red-500 font-semibold">JMC 2010-2 — DILG / DSWD / DOH / DepEd / PCW</p>
+                  <p className="text-sm font-bold text-foreground mt-0.5">Barangay VAW Desk Handbook</p>
+                </div>
+                <a href="/references/vawc-pcw-handbook.pdf" download="PCW-VAW-Desk-Handbook.pdf"
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 hover:bg-red-100 transition-colors ml-3">
+                  <Download className="h-3.5 w-3.5" /> Download PDF
+                </a>
+              </div>
+              <div className="space-y-0">
+                {[
+                  { id: "pcw-legal", title: "Legal Basis", content: (
+                    <div className="space-y-2 text-sm text-foreground leading-relaxed">
+                      <p>The Barangay VAW Desk is established under the following laws:</p>
+                      <ul className="space-y-1.5 list-disc ml-4">
+                        <li><strong>RA 9262</strong> (2004) — Anti-Violence Against Women and Their Children Act — primary law</li>
+                        <li><strong>RA 9710</strong> (2008) — Magna Carta of Women, Section 12D — mandates VAW Desk in every barangay</li>
+                        <li><strong>JMC 2010-2</strong> — Joint Memorandum Circular by DILG, DSWD, DOH, DepEd, PCW — implementing guidelines</li>
+                        <li><strong>RA 7877</strong> — Anti-Sexual Harassment Act (1995)</li>
+                        <li><strong>RA 8353</strong> — Anti-Rape Law (1997)</li>
+                        <li><strong>RA 9208</strong> — Anti-Trafficking in Persons Act (2003)</li>
+                      </ul>
+                      <p className="mt-3 p-3 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 text-red-800 dark:text-red-200 font-semibold text-xs">
+                        CRITICAL: VAWC is a criminal offense. No amicable settlement under Katarungang Pambarangay applies. Barangay cannot mediate, conciliate, or arbitrate VAWC cases — only refer and support.
+                      </p>
+                    </div>
+                  )},
+                  { id: "pcw-victims", title: "Who is a Victim Under RA 9262", content: (
+                    <div className="space-y-3 text-sm text-foreground">
+                      <p>A woman who is:</p>
+                      <ul className="space-y-1.5 list-disc ml-4">
+                        <li>Wife or <strong>former wife</strong> of the offender</li>
+                        <li>Woman with whom offender has or <strong>had a sexual or dating relationship</strong></li>
+                        <li>Woman with whom offender has a <strong>common child</strong> (married or not)</li>
+                        <li>Children of such a woman (including those under her care)</li>
+                      </ul>
+                    </div>
+                  )},
+                  { id: "pcw-types", title: "4 Forms of Violence Under RA 9262", content: (
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        { label: "Physical Violence", color: "red", desc: "Bodily harm, battering, physical assault, threats of attack" },
+                        { label: "Sexual Violence", color: "violet", desc: "Rape, marital rape, sexual harassment, forced prostitution, obscene content" },
+                        { label: "Psychological Violence", color: "amber", desc: "Emotional abuse, harassment, stalking, public humiliation, controlling behavior, isolation" },
+                        { label: "Economic Abuse", color: "emerald", desc: "Destroying property, controlling finances, preventing employment, withholding financial support" },
+                      ].map((t) => (
+                        <div key={t.label} className={`p-3 rounded-lg bg-${t.color}-50 dark:bg-${t.color}-950/20 border border-${t.color}-200 dark:border-${t.color}-900`}>
+                          <p className={`text-xs font-bold text-${t.color}-700 dark:text-${t.color}-300 mb-1`}>{t.label}</p>
+                          <p className="text-xs text-muted-foreground leading-relaxed">{t.desc}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )},
+                  { id: "pcw-protocol", title: "7-Step Service Delivery Protocol", content: (
+                    <div className="space-y-2">
+                      {[
+                        { step: 1, label: "Make victim comfortable", desc: "Safe private room, water, food, first aid. Ensure her immediate safety and that of her children." },
+                        { step: 2, label: "Assess situation", desc: "Get initial info, determine risks, check if medical attention is needed immediately." },
+                        { step: 3, label: "Emergency referral", desc: "If urgent: refer to nearest medical facility immediately. Fill intake and referral forms." },
+                        { step: 4, label: "Interview", desc: "Gender-sensitive, non-judgmental. Victim tells her story in her own language. No repeated questioning." },
+                        { step: 5, label: "Inform of rights", desc: "Explain RA 9262 rights, available remedies, BPO process. Assist filing if she decides to proceed." },
+                        { step: 6, label: "Record using VAW DocS", desc: "Transfer data to VAW DocS Intake Form (Annex A). Keep records confidential and secured." },
+                        { step: 7, label: "Report within 4 hours", desc: "Mandatory report to PNP (WCPD) and C/MSWDO within 4 hours of receiving the report." },
+                      ].map((s) => (
+                        <div key={s.step} className="flex items-start gap-3 p-3 rounded-lg border border-border">
+                          <span className="w-6 h-6 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">{s.step}</span>
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">{s.label}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{s.desc}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )},
+                  { id: "pcw-bpo", title: "Protection Orders (BPO → TPO → PPO)", content: (
+                    <div className="space-y-3">
+                      <div className="overflow-hidden rounded-xl border border-border">
+                        <table className="w-full text-sm">
+                          <thead><tr className="bg-muted/50"><th className="text-left px-4 py-2.5 text-xs font-semibold">Type</th><th className="text-left px-4 py-2.5 text-xs font-semibold">Issued By</th><th className="text-left px-4 py-2.5 text-xs font-semibold">Timeline</th><th className="text-left px-4 py-2.5 text-xs font-semibold">Duration</th></tr></thead>
+                          <tbody className="divide-y divide-border">
+                            <tr><td className="px-4 py-3 font-medium text-amber-600 dark:text-amber-400">BPO</td><td className="px-4 py-3 text-xs text-muted-foreground">Punong Barangay / Kagawad (if PB absent)</td><td className="px-4 py-3 text-xs text-muted-foreground">Issued on day of filing — ex parte</td><td className="px-4 py-3 text-xs font-semibold">15 days</td></tr>
+                            <tr><td className="px-4 py-3 font-medium text-blue-600 dark:text-blue-400">TPO</td><td className="px-4 py-3 text-xs text-muted-foreground">Family Court</td><td className="px-4 py-3 text-xs text-muted-foreground">Within 24 hours of BPO issuance</td><td className="px-4 py-3 text-xs font-semibold">30 days</td></tr>
+                            <tr><td className="px-4 py-3 font-medium text-violet-600 dark:text-violet-400">PPO</td><td className="px-4 py-3 text-xs text-muted-foreground">Family Court</td><td className="px-4 py-3 text-xs text-muted-foreground">After full hearing</td><td className="px-4 py-3 text-xs font-semibold">Permanent</td></tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <p className="text-xs text-muted-foreground">BPO does NOT preclude the victim from also applying for TPO or PPO directly from the Family Court. She may apply for TPO/PPO instead of BPO.</p>
+                    </div>
+                  )},
+                  { id: "pcw-forms", title: "Official VAW Forms (Annexes)", content: (
+                    <div className="space-y-2 text-sm">
+                      {[
+                        { annex: "Annex A", name: "VAW DocS Intake Form", desc: "National VAW Documentation System barangay intake form — main case record" },
+                        { annex: "Annex B", name: "Referral Form", desc: "Used when referring victim to other agencies or service providers" },
+                        { annex: "Annex C", name: "Feedback Form", desc: "Follow-up feedback from referral agencies" },
+                        { annex: "Annex D", name: "BPO Application Form", desc: "Barangay Protection Order application filed by or on behalf of victim" },
+                        { annex: "Annex H", name: "Monthly Report Form", desc: "Breakdown by nature: RA 9262 (Physical/Sexual/Psychological/Economic), RA 8353 (Rape), RA 9208 (Trafficking), RA 7877 (Harassment)" },
+                      ].map((f) => (
+                        <div key={f.annex} className="flex items-start gap-3 p-3 rounded-lg border border-border">
+                          <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-300 shrink-0 mt-0.5">{f.annex}</span>
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">{f.name}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{f.desc}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )},
+                  { id: "pcw-reporting", title: "Reporting Requirements", content: (
+                    <div className="space-y-2">
+                      {[
+                        { time: "Within 4 hours", desc: "Report each incident to PNP (Women and Children Protection Desk) and C/MSWDO" },
+                        { time: "Quarterly", desc: "Submit report on all VAW cases to DILG City/Municipal Field Office and C/MSWDO" },
+                        { time: "Annually", desc: "Include VAW cases in GAD Plans and Programs (funded from minimum 5% LGU GAD budget)" },
+                      ].map((r) => (
+                        <div key={r.time} className="flex items-start gap-3 p-3 rounded-lg border border-border">
+                          <Clock className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="text-sm font-bold text-foreground">{r.time}</span>
+                            <p className="text-xs text-muted-foreground mt-0.5">{r.desc}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )},
+                ].map((section) => (
+                  <LibrarySection key={section.id} id={section.id} title={section.title} accent="red">
+                    {section.content}
+                  </LibrarySection>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="p-6 space-y-1">
+              <div className="flex items-center justify-between pb-4 mb-4 border-b border-border">
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-violet-500 font-semibold">Republic Act No. 9262 — Signed March 8, 2004</p>
+                  <p className="text-sm font-bold text-foreground mt-0.5">Anti-Violence Against Women and Their Children Act</p>
+                </div>
+              </div>
+              <div className="space-y-0">
+                {[
+                  { id: "ra-scope", title: "Scope and Purpose", content: (
+                    <div className="space-y-3 text-sm text-foreground leading-relaxed">
+                      <p>RA 9262 recognizes that violence against women and children is a public concern and a human rights violation. It applies to all women who are or were in an intimate relationship with a man, regardless of marital status.</p>
+                      <p>The law covers violence committed by a husband, former husband, or any person against a woman with whom he has or had a sexual or dating relationship, or with whom he has a common child.</p>
+                    </div>
+                  )},
+                  { id: "ra-rights", title: "Rights of the Victim", content: (
+                    <div className="space-y-2 text-sm">
+                      {[
+                        "Be treated with respect and dignity",
+                        "Avail of legal assistance from PAO (Public Attorney's Office) or private counsel",
+                        "Be entitled to support from the offender",
+                        "Have her name and address withheld from public records",
+                        "Be protected by government from threats of arrest if she has been detained",
+                        "Be entitled to the same custody and support rights as before the violence",
+                        "Exclusive use and occupancy of the family dwelling during proceedings",
+                        "Emergency protective order from the police",
+                      ].map((r, i) => (
+                        <div key={i} className="flex items-start gap-2 p-2 rounded-lg border border-border">
+                          <Scale className="w-3.5 h-3.5 text-violet-500 shrink-0 mt-0.5" />
+                          <p className="text-xs text-foreground">{r}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )},
+                  { id: "ra-penalties", title: "Penalties", content: (
+                    <div className="space-y-3 text-sm">
+                      <div className="overflow-hidden rounded-xl border border-border">
+                        <table className="w-full text-xs">
+                          <thead><tr className="bg-muted/50"><th className="text-left px-4 py-2.5 font-semibold">Act</th><th className="text-left px-4 py-2.5 font-semibold">Penalty</th></tr></thead>
+                          <tbody className="divide-y divide-border">
+                            <tr><td className="px-4 py-3">Causing physical harm</td><td className="px-4 py-3 font-medium">Prision mayor (6 yrs 1 day — 12 yrs)</td></tr>
+                            <tr><td className="px-4 py-3">Threatening physical harm</td><td className="px-4 py-3 font-medium">Prision correccional (6 mos 1 day — 6 yrs)</td></tr>
+                            <tr><td className="px-4 py-3">Psychological violence (e.g., infidelity)</td><td className="px-4 py-3 font-medium">Prision mayor + mandatory counseling</td></tr>
+                            <tr><td className="px-4 py-3">Economic abuse</td><td className="px-4 py-3 font-medium">Arresto mayor (1 month 1 day — 6 mos)</td></tr>
+                            <tr><td className="px-4 py-3">Violation of BPO</td><td className="px-4 py-3 font-medium text-red-600">Imprisonment 30 days + fine ₱5,000</td></tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )},
+                  { id: "ra-bpo-detail", title: "BPO — Barangay Protection Order (Section 14)", content: (
+                    <div className="space-y-3 text-sm text-foreground leading-relaxed">
+                      <ul className="space-y-2 list-disc ml-4">
+                        <li>Issued by the <strong>Punong Barangay</strong> or any <strong>Barangay Kagawad</strong> if PB is unavailable</li>
+                        <li>Issued <strong>ex parte</strong> (without the presence of the respondent) on the same day of filing</li>
+                        <li>Effective for <strong>15 days</strong></li>
+                        <li>Prohibits respondent from committing further acts of violence and from contacting the victim</li>
+                        <li>Does NOT prevent victim from also applying for TPO or PPO at the Family Court</li>
+                        <li><strong>Violation of BPO</strong>: imprisonment of 30 days + fine not less than ₱5,000 — to be imposed by the MTC</li>
+                        <li>Barangay official who fails to issue BPO within prescribed period faces disciplinary action</li>
+                      </ul>
+                      <div className="p-3 rounded-lg bg-violet-50 dark:bg-violet-950/20 border border-violet-200 dark:border-violet-900">
+                        <p className="text-xs font-semibold text-violet-700 dark:text-violet-300">No Filing Fee. No Bond Required.</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">Victim-survivors shall not be required to pay docket fees and other fees for the filing of the application for protection order.</p>
+                      </div>
+                    </div>
+                  )},
+                  { id: "ra-confidentiality", title: "Confidentiality (Section 44)", content: (
+                    <div className="space-y-3 text-sm text-foreground leading-relaxed">
+                      <p>All records pertaining to VAWC cases — whether before the barangay, court, or any government agency — shall be confidential and must not be disclosed to the public.</p>
+                      <ul className="space-y-1.5 list-disc ml-4">
+                        <li>Victim&apos;s address, contact number, and place of work must not appear in any public document</li>
+                        <li>Court proceedings are closed to the public</li>
+                        <li>Records must be sealed and cannot be accessed without court order</li>
+                        <li>Any person who violates confidentiality faces <strong>1 year imprisonment and/or fine of ₱500 to ₱5,000</strong></li>
+                      </ul>
+                      <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900">
+                        <p className="text-xs font-semibold text-red-700 dark:text-red-300">RA 10173 (Data Privacy Act) also applies.</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">All VAWC data in this system is encrypted and access is logged per RA 10173 compliance requirements.</p>
+                      </div>
+                    </div>
+                  )},
+                ].map((section) => (
+                  <LibrarySection key={section.id} id={section.id} title={section.title} accent="violet">
+                    {section.content}
+                  </LibrarySection>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </Modal>
 
       {/* Toast */}
       <div className="fixed bottom-6 right-6 z-[100] flex flex-col gap-2">
