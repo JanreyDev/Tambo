@@ -249,34 +249,79 @@ function FormInput({
   );
 }
 
-function FormSelect({
-  label, value, onChange, options, required, error, hint,
+function FormCombobox({
+  label, value, onChange, options, required, error, hint, placeholder,
 }: {
   label: string; value: string; onChange: (v: string) => void;
   options: { value: string; label: string }[] | string[];
-  required?: boolean; error?: string; hint?: string;
+  required?: boolean; error?: string; hint?: string; placeholder?: string;
 }) {
-  const normalizedOptions = options.map((o) =>
-    typeof o === "string" ? { value: o, label: o } : o
-  );
+  const normalized = options.map((o) => typeof o === "string" ? { value: o, label: o } : o);
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [dropUp, setDropUp] = useState(false);
+  const selected = normalized.find((o) => o.value === value);
+  const filtered = query ? normalized.filter((o) => o.label.toLowerCase().includes(query.toLowerCase())) : normalized;
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const handleOpen = () => {
+    if (wrapperRef.current) {
+      const rect = wrapperRef.current.getBoundingClientRect();
+      setDropUp(window.innerHeight - rect.bottom < 240);
+    }
+    setQuery("");
+    setOpen(true);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  };
+
   return (
-    <div>
+    <div ref={wrapperRef} className="relative">
       <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">
         {label}{required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className={cn(
-          "w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring",
-          error && "border-red-500"
-        )}
-      >
-        <option value="">-- Select --</option>
-        {normalizedOptions.map((o) => (
-          <option key={o.value} value={o.value}>{o.label}</option>
-        ))}
-      </select>
+      {open ? (
+        <div className={cn("w-full flex items-center gap-2 px-3 py-2 text-sm rounded-xl border bg-background focus-within:ring-2", error ? "border-red-500 focus-within:ring-red-300" : "border-accent-primary focus-within:ring-accent-ring")}>
+          <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <input ref={inputRef} value={query} onChange={(e) => setQuery(e.target.value)}
+            placeholder={`Search...`}
+            className="flex-1 bg-transparent text-foreground outline-none placeholder:text-muted-foreground text-sm" />
+          <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground"><X className="h-3.5 w-3.5" /></button>
+        </div>
+      ) : (
+        <button type="button" onClick={handleOpen}
+          className={cn("w-full flex items-center justify-between px-3 py-2 text-sm rounded-xl border glass-input text-left hover:opacity-90 transition-opacity",
+            error ? "border-red-500" : "border-border",
+            selected ? "text-foreground" : "text-muted-foreground")}>
+          <span>{selected ? selected.label : (placeholder ?? "Select...")}</span>
+          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 rotate-90" />
+        </button>
+      )}
+      {open && (
+        <div className={cn("absolute left-0 right-0 z-[9999] bg-white dark:bg-slate-800 border border-border rounded-xl shadow-xl overflow-hidden", dropUp ? "bottom-full mb-1" : "top-full mt-1")}>
+          <div className="max-h-52 overflow-y-auto">
+            {filtered.length > 0 ? filtered.map((o) => (
+              <button key={o.value} type="button"
+                onClick={() => { onChange(o.value); setOpen(false); setQuery(""); }}
+                className={cn("w-full text-left px-3 py-2 text-sm hover:bg-orange-50 dark:hover:bg-slate-700 hover:text-orange-700 dark:hover:text-orange-300 transition-colors",
+                  o.value === value ? "bg-orange-50 dark:bg-slate-700 text-orange-700 dark:text-orange-300 font-medium" : "text-slate-800 dark:text-slate-100")}>
+                {o.label}
+              </button>
+            )) : (
+              <p className="px-3 py-4 text-xs text-center text-muted-foreground">No matches for &ldquo;{query}&rdquo;</p>
+            )}
+          </div>
+        </div>
+      )}
       {hint && <p className="text-[10px] text-muted-foreground mt-1">{hint}</p>}
       {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
     </div>
@@ -564,7 +609,7 @@ export default function VawcPage() {
     switch (formTab) {
       case 0: return (
         <div className="grid grid-cols-2 gap-4">
-          <FormSelect
+          <FormCombobox
             label="Type of Violence" value={form.incident_type}
             onChange={(v) => updateForm("incident_type", v)}
             options={INCIDENT_TYPES} required error={formErrors.incident_type}
@@ -598,13 +643,13 @@ export default function VawcPage() {
             rows={5} colSpan2
             placeholder="Describe the incident in detail — what happened, injuries observed, circumstances, and any witnesses."
           />
-          <FormSelect
+          <FormCombobox
             label="Case Status" value={form.status}
             onChange={(v) => updateForm("status", v)}
             options={CASE_STATUSES}
           />
           <div className="grid grid-cols-2 gap-4">
-            <FormSelect
+            <FormCombobox
               label="Logbook Type" value={form.logbook_type}
               onChange={(v) => updateForm("logbook_type", v)}
               options={LOGBOOK_TYPES}
@@ -635,7 +680,7 @@ export default function VawcPage() {
             onChange={(v) => updateForm("victim_dob", v)}
             type="date"
           />
-          <FormSelect
+          <FormCombobox
             label="Civil Status" value={form.victim_civil_status}
             onChange={(v) => updateForm("victim_civil_status", v)}
             options={CIVIL_STATUSES}
@@ -657,7 +702,7 @@ export default function VawcPage() {
             onChange={(v) => updateForm("victim_occupation", v)}
             placeholder="e.g. Housewife, Teacher"
           />
-          <FormSelect
+          <FormCombobox
             label="Monthly Income Range" value={form.victim_income_range}
             onChange={(v) => updateForm("victim_income_range", v)}
             options={INCOME_RANGES}
@@ -680,7 +725,7 @@ export default function VawcPage() {
             required error={formErrors.respondent_name_encrypted}
             placeholder="Full name"
           />
-          <FormSelect
+          <FormCombobox
             label="Relationship to Victim" value={form.respondent_relationship}
             onChange={(v) => updateForm("respondent_relationship", v)}
             options={RELATIONSHIPS} required error={formErrors.respondent_relationship}
@@ -690,7 +735,7 @@ export default function VawcPage() {
             onChange={(v) => updateForm("respondent_dob", v)}
             type="date"
           />
-          <FormSelect
+          <FormCombobox
             label="Civil Status" value={form.respondent_civil_status}
             onChange={(v) => updateForm("respondent_civil_status", v)}
             options={CIVIL_STATUSES}
@@ -1026,15 +1071,13 @@ export default function VawcPage() {
         size="lg"
         footer={
           <div className="flex items-center justify-between w-full">
+            <ModalButton variant="secondary" onClick={closeForm}>Cancel</ModalButton>
             <div className="flex items-center gap-2">
               {formTab > 0 && (
                 <ModalButton variant="secondary" onClick={() => setFormTab((t) => t - 1)}>
                   <ChevronLeft className="w-4 h-4 mr-1" /> Back
                 </ModalButton>
               )}
-            </div>
-            <div className="flex items-center gap-2">
-              <ModalButton variant="secondary" onClick={closeForm}>Cancel</ModalButton>
               {formTab < FORM_TABS.length - 1 ? (
                 <ModalButton variant="primary" onClick={() => setFormTab((t) => t + 1)}>
                   Next <ChevronRight className="w-4 h-4 ml-1" />
