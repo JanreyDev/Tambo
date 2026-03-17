@@ -172,7 +172,6 @@ export default function BlotterPage() {
   // Filters
   const [search, setSearch]           = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [statusFilter, setStatusFilter]   = useState("");
   const [typeFilter, setTypeFilter]       = useState("");
   const [showFilters, setShowFilters]     = useState(false);
   const [page, setPage]                   = useState(1);
@@ -203,7 +202,7 @@ export default function BlotterPage() {
   }, [search]);
 
   // Reset page on filter change
-  useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter, typeFilter]);
+  useEffect(() => { setPage(1); }, [debouncedSearch, typeFilter]);
 
   // Fetch blotters
   const fetchBlotters = useCallback(async () => {
@@ -211,7 +210,6 @@ export default function BlotterPage() {
     try {
       const res = await api.blotters.list({
         search: debouncedSearch || undefined,
-        status: statusFilter || undefined,
         incident_type: typeFilter || undefined,
         page,
         per_page: perPage,
@@ -226,7 +224,7 @@ export default function BlotterPage() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, statusFilter, typeFilter, page, addToast]);
+  }, [debouncedSearch, typeFilter, page, addToast]);
 
   useEffect(() => { fetchBlotters(); }, [fetchBlotters]);
 
@@ -431,13 +429,13 @@ export default function BlotterPage() {
           </div>
           <button onClick={() => setShowFilters(!showFilters)}
             className={cn("flex items-center gap-1.5 px-3 h-9 text-sm rounded-lg border transition-colors",
-              showFilters || typeFilter || statusFilter
+              showFilters || typeFilter
                 ? "border-accent-primary bg-accent-bg text-accent-text"
                 : "border-border hover:bg-muted text-muted-foreground")}>
             <Filter className="h-4 w-4" />
-            {(typeFilter || statusFilter) && (
+            {typeFilter && (
               <span className="w-4 h-4 rounded-full bg-accent-primary text-white text-[10px] font-bold flex items-center justify-center">
-                {[typeFilter, statusFilter].filter(Boolean).length}
+                1
               </span>
             )}
           </button>
@@ -449,24 +447,6 @@ export default function BlotterPage() {
         </div>
         {showFilters && (
           <div className="rounded-xl border border-border bg-card divide-y divide-border">
-            {/* Status */}
-            <div className="flex items-start gap-4 px-4 py-3">
-              <span className="text-[11px] font-semibold text-muted-foreground w-16 shrink-0 pt-1">Status</span>
-              <div className="flex flex-wrap gap-1.5 flex-1">
-                {[{ value: "", label: "All" }, ...STATUS_OPTIONS.map((s) => ({ value: s.value, label: s.label, color: s.color }))].map((s) => (
-                  <button key={s.value} onClick={() => setStatusFilter(s.value)}
-                    className={cn("px-3 py-1 text-xs font-medium rounded-lg border transition-colors",
-                      statusFilter === s.value
-                        ? "border-accent-primary bg-accent-bg text-accent-text"
-                        : "border-border text-muted-foreground hover:bg-muted hover:text-foreground")}>
-                    {"color" in s && s.color && s.value && (
-                      <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5" style={{ background: s.color }} />
-                    )}
-                    {s.label}
-                  </button>
-                ))}
-              </div>
-            </div>
             {/* Incident Type */}
             <div className="flex items-start gap-4 px-4 py-3">
               <span className="text-[11px] font-semibold text-muted-foreground w-16 shrink-0 pt-1">Type</span>
@@ -482,9 +462,9 @@ export default function BlotterPage() {
                 ))}
               </div>
             </div>
-            {(typeFilter || statusFilter) && (
+            {typeFilter && (
               <div className="flex justify-end px-4 py-2">
-                <button onClick={() => { setTypeFilter(""); setStatusFilter(""); }}
+                <button onClick={() => { setTypeFilter(""); }}
                   className="flex items-center gap-1 text-xs text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 px-2.5 py-1 rounded-lg border border-red-200 dark:border-red-900/40 transition-colors">
                   <X className="h-3 w-3" /> Clear filters
                 </button>
