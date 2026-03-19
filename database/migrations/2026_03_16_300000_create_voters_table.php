@@ -11,7 +11,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('voters', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
+            $table->uuid('id')->primary();
             $table->uuid('barangay_id');
             $table->string('last_name', 100);
             $table->string('first_name', 100);
