@@ -43,7 +43,9 @@ build:
     - pnpm install --frozen-lockfile
   script:
     - export NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL_PRODUCTION}"
+    - export NEXT_PUBLIC_SENTRY_DSN="${NEXT_PUBLIC_SENTRY_DSN}"
     - echo "Building with API URL -> ${NEXT_PUBLIC_API_URL}"
+    - echo "Sentry DSN -> ${NEXT_PUBLIC_SENTRY_DSN:+SET}"
     - pnpm build
     - |
       # Bundle size check (Principle 9: Fast on Slow Hardware)
