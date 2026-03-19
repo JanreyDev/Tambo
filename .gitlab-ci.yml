@@ -79,9 +79,9 @@ deploy_production:
     - |
       ssh root@152.42.223.52 << 'DEPLOY'
         set -e
-        LIVE="/var/www/bcmp-api"
-        NEW="/var/www/bcmp-api-new"
-        OLD="/var/www/bcmp-api-old"
+        LIVE="/var/www/bcmp/bcmp-api"
+        NEW="/var/www/bcmp/bcmp-api-new"
+        OLD="/var/www/bcmp/bcmp-api-old"
 
         rm -rf "$NEW"
         mkdir -p "$NEW"
