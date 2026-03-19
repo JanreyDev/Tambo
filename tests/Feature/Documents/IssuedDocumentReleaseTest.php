@@ -11,6 +11,8 @@ use App\Models\User;
 use Illuminate\Support\Facades\Http;
 
 beforeEach(function (): void {
+    config(['services.txtbox.api_key' => 'test-key-for-ci']);
+
     $this->barangay = Barangay::factory()->create([
         'sms_credit_balance' => 100.00,
     ]);
