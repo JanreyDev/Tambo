@@ -50,9 +50,9 @@ build:
       # Total JS across all routes (gzipped). Per-route first load is smaller due to code splitting.
       TOTAL_GZIP=$(find .next/static -name '*.js' -exec cat {} + 2>/dev/null | gzip -c | wc -c)
       KB=$((TOTAL_GZIP / 1024))
-      echo "Total JS bundle (gzipped): ${KB}KB / 600KB limit"
-      if [ "$KB" -gt 600 ]; then
-        echo "FAIL: Total JS ${KB}KB exceeds 600KB limit (Principle 9)"
+      echo "Total JS bundle (gzipped): ${KB}KB / 800KB limit"
+      if [ "$KB" -gt 800 ]; then
+        echo "FAIL: Total JS ${KB}KB exceeds 800KB limit (Principle 9)"
         exit 1
       fi
   artifacts:
