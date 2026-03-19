@@ -31,7 +31,7 @@ class KpCasePartyController extends Controller
             $query->where('party_type', $partyType);
         }
 
-        $sortBy  = $request->get('sort_by', 'created_at');
+        $sortBy = $request->get('sort_by', 'created_at');
         $sortDir = $request->get('sort_dir', 'asc');
 
         if (in_array($sortBy, ['full_name', 'party_type', 'created_at'])) {
@@ -53,25 +53,25 @@ class KpCasePartyController extends Controller
         $mode = $request->input('party_mode', 'individual');
 
         $rules = [
-            'case_id'      => ['required', 'uuid'],
-            'resident_id'  => ['nullable', 'uuid'],
-            'party_type'   => ['required', 'in:complainant,respondent'],
-            'party_mode'   => ['required', 'in:individual,group'],
-            'address'      => ['nullable', 'string', 'max:500'],
+            'case_id' => ['required', 'uuid'],
+            'resident_id' => ['nullable', 'uuid'],
+            'party_type' => ['required', 'in:complainant,respondent'],
+            'party_mode' => ['required', 'in:individual,group'],
+            'address' => ['nullable', 'string', 'max:500'],
             'mobile_number' => ['nullable', 'string', 'max:20'],
         ];
 
         if ($mode === 'individual') {
-            $rules['first_name']  = ['required', 'string', 'max:100'];
+            $rules['first_name'] = ['required', 'string', 'max:100'];
             $rules['middle_name'] = ['nullable', 'string', 'max:100'];
-            $rules['last_name']   = ['required', 'string', 'max:100'];
+            $rules['last_name'] = ['required', 'string', 'max:100'];
         } else {
             // group — full_name stores the raw comma-separated names (e.g. "JUAN SANTOS, et al.")
             $rules['full_name'] = ['required', 'string', 'max:500'];
         }
 
-        $validated   = $request->validate($rules);
-        $barangayId  = $request->user()->barangay_id;
+        $validated = $request->validate($rules);
+        $barangayId = $request->user()->barangay_id;
 
         // Derive full_name for individual mode (used for display + search)
         if ($mode === 'individual') {
@@ -91,7 +91,7 @@ class KpCasePartyController extends Controller
         // Auto-match resident by name (individual mode only — group names can't map to a single resident)
         if ($mode === 'individual' && empty($party->resident_id)) {
             $firstName = strtoupper(trim($validated['first_name']));
-            $lastName  = strtoupper(trim($validated['last_name']));
+            $lastName = strtoupper(trim($validated['last_name']));
 
             $matched = Resident::where('barangay_id', $barangayId)
                 ->whereRaw('UPPER(first_name) = ?', [$firstName])
@@ -104,7 +104,7 @@ class KpCasePartyController extends Controller
         }
 
         return response()->json([
-            'message'      => 'Case party added.',
+            'message' => 'Case party added.',
             'kp_case_party' => $party->fresh(),
         ], 201);
     }
@@ -119,19 +119,19 @@ class KpCasePartyController extends Controller
         $party = KpCaseParty::where('barangay_id', $request->user()->barangay_id)
             ->findOrFail($id);
 
-        $mode  = $request->input('party_mode', $party->party_mode ?? 'individual');
+        $mode = $request->input('party_mode', $party->party_mode ?? 'individual');
         $rules = [
-            'resident_id'   => ['nullable', 'uuid'],
-            'party_type'    => ['sometimes', 'in:complainant,respondent'],
-            'party_mode'    => ['sometimes', 'in:individual,group'],
-            'address'       => ['nullable', 'string', 'max:500'],
+            'resident_id' => ['nullable', 'uuid'],
+            'party_type' => ['sometimes', 'in:complainant,respondent'],
+            'party_mode' => ['sometimes', 'in:individual,group'],
+            'address' => ['nullable', 'string', 'max:500'],
             'mobile_number' => ['nullable', 'string', 'max:20'],
         ];
 
         if ($mode === 'individual') {
-            $rules['first_name']  = ['sometimes', 'string', 'max:100'];
+            $rules['first_name'] = ['sometimes', 'string', 'max:100'];
             $rules['middle_name'] = ['nullable', 'string', 'max:100'];
-            $rules['last_name']   = ['sometimes', 'string', 'max:100'];
+            $rules['last_name'] = ['sometimes', 'string', 'max:100'];
         } else {
             $rules['full_name'] = ['sometimes', 'string', 'max:500'];
         }
@@ -149,7 +149,7 @@ class KpCasePartyController extends Controller
         $party->update($validated);
 
         return response()->json([
-            'message'       => 'Case party updated.',
+            'message' => 'Case party updated.',
             'kp_case_party' => $party->fresh(),
         ]);
     }

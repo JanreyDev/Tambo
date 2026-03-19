@@ -34,8 +34,8 @@ class MarketplaceAdminController extends Controller
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'ilike', "%{$search}%")
-                  ->orWhere('sku', 'ilike', "%{$search}%")
-                  ->orWhere('supplier_name', 'ilike', "%{$search}%");
+                    ->orWhere('sku', 'ilike', "%{$search}%")
+                    ->orWhere('supplier_name', 'ilike', "%{$search}%");
             });
         }
 
@@ -71,25 +71,25 @@ class MarketplaceAdminController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'name'          => ['required', 'string', 'max:255'],
-            'description'   => ['nullable', 'string'],
-            'category'      => ['required', 'string', 'max:100'],
-            'price'         => ['required', 'numeric', 'min:0'],
+            'name' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'category' => ['required', 'string', 'max:100'],
+            'price' => ['required', 'numeric', 'min:0'],
             'original_price' => ['nullable', 'numeric', 'min:0'],
-            'stock_qty'     => ['required', 'integer', 'min:0'],
-            'unit'          => ['required', 'string', 'max:50'],
-            'sku'           => ['nullable', 'string', 'max:100', 'unique:marketplace_products,sku'],
+            'stock_qty' => ['required', 'integer', 'min:0'],
+            'unit' => ['required', 'string', 'max:50'],
+            'sku' => ['nullable', 'string', 'max:100', 'unique:marketplace_products,sku'],
             'supplier_name' => ['nullable', 'string', 'max:255'],
-            'is_active'     => ['boolean'],
-            'is_featured'   => ['boolean'],
-            'tag'           => ['nullable', 'string', 'max:50'],
+            'is_active' => ['boolean'],
+            'is_featured' => ['boolean'],
+            'tag' => ['nullable', 'string', 'max:50'],
         ]);
 
         $product = MarketplaceProduct::create([
             ...$validated,
-            'rating'       => 0.0,
+            'rating' => 0.0,
             'total_orders' => 0,
-            'created_by'   => $request->user()?->id,
+            'created_by' => $request->user()?->id,
         ]);
 
         return response()->json(['product' => $product], 201);
@@ -105,18 +105,18 @@ class MarketplaceAdminController extends Controller
         $product = MarketplaceProduct::findOrFail($id);
 
         $validated = $request->validate([
-            'name'          => ['sometimes', 'string', 'max:255'],
-            'description'   => ['nullable', 'string'],
-            'category'      => ['sometimes', 'string', 'max:100'],
-            'price'         => ['sometimes', 'numeric', 'min:0'],
+            'name' => ['sometimes', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'category' => ['sometimes', 'string', 'max:100'],
+            'price' => ['sometimes', 'numeric', 'min:0'],
             'original_price' => ['nullable', 'numeric', 'min:0'],
-            'stock_qty'     => ['sometimes', 'integer', 'min:0'],
-            'unit'          => ['sometimes', 'string', 'max:50'],
-            'sku'           => ['nullable', 'string', 'max:100', Rule::unique('marketplace_products', 'sku')->ignore($id)],
+            'stock_qty' => ['sometimes', 'integer', 'min:0'],
+            'unit' => ['sometimes', 'string', 'max:50'],
+            'sku' => ['nullable', 'string', 'max:100', Rule::unique('marketplace_products', 'sku')->ignore($id)],
             'supplier_name' => ['nullable', 'string', 'max:255'],
-            'is_active'     => ['sometimes', 'boolean'],
-            'is_featured'   => ['sometimes', 'boolean'],
-            'tag'           => ['nullable', 'string', 'max:50'],
+            'is_active' => ['sometimes', 'boolean'],
+            'is_featured' => ['sometimes', 'boolean'],
+            'tag' => ['nullable', 'string', 'max:50'],
         ]);
 
         $product->update([
@@ -178,8 +178,8 @@ class MarketplaceAdminController extends Controller
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('order_number', 'ilike', "%{$search}%")
-                  ->orWhere('contact_person', 'ilike', "%{$search}%")
-                  ->orWhere('po_number', 'ilike', "%{$search}%");
+                    ->orWhere('contact_person', 'ilike', "%{$search}%")
+                    ->orWhere('po_number', 'ilike', "%{$search}%");
             });
         }
 
@@ -207,7 +207,7 @@ class MarketplaceAdminController extends Controller
                 Rule::in(['unpaid', 'partial', 'paid', 'refunded']),
             ],
             'expected_delivery_date' => ['sometimes', 'nullable', 'date'],
-            'delivered_date'         => ['sometimes', 'nullable', 'date'],
+            'delivered_date' => ['sometimes', 'nullable', 'date'],
         ]);
 
         // If marking as delivered, auto-stamp delivered_date if not provided

@@ -10,17 +10,16 @@ use chillerlan\QRCode\QROptions;
  * Verifies that chillerlan/php-qrcode produces a real scannable SVG data URI,
  * not the old placeholder that just said "QR CODE" as text.
  */
-
 test('QR code library generates a valid SVG data URI', function (): void {
     $options = new QROptions([
-        'outputType'    => QRCode::OUTPUT_MARKUP_SVG,
-        'eccLevel'      => QRCode::ECC_M,
-        'addQuietzone'  => true,
+        'outputType' => QRCode::OUTPUT_MARKUP_SVG,
+        'eccLevel' => QRCode::ECC_M,
+        'addQuietzone' => true,
         'quietzoneSize' => 4,
-        'imageBase64'   => true,
+        'imageBase64' => true,
     ]);
 
-    $url     = 'https://verify.barangay.org.ph/abc123def456';
+    $url = 'https://verify.barangay.org.ph/abc123def456';
     $dataUri = (new QRCode($options))->render($url);
 
     // Must be a base64-encoded SVG data URI
@@ -45,9 +44,9 @@ test('QR code library generates a valid SVG data URI', function (): void {
 
 test('QR code encodes different URLs into different outputs', function (): void {
     $options = new QROptions([
-        'outputType'   => QRCode::OUTPUT_MARKUP_SVG,
-        'eccLevel'     => QRCode::ECC_M,
-        'imageBase64'  => true,
+        'outputType' => QRCode::OUTPUT_MARKUP_SVG,
+        'eccLevel' => QRCode::ECC_M,
+        'imageBase64' => true,
     ]);
 
     $qr = new QRCode($options);

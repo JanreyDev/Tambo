@@ -62,25 +62,25 @@ class DocumentPdfService
             : 'System';
 
         $data = [
-            'document'       => $document,
-            'barangay'       => $barangay,
-            'fields'         => $fields,
-            'sealDataUri'    => $sealDataUri,
-            'qrDataUri'      => $qrDataUri,
-            'issuedByName'   => $issuedByName,
-            'issuedAt'       => now()->setTimezone('Asia/Manila')->format('F d, Y h:i A'),
-            'caseType'       => $document->constituent_type,  // 'kp_case' | 'vawc_case' | 'blotter'
-            'documentTitle'  => $document->template_name,
+            'document' => $document,
+            'barangay' => $barangay,
+            'fields' => $fields,
+            'sealDataUri' => $sealDataUri,
+            'qrDataUri' => $qrDataUri,
+            'issuedByName' => $issuedByName,
+            'issuedAt' => now()->setTimezone('Asia/Manila')->format('F d, Y h:i A'),
+            'caseType' => $document->constituent_type,  // 'kp_case' | 'vawc_case' | 'blotter'
+            'documentTitle' => $document->template_name,
             'isConfidential' => (bool) ($fields['is_confidential'] ?? false),
         ];
 
         return Pdf::loadView('pdf.case-document', $data)
             ->setPaper('letter', 'portrait')
             ->setOptions([
-                'defaultFont'          => 'sans-serif',
-                'dpi'                  => 150,
+                'defaultFont' => 'sans-serif',
+                'dpi' => 150,
                 'isHtml5ParserEnabled' => true,
-                'isRemoteEnabled'      => false,
+                'isRemoteEnabled' => false,
             ])
             ->output();
     }

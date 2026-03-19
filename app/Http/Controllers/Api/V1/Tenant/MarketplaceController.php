@@ -51,6 +51,7 @@ class MarketplaceController extends Controller
     public function product(string $id): JsonResponse
     {
         $product = MarketplaceProduct::where('is_active', true)->findOrFail($id);
+
         return response()->json(['product' => $product]);
     }
 
@@ -66,7 +67,7 @@ class MarketplaceController extends Controller
             ->where('barangay_id', $user->barangay_id)
             ->with('product')
             ->get()
-            ->map(fn($item) => [
+            ->map(fn ($item) => [
                 'id' => $item->id,
                 'product' => $item->product,
                 'quantity' => $item->quantity,
@@ -122,6 +123,7 @@ class MarketplaceController extends Controller
     {
         $user = $request->user();
         MarketplaceCartItem::where('user_id', $user->id)->findOrFail($id)->delete();
+
         return response()->json(['message' => 'Removed from cart.']);
     }
 
@@ -191,9 +193,9 @@ class MarketplaceController extends Controller
         $seq = $lastOrder
             ? ((int) substr($lastOrder->order_number, -4)) + 1
             : 1;
-        $orderNumber = "ORD-{$year}-" . str_pad((string) $seq, 4, '0', STR_PAD_LEFT);
+        $orderNumber = "ORD-{$year}-".str_pad((string) $seq, 4, '0', STR_PAD_LEFT);
 
-        $subtotal = $cartItems->sum(fn($i) => $i->product->price * $i->quantity);
+        $subtotal = $cartItems->sum(fn ($i) => $i->product->price * $i->quantity);
 
         $order = MarketplaceOrder::create([
             ...$validated,

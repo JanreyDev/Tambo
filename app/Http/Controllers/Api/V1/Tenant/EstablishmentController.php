@@ -71,7 +71,7 @@ class EstablishmentController extends Controller
 
         // Active establishments always float to the top, regardless of secondary sort
         $query->orderByRaw("CASE WHEN status = 'active' THEN 0 ELSE 1 END")
-              ->orderBy($sortBy, $sortDir === 'desc' ? 'desc' : 'asc');
+            ->orderBy($sortBy, $sortDir === 'desc' ? 'desc' : 'asc');
 
         $perPage = min((int) $request->get('per_page', 25), 100);
 
@@ -106,10 +106,10 @@ class EstablishmentController extends Controller
         $totalDocuments = $total;
 
         return response()->json([
-            'total'            => $total,
-            'active'           => $activeThisYear,
-            'total_documents'  => $totalDocuments,
-            'current_year'     => $currentYear,
+            'total' => $total,
+            'active' => $activeThisYear,
+            'total_documents' => $totalDocuments,
+            'current_year' => $currentYear,
         ]);
     }
 
@@ -124,30 +124,30 @@ class EstablishmentController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'business_name'    => ['required', 'string', 'max:255'],
-            'business_type'    => ['required', 'string', 'max:100'],
-            'owner_resident_id'=> ['nullable', 'uuid'],
-            'owner_name'       => ['required', 'string', 'max:200'],
-            'owner_contact'    => ['required', 'string', 'max:20'],
-            'owner_email'      => ['nullable', 'string', 'max:255'],
-            'owner_address'    => ['nullable', 'string', 'max:500'],
-            'purok'            => ['nullable', 'string', 'max:100'],
-            'street'           => ['nullable', 'string', 'max:255'],
-            'exact_address'       => ['nullable', 'string'],
-            'registration_type'   => ['nullable', 'in:DTI,SEC'],
+            'business_name' => ['required', 'string', 'max:255'],
+            'business_type' => ['required', 'string', 'max:100'],
+            'owner_resident_id' => ['nullable', 'uuid'],
+            'owner_name' => ['required', 'string', 'max:200'],
+            'owner_contact' => ['required', 'string', 'max:20'],
+            'owner_email' => ['nullable', 'string', 'max:255'],
+            'owner_address' => ['nullable', 'string', 'max:500'],
+            'purok' => ['nullable', 'string', 'max:100'],
+            'street' => ['nullable', 'string', 'max:255'],
+            'exact_address' => ['nullable', 'string'],
+            'registration_type' => ['nullable', 'in:DTI,SEC'],
             'registration_number' => ['nullable', 'string', 'max:100'],
-            'registration_date'   => ['nullable', 'date'],
-            'permit_number'       => ['nullable', 'string', 'max:100'],
-            'permit_expiry'       => ['nullable', 'date'],
-            'status'              => ['nullable', 'in:active,inactive,closed,suspended'],
-            'latitude'            => ['nullable', 'numeric', 'between:-90,90'],
-            'longitude'           => ['nullable', 'numeric', 'between:-180,180'],
+            'registration_date' => ['nullable', 'date'],
+            'permit_number' => ['nullable', 'string', 'max:100'],
+            'permit_expiry' => ['nullable', 'date'],
+            'status' => ['nullable', 'in:active,inactive,closed,suspended'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
         ]);
 
         $barangayId = $request->user()->barangay_id;
-        $barangay   = Barangay::findOrFail($barangayId);
-        $psgcCode   = $barangay->psgc_code;
-        $phYear     = now()->timezone('Asia/Manila')->year;
+        $barangay = Barangay::findOrFail($barangayId);
+        $psgcCode = $barangay->psgc_code;
+        $phYear = now()->timezone('Asia/Manila')->year;
 
         if (! $psgcCode) {
             return response()->json([
@@ -156,7 +156,7 @@ class EstablishmentController extends Controller
         }
 
         // Generate EST-{PSGC}-{YEAR}-{XXXX} — sequential per barangay per year
-        $prefix  = "EST-{$psgcCode}-{$phYear}-";
+        $prefix = "EST-{$psgcCode}-{$phYear}-";
         $lastSeq = Establishment::where('barangay_id', $barangayId)
             ->where('establishment_number', 'like', "{$prefix}%")
             ->orderByRaw("CAST(SPLIT_PART(establishment_number, '-', 4) AS INTEGER) DESC")
@@ -166,36 +166,36 @@ class EstablishmentController extends Controller
             ? (int) substr($lastSeq, strrpos($lastSeq, '-') + 1) + 1
             : 1;
 
-        $establishmentNumber = $prefix . str_pad((string) $nextSeq, 4, '0', STR_PAD_LEFT);
+        $establishmentNumber = $prefix.str_pad((string) $nextSeq, 4, '0', STR_PAD_LEFT);
 
         $establishment = Establishment::create([
             ...$validated,
-            'barangay_id'          => $barangayId,
+            'barangay_id' => $barangayId,
             'establishment_number' => $establishmentNumber,
-            'status'               => $validated['status'] ?? 'active',
-            'created_by'           => $request->user()->id,
+            'status' => $validated['status'] ?? 'active',
+            'created_by' => $request->user()->id,
         ]);
 
         // Log initial "new" transaction
         EstablishmentTransaction::create([
-            'barangay_id'        => $barangayId,
-            'establishment_id'   => $establishment->id,
-            'transaction_type'   => 'new',
-            'year'               => $phYear,
-            'created_by'         => $request->user()->id,
-            'created_at'         => now(),
+            'barangay_id' => $barangayId,
+            'establishment_id' => $establishment->id,
+            'transaction_type' => 'new',
+            'year' => $phYear,
+            'created_by' => $request->user()->id,
+            'created_at' => now(),
         ]);
 
         $this->logAudit($request, 'created', $establishment, [
             'establishment_number' => $establishmentNumber,
-            'business_name'        => $establishment->business_name,
-            'business_type'        => $establishment->business_type,
-            'owner_name'           => $establishment->owner_name,
-            'status'               => $establishment->status,
+            'business_name' => $establishment->business_name,
+            'business_type' => $establishment->business_type,
+            'owner_name' => $establishment->owner_name,
+            'status' => $establishment->status,
         ]);
 
         return response()->json([
-            'message'       => 'Establishment created.',
+            'message' => 'Establishment created.',
             'establishment' => $establishment,
         ], 201);
     }
@@ -206,24 +206,24 @@ class EstablishmentController extends Controller
             ->findOrFail($id);
 
         $validated = $request->validate([
-            'business_name'    => ['sometimes', 'string', 'max:255'],
-            'business_type'    => ['sometimes', 'string', 'max:100'],
-            'owner_resident_id'=> ['nullable', 'uuid'],
-            'owner_name'       => ['sometimes', 'string', 'max:200'],
-            'owner_contact'    => ['sometimes', 'string', 'max:20'],
-            'owner_email'      => ['nullable', 'string', 'max:255'],
-            'owner_address'    => ['nullable', 'string', 'max:500'],
-            'purok'            => ['nullable', 'string', 'max:100'],
-            'street'           => ['nullable', 'string', 'max:255'],
-            'exact_address'       => ['nullable', 'string'],
-            'registration_type'   => ['nullable', 'in:DTI,SEC'],
+            'business_name' => ['sometimes', 'string', 'max:255'],
+            'business_type' => ['sometimes', 'string', 'max:100'],
+            'owner_resident_id' => ['nullable', 'uuid'],
+            'owner_name' => ['sometimes', 'string', 'max:200'],
+            'owner_contact' => ['sometimes', 'string', 'max:20'],
+            'owner_email' => ['nullable', 'string', 'max:255'],
+            'owner_address' => ['nullable', 'string', 'max:500'],
+            'purok' => ['nullable', 'string', 'max:100'],
+            'street' => ['nullable', 'string', 'max:255'],
+            'exact_address' => ['nullable', 'string'],
+            'registration_type' => ['nullable', 'in:DTI,SEC'],
             'registration_number' => ['nullable', 'string', 'max:100'],
-            'registration_date'   => ['nullable', 'date'],
-            'permit_number'       => ['nullable', 'string', 'max:100'],
-            'permit_expiry'       => ['nullable', 'date'],
-            'status'              => ['sometimes', 'in:active,inactive,closed,suspended'],
-            'latitude'            => ['nullable', 'numeric', 'between:-90,90'],
-            'longitude'           => ['nullable', 'numeric', 'between:-180,180'],
+            'registration_date' => ['nullable', 'date'],
+            'permit_number' => ['nullable', 'string', 'max:100'],
+            'permit_expiry' => ['nullable', 'date'],
+            'status' => ['sometimes', 'in:active,inactive,closed,suspended'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
         ]);
 
         // Capture before-state for diff
@@ -256,23 +256,23 @@ class EstablishmentController extends Controller
 
         $phYear = now()->timezone('Asia/Manila')->year;
 
-        $establishment->status     = 'active';
+        $establishment->status = 'active';
         $establishment->updated_by = $request->user()->id;
         $establishment->save();
 
         EstablishmentTransaction::create([
-            'barangay_id'      => $establishment->barangay_id,
+            'barangay_id' => $establishment->barangay_id,
             'establishment_id' => $establishment->id,
             'transaction_type' => 'renewal',
-            'year'             => $phYear,
-            'created_by'       => $request->user()->id,
-            'created_at'       => now(),
+            'year' => $phYear,
+            'created_by' => $request->user()->id,
+            'created_at' => now(),
         ]);
 
         $this->logAudit($request, 'renewed', $establishment, ['year' => $phYear, 'status' => 'active']);
 
         return response()->json([
-            'message'       => 'Establishment renewed.',
+            'message' => 'Establishment renewed.',
             'establishment' => $establishment->fresh(),
         ]);
     }
@@ -284,23 +284,23 @@ class EstablishmentController extends Controller
 
         $phYear = now()->timezone('Asia/Manila')->year;
 
-        $establishment->status     = 'closed';
+        $establishment->status = 'closed';
         $establishment->updated_by = $request->user()->id;
         $establishment->save();
 
         EstablishmentTransaction::create([
-            'barangay_id'      => $establishment->barangay_id,
+            'barangay_id' => $establishment->barangay_id,
             'establishment_id' => $establishment->id,
             'transaction_type' => 'closure',
-            'year'             => $phYear,
-            'created_by'       => $request->user()->id,
-            'created_at'       => now(),
+            'year' => $phYear,
+            'created_by' => $request->user()->id,
+            'created_at' => now(),
         ]);
 
         $this->logAudit($request, 'closed', $establishment, ['year' => $phYear, 'status' => 'closed']);
 
         return response()->json([
-            'message'       => 'Establishment marked as closed.',
+            'message' => 'Establishment marked as closed.',
             'establishment' => $establishment->fresh(),
         ]);
     }
@@ -313,18 +313,18 @@ class EstablishmentController extends Controller
         $phYear = now()->timezone('Asia/Manila')->year;
 
         EstablishmentTransaction::create([
-            'barangay_id'      => $establishment->barangay_id,
+            'barangay_id' => $establishment->barangay_id,
             'establishment_id' => $establishment->id,
             'transaction_type' => 'new',
-            'year'             => $phYear,
-            'created_by'       => $request->user()->id,
-            'created_at'       => now(),
+            'year' => $phYear,
+            'created_by' => $request->user()->id,
+            'created_at' => now(),
         ]);
 
         $this->logAudit($request, 'permit_issued', $establishment, ['year' => $phYear]);
 
         return response()->json([
-            'message'       => 'Business permit issued.',
+            'message' => 'Business permit issued.',
             'establishment' => $establishment->fresh(),
         ]);
     }
@@ -339,12 +339,12 @@ class EstablishmentController extends Controller
             ->orderBy('created_at', 'desc')
             ->get(['id', 'transaction_type', 'year', 'notes', 'created_at', 'created_by'])
             ->map(fn ($tx) => [
-                'id'               => $tx->id,
+                'id' => $tx->id,
                 'transaction_type' => $tx->transaction_type,
-                'year'             => $tx->year,
-                'notes'            => $tx->notes,
-                'created_at'       => $tx->created_at,
-                'generated_by'     => $tx->creator?->full_name ?? 'System',
+                'year' => $tx->year,
+                'notes' => $tx->notes,
+                'created_at' => $tx->created_at,
+                'generated_by' => $tx->creator?->full_name ?? 'System',
             ]);
 
         return response()->json(['transactions' => $transactions]);
@@ -382,10 +382,10 @@ class EstablishmentController extends Controller
         ]);
 
         $userMessage = trim($validated['message']);
-        $barangay     = $request->user()->barangay;
+        $barangay = $request->user()->barangay;
 
-        $message  = SmsService::formatWithSenderHeader($userMessage, $barangay);
-        $cost     = SmsService::calculateCost($message);
+        $message = SmsService::formatWithSenderHeader($userMessage, $barangay);
+        $cost = SmsService::calculateCost($message);
         $segments = SmsService::calculateSegments($message);
 
         if (! $barangay->hasSmsCredits($cost)) {
@@ -411,9 +411,9 @@ class EstablishmentController extends Controller
         $barangay->refresh();
 
         return response()->json([
-            'message'           => 'SMS sent successfully.',
-            'segments'          => $segments,
-            'cost'              => $cost,
+            'message' => 'SMS sent successfully.',
+            'segments' => $segments,
+            'cost' => $cost,
             'remaining_balance' => (float) $barangay->sms_credit_balance,
         ]);
     }
@@ -439,13 +439,13 @@ class EstablishmentController extends Controller
         $request->validate([
             'business_name' => ['required', 'string', 'max:255'],
             'business_type' => ['nullable', 'string', 'max:100'],
-            'exclude_id'    => ['nullable', 'uuid'],
+            'exclude_id' => ['nullable', 'uuid'],
         ]);
 
-        $barangayId    = $request->user()->barangay_id;
-        $businessName  = trim($request->input('business_name'));
-        $businessType  = trim($request->input('business_type', ''));
-        $excludeId     = $request->input('exclude_id');
+        $barangayId = $request->user()->barangay_id;
+        $businessName = trim($request->input('business_name'));
+        $businessType = trim($request->input('business_type', ''));
+        $excludeId = $request->input('exclude_id');
 
         $query = Establishment::where('barangay_id', $barangayId)
             ->whereRaw('LOWER(business_name) = LOWER(?)', [$businessName]);
@@ -465,7 +465,7 @@ class EstablishmentController extends Controller
         }
 
         return response()->json([
-            'duplicate'     => true,
+            'duplicate' => true,
             'establishment' => $match,
         ]);
     }
@@ -491,15 +491,15 @@ class EstablishmentController extends Controller
     private function logAudit(Request $request, string $action, Establishment $establishment, ?array $changes = null): void
     {
         AuditLog::create([
-            'barangay_id'   => $establishment->barangay_id,
-            'user_id'       => $request->user()->id,
-            'action'        => $action,
+            'barangay_id' => $establishment->barangay_id,
+            'user_id' => $request->user()->id,
+            'action' => $action,
             'resource_type' => 'establishment',
-            'resource_id'   => $establishment->id,
-            'changes'       => $changes,
-            'ip_address'    => $request->ip(),
-            'user_agent'    => $request->userAgent(),
-            'module'        => 'establishments',
+            'resource_id' => $establishment->id,
+            'changes' => $changes,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'module' => 'establishments',
         ]);
     }
 }

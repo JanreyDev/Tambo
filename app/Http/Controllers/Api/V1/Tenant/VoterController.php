@@ -110,7 +110,7 @@ class VoterController extends Controller
             Storage::delete($path);
             Log::error('COMELEC PDF parse failed', ['error' => $e->getMessage()]);
 
-            return response()->json(['message' => 'Failed to parse PDF: ' . $e->getMessage()], 422);
+            return response()->json(['message' => 'Failed to parse PDF: '.$e->getMessage()], 422);
         }
     }
 
@@ -169,7 +169,7 @@ class VoterController extends Controller
                             }
                         }
                         // If still no exact match, take first candidate
-                        if (!$residentId) {
+                        if (! $residentId) {
                             $residentId = $candidates[0]['id'];
                         }
                     } else {
@@ -226,7 +226,7 @@ class VoterController extends Controller
             Storage::delete($path);
             Log::error('COMELEC import failed', ['error' => $e->getMessage()]);
 
-            return response()->json(['message' => 'Import failed: ' . $e->getMessage()], 500);
+            return response()->json(['message' => 'Import failed: '.$e->getMessage()], 500);
         }
     }
 
@@ -253,9 +253,9 @@ class VoterController extends Controller
 
     private function nameKey(string $lastName, string $firstName, ?string $middleName = null): string
     {
-        $key = mb_strtolower(trim($lastName)) . '|' . mb_strtolower(trim($firstName));
+        $key = mb_strtolower(trim($lastName)).'|'.mb_strtolower(trim($firstName));
         if ($middleName) {
-            $key .= '|' . mb_strtolower(trim($middleName));
+            $key .= '|'.mb_strtolower(trim($middleName));
         }
 
         return $key;

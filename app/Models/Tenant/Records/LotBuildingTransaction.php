@@ -17,6 +17,7 @@ class LotBuildingTransaction extends Model
     public $timestamps = false; // only created_at, no updated_at
 
     const CREATED_AT = 'created_at';
+
     const UPDATED_AT = null;
 
     protected $fillable = [
@@ -32,7 +33,7 @@ class LotBuildingTransaction extends Model
     protected function casts(): array
     {
         return [
-            'year'       => 'integer',
+            'year' => 'integer',
             'created_at' => 'datetime',
         ];
     }

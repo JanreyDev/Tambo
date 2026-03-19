@@ -14,13 +14,13 @@ class ComelecPdfParser
      */
     public function parse(string $filePath): array
     {
-        $parser = new Parser();
+        $parser = new Parser;
         $pdf = $parser->parseFile($filePath);
 
         $allText = $pdf->getText();
         $lines = preg_split('/\r?\n/', $allText);
         $lines = array_map('trim', $lines);
-        $lines = array_filter($lines, fn($l) => $l !== '');
+        $lines = array_filter($lines, fn ($l) => $l !== '');
         $lines = array_values($lines);
 
         return $this->extractVoters($lines);
@@ -68,6 +68,7 @@ class ComelecPdfParser
                     if ($precinct === null && preg_match('/^0\d{3}[A-Z][A-Z0-9]*$/', $m[2])) {
                         $precinct = $m[2];
                     }
+
                     continue;
                 }
 
@@ -105,9 +106,9 @@ class ComelecPdfParser
                 // Fallback: first non-special, non-app-number line after name
                 for ($j = $i + 1; $j <= min($i + 5, $count - 1); $j++) {
                     $next = $lines[$j];
-                    if (!$this->isSkipLine($next)
+                    if (! $this->isSkipLine($next)
                         && $this->extractNameLine($next) === null
-                        && !preg_match('/^\d{4}-[A-Z0-9]+-[A-Z0-9]+$/', $next)
+                        && ! preg_match('/^\d{4}-[A-Z0-9]+-[A-Z0-9]+$/', $next)
                         && strlen($next) > 5) {
                         $address = $next;
                         break;
@@ -139,7 +140,7 @@ class ComelecPdfParser
         $stripped = preg_replace('/^\d{1,4}\s+/', '', $line);
 
         // Must contain a comma, both sides uppercase
-        if (!str_contains($stripped, ',')) {
+        if (! str_contains($stripped, ',')) {
             return null;
         }
 
@@ -154,10 +155,10 @@ class ComelecPdfParser
 
         // Before comma: uppercase letters, spaces, periods, hyphens, Ñ (lastname)
         // After comma: uppercase letters, spaces, periods, hyphens, Ñ (firstname middlename)
-        if (!preg_match('/^[A-ZÁÉÍÓÚÑ\s\-\.]+$/u', $beforeComma)) {
+        if (! preg_match('/^[A-ZÁÉÍÓÚÑ\s\-\.]+$/u', $beforeComma)) {
             return null;
         }
-        if (!preg_match('/^[A-ZÁÉÍÓÚÑ\s\-\.]+$/u', $afterComma)) {
+        if (! preg_match('/^[A-ZÁÉÍÓÚÑ\s\-\.]+$/u', $afterComma)) {
             return null;
         }
 
@@ -186,7 +187,7 @@ class ComelecPdfParser
         $nameLine = preg_replace('/^\d{1,4}\s+/', '', $nameLine);
         $nameLine = trim($nameLine);
 
-        if (!str_contains($nameLine, ',')) {
+        if (! str_contains($nameLine, ',')) {
             return null;
         }
 
@@ -203,7 +204,7 @@ class ComelecPdfParser
             return null;
         }
 
-        $fullName = strtoupper($lastRaw) . ', ' . strtoupper($rest);
+        $fullName = strtoupper($lastRaw).', '.strtoupper($rest);
 
         return [
             'last_name' => $lastName,
@@ -259,6 +260,7 @@ class ComelecPdfParser
     private function normalizeAddress(string $address): string
     {
         $address = preg_replace('/\s+/', ' ', $address);
+
         return trim($address);
     }
 
@@ -272,6 +274,7 @@ class ComelecPdfParser
         $str = preg_replace_callback('/(?:^|[\s\-])([a-záéíóúñ])/u', function ($m) {
             return str_replace($m[1], mb_strtoupper($m[1]), $m[0]);
         }, $str);
+
         return $str;
     }
 }

@@ -70,7 +70,7 @@ class EvacuationController extends Controller
 
         return response()->json([
             'evacuation' => $evacuation,
-            'families'   => $families,
+            'families' => $families,
         ]);
     }
 

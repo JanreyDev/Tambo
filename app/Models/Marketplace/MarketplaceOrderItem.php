@@ -13,6 +13,7 @@ class MarketplaceOrderItem extends Model
     use HasUuids;
 
     protected $table = 'marketplace_order_items';
+
     public const UPDATED_AT = null;
 
     protected $fillable = [

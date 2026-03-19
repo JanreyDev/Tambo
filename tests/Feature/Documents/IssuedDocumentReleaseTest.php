@@ -8,7 +8,6 @@ use App\Models\Tenant\Documents\DocumentTemplate;
 use App\Models\Tenant\Documents\IssuedDocument;
 use App\Models\Tenant\Resident;
 use App\Models\User;
-use App\Services\SmsService;
 use Illuminate\Support\Facades\Http;
 
 beforeEach(function (): void {
@@ -21,24 +20,24 @@ beforeEach(function (): void {
     $this->headers = ['Authorization' => 'Bearer '.$this->user->createToken('test')->plainTextToken];
 
     $this->template = DocumentTemplate::factory()->system()->create([
-        'name'     => 'Barangay Clearance',
+        'name' => 'Barangay Clearance',
         'settings' => ['show_qr' => true, 'expiry_months' => 3],
     ]);
 
     $this->resident = Resident::factory()->create([
-        'barangay_id'    => $this->barangay->id,
-        'mobile_number'  => '09171234567',
-        'first_name'     => 'Juan',
-        'last_name'      => 'dela Cruz',
+        'barangay_id' => $this->barangay->id,
+        'mobile_number' => '09171234567',
+        'first_name' => 'Juan',
+        'last_name' => 'dela Cruz',
     ]);
 
     $this->document = IssuedDocument::factory()
         ->forResident($this->resident)
         ->create([
-            'template_id'    => $this->template->id,
-            'template_name'  => $this->template->name,
+            'template_id' => $this->template->id,
+            'template_name' => $this->template->name,
             'document_number' => '00000001',
-            'status'         => 'issued',
+            'status' => 'issued',
         ]);
 });
 

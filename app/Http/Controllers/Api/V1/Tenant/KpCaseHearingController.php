@@ -74,19 +74,19 @@ class KpCaseHearingController extends Controller
             ->where('id', $validated['case_id'])
             ->first()?->tap(function ($kpCase) use ($request, $hearing) {
                 AuditLog::create([
-                    'barangay_id'   => $kpCase->barangay_id,
-                    'user_id'       => $request->user()->id,
-                    'action'        => 'hearing_scheduled',
+                    'barangay_id' => $kpCase->barangay_id,
+                    'user_id' => $request->user()->id,
+                    'action' => 'hearing_scheduled',
                     'resource_type' => 'kp_case',
-                    'resource_id'   => $kpCase->id,
-                    'changes'       => [
+                    'resource_id' => $kpCase->id,
+                    'changes' => [
                         'hearing_type' => $hearing->hearing_type,
                         'hearing_date' => $hearing->hearing_date,
-                        'venue'        => $hearing->venue,
+                        'venue' => $hearing->venue,
                     ],
-                    'ip_address'    => $request->ip(),
-                    'user_agent'    => $request->userAgent(),
-                    'module'        => 'judicial',
+                    'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                    'module' => 'judicial',
                 ]);
             });
 

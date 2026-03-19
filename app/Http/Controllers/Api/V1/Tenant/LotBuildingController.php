@@ -86,11 +86,11 @@ class LotBuildingController extends Controller
             ->count();
 
         return response()->json([
-            'total'                      => $total,
-            'lots'                       => $lots,
-            'buildings'                  => $buildings,
-            'lot_and_building'           => $lotAndBuilding,
-            'active'                     => $active,
+            'total' => $total,
+            'lots' => $lots,
+            'buildings' => $buildings,
+            'lot_and_building' => $lotAndBuilding,
+            'active' => $active,
             'total_clearances_this_year' => $totalClearancesThisYear,
         ]);
     }
@@ -156,7 +156,7 @@ class LotBuildingController extends Controller
             ? (int) explode('-', $lastSeq)[3] + 1
             : 1;
 
-        $lotBuildingNumber = $prefix . str_pad((string) $nextSeq, 4, '0', STR_PAD_LEFT);
+        $lotBuildingNumber = $prefix.str_pad((string) $nextSeq, 4, '0', STR_PAD_LEFT);
 
         // Duplicate safeguard: Tax Declaration # must be unique per barangay
         if (! empty($validated['tax_declaration_number'])) {
@@ -166,7 +166,7 @@ class LotBuildingController extends Controller
 
             if ($tdnExists) {
                 return response()->json([
-                    'message' => 'A property with Tax Declaration # ' . strtoupper(trim($validated['tax_declaration_number'])) . ' is already registered in this barangay.',
+                    'message' => 'A property with Tax Declaration # '.strtoupper(trim($validated['tax_declaration_number'])).' is already registered in this barangay.',
                     'duplicate' => true,
                     'field' => 'tax_declaration_number',
                 ], 422);
@@ -237,7 +237,7 @@ class LotBuildingController extends Controller
 
             if ($tdnExists) {
                 return response()->json([
-                    'message' => 'A property with Tax Declaration # ' . strtoupper(trim($validated['tax_declaration_number'])) . ' is already registered in this barangay.',
+                    'message' => 'A property with Tax Declaration # '.strtoupper(trim($validated['tax_declaration_number'])).' is already registered in this barangay.',
                     'duplicate' => true,
                     'field' => 'tax_declaration_number',
                 ], 422);
@@ -321,22 +321,22 @@ class LotBuildingController extends Controller
         $phYear = now()->timezone('Asia/Manila')->year;
 
         LotBuildingTransaction::create([
-            'barangay_id'     => $record->barangay_id,
+            'barangay_id' => $record->barangay_id,
             'lot_building_id' => $record->id,
             'transaction_type' => $validated['transaction_type'],
-            'year'             => $phYear,
-            'notes'            => $validated['notes'] ?? null,
-            'created_by'       => $request->user()->id,
-            'created_at'       => now(),
+            'year' => $phYear,
+            'notes' => $validated['notes'] ?? null,
+            'created_by' => $request->user()->id,
+            'created_at' => now(),
         ]);
 
         $this->logAudit($request, 'clearance_issued', $record, [
             'transaction_type' => $validated['transaction_type'],
-            'year'             => $phYear,
+            'year' => $phYear,
         ]);
 
         return response()->json([
-            'message'      => 'Clearance issued.',
+            'message' => 'Clearance issued.',
             'lot_building' => $record->fresh(),
         ]);
     }
@@ -353,12 +353,12 @@ class LotBuildingController extends Controller
             ->orderBy('created_at', 'desc')
             ->get(['id', 'transaction_type', 'year', 'notes', 'created_at', 'created_by'])
             ->map(fn ($tx) => [
-                'id'               => $tx->id,
+                'id' => $tx->id,
                 'transaction_type' => $tx->transaction_type,
-                'year'             => $tx->year,
-                'notes'            => $tx->notes,
-                'created_at'       => $tx->created_at,
-                'generated_by'     => $tx->creator?->full_name ?? 'System',
+                'year' => $tx->year,
+                'notes' => $tx->notes,
+                'created_at' => $tx->created_at,
+                'generated_by' => $tx->creator?->full_name ?? 'System',
             ]);
 
         return response()->json(['transactions' => $transactions]);
@@ -370,16 +370,16 @@ class LotBuildingController extends Controller
     {
         $request->validate([
             'tax_declaration_number' => ['nullable', 'string', 'max:100'],
-            'owner_name'             => ['nullable', 'string', 'max:200'],
-            'exact_address'          => ['nullable', 'string', 'max:500'],
-            'exclude_id'             => ['nullable', 'uuid'],
+            'owner_name' => ['nullable', 'string', 'max:200'],
+            'exact_address' => ['nullable', 'string', 'max:500'],
+            'exclude_id' => ['nullable', 'uuid'],
         ]);
 
         $barangayId = $request->user()->barangay_id;
-        $excludeId  = $request->input('exclude_id');
-        $tdn        = strtoupper(trim($request->input('tax_declaration_number', '')));
-        $ownerName  = trim($request->input('owner_name', ''));
-        $address    = trim($request->input('exact_address', ''));
+        $excludeId = $request->input('exclude_id');
+        $tdn = strtoupper(trim($request->input('tax_declaration_number', '')));
+        $ownerName = trim($request->input('owner_name', ''));
+        $address = trim($request->input('exact_address', ''));
 
         // Check 1: Tax Declaration Number (strongest — government-issued)
         if ($tdn !== '') {
@@ -394,9 +394,9 @@ class LotBuildingController extends Controller
 
             if ($match) {
                 return response()->json([
-                    'duplicate'    => true,
-                    'reason'       => 'tax_declaration_number',
-                    'message'      => "Tax Declaration # {$tdn} is already registered as {$match->lot_building_number}.",
+                    'duplicate' => true,
+                    'reason' => 'tax_declaration_number',
+                    'message' => "Tax Declaration # {$tdn} is already registered as {$match->lot_building_number}.",
                     'lot_building' => $match->only(['id', 'lot_building_number', 'owner_name', 'classification']),
                 ]);
             }
@@ -416,9 +416,9 @@ class LotBuildingController extends Controller
 
             if ($match) {
                 return response()->json([
-                    'duplicate'    => true,
-                    'reason'       => 'owner_address',
-                    'message'      => "A property at this address registered under the same owner already exists ({$match->lot_building_number}).",
+                    'duplicate' => true,
+                    'reason' => 'owner_address',
+                    'message' => "A property at this address registered under the same owner already exists ({$match->lot_building_number}).",
                     'lot_building' => $match->only(['id', 'lot_building_number', 'owner_name', 'classification']),
                 ]);
             }
@@ -445,10 +445,10 @@ class LotBuildingController extends Controller
         ]);
 
         $userMessage = trim($validated['message']);
-        $barangay    = $request->user()->barangay;
+        $barangay = $request->user()->barangay;
 
-        $message  = SmsService::formatWithSenderHeader($userMessage, $barangay);
-        $cost     = SmsService::calculateCost($message);
+        $message = SmsService::formatWithSenderHeader($userMessage, $barangay);
+        $cost = SmsService::calculateCost($message);
         $segments = SmsService::calculateSegments($message);
 
         if (! $barangay->hasSmsCredits($cost)) {
@@ -474,9 +474,9 @@ class LotBuildingController extends Controller
         $barangay->refresh();
 
         return response()->json([
-            'message'           => 'SMS sent successfully.',
-            'segments'          => $segments,
-            'cost'              => $cost,
+            'message' => 'SMS sent successfully.',
+            'segments' => $segments,
+            'cost' => $cost,
             'remaining_balance' => (float) $barangay->sms_credit_balance,
         ]);
     }

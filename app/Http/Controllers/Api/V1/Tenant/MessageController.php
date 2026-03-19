@@ -95,7 +95,7 @@ class MessageController extends Controller
             ->findOrFail($id);
 
         // Mark as read when recipient views
-        if ($message->to_user_id === $user->id && !$message->is_read) {
+        if ($message->to_user_id === $user->id && ! $message->is_read) {
             $message->update(['is_read' => true]);
         }
 
@@ -136,7 +136,7 @@ class MessageController extends Controller
         ]);
 
         // Create inbox copy for recipient (if internal user)
-        if (!$isDraft && isset($validated['to_user_id'])) {
+        if (! $isDraft && isset($validated['to_user_id'])) {
             Message::create([
                 'barangay_id' => $user->barangay_id,
                 'from_user_id' => $user->id,
@@ -179,7 +179,7 @@ class MessageController extends Controller
         ]);
 
         // If sending a saved draft
-        if (isset($validated['is_draft']) && !$validated['is_draft'] && $message->is_draft) {
+        if (isset($validated['is_draft']) && ! $validated['is_draft'] && $message->is_draft) {
             $validated['folder'] = 'sent';
             $validated['sent_at'] = now();
         }
@@ -223,7 +223,7 @@ class MessageController extends Controller
             ->select('id', 'first_name', 'last_name', 'username', 'role_id')
             ->orderBy('first_name')
             ->get()
-            ->map(fn($u) => [
+            ->map(fn ($u) => [
                 'id' => $u->id,
                 'full_name' => trim("{$u->first_name} {$u->last_name}"),
                 'username' => $u->username,

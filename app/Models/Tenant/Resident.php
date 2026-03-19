@@ -7,7 +7,6 @@ namespace App\Models\Tenant;
 use App\Enums\CivilStatus;
 use App\Enums\ResidentStatus;
 use App\Models\Admin\File;
-use App\Models\Tenant\Judicial;
 use App\Models\Tenant\Records\Household;
 use App\Models\Tenant\Records\ResidentSectoralTag;
 use App\Traits\BelongsToBarangay;

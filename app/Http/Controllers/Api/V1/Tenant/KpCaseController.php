@@ -86,7 +86,7 @@ class KpCaseController extends Controller
         $conciliation = (clone $base)->where('case_level', 'conciliation')->whereNotIn('status', ['settled', 'dismissed', 'closed', 'cfa_issued'])->count();
         $cfaIssued = (clone $base)->where('status', 'cfa_issued')->count();
         $arbitration = (clone $base)->where('status', 'arbitration')->count();
-        $dismissed   = (clone $base)->where('status', 'dismissed')->count();
+        $dismissed = (clone $base)->where('status', 'dismissed')->count();
 
         // Overdue: mediation deadline passed but still in mediation
         $overdueMediation = (clone $base)
@@ -112,7 +112,7 @@ class KpCaseController extends Controller
             ->count();
 
         return response()->json([
-            'year'  => $year,
+            'year' => $year,
             'total' => $total,
             'active' => $active,
             'settled' => $settled,
@@ -265,12 +265,12 @@ class KpCaseController extends Controller
 
         $validated = $request->validate([
             'form_number' => ['required', 'integer', 'min:1', 'max:28'],
-            'form_name'   => ['required', 'string', 'max:255'],
+            'form_name' => ['required', 'string', 'max:255'],
         ]);
 
         $this->logAudit($request, 'document_generated', $kpCase, [
             'form_number' => $validated['form_number'],
-            'form_name'   => $validated['form_name'],
+            'form_name' => $validated['form_name'],
         ]);
 
         return response()->json(['message' => 'Document logged.']);
@@ -289,12 +289,12 @@ class KpCaseController extends Controller
 
         $validated = $request->validate([
             'recipient' => ['required', 'in:complainant,respondent,both'],
-            'message'   => ['required', 'string', 'max:636'],
+            'message' => ['required', 'string', 'max:636'],
         ]);
 
         $barangay = $request->user()->barangay;
-        $message  = SmsService::formatWithSenderHeader(trim($validated['message']), $barangay);
-        $cost     = SmsService::calculateCost($message);
+        $message = SmsService::formatWithSenderHeader(trim($validated['message']), $barangay);
+        $cost = SmsService::calculateCost($message);
         $segments = SmsService::calculateSegments($message);
 
         // Resolve target parties
@@ -318,10 +318,10 @@ class KpCaseController extends Controller
         $sentCount = 0;
         foreach ($targets as $party) {
             $sent = $this->smsService->send(
-                phone:    $party->mobile_number,
-                message:  $message,
+                phone: $party->mobile_number,
+                message: $message,
                 barangay: $barangay,
-                source:   'kp_case_sms',
+                source: 'kp_case_sms',
                 sourceId: $kpCase->id,
             );
             if ($sent) {
@@ -331,18 +331,18 @@ class KpCaseController extends Controller
 
         $this->logAudit($request, 'sms_sent', $kpCase, [
             'recipient' => $validated['recipient'],
-            'segments'  => $segments,
-            'cost'      => $totalCost,
-            'sent'      => $sentCount,
-            'total'     => $targets->count(),
+            'segments' => $segments,
+            'cost' => $totalCost,
+            'sent' => $sentCount,
+            'total' => $targets->count(),
         ]);
 
         $barangay->refresh();
 
         return response()->json([
-            'message'           => "SMS sent to {$sentCount} of {$targets->count()} recipient(s).",
-            'sent'              => $sentCount,
-            'cost'              => $totalCost,
+            'message' => "SMS sent to {$sentCount} of {$targets->count()} recipient(s).",
+            'sent' => $sentCount,
+            'cost' => $totalCost,
             'remaining_balance' => (float) $barangay->sms_credit_balance,
         ]);
     }
@@ -405,15 +405,15 @@ class KpCaseController extends Controller
 
         $documentType = $validated['document_type'];
         $templateNames = [
-            'summons'                      => 'KP Summons',
-            'notice_of_hearing'            => 'KP Notice of Hearing',
-            'settlement_agreement'         => 'KP Settlement Agreement',
+            'summons' => 'KP Summons',
+            'notice_of_hearing' => 'KP Notice of Hearing',
+            'settlement_agreement' => 'KP Settlement Agreement',
             'certification_to_file_action' => 'KP Certification to File Action',
-            'case_summary'                 => 'KP Case Summary',
+            'case_summary' => 'KP Case Summary',
         ];
 
         $complainants = $kpCase->parties->where('role', 'complainant')->pluck('full_name')->filter()->join(', ');
-        $respondents  = $kpCase->parties->where('role', 'respondent')->pluck('full_name')->filter()->join(', ');
+        $respondents = $kpCase->parties->where('role', 'respondent')->pluck('full_name')->filter()->join(', ');
         $primaryParty = $kpCase->parties->where('role', 'complainant')->first();
 
         $barangayId = $request->user()->barangay_id;
@@ -425,31 +425,31 @@ class KpCaseController extends Controller
         $documentNumber = str_pad((string) $nextSeq, 8, '0', STR_PAD_LEFT);
 
         $issuedDoc = \App\Models\Tenant\Documents\IssuedDocument::create([
-            'barangay_id'         => $barangayId,
-            'document_number'     => $documentNumber,
-            'constituent_type'    => 'kp_case',
-            'constituent_id'      => $kpCase->id,
-            'constituent_name'    => $primaryParty?->full_name ?? ($complainants ?: 'Unknown'),
-            'constituent_number'  => $kpCase->case_number,
-            'template_name'       => $templateNames[$documentType],
-            'purpose'             => 'KP Case '.$kpCase->case_number,
-            'issued_date'         => now()->toDateString(),
-            'status'              => 'issued',
+            'barangay_id' => $barangayId,
+            'document_number' => $documentNumber,
+            'constituent_type' => 'kp_case',
+            'constituent_id' => $kpCase->id,
+            'constituent_name' => $primaryParty?->full_name ?? ($complainants ?: 'Unknown'),
+            'constituent_number' => $kpCase->case_number,
+            'template_name' => $templateNames[$documentType],
+            'purpose' => 'KP Case '.$kpCase->case_number,
+            'issued_date' => now()->toDateString(),
+            'status' => 'issued',
             'custom_field_values' => [
-                'document_type'        => $documentType,
-                'case_number'          => $kpCase->case_number,
-                'filing_date'          => $kpCase->filing_date?->format('F d, Y'),
-                'case_level'           => $kpCase->case_level,
-                'nature'               => $kpCase->nature ?? $kpCase->nature_of_complaint,
-                'nature_of_complaint'  => $kpCase->nature_of_complaint,
-                'complainants'         => $complainants ?: '—',
-                'respondents'          => $respondents ?: '—',
-                'status'               => $kpCase->status,
-                'settlement_text'      => $kpCase->settlement_text,
-                'cfa_reason'           => $kpCase->cfa_reason,
-                'settlement_date'      => $kpCase->settlement_date?->format('F d, Y'),
-                'cfa_date'             => $kpCase->cfa_date?->format('F d, Y'),
-                'is_confidential'      => false,
+                'document_type' => $documentType,
+                'case_number' => $kpCase->case_number,
+                'filing_date' => $kpCase->filing_date?->format('F d, Y'),
+                'case_level' => $kpCase->case_level,
+                'nature' => $kpCase->nature ?? $kpCase->nature_of_complaint,
+                'nature_of_complaint' => $kpCase->nature_of_complaint,
+                'complainants' => $complainants ?: '—',
+                'respondents' => $respondents ?: '—',
+                'status' => $kpCase->status,
+                'settlement_text' => $kpCase->settlement_text,
+                'cfa_reason' => $kpCase->cfa_reason,
+                'settlement_date' => $kpCase->settlement_date?->format('F d, Y'),
+                'cfa_date' => $kpCase->cfa_date?->format('F d, Y'),
+                'is_confidential' => false,
             ],
             'created_by' => $request->user()->id,
         ]);
@@ -459,8 +459,8 @@ class KpCaseController extends Controller
 
         $this->logAudit($request, 'document_generated', $kpCase, [
             'document_number' => $documentNumber,
-            'document_type'   => $documentType,
-            'template_name'   => $templateNames[$documentType],
+            'document_type' => $documentType,
+            'template_name' => $templateNames[$documentType],
         ]);
 
         return response()->json(['document' => $issuedDoc->fresh()], 201);
@@ -469,16 +469,15 @@ class KpCaseController extends Controller
     private function logAudit(Request $request, string $action, KpCase $kpCase, ?array $changes = null): void
     {
         AuditLog::create([
-            'barangay_id'   => $kpCase->barangay_id,
-            'user_id'       => $request->user()->id,
-            'action'        => $action,
+            'barangay_id' => $kpCase->barangay_id,
+            'user_id' => $request->user()->id,
+            'action' => $action,
             'resource_type' => 'kp_case',
-            'resource_id'   => $kpCase->id,
-            'changes'       => $changes,
-            'ip_address'    => $request->ip(),
-            'user_agent'    => $request->userAgent(),
-            'module'        => 'judicial',
+            'resource_id' => $kpCase->id,
+            'changes' => $changes,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'module' => 'judicial',
         ]);
     }
-
 }

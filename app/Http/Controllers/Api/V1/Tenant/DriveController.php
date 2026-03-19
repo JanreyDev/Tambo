@@ -26,7 +26,7 @@ class DriveController extends Controller
         $folders = DriveFolder::where('barangay_id', $user->barangay_id)
             ->where(function ($q) use ($user) {
                 $q->where('user_id', $user->id)
-                  ->orWhere('is_shared_with_barangay', true);
+                    ->orWhere('is_shared_with_barangay', true);
             })
             ->whereNull('parent_id')
             ->withCount(['children as folder_count'])
@@ -46,16 +46,16 @@ class DriveController extends Controller
         $folder = DriveFolder::where('barangay_id', $user->barangay_id)
             ->where(function ($q) use ($user) {
                 $q->where('user_id', $user->id)
-                  ->orWhere('is_shared_with_barangay', true);
+                    ->orWhere('is_shared_with_barangay', true);
             })
-            ->with(['children' => fn($q) => $q->withCount('children')])
+            ->with(['children' => fn ($q) => $q->withCount('children')])
             ->findOrFail($id);
 
         $files = File::where('barangay_id', $user->barangay_id)
             ->where('drive_folder_id', $id)
             ->where(function ($q) use ($user) {
                 $q->where('drive_owner_id', $user->id)
-                  ->orWhere('drive_shared_with_barangay', true);
+                    ->orWhere('drive_shared_with_barangay', true);
             })
             ->orderBy('original_name')
             ->get();
@@ -138,7 +138,7 @@ class DriveController extends Controller
             ->whereNull('drive_folder_id')
             ->where(function ($q) use ($user) {
                 $q->where('drive_owner_id', $user->id)
-                  ->orWhere('drive_shared_with_barangay', true);
+                    ->orWhere('drive_shared_with_barangay', true);
             });
 
         if ($search) {
@@ -164,7 +164,7 @@ class DriveController extends Controller
         $user = $request->user();
         $uploadedFile = $request->file('file');
         $originalName = $uploadedFile->getClientOriginalName();
-        $storedName = Str::uuid() . '.' . $uploadedFile->getClientOriginalExtension();
+        $storedName = Str::uuid().'.'.$uploadedFile->getClientOriginalExtension();
         $storagePath = "bcmp/{$user->barangay_id}/drive/{$user->id}/{$storedName}";
 
         Storage::disk('spaces')->put($storagePath, file_get_contents($uploadedFile), 'private');
@@ -197,7 +197,7 @@ class DriveController extends Controller
         $file = File::where('barangay_id', $user->barangay_id)
             ->where(function ($q) use ($user) {
                 $q->where('drive_owner_id', $user->id)
-                  ->orWhere('drive_shared_with_barangay', true);
+                    ->orWhere('drive_shared_with_barangay', true);
             })
             ->findOrFail($id);
 

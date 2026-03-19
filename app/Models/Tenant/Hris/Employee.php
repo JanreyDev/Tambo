@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Models\Tenant\Hris;
 
-use App\Models\Tenant\Hris\Office;
 use App\Models\Tenant\Resident;
 use App\Traits\BelongsToBarangay;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;

@@ -23,26 +23,26 @@ class BlotterController extends Controller
         $barangayId = $request->user()->barangay_id;
         $query = BlotterRecord::where('barangay_id', $barangayId);
 
-        $total       = (clone $query)->count();
-        $filed       = (clone $query)->where('status', 'filed')->count();
-        $forHearing  = (clone $query)->where('status', 'for_hearing')->count();
+        $total = (clone $query)->count();
+        $filed = (clone $query)->where('status', 'filed')->count();
+        $forHearing = (clone $query)->where('status', 'for_hearing')->count();
         $forSubpoena = (clone $query)->where('status', 'for_subpoena')->count();
-        $settled     = (clone $query)->where('status', 'settled')->count();
-        $closed      = (clone $query)->where('status', 'closed')->count();
-        $thisMonth   = (clone $query)
+        $settled = (clone $query)->where('status', 'settled')->count();
+        $closed = (clone $query)->where('status', 'closed')->count();
+        $thisMonth = (clone $query)
             ->whereYear('filing_date', now()->year)
             ->whereMonth('filing_date', now()->month)
             ->count();
 
         return response()->json([
-            'total'        => $total,
-            'filed'        => $filed,
-            'for_hearing'  => $forHearing,
+            'total' => $total,
+            'filed' => $filed,
+            'for_hearing' => $forHearing,
             'for_subpoena' => $forSubpoena,
-            'settled'      => $settled,
-            'closed'       => $closed,
-            'active'       => $filed + $forHearing + $forSubpoena,
-            'this_month'   => $thisMonth,
+            'settled' => $settled,
+            'closed' => $closed,
+            'active' => $filed + $forHearing + $forSubpoena,
+            'this_month' => $thisMonth,
         ]);
     }
 
@@ -71,7 +71,7 @@ class BlotterController extends Controller
             $query->where('incident_type', $incidentType);
         }
 
-        $sortBy  = $request->get('sort_by', 'filing_date');
+        $sortBy = $request->get('sort_by', 'filing_date');
         $sortDir = $request->get('sort_dir', 'desc');
         $allowed = ['blotter_number', 'filing_date', 'incident_date', 'status', 'created_at'];
 
@@ -101,45 +101,45 @@ class BlotterController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'incident_type'           => ['required', 'string', 'max:200'],
-            'incident_date'           => ['nullable', 'date'],
-            'incident_time'           => ['nullable', 'string', 'max:10'],
-            'incident_place'          => ['nullable', 'string', 'max:255'],
-            'narrative'               => ['required', 'string'],
-            'resolution'              => ['nullable', 'string'],
-            'complainant_name'        => ['required', 'string', 'max:200'],
-            'complainant_address'     => ['nullable', 'string', 'max:500'],
-            'complainant_mobile'      => ['nullable', 'string', 'max:20'],
+            'incident_type' => ['required', 'string', 'max:200'],
+            'incident_date' => ['nullable', 'date'],
+            'incident_time' => ['nullable', 'string', 'max:10'],
+            'incident_place' => ['nullable', 'string', 'max:255'],
+            'narrative' => ['required', 'string'],
+            'resolution' => ['nullable', 'string'],
+            'complainant_name' => ['required', 'string', 'max:200'],
+            'complainant_address' => ['nullable', 'string', 'max:500'],
+            'complainant_mobile' => ['nullable', 'string', 'max:20'],
             'complainant_resident_id' => ['nullable', 'uuid'],
-            'respondent_name'         => ['required', 'string', 'max:200'],
-            'respondent_address'      => ['nullable', 'string', 'max:500'],
-            'respondent_mobile'       => ['nullable', 'string', 'max:20'],
-            'respondent_resident_id'  => ['nullable', 'uuid'],
-            'officer_on_duty_id'      => ['nullable', 'uuid'],
-            'status'                  => ['nullable', 'in:' . implode(',', self::STATUSES)],
+            'respondent_name' => ['required', 'string', 'max:200'],
+            'respondent_address' => ['nullable', 'string', 'max:500'],
+            'respondent_mobile' => ['nullable', 'string', 'max:20'],
+            'respondent_resident_id' => ['nullable', 'uuid'],
+            'officer_on_duty_id' => ['nullable', 'uuid'],
+            'status' => ['nullable', 'in:'.implode(',', self::STATUSES)],
         ]);
 
         $barangayId = $request->user()->barangay_id;
 
         // Auto-generate blotter number: BLT-YYYY-XXXX
-        $year        = now()->format('Y');
+        $year = now()->format('Y');
         $lastBlotter = BlotterRecord::where('barangay_id', $barangayId)
             ->where('blotter_number', 'ilike', "BLT-{$year}-%")
             ->orderByRaw("CAST(SUBSTRING(blotter_number FROM 'BLT-\\d{4}-(\\d+)') AS INTEGER) DESC NULLS LAST")
             ->first();
 
-        $nextSeq       = $lastBlotter
+        $nextSeq = $lastBlotter
             ? ((int) preg_replace('/^BLT-\d{4}-/', '', $lastBlotter->blotter_number)) + 1
             : 1;
-        $blotterNumber = "BLT-{$year}-" . str_pad((string) $nextSeq, 4, '0', STR_PAD_LEFT);
+        $blotterNumber = "BLT-{$year}-".str_pad((string) $nextSeq, 4, '0', STR_PAD_LEFT);
 
         $blotter = BlotterRecord::create([
             ...$validated,
-            'barangay_id'    => $barangayId,
+            'barangay_id' => $barangayId,
             'blotter_number' => $blotterNumber,
-            'filing_date'    => now()->toDateString(),
-            'status'         => $validated['status'] ?? 'filed',
-            'created_by'     => $request->user()->id,
+            'filing_date' => now()->toDateString(),
+            'status' => $validated['status'] ?? 'filed',
+            'created_by' => $request->user()->id,
         ]);
 
         return response()->json([
@@ -157,24 +157,24 @@ class BlotterController extends Controller
             ->findOrFail($id);
 
         $validated = $request->validate([
-            'incident_type'           => ['sometimes', 'string', 'max:200'],
-            'incident_date'           => ['nullable', 'date'],
-            'incident_time'           => ['nullable', 'string', 'max:10'],
-            'incident_place'          => ['nullable', 'string', 'max:255'],
-            'narrative'               => ['sometimes', 'string'],
-            'complainant_name'        => ['sometimes', 'string', 'max:200'],
-            'complainant_address'     => ['nullable', 'string', 'max:500'],
-            'complainant_mobile'      => ['nullable', 'string', 'max:20'],
+            'incident_type' => ['sometimes', 'string', 'max:200'],
+            'incident_date' => ['nullable', 'date'],
+            'incident_time' => ['nullable', 'string', 'max:10'],
+            'incident_place' => ['nullable', 'string', 'max:255'],
+            'narrative' => ['sometimes', 'string'],
+            'complainant_name' => ['sometimes', 'string', 'max:200'],
+            'complainant_address' => ['nullable', 'string', 'max:500'],
+            'complainant_mobile' => ['nullable', 'string', 'max:20'],
             'complainant_resident_id' => ['nullable', 'uuid'],
-            'respondent_name'         => ['sometimes', 'string', 'max:200'],
-            'respondent_address'      => ['nullable', 'string', 'max:500'],
-            'respondent_mobile'       => ['nullable', 'string', 'max:20'],
-            'respondent_resident_id'  => ['nullable', 'uuid'],
-            'officer_on_duty_id'      => ['nullable', 'uuid'],
-            'resolution'              => ['nullable', 'string'],
-            'status'                  => ['sometimes', 'in:' . implode(',', self::STATUSES)],
-            'linked_kp_case_id'       => ['nullable', 'uuid'],
-            'attachment_file_ids'     => ['nullable', 'array'],
+            'respondent_name' => ['sometimes', 'string', 'max:200'],
+            'respondent_address' => ['nullable', 'string', 'max:500'],
+            'respondent_mobile' => ['nullable', 'string', 'max:20'],
+            'respondent_resident_id' => ['nullable', 'uuid'],
+            'officer_on_duty_id' => ['nullable', 'uuid'],
+            'resolution' => ['nullable', 'string'],
+            'status' => ['sometimes', 'in:'.implode(',', self::STATUSES)],
+            'linked_kp_case_id' => ['nullable', 'uuid'],
+            'attachment_file_ids' => ['nullable', 'array'],
         ]);
 
         $validated['updated_by'] = $request->user()->id;
@@ -203,31 +203,31 @@ class BlotterController extends Controller
         $documentNumber = str_pad((string) $nextSeq, 8, '0', STR_PAD_LEFT);
 
         $issuedDoc = \App\Models\Tenant\Documents\IssuedDocument::create([
-            'barangay_id'         => $barangayId,
-            'document_number'     => $documentNumber,
-            'constituent_type'    => 'blotter',
-            'constituent_id'      => $blotter->id,
-            'constituent_name'    => $blotter->complainant_name,
-            'constituent_number'  => $blotter->blotter_number,
-            'template_name'       => 'Blotter Certification',
-            'purpose'             => 'Certification of blotter entry '.$blotter->blotter_number,
-            'issued_date'         => now()->toDateString(),
-            'status'              => 'issued',
+            'barangay_id' => $barangayId,
+            'document_number' => $documentNumber,
+            'constituent_type' => 'blotter',
+            'constituent_id' => $blotter->id,
+            'constituent_name' => $blotter->complainant_name,
+            'constituent_number' => $blotter->blotter_number,
+            'template_name' => 'Blotter Certification',
+            'purpose' => 'Certification of blotter entry '.$blotter->blotter_number,
+            'issued_date' => now()->toDateString(),
+            'status' => 'issued',
             'custom_field_values' => [
-                'blotter_number'      => $blotter->blotter_number,
-                'filing_date'         => $blotter->filing_date?->format('F d, Y'),
-                'incident_type'       => $blotter->incident_type,
-                'incident_date'       => $blotter->incident_date?->format('F d, Y'),
-                'incident_time'       => $blotter->incident_time,
-                'incident_place'      => $blotter->incident_place,
-                'complainant_name'    => $blotter->complainant_name,
+                'blotter_number' => $blotter->blotter_number,
+                'filing_date' => $blotter->filing_date?->format('F d, Y'),
+                'incident_type' => $blotter->incident_type,
+                'incident_date' => $blotter->incident_date?->format('F d, Y'),
+                'incident_time' => $blotter->incident_time,
+                'incident_place' => $blotter->incident_place,
+                'complainant_name' => $blotter->complainant_name,
                 'complainant_address' => $blotter->complainant_address,
-                'respondent_name'     => $blotter->respondent_name,
-                'respondent_address'  => $blotter->respondent_address,
-                'narrative'           => $blotter->narrative,
-                'resolution'          => $blotter->resolution,
-                'status'              => $blotter->status,
-                'is_confidential'     => false,
+                'respondent_name' => $blotter->respondent_name,
+                'respondent_address' => $blotter->respondent_address,
+                'narrative' => $blotter->narrative,
+                'resolution' => $blotter->resolution,
+                'status' => $blotter->status,
+                'is_confidential' => false,
             ],
             'created_by' => $request->user()->id,
         ]);

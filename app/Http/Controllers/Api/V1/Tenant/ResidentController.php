@@ -8,10 +8,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Admin\Barangay;
 use App\Models\Platform\AuditLog;
 use App\Models\Tenant\Documents\IssuedDocument;
-use App\Models\Tenant\Records\Household;
-use App\Models\Tenant\Records\ImportBatch;
 use App\Models\Tenant\Judicial\BlotterRecord;
 use App\Models\Tenant\Judicial\KpCaseParty;
+use App\Models\Tenant\Records\Household;
+use App\Models\Tenant\Records\ImportBatch;
 use App\Models\Tenant\Records\ResidentCrossBarangayFlag;
 use App\Models\Tenant\Records\ResidentSectoralTag;
 use App\Models\Tenant\Resident;
@@ -126,9 +126,9 @@ class ResidentController extends Controller
         // Batch-load case records (KP cases + blotter) for all residents on this page
         $residentIds = $residents->getCollection()->pluck('id')->all();
         $kpPartiesByResident = collect();
-        $blottersByResident  = collect();
+        $blottersByResident = collect();
 
-        if (!empty($residentIds)) {
+        if (! empty($residentIds)) {
             $kpPartiesByResident = KpCaseParty::whereIn('kp_case_parties.resident_id', $residentIds)
                 ->join('kp_cases', 'kp_cases.id', '=', 'kp_case_parties.case_id')
                 ->whereNull('kp_cases.deleted_at')
@@ -177,22 +177,22 @@ class ResidentController extends Controller
 
             foreach ($kpPartiesByResident->get($resident->id, collect()) as $party) {
                 $caseRecords->push([
-                    'source'      => 'kp_case',
+                    'source' => 'kp_case',
                     'case_number' => $party->case_number,
                     'description' => Str::limit($party->nature_of_complaint ?? '', 50),
-                    'status'      => $party->status,
-                    'party_type'  => $party->party_type,
+                    'status' => $party->status,
+                    'party_type' => $party->party_type,
                     'filing_date' => is_string($party->filing_date) ? $party->filing_date : $party->filing_date?->toDateString(),
                 ]);
             }
 
             foreach ($blottersByResident->get($resident->id, collect()) as $blotter) {
                 $caseRecords->push([
-                    'source'      => 'blotter',
+                    'source' => 'blotter',
                     'case_number' => $blotter->blotter_number,
                     'description' => Str::limit($blotter->incident_type ?? '', 50),
-                    'status'      => $blotter->status,
-                    'party_type'  => $blotter->role,
+                    'status' => $blotter->status,
+                    'party_type' => $blotter->role,
                     'filing_date' => is_string($blotter->filing_date) ? $blotter->filing_date : $blotter->filing_date?->toDateString(),
                 ]);
             }
@@ -287,8 +287,8 @@ class ResidentController extends Controller
         if ($incomingMiddle !== '') {
             $dupQuery->where(function ($q) use ($incomingMiddle) {
                 $q->whereRaw('LOWER(COALESCE(middle_name, \'\')) = ?', [$incomingMiddle])
-                  ->orWhereNull('middle_name')
-                  ->orWhereRaw('middle_name = \'\'');
+                    ->orWhereNull('middle_name')
+                    ->orWhereRaw('middle_name = \'\'');
             });
         }
 
