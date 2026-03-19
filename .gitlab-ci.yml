@@ -82,9 +82,9 @@ deploy_production:
     - |
       ssh root@152.42.223.52 << 'DEPLOY'
         set -e
-        LIVE="/var/www/bcmp-web"
-        NEW="/var/www/bcmp-web-new"
-        OLD="/var/www/bcmp-web-old"
+        LIVE="/var/www/bcmp/bcmp-web"
+        NEW="/var/www/bcmp/bcmp-web-new"
+        OLD="/var/www/bcmp/bcmp-web-old"
 
         rm -rf "$NEW"
         mkdir -p "$NEW"
