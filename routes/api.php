@@ -23,11 +23,15 @@ use App\Http\Controllers\Api\V1\PlatformSettingController;
 use App\Http\Controllers\Api\V1\ProductConnectionController;
 use App\Http\Controllers\Api\V1\Vault\VaultAuthController;
 use App\Http\Controllers\Api\V1\Vault\VaultController;
+use App\Http\Controllers\Api\V1\Webhook\SentryWebhookController;
 use App\Http\Middleware\FounderAuth;
 use App\Http\Middleware\VaultAuth;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function (): void {
+    // Webhooks (no auth — verified by source)
+    Route::post('webhooks/sentry', SentryWebhookController::class);
+
     // Public routes
     Route::post('auth/login', [AuthController::class, 'login'])
         ->middleware('throttle:5,1');
