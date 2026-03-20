@@ -167,6 +167,46 @@ deploy_production:
           exit 1
         fi
 
+        # === DEEP SMOKE TEST ===
+        echo "Running deep smoke tests..."
+        DEEP_FAIL=0
+
+        # Test founder auth protection
+        STATUS=$(curl -sk -o /dev/null -w "%{http_code}" "https://$DOMAIN/api/v1/founder/dashboard" --resolve "$DOMAIN:443:127.0.0.1")
+        if [ "$STATUS" != "401" ]; then
+          echo "DEEP FAIL: /api/v1/founder/dashboard returned $STATUS (expected 401)"
+          DEEP_FAIL=1
+        else
+          echo "PASS: /api/v1/founder/dashboard → 401 (founder auth protected)"
+        fi
+
+        # Test admin auth protection
+        STATUS=$(curl -sk -o /dev/null -w "%{http_code}" "https://$DOMAIN/api/v1/bcmp/tenants" --resolve "$DOMAIN:443:127.0.0.1")
+        if [ "$STATUS" != "401" ]; then
+          echo "DEEP FAIL: /api/v1/bcmp/tenants returned $STATUS (expected 401)"
+          DEEP_FAIL=1
+        else
+          echo "PASS: /api/v1/bcmp/tenants → 401 (admin auth protected)"
+        fi
+
+        if [ "$DEEP_FAIL" != "0" ]; then
+          echo "========================================="
+          echo "DEEP SMOKE TEST FAILED — AUTO-ROLLBACK"
+          echo "========================================="
+          mv "$LIVE" "$LIVE-failed"
+          mv "$OLD" "$LIVE"
+          cd "$LIVE"
+          php artisan config:cache
+          php artisan route:cache
+          php artisan view:cache
+          systemctl reload php8.4-fpm
+          echo "ROLLED BACK to previous version"
+          rm -rf "$LIVE-failed"
+          exit 1
+        fi
+
+        echo "All deep smoke tests PASSED"
+
         rm /tmp/primex-api-deploy.tar.gz
         echo "Deployed primex-api at $(date) — verified healthy"
       DEPLOY
