@@ -82,6 +82,7 @@ deploy_production:
         LIVE="/var/www/bcmp/bcmp-api"
         NEW="/var/www/bcmp/bcmp-api-new"
         OLD="/var/www/bcmp/bcmp-api-old"
+        DOMAIN="api.kapitan.ph"
 
         rm -rf "$NEW"
         mkdir -p "$NEW"
@@ -112,6 +113,17 @@ deploy_production:
         chown -R www-data:www-data "$NEW"
         chmod -R 775 "$NEW/storage" "$NEW/bootstrap/cache"
 
+        # === PRE-SWAP VERIFICATION ===
+        # Verify app boots: config compiles, routes compile, autoloader works
+        cd "$NEW"
+        php artisan config:cache 2>&1 || { echo "ABORT: config:cache failed in new build"; rm -rf "$NEW"; exit 1; }
+        php artisan route:cache 2>&1 || { echo "ABORT: route:cache failed in new build"; rm -rf "$NEW"; exit 1; }
+        # Clear caches — will re-cache after swap with correct paths
+        php artisan config:clear
+        php artisan route:clear
+        echo "Pre-swap verification PASSED"
+
+        # === SWAP ===
         rm -rf "$OLD"
         mv "$LIVE" "$OLD"
         mv "$NEW" "$LIVE"
@@ -125,11 +137,40 @@ deploy_production:
         systemctl reload php8.4-fpm
 
         echo "<?php opcache_reset(); echo 'ok';" > "$LIVE/public/opcache_reset.php"
-        curl -sk https://api.kapitan.ph/opcache_reset.php --resolve api.kapitan.ph:443:127.0.0.1 || true
+        curl -sk "https://$DOMAIN/opcache_reset.php" --resolve "$DOMAIN:443:127.0.0.1" || true
         rm -f "$LIVE/public/opcache_reset.php"
 
-        rm -rf "$OLD" /tmp/bcmp-api-deploy.tar.gz
-        echo "Deployed bcmp-api at $(date)"
+        # === POST-SWAP SMOKE TEST ===
+        HEALTH_OK=0
+        for i in 1 2 3 4 5; do
+          STATUS=$(curl -sk -o /dev/null -w "%{http_code}" "https://$DOMAIN/up" --resolve "$DOMAIN:443:127.0.0.1")
+          if [ "$STATUS" = "200" ]; then
+            HEALTH_OK=1
+            echo "Smoke test PASSED (attempt $i)"
+            break
+          fi
+          echo "Smoke test attempt $i: HTTP $STATUS"
+          sleep 2
+        done
+
+        if [ "$HEALTH_OK" != "1" ]; then
+          echo "========================================="
+          echo "SMOKE TEST FAILED — AUTO-ROLLBACK"
+          echo "========================================="
+          mv "$LIVE" "$LIVE-failed"
+          mv "$OLD" "$LIVE"
+          cd "$LIVE"
+          php artisan config:cache
+          php artisan route:cache
+          php artisan view:cache
+          systemctl reload php8.4-fpm
+          echo "ROLLED BACK to previous version"
+          rm -rf "$LIVE-failed"
+          exit 1
+        fi
+
+        rm /tmp/bcmp-api-deploy.tar.gz
+        echo "Deployed bcmp-api at $(date) — verified healthy"
       DEPLOY
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
