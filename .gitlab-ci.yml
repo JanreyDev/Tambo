@@ -182,40 +182,70 @@ deploy_production:
           exit 1
         fi
 
-        # === DEEP SMOKE TEST ===
-        echo "Running deep smoke tests..."
+        # === COMPREHENSIVE SMOKE TEST (all route groups) ===
+        echo "Running comprehensive smoke tests..."
         DEEP_FAIL=0
+        PASS_COUNT=0
+        FAIL_COUNT=0
 
-        # Test auth middleware — unauthenticated request must return 401
-        STATUS=$(curl -sk -o /dev/null -w "%{http_code}" "https://$DOMAIN/api/v1/auth/me" --resolve "$DOMAIN:443:127.0.0.1")
-        if [ "$STATUS" != "401" ]; then
-          echo "DEEP FAIL: /api/v1/auth/me returned $STATUS (expected 401)"
-          DEEP_FAIL=1
-        else
-          echo "PASS: /api/v1/auth/me → 401 (auth protected)"
-        fi
+        # Helper: test expected status code
+        check_status() {
+          local ENDPOINT="$1" EXPECTED="$2" LABEL="$3"
+          STATUS=$(curl -sk -o /dev/null -w "%{http_code}" "https://$DOMAIN$ENDPOINT" --resolve "$DOMAIN:443:127.0.0.1")
+          if [ "$STATUS" = "$EXPECTED" ]; then
+            echo "PASS: $ENDPOINT → $STATUS ($LABEL)"
+            PASS_COUNT=$((PASS_COUNT + 1))
+          else
+            echo "FAIL: $ENDPOINT returned $STATUS (expected $EXPECTED) ($LABEL)"
+            DEEP_FAIL=1
+            FAIL_COUNT=$((FAIL_COUNT + 1))
+          fi
+        }
 
-        # Test tenant-scoped route protection
-        STATUS=$(curl -sk -o /dev/null -w "%{http_code}" "https://$DOMAIN/api/v1/residents" --resolve "$DOMAIN:443:127.0.0.1")
-        if [ "$STATUS" != "401" ]; then
-          echo "DEEP FAIL: /api/v1/residents returned $STATUS (expected 401)"
-          DEEP_FAIL=1
-        else
-          echo "PASS: /api/v1/residents → 401 (tenant-scoped, auth protected)"
-        fi
+        # --- Public endpoints (must return 200) ---
+        check_status "/up" "200" "health check"
+        check_status "/api/v1/psgc/provinces" "200" "public PSGC"
 
-        # Test public PSGC endpoint
-        STATUS=$(curl -sk -o /dev/null -w "%{http_code}" "https://$DOMAIN/api/v1/psgc/regions" --resolve "$DOMAIN:443:127.0.0.1")
-        if [ "$STATUS" != "200" ]; then
-          echo "DEEP FAIL: /api/v1/psgc/regions returned $STATUS (expected 200)"
-          DEEP_FAIL=1
-        else
-          echo "PASS: /api/v1/psgc/regions → 200 (public PSGC endpoint)"
-        fi
+        # --- Auth-protected endpoints (must return 401 without token) ---
+        check_status "/api/v1/auth/me" "401" "auth protection"
+        check_status "/api/v1/residents" "401" "residents - tenant scoped"
+        check_status "/api/v1/dashboard/stats" "401" "dashboard stats"
+        check_status "/api/v1/settings" "401" "settings"
+        check_status "/api/v1/ai/credits" "401" "AI credits"
+        check_status "/api/v1/voters" "401" "voters"
+        check_status "/api/v1/issued-documents" "401" "issued documents"
+        check_status "/api/v1/kp-cases" "401" "KP cases"
+        check_status "/api/v1/blotters" "401" "blotters"
+        check_status "/api/v1/vawc-cases" "401" "VAWC cases"
+        check_status "/api/v1/tanods" "401" "tanods"
+        check_status "/api/v1/budgets" "401" "finance - budgets"
+        check_status "/api/v1/inventory-items" "401" "inventory items"
+        check_status "/api/v1/drive/files" "401" "drive files"
+        check_status "/api/v1/marketplace/products" "401" "marketplace"
+        check_status "/api/v1/messages" "401" "messages"
+        check_status "/api/v1/establishments" "401" "establishments"
+        check_status "/api/v1/lots-buildings" "401" "lots & buildings"
+        check_status "/api/v1/map/residents" "401" "map residents"
+        check_status "/api/v1/households" "401" "households"
+        check_status "/api/v1/officials" "401" "officials"
+        check_status "/api/v1/puroks" "401" "puroks"
+        check_status "/api/v1/document-templates" "401" "document templates"
+        check_status "/api/v1/posts" "401" "public portal posts"
+        check_status "/api/v1/employees" "401" "HRIS employees"
+        check_status "/api/v1/evacuations" "401" "DRRM evacuations"
+        check_status "/api/v1/gad-plans" "401" "GAD plans"
+        check_status "/api/v1/assets" "401" "assets"
+
+        # --- Admin-protected endpoints (must return 401) ---
+        check_status "/api/v1/admin/barangays" "401" "admin barangays"
+
+        echo "========================================="
+        echo "Results: $PASS_COUNT passed, $FAIL_COUNT failed"
+        echo "========================================="
 
         if [ "$DEEP_FAIL" != "0" ]; then
           echo "========================================="
-          echo "DEEP SMOKE TEST FAILED — AUTO-ROLLBACK"
+          echo "COMPREHENSIVE SMOKE TEST FAILED — AUTO-ROLLBACK"
           echo "========================================="
           mv "$LIVE" "$LIVE-failed"
           mv "$OLD" "$LIVE"
@@ -229,7 +259,7 @@ deploy_production:
           exit 1
         fi
 
-        echo "All deep smoke tests PASSED"
+        echo "Comprehensive smoke tests PASSED"
 
         rm /tmp/bcmp-api-deploy.tar.gz
         echo "Deployed bcmp-api at $(date) — verified healthy"
