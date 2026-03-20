@@ -169,6 +169,55 @@ deploy_production:
           exit 1
         fi
 
+        # === DEEP SMOKE TEST ===
+        echo "Running deep smoke tests..."
+        DEEP_FAIL=0
+
+        # Test auth middleware — unauthenticated request must return 401
+        STATUS=$(curl -sk -o /dev/null -w "%{http_code}" "https://$DOMAIN/api/v1/auth/me" --resolve "$DOMAIN:443:127.0.0.1")
+        if [ "$STATUS" != "401" ]; then
+          echo "DEEP FAIL: /api/v1/auth/me returned $STATUS (expected 401)"
+          DEEP_FAIL=1
+        else
+          echo "PASS: /api/v1/auth/me → 401 (auth protected)"
+        fi
+
+        # Test tenant-scoped route protection
+        STATUS=$(curl -sk -o /dev/null -w "%{http_code}" "https://$DOMAIN/api/v1/residents" --resolve "$DOMAIN:443:127.0.0.1")
+        if [ "$STATUS" != "401" ]; then
+          echo "DEEP FAIL: /api/v1/residents returned $STATUS (expected 401)"
+          DEEP_FAIL=1
+        else
+          echo "PASS: /api/v1/residents → 401 (tenant-scoped, auth protected)"
+        fi
+
+        # Test public PSGC endpoint
+        STATUS=$(curl -sk -o /dev/null -w "%{http_code}" "https://$DOMAIN/api/v1/psgc/regions" --resolve "$DOMAIN:443:127.0.0.1")
+        if [ "$STATUS" != "200" ]; then
+          echo "DEEP FAIL: /api/v1/psgc/regions returned $STATUS (expected 200)"
+          DEEP_FAIL=1
+        else
+          echo "PASS: /api/v1/psgc/regions → 200 (public PSGC endpoint)"
+        fi
+
+        if [ "$DEEP_FAIL" != "0" ]; then
+          echo "========================================="
+          echo "DEEP SMOKE TEST FAILED — AUTO-ROLLBACK"
+          echo "========================================="
+          mv "$LIVE" "$LIVE-failed"
+          mv "$OLD" "$LIVE"
+          cd "$LIVE"
+          php artisan config:cache
+          php artisan route:cache
+          php artisan view:cache
+          systemctl reload php8.4-fpm
+          echo "ROLLED BACK to previous version"
+          rm -rf "$LIVE-failed"
+          exit 1
+        fi
+
+        echo "All deep smoke tests PASSED"
+
         rm /tmp/bcmp-api-deploy.tar.gz
         echo "Deployed bcmp-api at $(date) — verified healthy"
       DEPLOY
