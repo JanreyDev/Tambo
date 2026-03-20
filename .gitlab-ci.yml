@@ -169,6 +169,36 @@ deploy_production:
           exit 1
         fi
 
+        # === DEEP SMOKE TEST ===
+        echo "Running deep smoke tests..."
+        DEEP_FAIL=0
+
+        for ROUTE in /dashboard /vault; do
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$PORT$ROUTE" 2>/dev/null)
+          if [ "$STATUS" = "200" ] || [ "$STATUS" = "302" ] || [ "$STATUS" = "307" ]; then
+            echo "PASS: $ROUTE → $STATUS"
+          else
+            echo "DEEP FAIL: $ROUTE returned $STATUS (expected 200/302/307)"
+            DEEP_FAIL=1
+          fi
+        done
+
+        if [ "$DEEP_FAIL" != "0" ]; then
+          echo "========================================="
+          echo "DEEP SMOKE TEST FAILED — AUTO-ROLLBACK"
+          echo "========================================="
+          pm2 delete $APP_NAME 2>/dev/null || true
+          mv "$LIVE" "$LIVE-failed"
+          mv "$OLD" "$LIVE"
+          cd "$LIVE/.next/standalone"
+          PORT=$PORT HOSTNAME=0.0.0.0 pm2 start server.js --name $APP_NAME --cwd "$LIVE/.next/standalone"
+          pm2 save
+          echo "ROLLED BACK to previous version"
+          rm -rf "$LIVE-failed"
+          exit 1
+        fi
+        echo "Deep smoke tests PASSED"
+
         rm /tmp/primex-founder-deploy.tar.gz
         echo "Deployed $APP_NAME at $(date) — verified healthy"
       DEPLOY
