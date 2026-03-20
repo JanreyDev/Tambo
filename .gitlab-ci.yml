@@ -180,31 +180,67 @@ deploy_production:
           exit 1
         fi
 
-        # === DEEP SMOKE TEST ===
-        echo "Running deep smoke tests..."
+        # === COMPREHENSIVE SMOKE TEST (all route groups) ===
+        echo "Running comprehensive smoke tests..."
         DEEP_FAIL=0
+        PASS_COUNT=0
+        FAIL_COUNT=0
 
-        # Test founder auth protection
-        STATUS=$(curl -sk -o /dev/null -w "%{http_code}" "https://$DOMAIN/api/v1/founder/dashboard" --resolve "$DOMAIN:443:127.0.0.1")
-        if [ "$STATUS" != "401" ]; then
-          echo "DEEP FAIL: /api/v1/founder/dashboard returned $STATUS (expected 401)"
-          DEEP_FAIL=1
-        else
-          echo "PASS: /api/v1/founder/dashboard → 401 (founder auth protected)"
-        fi
+        # Helper: test expected status code
+        check_status() {
+          local ENDPOINT="$1" EXPECTED="$2" LABEL="$3"
+          STATUS=$(curl -sk -o /dev/null -w "%{http_code}" "https://$DOMAIN$ENDPOINT" --resolve "$DOMAIN:443:127.0.0.1")
+          if [ "$STATUS" = "$EXPECTED" ]; then
+            echo "PASS: $ENDPOINT → $STATUS ($LABEL)"
+            PASS_COUNT=$((PASS_COUNT + 1))
+          else
+            echo "FAIL: $ENDPOINT returned $STATUS (expected $EXPECTED) ($LABEL)"
+            DEEP_FAIL=1
+            FAIL_COUNT=$((FAIL_COUNT + 1))
+          fi
+        }
 
-        # Test admin auth protection
-        STATUS=$(curl -sk -o /dev/null -w "%{http_code}" "https://$DOMAIN/api/v1/bcmp/tenants" --resolve "$DOMAIN:443:127.0.0.1")
-        if [ "$STATUS" != "401" ]; then
-          echo "DEEP FAIL: /api/v1/bcmp/tenants returned $STATUS (expected 401)"
-          DEEP_FAIL=1
-        else
-          echo "PASS: /api/v1/bcmp/tenants → 401 (admin auth protected)"
-        fi
+        # --- Public endpoints (must return 200) ---
+        check_status "/up" "200" "health check"
+
+        # --- Admin auth-protected (must return 401) ---
+        check_status "/api/v1/auth/me" "401" "auth protection"
+        check_status "/api/v1/dashboard/overview" "401" "dashboard overview"
+        check_status "/api/v1/product-connections" "401" "product connections"
+        check_status "/api/v1/audit-logs" "401" "audit logs"
+        check_status "/api/v1/admin-users" "401" "admin users"
+        check_status "/api/v1/settings" "401" "settings"
+
+        # --- Founder auth-protected (must return 401) ---
+        check_status "/api/v1/founder/heartbeat" "401" "founder heartbeat"
+        check_status "/api/v1/founder/infrastructure/droplets" "401" "founder infra droplets"
+        check_status "/api/v1/founder/infrastructure/databases" "401" "founder infra databases"
+        check_status "/api/v1/founder/infrastructure/domains" "401" "founder infra domains"
+        check_status "/api/v1/founder/products/health" "401" "founder product health"
+        check_status "/api/v1/founder/alerts" "401" "founder alerts"
+        check_status "/api/v1/founder/security/feed" "401" "founder security feed"
+        check_status "/api/v1/founder/deployments/recent" "401" "founder deployments"
+        check_status "/api/v1/founder/revenue" "401" "founder revenue"
+        check_status "/api/v1/founder/activity" "401" "founder activity"
+        check_status "/api/v1/founder/bcmp/tenants" "401" "founder BCMP tenants"
+        check_status "/api/v1/founder/bcmp/subscription-stats" "401" "founder BCMP subscriptions"
+        check_status "/api/v1/founder/bcmp/pricing" "401" "founder BCMP pricing"
+        check_status "/api/v1/founder/bcmp/document-templates" "401" "founder BCMP templates"
+        check_status "/api/v1/founder/bcmp/marketplace/products" "401" "founder BCMP marketplace"
+        check_status "/api/v1/founder/psgc/provinces" "401" "founder PSGC"
+
+        # --- Vault auth-protected (must return 401) ---
+        check_status "/api/v1/vault/heartbeat" "401" "vault heartbeat"
+        check_status "/api/v1/vault/categories" "401" "vault categories"
+        check_status "/api/v1/vault/guide" "401" "vault guide"
+
+        echo "========================================="
+        echo "Results: $PASS_COUNT passed, $FAIL_COUNT failed"
+        echo "========================================="
 
         if [ "$DEEP_FAIL" != "0" ]; then
           echo "========================================="
-          echo "DEEP SMOKE TEST FAILED — AUTO-ROLLBACK"
+          echo "COMPREHENSIVE SMOKE TEST FAILED — AUTO-ROLLBACK"
           echo "========================================="
           mv "$LIVE" "$LIVE-failed"
           mv "$OLD" "$LIVE"
@@ -218,7 +254,7 @@ deploy_production:
           exit 1
         fi
 
-        echo "All deep smoke tests PASSED"
+        echo "Comprehensive smoke tests PASSED"
 
         rm /tmp/primex-api-deploy.tar.gz
         echo "Deployed primex-api at $(date) — verified healthy"
