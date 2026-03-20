@@ -35,6 +35,17 @@ security:
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
 
+typecheck:
+  stage: lint
+  image: node:24-alpine
+  before_script:
+    - corepack enable && corepack prepare pnpm@latest --activate
+    - pnpm install --frozen-lockfile
+  script:
+    - pnpm exec tsc --noEmit
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
 build:
   stage: build
   image: node:24-alpine
@@ -70,6 +81,7 @@ deploy_production:
   image: alpine:latest
   needs:
     - lint
+    - typecheck
     - security
     - build
   before_script:
