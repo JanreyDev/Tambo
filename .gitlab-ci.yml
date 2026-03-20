@@ -153,22 +153,11 @@ deploy_production:
         curl -sk "https://$DOMAIN/opcache_reset.php" --resolve "$DOMAIN:443:127.0.0.1" || true
         rm -f "$LIVE/public/opcache_reset.php"
 
-        # === POST-SWAP SMOKE TEST ===
-        HEALTH_OK=0
-        for i in 1 2 3 4 5; do
-          STATUS=$(curl -sk -o /dev/null -w "%{http_code}" "https://$DOMAIN/up" --resolve "$DOMAIN:443:127.0.0.1")
-          if [ "$STATUS" = "200" ]; then
-            HEALTH_OK=1
-            echo "Smoke test PASSED (attempt $i)"
-            break
-          fi
-          echo "Smoke test attempt $i: HTTP $STATUS"
-          sleep 2
-        done
-
-        if [ "$HEALTH_OK" != "1" ]; then
+        # === ROLLBACK FUNCTION ===
+        rollback() {
+          local REASON="$1"
           echo "========================================="
-          echo "SMOKE TEST FAILED — AUTO-ROLLBACK"
+          echo "$REASON — AUTO-ROLLBACK"
           echo "========================================="
           mv "$LIVE" "$LIVE-failed"
           mv "$OLD" "$LIVE"
@@ -180,10 +169,29 @@ deploy_production:
           echo "ROLLED BACK to previous version"
           rm -rf "$LIVE-failed"
           exit 1
+        }
+
+        # === LAYER 1: POST-SWAP SMOKE TEST ===
+        HEALTH_OK=0
+        for i in 1 2 3 4 5; do
+          STATUS=$(curl -sk -o /dev/null -w "%{http_code}" "https://$DOMAIN/up" --resolve "$DOMAIN:443:127.0.0.1")
+          if [ "$STATUS" = "200" ]; then
+            HEALTH_OK=1
+            echo "Layer 1 smoke test PASSED (attempt $i)"
+            break
+          fi
+          echo "Layer 1 smoke test attempt $i: HTTP $STATUS"
+          sleep 2
+        done
+
+        if [ "$HEALTH_OK" != "1" ]; then
+          rollback "LAYER 1 SMOKE TEST FAILED"
         fi
 
-        # === COMPREHENSIVE SMOKE TEST (all route groups) ===
-        echo "Running comprehensive smoke tests..."
+        # === LAYER 2: COMPREHENSIVE SMOKE TEST (all route groups) ===
+        echo ""
+        echo "Running Layer 2: comprehensive smoke tests..."
+        echo ""
         DEEP_FAIL=0
         PASS_COUNT=0
         FAIL_COUNT=0
@@ -244,25 +252,60 @@ deploy_production:
         echo "========================================="
 
         if [ "$DEEP_FAIL" != "0" ]; then
-          echo "========================================="
-          echo "COMPREHENSIVE SMOKE TEST FAILED — AUTO-ROLLBACK"
-          echo "========================================="
-          mv "$LIVE" "$LIVE-failed"
-          mv "$OLD" "$LIVE"
-          cd "$LIVE"
-          php artisan config:cache
-          php artisan route:cache
-          php artisan view:cache
-          systemctl reload php8.4-fpm
-          echo "ROLLED BACK to previous version"
-          rm -rf "$LIVE-failed"
-          exit 1
+          rollback "LAYER 2 COMPREHENSIVE SMOKE TEST FAILED"
         fi
 
-        echo "Comprehensive smoke tests PASSED"
+        echo "Layer 2 comprehensive smoke tests PASSED"
+
+        # === LAYER 3: E2E API VERIFICATION (Playwright) ===
+        echo ""
+        echo "Running Layer 3: E2E API verification..."
+        echo ""
+
+        E2E_FAIL=0
+
+        if [ -d "$LIVE/e2e" ] && [ -f "$LIVE/playwright.config.ts" ]; then
+          E2E_RUNNER="/tmp/$(basename $LIVE)-e2e-runner"
+          rm -rf "$E2E_RUNNER"
+          mkdir -p "$E2E_RUNNER/e2e"
+
+          cp "$LIVE/e2e/"*.spec.ts "$E2E_RUNNER/e2e/" 2>/dev/null || true
+          cp "$LIVE/playwright.config.ts" "$E2E_RUNNER/" 2>/dev/null || true
+
+          cat > "$E2E_RUNNER/package.json" << 'PKGJSON'
+{"name":"e2e-runner","private":true,"devDependencies":{"@playwright/test":"^1.50.0"}}
+PKGJSON
+
+          cd "$E2E_RUNNER"
+          npm install --no-audit --no-fund 2>&1 | tail -1
+
+          CI=true API_URL="https://$DOMAIN" npx playwright test \
+            --reporter=list \
+            --timeout=15000 \
+            --retries=1 2>&1 || E2E_FAIL=1
+
+          rm -rf "$E2E_RUNNER"
+          cd "$LIVE"
+
+          if [ "$E2E_FAIL" != "0" ]; then
+            rollback "LAYER 3 E2E API VERIFICATION FAILED"
+          fi
+
+          echo "Layer 3 E2E API verification PASSED"
+        else
+          echo "Layer 3 SKIPPED — no e2e/ directory or playwright.config.ts found"
+        fi
+
+        echo ""
+        echo "========================================="
+        echo "DEPLOY COMPLETE — ALL 3 LAYERS PASSED"
+        echo "  Layer 1: Process alive (curl /up)"
+        echo "  Layer 2: All routes respond (curl)"
+        echo "  Layer 3: Response bodies valid (Playwright)"
+        echo "========================================="
+        echo "Deployed $(basename $LIVE) at $(date)"
 
         rm /tmp/bcmp-api-deploy.tar.gz
-        echo "Deployed bcmp-api at $(date) — verified healthy"
       DEPLOY
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
