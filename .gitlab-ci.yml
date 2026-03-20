@@ -182,23 +182,65 @@ deploy_production:
           exit 1
         fi
 
-        # === DEEP SMOKE TEST ===
-        echo "Running deep smoke tests..."
+        # === COMPREHENSIVE SMOKE TEST (all 33 static routes) ===
+        echo "Running comprehensive smoke tests..."
         DEEP_FAIL=0
+        PASS_COUNT=0
+        FAIL_COUNT=0
 
-        for ROUTE in /dashboard /residents; do
+        for ROUTE in \
+          / \
+          /login \
+          /forgot-password \
+          /census \
+          /dashboard \
+          /dashboard/ai \
+          /dashboard/residents \
+          /dashboard/establishments \
+          /dashboard/lots-buildings \
+          /dashboard/voters \
+          /dashboard/households \
+          /dashboard/judicial/kp-cases \
+          /dashboard/judicial/blotter \
+          /dashboard/vawc \
+          /dashboard/tanod \
+          /dashboard/finance \
+          /dashboard/inventory \
+          /dashboard/drive \
+          /dashboard/email \
+          /dashboard/marketplace \
+          /dashboard/documents \
+          /dashboard/documents/templates \
+          /dashboard/gad \
+          /dashboard/hris \
+          /dashboard/disaster \
+          /dashboard/map \
+          /dashboard/public-portal \
+          /dashboard/reports \
+          /dashboard/requests \
+          /dashboard/support \
+          /dashboard/account \
+          /dashboard/settings \
+          /dashboard/updates \
+          /dashboard/help; do
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$PORT$ROUTE" 2>/dev/null)
           if [ "$STATUS" = "200" ] || [ "$STATUS" = "302" ] || [ "$STATUS" = "307" ]; then
             echo "PASS: $ROUTE → $STATUS"
+            PASS_COUNT=$((PASS_COUNT + 1))
           else
-            echo "DEEP FAIL: $ROUTE returned $STATUS (expected 200/302/307)"
+            echo "FAIL: $ROUTE returned $STATUS (expected 200/302/307)"
             DEEP_FAIL=1
+            FAIL_COUNT=$((FAIL_COUNT + 1))
           fi
         done
 
+        echo "========================================="
+        echo "Results: $PASS_COUNT passed, $FAIL_COUNT failed"
+        echo "========================================="
+
         if [ "$DEEP_FAIL" != "0" ]; then
           echo "========================================="
-          echo "DEEP SMOKE TEST FAILED — AUTO-ROLLBACK"
+          echo "COMPREHENSIVE SMOKE TEST FAILED — AUTO-ROLLBACK"
           echo "========================================="
           pm2 delete $APP_NAME 2>/dev/null || true
           mv "$LIVE" "$LIVE-failed"
@@ -210,7 +252,7 @@ deploy_production:
           rm -rf "$LIVE-failed"
           exit 1
         fi
-        echo "Deep smoke tests PASSED"
+        echo "Comprehensive smoke tests PASSED"
 
         rm /tmp/bcmp-web-deploy.tar.gz
         echo "Deployed $APP_NAME at $(date) — verified healthy"
