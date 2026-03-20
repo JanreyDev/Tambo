@@ -86,7 +86,10 @@ test('updating a resident creates an audit log with field changes', function () 
 
     expect($log)->not->toBeNull();
     expect($log->changes)->toBeArray();
-    expect($log->changes)->toHaveKey('first_name');
+    expect($log->changes)->toHaveKey('fields_changed');
+    expect($log->changes)->toHaveKey('old');
+    expect($log->changes)->toHaveKey('new');
+    expect($log->changes['fields_changed'])->toContain('first_name');
 });
 
 // ── Resident Delete Logging ──

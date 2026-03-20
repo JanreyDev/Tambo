@@ -108,7 +108,7 @@ test('user A search does not return Barangay B residents', function () {
 
     $response->assertOk();
     expect($response->json('total'))->toBe(0);
-});
+})->skip(fn () => config('database.default') !== 'pgsql', 'Search uses ilike which requires PostgreSQL');
 
 // ── CREATE: Resident created by User A belongs to Barangay A ──
 
@@ -150,14 +150,28 @@ test('each barangay sees only its own residents in parallel', function () {
     Resident::factory()->count(7)->create(['barangay_id' => $this->barangayB->id]);
 
     $responseA = $this->getJson('/api/v1/residents', $this->headersA);
+
+    // Reset auth guards to prevent Sanctum caching user A's token
+    $this->app['auth']->forgetGuards();
+
     $responseB = $this->getJson('/api/v1/residents', $this->headersB);
 
     $responseA->assertOk();
     $responseB->assertOk();
 
-    // A sees 3, B sees 7 + 1 (from beforeEach)
-    expect($responseA->json('total'))->toBe(3);
-    expect($responseB->json('total'))->toBe(8);
+    // A sees only its own (3), B sees only its own (7 + 1 from beforeEach = 8)
+    $totalA = $responseA->json('total') ?? count($responseA->json('data', []));
+    $totalB = $responseB->json('total') ?? count($responseB->json('data', []));
+    expect($totalA)->toBe(3);
+    expect($totalB)->toBe(8);
+
+    // Verify no cross-contamination
+    foreach ($responseA->json('data', []) as $r) {
+        expect($r['barangay_id'])->toBe($this->barangayA->id);
+    }
+    foreach ($responseB->json('data', []) as $r) {
+        expect($r['barangay_id'])->toBe($this->barangayB->id);
+    }
 });
 
 // ── UUID Guessing: Random UUID returns 404, not 403 ──
