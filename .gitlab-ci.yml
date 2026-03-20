@@ -22,6 +22,18 @@ lint:
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
 
+analyse:
+  stage: lint
+  image: php:8.4-cli-alpine
+  before_script:
+    - apk add --no-cache git unzip
+    - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+    - composer install --no-interaction --prefer-dist --no-progress
+  script:
+    - ./vendor/bin/phpstan analyse --level=6 --no-progress --memory-limit=512M
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
 security:
   stage: lint
   image: php:8.4-cli-alpine
@@ -43,7 +55,7 @@ test:
     - cp .env.example .env
     - php artisan key:generate
   script:
-    - php artisan test --parallel
+    - php artisan test --parallel --min=60
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
 
@@ -53,6 +65,7 @@ deploy_production:
   image: alpine:latest
   needs:
     - lint
+    - analyse
     - security
     - test
   before_script:
