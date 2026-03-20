@@ -87,29 +87,91 @@ deploy_production:
         LIVE="/var/www/bcmp/bcmp-web"
         NEW="/var/www/bcmp/bcmp-web-new"
         OLD="/var/www/bcmp/bcmp-web-old"
+        APP_NAME="bcmp-web"
+        PORT=3000
+        TEMP_PORT=4000
 
         rm -rf "$NEW"
         mkdir -p "$NEW"
         tar -xzf /tmp/bcmp-web-deploy.tar.gz -C "$NEW"
         cp "$LIVE/.env" "$NEW/.env" 2>/dev/null || true
-        cd "$NEW/.next/standalone"
-        npm install --omit=dev 2>/dev/null || true
 
+        # Prepare standalone
+        cp -r "$NEW/.next/static" "$NEW/.next/standalone/.next/static"
+        cp -r "$NEW/public" "$NEW/.next/standalone/public" 2>/dev/null || true
+
+        # === PRE-SWAP VERIFICATION ===
+        # Start new build on temp port, verify it responds
+        cd "$NEW/.next/standalone"
+        PORT=$TEMP_PORT HOSTNAME=0.0.0.0 node server.js &
+        TEMP_PID=$!
+        sleep 3
+
+        PRE_OK=0
+        for i in 1 2 3; do
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$TEMP_PORT/" 2>/dev/null)
+          if [ "$STATUS" = "200" ] || [ "$STATUS" = "302" ] || [ "$STATUS" = "307" ]; then
+            PRE_OK=1
+            break
+          fi
+          sleep 2
+        done
+
+        kill $TEMP_PID 2>/dev/null || true
+        wait $TEMP_PID 2>/dev/null || true
+
+        if [ "$PRE_OK" != "1" ]; then
+          echo "========================================="
+          echo "PRE-SWAP VERIFICATION FAILED — new build does not start"
+          echo "Production untouched. Aborting deploy."
+          echo "========================================="
+          rm -rf "$NEW"
+          rm /tmp/bcmp-web-deploy.tar.gz
+          exit 1
+        fi
+        echo "Pre-swap verification PASSED"
+
+        # === SWAP ===
         rm -rf "$OLD"
         mv "$LIVE" "$OLD" 2>/dev/null || true
         mv "$NEW" "$LIVE"
 
-        cp -r "$LIVE/.next/static" "$LIVE/.next/standalone/.next/static"
-        cp -r "$LIVE/public" "$LIVE/.next/standalone/public" 2>/dev/null || true
-
         cd "$LIVE/.next/standalone"
-        pm2 delete bcmp-web 2>/dev/null || true
-        PORT=3000 HOSTNAME=0.0.0.0 pm2 start server.js --name bcmp-web --cwd "$LIVE/.next/standalone"
+        pm2 delete $APP_NAME 2>/dev/null || true
+        PORT=$PORT HOSTNAME=0.0.0.0 pm2 start server.js --name $APP_NAME --cwd "$LIVE/.next/standalone"
         pm2 save
 
+        # === POST-SWAP SMOKE TEST ===
+        sleep 2
+        HEALTH_OK=0
+        for i in 1 2 3 4 5; do
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$PORT/" 2>/dev/null)
+          if [ "$STATUS" = "200" ] || [ "$STATUS" = "302" ] || [ "$STATUS" = "307" ]; then
+            HEALTH_OK=1
+            echo "Smoke test PASSED (attempt $i)"
+            break
+          fi
+          echo "Smoke test attempt $i: HTTP $STATUS"
+          sleep 2
+        done
+
+        if [ "$HEALTH_OK" != "1" ]; then
+          echo "========================================="
+          echo "SMOKE TEST FAILED — AUTO-ROLLBACK"
+          echo "========================================="
+          pm2 delete $APP_NAME 2>/dev/null || true
+          mv "$LIVE" "$LIVE-failed"
+          mv "$OLD" "$LIVE"
+          cd "$LIVE/.next/standalone"
+          PORT=$PORT HOSTNAME=0.0.0.0 pm2 start server.js --name $APP_NAME --cwd "$LIVE/.next/standalone"
+          pm2 save
+          echo "ROLLED BACK to previous version"
+          rm -rf "$LIVE-failed"
+          exit 1
+        fi
+
         rm /tmp/bcmp-web-deploy.tar.gz
-        rm -rf "$OLD"
-        echo "Deployed bcmp-web at $(date)"
+        echo "Deployed $APP_NAME at $(date) — verified healthy"
       DEPLOY
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
