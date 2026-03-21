@@ -151,7 +151,7 @@ deploy_production:
         systemctl restart php8.4-fpm
 
         echo "<?php opcache_reset(); echo 'ok';" > "$LIVE/public/opcache_reset.php"
-        curl -sk "https://$DOMAIN/opcache_reset.php" --resolve "$DOMAIN:443:127.0.0.1" || true
+        curl -s "http://localhost/opcache_reset.php" -H "Host: $DOMAIN" || true
         rm -f "$LIVE/public/opcache_reset.php"
 
         # === ROLLBACK FUNCTION ===
@@ -175,7 +175,7 @@ deploy_production:
         # === LAYER 1: POST-SWAP SMOKE TEST ===
         HEALTH_OK=0
         for i in 1 2 3 4 5; do
-          STATUS=$(curl -sk -o /dev/null -w "%{http_code}" "https://$DOMAIN/up" --resolve "$DOMAIN:443:127.0.0.1")
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost/up" -H "Host: $DOMAIN")
           if [ "$STATUS" = "200" ]; then
             HEALTH_OK=1
             echo "Layer 1 smoke test PASSED (attempt $i)"
@@ -200,7 +200,7 @@ deploy_production:
         # Helper: test expected status code
         check_status() {
           local ENDPOINT="$1" EXPECTED="$2" LABEL="$3"
-          STATUS=$(curl -sk -o /dev/null -w "%{http_code}" "https://$DOMAIN$ENDPOINT" --resolve "$DOMAIN:443:127.0.0.1")
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost$ENDPOINT" -H "Host: $DOMAIN")
           if [ "$STATUS" = "$EXPECTED" ]; then
             echo "PASS: $ENDPOINT → $STATUS ($LABEL)"
             PASS_COUNT=$((PASS_COUNT + 1))
