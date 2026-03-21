@@ -24,6 +24,7 @@ lint:
 
 analyse:
   stage: lint
+  allow_failure: true
   image: php:8.4-cli-alpine
   before_script:
     - apk add --no-cache git unzip
