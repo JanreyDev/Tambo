@@ -150,7 +150,7 @@ deploy_production:
         sleep 2
 
         echo "<?php opcache_reset(); echo 'ok';" > "$LIVE/public/opcache_reset.php"
-        curl -sk "https://$DOMAIN/opcache_reset.php" --resolve "$DOMAIN:443:127.0.0.1" || true
+        curl -s "http://localhost/opcache_reset.php" -H "Host: $DOMAIN" || true
         rm -f "$LIVE/public/opcache_reset.php"
         sleep 2
 
@@ -175,7 +175,7 @@ deploy_production:
         # === LAYER 1: POST-SWAP SMOKE TEST ===
         HEALTH_OK=0
         for i in 1 2 3 4 5; do
-          STATUS=$(curl -sk -o /dev/null -w "%{http_code}" "https://$DOMAIN/up" --resolve "$DOMAIN:443:127.0.0.1")
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost/up" -H "Host: $DOMAIN")
           if [ "$STATUS" = "200" ]; then
             HEALTH_OK=1
             echo "Layer 1 smoke test PASSED (attempt $i)"
@@ -200,7 +200,7 @@ deploy_production:
         # Helper: test expected status code
         check_status() {
           local ENDPOINT="$1" EXPECTED="$2" LABEL="$3"
-          BODY=$(curl -sk -w "\n%{http_code}" "https://$DOMAIN$ENDPOINT" --resolve "$DOMAIN:443:127.0.0.1" -H "Accept: application/json")
+          BODY=$(curl -s -w "\n%{http_code}" "http://localhost$ENDPOINT" -H "Host: $DOMAIN" -H "Accept: application/json")
           STATUS=$(echo "$BODY" | tail -1)
           RESPONSE=$(echo "$BODY" | head -1)
           if [ "$STATUS" = "$EXPECTED" ]; then
