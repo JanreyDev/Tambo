@@ -16,17 +16,19 @@ vi.mock("next/navigation", () => ({
 }));
 
 // Mock next/image — returns a plain object instead of JSX to avoid needing .tsx
-vi.mock("next/image", () => ({
-  default: Object.assign(
-    (props: Record<string, unknown>) => {
-      const { fill, priority, ...rest } = props;
-      // Return a createElement call instead of JSX
-      const React = require("react");
-      return React.createElement("img", rest);
-    },
-    { displayName: "MockImage" }
-  ),
-}));
+vi.mock("next/image", async () => {
+  const React = await import("react");
+  return {
+    default: Object.assign(
+      (props: Record<string, unknown>) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { fill, priority, ...rest } = props;
+        return React.createElement("img", rest);
+      },
+      { displayName: "MockImage" }
+    ),
+  };
+});
 
 // Mock window.matchMedia
 Object.defineProperty(window, "matchMedia", {
