@@ -146,8 +146,8 @@ deploy_production:
         php artisan route:cache
         php artisan view:cache
 
-        systemctl reload php8.4-fpm
-        sleep 3
+        systemctl restart php8.4-fpm
+        sleep 2
 
         echo "<?php opcache_reset(); echo 'ok';" > "$LIVE/public/opcache_reset.php"
         curl -sk "https://$DOMAIN/opcache_reset.php" --resolve "$DOMAIN:443:127.0.0.1" || true
