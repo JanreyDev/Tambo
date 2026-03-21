@@ -200,12 +200,15 @@ deploy_production:
         # Helper: test expected status code
         check_status() {
           local ENDPOINT="$1" EXPECTED="$2" LABEL="$3"
-          STATUS=$(curl -sk -o /dev/null -w "%{http_code}" "https://$DOMAIN$ENDPOINT" --resolve "$DOMAIN:443:127.0.0.1")
+          BODY=$(curl -sk -w "\n%{http_code}" "https://$DOMAIN$ENDPOINT" --resolve "$DOMAIN:443:127.0.0.1" -H "Accept: application/json")
+          STATUS=$(echo "$BODY" | tail -1)
+          RESPONSE=$(echo "$BODY" | head -1)
           if [ "$STATUS" = "$EXPECTED" ]; then
             echo "PASS: $ENDPOINT → $STATUS ($LABEL)"
             PASS_COUNT=$((PASS_COUNT + 1))
           else
             echo "FAIL: $ENDPOINT returned $STATUS (expected $EXPECTED) ($LABEL)"
+            echo "  BODY: $RESPONSE"
             DEEP_FAIL=1
             FAIL_COUNT=$((FAIL_COUNT + 1))
           fi
