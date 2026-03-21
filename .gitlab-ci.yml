@@ -147,10 +147,12 @@ deploy_production:
         php artisan view:cache
 
         systemctl reload php8.4-fpm
+        sleep 3
 
         echo "<?php opcache_reset(); echo 'ok';" > "$LIVE/public/opcache_reset.php"
         curl -sk "https://$DOMAIN/opcache_reset.php" --resolve "$DOMAIN:443:127.0.0.1" || true
         rm -f "$LIVE/public/opcache_reset.php"
+        sleep 2
 
         # === ROLLBACK FUNCTION ===
         rollback() {
