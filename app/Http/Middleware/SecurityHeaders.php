@@ -16,39 +16,24 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class SecurityHeaders
 {
+    /**
+     * Baseline security headers (HSTS, X-Frame-Options, X-Content-Type-Options, etc.)
+     * are set at the Nginx layer (snippets/security-headers-api.conf).
+     *
+     * This middleware handles app-layer concerns Nginx cannot:
+     * - Enforce CSP (not just report-only)
+     * - Prevent caching of API responses with sensitive government data
+     * - Strip PHP/server identification headers
+     */
     public function handle(Request $request, Closure $next): Response
     {
         /** @var Response $response */
         $response = $next($request);
 
-        // Prevent MIME-type sniffing
-        $response->headers->set('X-Content-Type-Options', 'nosniff');
-
-        // Prevent clickjacking
-        $response->headers->set('X-Frame-Options', 'DENY');
-
-        // XSS reflection protection (legacy browsers)
-        $response->headers->set('X-XSS-Protection', '1; mode=block');
-
-        // Control referrer information leakage
-        $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
-
-        // Disable unnecessary browser features
-        $response->headers->set(
-            'Permissions-Policy',
-            'camera=(), microphone=(), geolocation=(), payment=()',
-        );
-
-        // Content Security Policy -- strict for an API server
+        // Enforce CSP at app layer (Nginx sets Report-Only; app enforces)
         $response->headers->set(
             'Content-Security-Policy',
             "default-src 'self'; script-src 'none'; style-src 'unsafe-inline'; img-src 'self'; frame-ancestors 'none'",
-        );
-
-        // Force HTTPS for 1 year (with subdomains + preload list)
-        $response->headers->set(
-            'Strict-Transport-Security',
-            'max-age=31536000; includeSubDomains; preload',
         );
 
         // Prevent caching of API responses (sensitive government data)

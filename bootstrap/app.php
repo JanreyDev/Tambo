@@ -26,6 +26,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // Security headers on every response.
         $middleware->append(SecurityHeaders::class);
 
+        // Correlation ID for tracing requests end-to-end.
+        $middleware->append(\App\Http\Middleware\RequestId::class);
+
         // Block scanners and attack-path probes before routing.
         $middleware->append(BlockSuspiciousRequests::class);
 
