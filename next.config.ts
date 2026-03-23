@@ -10,6 +10,9 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   compress: true,
   reactStrictMode: true,
+  compiler: {
+    removeConsole: process.env.NODE_ENV === "production" ? { exclude: ["error", "warn"] } : false,
+  },
 
   // Proxy /api/* and /storage/* to bcmp-api so the browser never hits port 8000 directly.
   // This keeps all origins under 'self', satisfying CSP without extra img-src exceptions.

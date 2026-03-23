@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "generate-types": "openapi-typescript https://api.kapitan.ph/docs/openapi.yaml -o src/types/api.ts"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.42.0",
@@ -36,6 +37,7 @@
     "eslint-config-next": "16.1.6",
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^29.0.1",
+    "openapi-typescript": "^7.13.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.0"
