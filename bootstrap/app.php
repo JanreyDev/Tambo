@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Middleware\BlockSuspiciousRequests;
+use App\Http\Middleware\CheckFeatureFlag;
+use App\Http\Middleware\CheckPermission;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\SetTenantContext;
 use App\Http\Middleware\SuperAdminOnly;
@@ -24,11 +26,14 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'tenant' => SetTenantContext::class,
             'super_admin' => SuperAdminOnly::class,
+            'permission' => CheckPermission::class,
+            'feature' => CheckFeatureFlag::class,
         ]);
 
         // ── Global middleware (runs on every request) ──
         // Order matters: block suspicious requests first, then add security headers.
         $middleware->prepend(BlockSuspiciousRequests::class);
+        $middleware->append(\App\Http\Middleware\RequestId::class);
         $middleware->append(SecurityHeaders::class);
 
         // ── Global API rate limiting ──

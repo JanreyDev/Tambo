@@ -24,7 +24,7 @@ lint:
 
 analyse:
   stage: lint
-  allow_failure: true
+  allow_failure: false
   image: php:8.4-cli-alpine
   before_script:
     - apk add --no-cache git unzip
@@ -43,6 +43,24 @@ security:
     - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
   script:
     - composer audit --locked --no-dev --format=plain
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
+generate-openapi:
+  stage: lint
+  image: php:8.4-cli-alpine
+  before_script:
+    - apk add --no-cache git unzip
+    - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+    - composer install --no-interaction --prefer-dist --no-progress
+    - cp .env.example .env
+    - php artisan key:generate
+  script:
+    - php artisan scribe:generate --force
+  artifacts:
+    paths:
+      - public/docs/openapi.yaml
+    expire_in: 1 week
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
 

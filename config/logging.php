@@ -54,8 +54,16 @@ return [
 
         'stack' => [
             'driver' => 'stack',
-            'channels' => explode(',', (string) env('LOG_STACK', 'single')),
+            'channels' => ['daily', 'json'],
             'ignore_exceptions' => false,
+        ],
+
+        'json' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/json/laravel.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'formatter' => Monolog\Formatter\JsonFormatter::class,
+            'days' => 30,
         ],
 
         'single' => [

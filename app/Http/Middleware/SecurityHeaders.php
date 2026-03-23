@@ -16,40 +16,24 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class SecurityHeaders
 {
+    /**
+     * Baseline security headers (HSTS, X-Frame-Options, X-Content-Type-Options, etc.)
+     * are set at the Nginx layer (snippets/security-headers-api.conf).
+     *
+     * This middleware handles app-layer concerns Nginx cannot:
+     * - Enforce CSP (not just report-only)
+     * - Prevent caching of API responses with sensitive data
+     * - Strip PHP/server identification headers
+     */
     public function handle(Request $request, Closure $next): Response
     {
         /** @var Response $response */
         $response = $next($request);
 
-        // -- Prevent MIME-type sniffing (IE/Chrome content sniffing attacks) --
-        $response->headers->set('X-Content-Type-Options', 'nosniff');
-
-        // -- Prevent clickjacking (iframe embedding) --
-        $response->headers->set('X-Frame-Options', 'DENY');
-
-        // -- XSS filter for legacy browsers --
-        $response->headers->set('X-XSS-Protection', '1; mode=block');
-
-        // -- Control referrer information leakage --
-        $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
-
-        // -- Restrict browser features/APIs --
-        $response->headers->set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
-
-        // -- Content Security Policy --
-        // API-only app: no scripts should ever execute.
-        // style-src 'unsafe-inline' needed for the status page (welcome.blade.php).
-        // img-src 'self' data: allows inline data URIs used by the status page.
+        // -- Enforce CSP at app layer (Nginx sets Report-Only; app enforces) --
         $response->headers->set(
             'Content-Security-Policy',
             "default-src 'self'; script-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'"
-        );
-
-        // -- HSTS: force HTTPS for 1 year, including subdomains --
-        // preload flag allows inclusion in browser HSTS preload lists.
-        $response->headers->set(
-            'Strict-Transport-Security',
-            'max-age=31536000; includeSubDomains; preload'
         );
 
         // -- Prevent caching of API responses containing sensitive data --

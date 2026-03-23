@@ -28,7 +28,7 @@ class RolePermissionSeeder extends Seeder
             // Judicial
             'kp-cases.view', 'kp-cases.create', 'kp-cases.edit',
             'blotters.view', 'blotters.create', 'blotters.edit',
-            'vawc.view', 'vawc.create', 'vawc.edit',
+            'vawc.view', 'vawc.create', 'vawc.edit', 'vawc.delete',
             // Officials
             'officials.view', 'officials.manage',
             // Finance
@@ -61,6 +61,7 @@ class RolePermissionSeeder extends Seeder
             'documents.view', 'documents.create', 'documents.edit', 'documents.approve',
             'kp-cases.view', 'kp-cases.create', 'kp-cases.edit',
             'blotters.view', 'blotters.create', 'blotters.edit',
+            'vawc.view', 'vawc.create', 'vawc.edit', 'vawc.delete',
             'officials.view', 'officials.manage',
             'finance.view', 'finance.create',
             'reports.view', 'reports.export',
@@ -108,6 +109,16 @@ class RolePermissionSeeder extends Seeder
         $tanod->givePermissionTo([
             'residents.view',
             'blotters.view', 'blotters.create',
+            'ai.access',
+        ]);
+
+        $vawcDeskOfficer = Role::create(['name' => 'vawc_desk_officer', 'guard_name' => 'sanctum']);
+        $vawcDeskOfficer->givePermissionTo([
+            'residents.view',
+            'documents.view', 'documents.create',
+            'vawc.view', 'vawc.create', 'vawc.edit', 'vawc.delete',
+            'blotters.view',
+            'reports.view',
             'ai.access',
         ]);
 

@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1\Tenant;
 
 use App\Http\Controllers\Controller;
 use App\Models\Admin\Barangay;
+use App\Models\Platform\AuditLog;
 use App\Models\Tenant\Judicial\VawcCase;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -63,6 +64,25 @@ class VawcCaseController extends Controller
 
         $perPage = min((int) $request->get('per_page', 25), 100);
 
+        // Log VAWC list access (RA 9262 — all access to DV records must be auditable)
+        AuditLog::create([
+            'barangay_id' => $barangayId,
+            'user_id' => $request->user()->id,
+            'action' => 'viewed_list',
+            'resource_type' => 'vawc_case',
+            'resource_id' => null,
+            'changes' => array_filter([
+                'filters' => array_filter([
+                    'search' => $search ?? null,
+                    'status' => $status ?? null,
+                    'incident_type' => $incidentType ?? null,
+                ]),
+            ]),
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'module' => 'vawc',
+        ]);
+
         return response()->json($query->paginate($perPage));
     }
 
@@ -85,6 +105,17 @@ class VawcCaseController extends Controller
             'ip_address' => $request->ip(),
         ];
         $vawcCase->update(['access_log' => $accessLog]);
+
+        AuditLog::create([
+            'barangay_id' => $request->user()->barangay_id,
+            'user_id' => $request->user()->id,
+            'action' => 'viewed',
+            'resource_type' => 'vawc_case',
+            'resource_id' => $vawcCase->id,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'module' => 'vawc',
+        ]);
 
         return response()->json(['vawc_case' => $vawcCase]);
     }
@@ -167,6 +198,22 @@ class VawcCaseController extends Controller
             'created_by' => $request->user()->id,
         ]);
 
+        AuditLog::create([
+            'barangay_id' => $barangayId,
+            'user_id' => $request->user()->id,
+            'action' => 'created',
+            'resource_type' => 'vawc_case',
+            'resource_id' => $vawcCase->id,
+            'changes' => [
+                'case_number' => $caseNumber,
+                'incident_type' => $validated['incident_type'],
+                'status' => $vawcCase->status,
+            ],
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'module' => 'vawc',
+        ]);
+
         return response()->json([
             'message' => 'VAWC case created.',
             'vawc_case' => $vawcCase,
@@ -234,6 +281,18 @@ class VawcCaseController extends Controller
         $validated['updated_by'] = $request->user()->id;
 
         $vawcCase->update($validated);
+
+        AuditLog::create([
+            'barangay_id' => $request->user()->barangay_id,
+            'user_id' => $request->user()->id,
+            'action' => 'updated',
+            'resource_type' => 'vawc_case',
+            'resource_id' => $vawcCase->id,
+            'changes' => ['fields_changed' => array_keys($validated)],
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'module' => 'vawc',
+        ]);
 
         return response()->json([
             'message' => 'VAWC case updated.',
@@ -343,6 +402,18 @@ class VawcCaseController extends Controller
 
         $vawcCase->update(['deleted_by' => $request->user()->id]);
         $vawcCase->delete();
+
+        AuditLog::create([
+            'barangay_id' => $request->user()->barangay_id,
+            'user_id' => $request->user()->id,
+            'action' => 'deleted',
+            'resource_type' => 'vawc_case',
+            'resource_id' => $vawcCase->id,
+            'changes' => ['case_number' => $vawcCase->case_number],
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'module' => 'vawc',
+        ]);
 
         return response()->json(['message' => 'VAWC case deleted.']);
     }

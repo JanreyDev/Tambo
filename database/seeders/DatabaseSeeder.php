@@ -24,6 +24,7 @@ class DatabaseSeeder extends Seeder
             OfficialSeeder::class,
             PlatformUpdatesSeeder::class,
             DefaultDocumentTemplateSeeder::class,
+            FeatureFlagSeeder::class,
         ]);
     }
 }

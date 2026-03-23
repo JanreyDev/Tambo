@@ -25,7 +25,7 @@ class IssuedDocumentFactory extends Factory
             'template_id' => DocumentTemplate::factory(),
             'template_name' => 'Barangay Clearance',
             'constituent_type' => 'resident',
-            'constituent_id' => null,
+            'constituent_id' => Resident::factory(),
             'constituent_name' => $this->faker->name(),
             'constituent_number' => null,
             'purpose' => 'Employment',

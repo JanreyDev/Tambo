@@ -291,8 +291,21 @@ Route::prefix('v1')->group(function () {
             Route::get('blotters/stats', [BlotterController::class, 'stats']);
             Route::post('blotters/{id}/generate-document', [BlotterController::class, 'generateDocument']);
             Route::apiResource('blotters', BlotterController::class);
-            Route::post('vawc-cases/{id}/generate-document', [VawcCaseController::class, 'generateDocument']);
-            Route::apiResource('vawc-cases', VawcCaseController::class);
+            // ── VAWC (RA 9262 — restricted access, permission-gated) ──
+            Route::middleware('permission:vawc.view')->group(function () {
+                Route::get('vawc-cases', [VawcCaseController::class, 'index']);
+                Route::get('vawc-cases/{id}', [VawcCaseController::class, 'show']);
+            });
+            Route::middleware('permission:vawc.create')->group(function () {
+                Route::post('vawc-cases', [VawcCaseController::class, 'store']);
+                Route::post('vawc-cases/{id}/generate-document', [VawcCaseController::class, 'generateDocument']);
+            });
+            Route::middleware('permission:vawc.edit')->group(function () {
+                Route::put('vawc-cases/{id}', [VawcCaseController::class, 'update']);
+                Route::patch('vawc-cases/{id}', [VawcCaseController::class, 'update']);
+            });
+            Route::delete('vawc-cases/{id}', [VawcCaseController::class, 'destroy'])
+                ->middleware('permission:vawc.delete');
 
             // ── Tanod ──
             Route::apiResource('tanods', TanodController::class);
