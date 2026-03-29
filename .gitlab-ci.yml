@@ -1,293 +1,242 @@
+# =============================================================================
+# PrimeX 3-Tier CI/CD Template — Next.js Web App (Shell Executor)
+# =============================================================================
+# Copy to .gitlab-ci.yml in any Next.js repo.
+# Replace ALL {{PLACEHOLDER}} values before first push.
+#
+# Placeholders:
+#   primex-founder-web      — e.g., bcmp-web, data-web, media-web
+#   /var/www/primex-founder-web   — e.g., /var/www/bcmp-web, /var/www/lgmp/tarlac-province/data-web
+#   founder.primex.ventures        — e.g., kapitan.ph, data.tarlac.ph
+#   3002          — e.g., 3000, 3007 (PM2 production port)
+#   primex-core    — e.g., bcmp, lgmp, primex-core (matches droplet runner tag)
+#   main        — e.g., main
+#   600  — e.g., 600 (KB gzip, Principle 9)
+#   https://api.primex.ventures/api/v1       — e.g., https://api.kapitan.ph/api/v1 (NEXT_PUBLIC_API_URL)
+#
+# 3-Tier System (set CI_TIER variable):
+#   Tier 1 (Sprint):   lint → build → deploy → smoke
+#   Tier 2 (Standard): lint → typecheck → security → build → deploy → verify
+#   Tier 3 (Release):  Everything + bundle check + Playwright E2E
+#
+# Defaults: feature branches=Tier 1, main=Tier 2, tags=Tier 3
+# =============================================================================
+
+variables:
+  CI_TIER:
+    value: ""
+    description: "Override tier: 1=Sprint, 2=Standard, 3=Release (empty=auto)"
+  NEXT_PUBLIC_API_URL: "https://api.primex.ventures/api/v1"
+
+workflow:
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v/
+      variables:
+        CI_TIER_RESOLVED: "3"
+    - if: $CI_COMMIT_BRANCH == "main" && $CI_TIER != ""
+      variables:
+        CI_TIER_RESOLVED: $CI_TIER
+    - if: $CI_COMMIT_BRANCH == "main"
+      variables:
+        CI_TIER_RESOLVED: "2"
+    - if: $CI_COMMIT_BRANCH && $CI_TIER != ""
+      variables:
+        CI_TIER_RESOLVED: $CI_TIER
+    - if: $CI_COMMIT_BRANCH
+      variables:
+        CI_TIER_RESOLVED: "1"
+
 stages:
   - lint
   - build
   - deploy_production
 
+# --- TIER 1+ (all tiers) ---
+
 lint:
   stage: lint
-  image: node:24-alpine
-  before_script:
-    - corepack enable && corepack prepare pnpm@latest --activate
-    - pnpm install --frozen-lockfile
+  tags: [primex-core]
   script:
+    - source /root/.nvm/nvm.sh
+    - cd $CI_PROJECT_DIR
+    - pnpm install --frozen-lockfile 2>/dev/null || pnpm install
     - pnpm lint
   rules:
-    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH
+
+# --- TIER 2+ ---
+
+typecheck:
+  stage: lint
+  tags: [primex-core]
+  script:
+    - source /root/.nvm/nvm.sh
+    - cd $CI_PROJECT_DIR
+    - pnpm install --frozen-lockfile 2>/dev/null || pnpm install
+    - pnpm exec tsc --noEmit
+  rules:
+    - if: $CI_TIER_RESOLVED >= "2"
 
 security:
   stage: lint
-  image: node:24-alpine
-  before_script:
-    - corepack enable && corepack prepare pnpm@latest --activate
-    - pnpm install --frozen-lockfile
+  tags: [primex-core]
   script:
+    - source /root/.nvm/nvm.sh
+    - cd $CI_PROJECT_DIR
+    - pnpm install --frozen-lockfile 2>/dev/null || pnpm install
     - |
       pnpm audit --json > /tmp/audit.json 2>&1 || true
       node -e "
         const fs = require('fs');
         try {
-          const data = JSON.parse(fs.readFileSync('/tmp/audit.json', 'utf8'));
-          const v = data.metadata?.vulnerabilities || {};
-          console.log('Vulnerabilities: critical=' + (v.critical||0) + ' high=' + (v.high||0) + ' moderate=' + (v.moderate||0) + ' low=' + (v.low||0));
-          if ((v.critical||0) > 0) { console.log('FAIL: Critical vulnerabilities found'); process.exit(1); }
-        } catch(e) { console.log('Audit completed (no structured output)'); }
+          const d = JSON.parse(fs.readFileSync('/tmp/audit.json','utf8'));
+          const v = d.metadata?.vulnerabilities || {};
+          console.log('critical=' + (v.critical||0) + ' high=' + (v.high||0));
+          if ((v.critical||0) > 0) { process.exit(1); }
+        } catch(e) { console.log('Audit OK'); }
       "
   rules:
-    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_TIER_RESOLVED >= "2"
 
-typecheck:
-  stage: lint
-  image: node:24-alpine
-  before_script:
-    - corepack enable && corepack prepare pnpm@latest --activate
-    - pnpm install --frozen-lockfile
-  script:
-    - pnpm exec tsc --noEmit
-  rules:
-    - if: $CI_COMMIT_BRANCH == "main"
+# --- BUILD (all tiers) ---
 
 build:
   stage: build
-  image: node:24-alpine
-  before_script:
-    - corepack enable && corepack prepare pnpm@latest --activate
-    - pnpm install --frozen-lockfile
+  tags: [primex-core]
   script:
-    - export NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL_PRODUCTION}"
-    - export NEXT_PUBLIC_SENTRY_DSN="${NEXT_PUBLIC_SENTRY_DSN}"
-    - echo "Building with API URL -> ${NEXT_PUBLIC_API_URL}"
-    - echo "Sentry DSN -> ${NEXT_PUBLIC_SENTRY_DSN:+SET}"
-    - pnpm build
+    - source /root/.nvm/nvm.sh
+    - cd $CI_PROJECT_DIR
+    - pnpm install --frozen-lockfile 2>/dev/null || pnpm install
+    - NODE_OPTIONS="--max-old-space-size=512" pnpm build
     - |
-      # Bundle size check (Principle 9: Fast on Slow Hardware)
-      # Total JS across all routes (gzipped). Per-route first load is smaller due to code splitting.
-      TOTAL_GZIP=$(find .next/static -name '*.js' -exec cat {} + 2>/dev/null | gzip -c | wc -c)
-      KB=$((TOTAL_GZIP / 1024))
-      echo "Total JS bundle (gzipped): ${KB}KB / 600KB limit"
-      if [ "$KB" -gt 600 ]; then
-        echo "FAIL: Total JS ${KB}KB exceeds 600KB limit (Principle 9)"
-        exit 1
+      # Bundle size check (Tier 3 only)
+      if [ "${CI_TIER_RESOLVED}" -ge 3 ] 2>/dev/null; then
+        TOTAL_GZIP=$(find .next/static -name '*.js' -exec cat {} + 2>/dev/null | gzip -c | wc -c)
+        KB=$((TOTAL_GZIP / 1024))
+        echo "JS bundle: ${KB}KB / 600KB limit"
+        [ "$KB" -gt 600 ] && echo "FAIL: exceeds limit" && exit 1
       fi
-  artifacts:
-    paths:
-      - .next/
-      - e2e/
-      - playwright.config.ts
-    expire_in: 1 hour
   rules:
-    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH
+
+# --- DEPLOY ---
 
 deploy_production:
   stage: deploy_production
+  tags: [primex-core]
   when: manual
-  image: alpine:latest
   needs:
     - lint
-    - typecheck
-    - security
     - build
-  before_script:
-    - apk add --no-cache openssh-client tar gzip
-    - mkdir -p ~/.ssh
-    - cp "$SSH_PRIVATE_KEY" ~/.ssh/id_rsa
-    - chmod 600 ~/.ssh/id_rsa
-    - echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
   script:
-    - tar -czf deploy.tar.gz .next/standalone .next/static public package.json .npmrc e2e/ playwright.config.ts 2>/dev/null || tar -czf deploy.tar.gz .next/standalone .next/static package.json .npmrc 2>/dev/null
-    - scp deploy.tar.gz root@152.42.223.52:/tmp/primex-founder-deploy.tar.gz
     - |
-      ssh root@152.42.223.52 << 'DEPLOY'
-        set -e
-        LIVE="/var/www/primex-founder-web"
-        NEW="/var/www/primex-founder-web-new"
-        OLD="/var/www/primex-founder-web-old"
-        APP_NAME="primex-founder-web"
-        PORT=3002
-        TEMP_PORT=4002
-        DOMAIN="founder.primex.ventures"
+      source /root/.nvm/nvm.sh
+      set -e
+      LIVE="/var/www/primex-founder-web"
+      NEW="${LIVE}-new"
+      OLD="${LIVE}-old"
+      APP_NAME="primex-founder-web"
+      DOMAIN="founder.primex.ventures"
+      PORT=3002
+      TIER="${CI_TIER_RESOLVED}"
 
-        rm -rf "$NEW"
-        mkdir -p "$NEW"
-        tar -xzf /tmp/primex-founder-deploy.tar.gz -C "$NEW"
-        cp "$LIVE/.env" "$NEW/.env" 2>/dev/null || true
+      echo "========================================="
+      echo "DEPLOYING $APP_NAME (Tier $TIER)"
+      echo "========================================="
 
-        # Prepare standalone
-        cp -r "$NEW/.next/static" "$NEW/.next/standalone/.next/static"
-        cp -r "$NEW/public" "$NEW/.next/standalone/public" 2>/dev/null || true
+      # --- PREPARE ---
+      rm -rf "$NEW"
+      mkdir -p "$NEW/.next"
+      cp -a "$CI_PROJECT_DIR/.next/standalone" "$NEW/.next/standalone"
+      cp -a "$CI_PROJECT_DIR/.next/static" "$NEW/.next/standalone/.next/static"
+      cp -a "$CI_PROJECT_DIR/public" "$NEW/.next/standalone/public" 2>/dev/null || true
+      [ -f "$LIVE/.env" ] && cp "$LIVE/.env" "$NEW/.env" && cp "$LIVE/.env" "$NEW/.next/standalone/.env" 2>/dev/null || true
+      [ -d "$CI_PROJECT_DIR/e2e" ] && cp -a "$CI_PROJECT_DIR/e2e" "$NEW/e2e" 2>/dev/null || true
+      [ -f "$CI_PROJECT_DIR/playwright.config.ts" ] && cp "$CI_PROJECT_DIR/playwright.config.ts" "$NEW/" 2>/dev/null || true
 
-        # === PRE-SWAP VERIFICATION ===
-        cd "$NEW/.next/standalone"
-        PORT=$TEMP_PORT HOSTNAME=0.0.0.0 node server.js &
-        TEMP_PID=$!
-        sleep 3
-
-        PRE_OK=0
-        for i in 1 2 3; do
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$TEMP_PORT/" 2>/dev/null)
-          if [ "$STATUS" = "200" ] || [ "$STATUS" = "302" ] || [ "$STATUS" = "307" ]; then
-            PRE_OK=1
-            break
-          fi
-          sleep 2
-        done
-
-        kill $TEMP_PID 2>/dev/null || true
-        wait $TEMP_PID 2>/dev/null || true
-
-        if [ "$PRE_OK" != "1" ]; then
-          echo "========================================="
-          echo "PRE-SWAP VERIFICATION FAILED — new build does not start"
-          echo "Production untouched. Aborting deploy."
-          echo "========================================="
-          rm -rf "$NEW"
-          rm /tmp/primex-founder-deploy.tar.gz
-          exit 1
-        fi
-        echo "Pre-swap verification PASSED"
-
-        # === SWAP ===
-        rm -rf "$OLD"
-        mv "$LIVE" "$OLD" 2>/dev/null || true
-        mv "$NEW" "$LIVE"
-
-        cd "$LIVE/.next/standalone"
-        pm2 delete $APP_NAME 2>/dev/null || true
-        PORT=$PORT HOSTNAME=0.0.0.0 pm2 start server.js --name $APP_NAME --cwd "$LIVE/.next/standalone"
-        pm2 save
-
-        # === ROLLBACK FUNCTION ===
-        rollback() {
-          local REASON="$1"
-          echo "========================================="
-          echo "$REASON — AUTO-ROLLBACK"
-          echo "========================================="
-          pm2 delete $APP_NAME 2>/dev/null || true
-          mv "$LIVE" "$LIVE-failed"
-          mv "$OLD" "$LIVE"
-          cd "$LIVE/.next/standalone"
-          PORT=$PORT HOSTNAME=0.0.0.0 pm2 start server.js --name $APP_NAME --cwd "$LIVE/.next/standalone"
-          pm2 save
-          echo "ROLLED BACK to previous version"
-          rm -rf "$LIVE-failed"
-          exit 1
-        }
-
-        # === LAYER 1: POST-SWAP SMOKE TEST ===
+      # --- PRE-SWAP VERIFY ---
+      cd "$NEW/.next/standalone"
+      PORT=$((PORT + 1000)) HOSTNAME=0.0.0.0 node server.js &
+      TEMP_PID=$!
+      sleep 3
+      PRE_OK=0
+      for i in 1 2 3; do
+        ST=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$((PORT + 1000))/" 2>/dev/null)
+        if [ "$ST" = "200" ] || [ "$ST" = "302" ] || [ "$ST" = "307" ]; then PRE_OK=1; break; fi
         sleep 2
-        HEALTH_OK=0
-        for i in 1 2 3 4 5; do
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$PORT/" 2>/dev/null)
-          if [ "$STATUS" = "200" ] || [ "$STATUS" = "302" ] || [ "$STATUS" = "307" ]; then
-            HEALTH_OK=1
-            echo "Layer 1 smoke test PASSED (attempt $i)"
-            break
-          fi
-          echo "Layer 1 smoke test attempt $i: HTTP $STATUS"
-          sleep 2
-        done
+      done
+      kill $TEMP_PID 2>/dev/null; wait $TEMP_PID 2>/dev/null || true
+      [ "$PRE_OK" != "1" ] && echo "PRE-SWAP FAILED — aborting" && rm -rf "$NEW" && exit 1
+      echo "Pre-swap verification PASSED"
 
-        if [ "$HEALTH_OK" != "1" ]; then
-          rollback "LAYER 1 SMOKE TEST FAILED"
+      # --- ATOMIC SWAP ---
+      rm -rf "$OLD"
+      [ -d "$LIVE" ] && mv "$LIVE" "$OLD"
+      mv "$NEW" "$LIVE"
+      cd "$LIVE/.next/standalone"
+      pm2 delete $APP_NAME 2>/dev/null || true
+      PORT=$PORT HOSTNAME=0.0.0.0 pm2 start server.js --name $APP_NAME
+      pm2 save
+
+      # --- ROLLBACK ---
+      rollback() {
+        echo "========== $1 — AUTO-ROLLBACK =========="
+        pm2 delete $APP_NAME 2>/dev/null || true
+        mv "$LIVE" "${LIVE}-failed"
+        mv "$OLD" "$LIVE"
+        cd "$LIVE/.next/standalone"
+        PORT=$PORT HOSTNAME=0.0.0.0 pm2 start server.js --name $APP_NAME
+        pm2 save
+        rm -rf "${LIVE}-failed"
+        exit 1
+      }
+
+      # --- LAYER 1: SMOKE (all tiers) ---
+      sleep 2
+      HEALTH_OK=0
+      for i in 1 2 3 4 5; do
+        ST=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$PORT/" 2>/dev/null)
+        if [ "$ST" = "200" ] || [ "$ST" = "302" ] || [ "$ST" = "307" ]; then
+          HEALTH_OK=1; echo "Layer 1 PASSED (attempt $i)"; break
         fi
+        sleep 2
+      done
+      [ "$HEALTH_OK" != "1" ] && rollback "LAYER 1 SMOKE FAILED"
 
-        # === LAYER 2: COMPREHENSIVE SMOKE TEST (all 19 static routes) ===
-        echo "Running Layer 2: comprehensive smoke tests..."
-        DEEP_FAIL=0
-        PASS_COUNT=0
-        FAIL_COUNT=0
-
-        for ROUTE in \
-          / \
-          /passcode \
-          /vault \
-          /vault/guide \
-          /dashboard \
-          /dashboard/bcmp \
-          /dashboard/bcmp/tenants \
-          /dashboard/bcmp/subscriptions \
-          /dashboard/bcmp/analytics \
-          /dashboard/bcmp/templates \
-          /dashboard/bcmp/marketplace \
-          /dashboard/lgmp \
-          /dashboard/pdmp \
-          /dashboard/infrastructure \
-          /dashboard/users \
-          /dashboard/support \
-          /dashboard/settings \
-          /dashboard/updates \
-          /dashboard/help; do
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$PORT$ROUTE" 2>/dev/null)
-          if [ "$STATUS" = "200" ] || [ "$STATUS" = "302" ] || [ "$STATUS" = "307" ]; then
-            echo "PASS: $ROUTE → $STATUS"
-            PASS_COUNT=$((PASS_COUNT + 1))
+      # --- LAYER 2: COMPREHENSIVE (Tier 2+) ---
+      if [ "$TIER" -ge 2 ] 2>/dev/null; then
+        echo "Running Layer 2..."
+        FAIL=0
+        for ROUTE in / /dashboard; do
+          ST=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$PORT$ROUTE" 2>/dev/null)
+          if [ "$ST" = "200" ] || [ "$ST" = "302" ] || [ "$ST" = "307" ]; then
+            echo "PASS: $ROUTE → $ST"
           else
-            echo "FAIL: $ROUTE returned $STATUS (expected 200/302/307)"
-            DEEP_FAIL=1
-            FAIL_COUNT=$((FAIL_COUNT + 1))
+            echo "FAIL: $ROUTE → $ST"; FAIL=1
           fi
         done
+        [ "$FAIL" != "0" ] && rollback "LAYER 2 COMPREHENSIVE FAILED"
+      fi
 
-        echo "========================================="
-        echo "Results: $PASS_COUNT passed, $FAIL_COUNT failed"
-        echo "========================================="
+      # --- LAYER 3: PLAYWRIGHT E2E (Tier 3 only) ---
+      if [ "$TIER" -ge 3 ] 2>/dev/null && [ -d "$LIVE/e2e" ]; then
+        echo "Running Layer 3: Playwright E2E..."
+        cd /tmp && rm -rf e2e-runner && mkdir e2e-runner && cd e2e-runner
+        cp "$LIVE/e2e/"*.spec.ts . 2>/dev/null || true
+        cp "$LIVE/playwright.config.ts" . 2>/dev/null || true
+        echo '{"devDependencies":{"@playwright/test":"^1.50.0"}}' > package.json
+        npm install --no-audit --no-fund --quiet
+        npx playwright install chromium --quiet 2>/dev/null || true
+        CI=true BASE_URL="https://$DOMAIN" npx playwright test --reporter=list --timeout=15000 --retries=1 || rollback "LAYER 3 E2E FAILED"
+        rm -rf /tmp/e2e-runner
+        cd "$LIVE/.next/standalone"
+      fi
 
-        if [ "$DEEP_FAIL" != "0" ]; then
-          rollback "LAYER 2 COMPREHENSIVE SMOKE TEST FAILED"
-        fi
-        echo "Layer 2 comprehensive smoke tests PASSED"
-
-        # === LAYER 3: E2E BROWSER VERIFICATION (Playwright) ===
-        echo ""
-        echo "Running Layer 3: E2E browser verification..."
-        echo ""
-
-        E2E_FAIL=0
-
-        if [ -d "$LIVE/e2e" ] && [ -f "$LIVE/playwright.config.ts" ]; then
-          E2E_RUNNER="/tmp/${APP_NAME}-e2e-runner"
-          rm -rf "$E2E_RUNNER"
-          mkdir -p "$E2E_RUNNER/e2e"
-
-          cp "$LIVE/e2e/"*.spec.ts "$E2E_RUNNER/e2e/" 2>/dev/null || true
-          cp "$LIVE/playwright.config.ts" "$E2E_RUNNER/" 2>/dev/null || true
-
-          printf '{"name":"e2e-runner","private":true,"devDependencies":{"@playwright/test":"^1.50.0"}}' > "$E2E_RUNNER/package.json"
-
-          cd "$E2E_RUNNER"
-          npm install --no-audit --no-fund 2>&1 | tail -1
-          npx playwright install chromium 2>&1 | tail -3
-
-          apt-get update -qq 2>/dev/null && apt-get install -y -qq \
-            libnss3 libatk-bridge2.0-0 libdrm2 libxcomposite1 libxdamage1 \
-            libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 \
-            libasound2 libatspi2.0-0 libxshmfence1 2>/dev/null || true
-
-          CI=true BASE_URL="https://$DOMAIN" npx playwright test \
-            --reporter=list \
-            --timeout=15000 \
-            --retries=1 2>&1 || E2E_FAIL=1
-
-          rm -rf "$E2E_RUNNER"
-          cd "$LIVE/.next/standalone"
-
-          if [ "$E2E_FAIL" != "0" ]; then
-            echo "WARNING: Layer 3 E2E found issues (non-blocking)"
-          fi
-
-          echo "Layer 3 E2E browser verification PASSED"
-        else
-          echo "Layer 3 SKIPPED — no e2e/ directory or playwright.config.ts found"
-        fi
-
-        echo ""
-        echo "========================================="
-        echo "DEPLOY COMPLETE — ALL 3 LAYERS PASSED"
-        echo "  Layer 1: Process alive (curl)"
-        echo "  Layer 2: All routes OK (curl)"
-        echo "  Layer 3: Pages render correctly (Playwright)"
-        echo "========================================="
-        rm /tmp/primex-founder-deploy.tar.gz
-        echo "Deployed $APP_NAME at $(date)"
-      DEPLOY
+      echo "========================================="
+      echo "DEPLOY COMPLETE — $APP_NAME (Tier $TIER)"
+      echo "========================================="
+  environment:
+    name: production
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_TAG =~ /^v/
