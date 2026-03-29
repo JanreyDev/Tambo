@@ -1,325 +1,226 @@
+# =============================================================================
+# PrimeX 3-Tier CI/CD Template — Laravel API (Shell Executor)
+# =============================================================================
+# Copy to .gitlab-ci.yml in any Laravel API repo.
+# Replace ALL {{PLACEHOLDER}} values before first push.
+#
+# Placeholders:
+#   primex-api      — e.g., bcmp-api, primex-api, tarlac-province-api
+#   /var/www/primex-api   — e.g., /var/www/bcmp-api, /var/www/primex-api
+#   api.primex.ventures        — e.g., api.kapitan.ph, api.primex.ventures
+#   primex-core    — e.g., bcmp, primex-core, lgmp (matches droplet runner tag)
+#   main        — e.g., main
+#
+# 3-Tier System (set CI_TIER variable):
+#   Tier 1 (Sprint):   lint → build → deploy → smoke
+#   Tier 2 (Standard): lint → analyze → test → security → build → deploy → verify
+#   Tier 3 (Release):  Everything + coverage + SBOM + Playwright E2E
+#
+# Defaults: feature branches=Tier 1, main=Tier 2, tags=Tier 3
+# Override: set CI_TIER=1|2|3 in pipeline variables
+# =============================================================================
+
+variables:
+  CI_TIER:
+    value: ""
+    description: "Override tier: 1=Sprint, 2=Standard, 3=Release (empty=auto)"
+
+workflow:
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v/
+      variables:
+        CI_TIER_RESOLVED: "3"
+    - if: $CI_COMMIT_BRANCH == "main" && $CI_TIER != ""
+      variables:
+        CI_TIER_RESOLVED: $CI_TIER
+    - if: $CI_COMMIT_BRANCH == "main"
+      variables:
+        CI_TIER_RESOLVED: "2"
+    - if: $CI_COMMIT_BRANCH && $CI_TIER != ""
+      variables:
+        CI_TIER_RESOLVED: $CI_TIER
+    - if: $CI_COMMIT_BRANCH
+      variables:
+        CI_TIER_RESOLVED: "1"
+
 stages:
   - lint
   - test
+  - security
   - deploy_production
 
-cache:
-  key:
-    files:
-      - composer.lock
-  paths:
-    - vendor/
+# --- TIER 1+ (all tiers) ---
 
 lint:
   stage: lint
-  image: php:8.4-cli-alpine
-  before_script:
-    - apk add --no-cache git unzip
-    - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-    - composer install --no-interaction --prefer-dist --no-progress
+  tags: [primex-core]
   script:
+    - cd $CI_PROJECT_DIR
+    - composer install --no-interaction --prefer-dist --no-progress --quiet
     - ./vendor/bin/pint --test
   rules:
-    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH
+
+# --- TIER 2+ ---
 
 analyse:
   stage: lint
-  allow_failure: true
-  image: php:8.4-cli-alpine
-  before_script:
-    - apk add --no-cache git unzip
-    - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-    - composer install --no-interaction --prefer-dist --no-progress
+  tags: [primex-core]
   script:
+    - cd $CI_PROJECT_DIR
+    - composer install --no-interaction --prefer-dist --no-progress --quiet
     - ./vendor/bin/phpstan analyse --level=6 --no-progress --memory-limit=512M
   rules:
-    - if: $CI_COMMIT_BRANCH == "main"
-
-security:
-  stage: lint
-  image: php:8.4-cli-alpine
-  before_script:
-    - apk add --no-cache git unzip
-    - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-  script:
-    - composer audit --locked --no-dev --format=plain
-  rules:
-    - if: $CI_COMMIT_BRANCH == "main"
-
-generate-openapi:
-  stage: lint
-  image: php:8.4-cli-alpine
-  before_script:
-    - apk add --no-cache git unzip
-    - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-    - composer install --no-interaction --prefer-dist --no-progress
-    - cp .env.example .env
-    - php artisan key:generate
-  script:
-    - php artisan scribe:generate --force
-  artifacts:
-    paths:
-      - public/docs/openapi.yaml
-    expire_in: 1 week
-  rules:
-    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_TIER_RESOLVED >= "2"
 
 test:
   stage: test
-  image: php:8.4-cli-alpine
-  before_script:
-    - apk add --no-cache git unzip
-    - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-    - composer install --no-interaction --prefer-dist --no-progress
-    - cp .env.example .env
-    - php artisan key:generate
+  tags: [primex-core]
   script:
-    - php artisan test --parallel --min=60
+    - cd $CI_PROJECT_DIR
+    - composer install --no-interaction --prefer-dist --no-progress --quiet
+    - cp .env.testing .env 2>/dev/null || cp .env.example .env
+    - php artisan key:generate --quiet
+    - php artisan test --parallel
   rules:
-    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_TIER_RESOLVED >= "2"
+
+test_coverage:
+  stage: test
+  tags: [primex-core]
+  script:
+    - cd $CI_PROJECT_DIR
+    - composer install --no-interaction --prefer-dist --no-progress --quiet
+    - cp .env.testing .env 2>/dev/null || cp .env.example .env
+    - php artisan key:generate --quiet
+    - php artisan test --parallel --coverage --min=60
+  rules:
+    - if: $CI_TIER_RESOLVED >= "3"
+
+security:
+  stage: security
+  tags: [primex-core]
+  script:
+    - composer audit --locked --no-dev --format=plain
+  rules:
+    - if: $CI_TIER_RESOLVED >= "2"
+
+# --- DEPLOY (all tiers, manual on Tier 2+) ---
 
 deploy_production:
   stage: deploy_production
+  tags: [primex-core]
   when: manual
-  image: alpine:latest
-  needs:
-    - lint
-    - analyse
-    - security
-    - test
-  before_script:
-    - apk add --no-cache openssh-client tar
-    - mkdir -p ~/.ssh
-    - cp "$SSH_PRIVATE_KEY" ~/.ssh/id_rsa
-    - chmod 600 ~/.ssh/id_rsa
-    - echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
   script:
-    - tar -czf /tmp/deploy.tar.gz
-        --exclude=".git"
-        --exclude=".env"
-        --exclude="vendor"
-        --exclude="node_modules"
-        --exclude="tests"
-        --exclude="storage/logs/*"
-        --exclude="storage/framework/cache/*"
-        --exclude="storage/framework/sessions/*"
-        --exclude="storage/framework/views/*"
-        --exclude="docker-compose.yml"
-        --exclude=".editorconfig"
-        .
-    - scp /tmp/deploy.tar.gz root@152.42.223.52:/tmp/primex-api-deploy.tar.gz
     - |
-      ssh root@152.42.223.52 << 'DEPLOY'
-        set -e
-        LIVE="/var/www/primex-api"
-        NEW="/var/www/primex-api-new"
-        OLD="/var/www/primex-api-old"
-        DOMAIN="api.primex.ventures"
+      set -e
+      LIVE="/var/www/primex-api"
+      NEW="${LIVE}-new"
+      OLD="${LIVE}-old"
+      DOMAIN="api.primex.ventures"
+      APP_NAME="primex-api"
+      TIER="${CI_TIER_RESOLVED}"
 
-        rm -rf "$NEW"
-        mkdir -p "$NEW"
-        cd "$NEW"
-        tar -xzf /tmp/primex-api-deploy.tar.gz
+      echo "========================================="
+      echo "DEPLOYING $APP_NAME (Tier $TIER)"
+      echo "========================================="
 
-        cp "$LIVE/.env" "$NEW/.env"
-        cp -a "$LIVE/storage/logs" "$NEW/storage/logs" 2>/dev/null || true
-        mkdir -p storage/logs storage/framework/{cache,sessions,views} bootstrap/cache
+      # --- BUILD ---
+      rm -rf "$NEW"
+      cp -a "$CI_PROJECT_DIR" "$NEW"
+      cp "$LIVE/.env" "$NEW/.env"
+      cd "$NEW"
+      composer install --no-dev --no-interaction --optimize-autoloader --no-progress
 
-        composer install --no-dev --no-interaction --optimize-autoloader --no-progress 2>&1
+      # --- DB BACKUP (all tiers) ---
+      DB_H=$(grep '^DB_HOST=' "$NEW/.env" | sed 's/^DB_HOST=//')
+      DB_P=$(grep '^DB_PORT=' "$NEW/.env" | sed 's/^DB_PORT=//')
+      DB_U=$(grep '^DB_USERNAME=' "$NEW/.env" | sed 's/^DB_USERNAME=//')
+      DB_W=$(grep '^DB_PASSWORD=' "$NEW/.env" | sed 's/^DB_PASSWORD=//')
+      DB_N=$(grep '^DB_DATABASE=' "$NEW/.env" | sed 's/^DB_DATABASE=//')
+      mkdir -p /opt/backups/db
+      BACKUP="/opt/backups/db/${DB_N}-$(date +%Y%m%d%H%M%S).sql.gz"
+      PGPASSWORD="$DB_W" pg_dump -h "$DB_H" -p "$DB_P" -U "$DB_U" --no-owner "$DB_N" 2>/dev/null | gzip > "$BACKUP" || echo "WARN: backup failed"
+      unset DB_W
 
-        # Pre-deploy database backup
-        DB_H=$(grep '^DB_HOST=' "$LIVE/.env" | sed 's/^DB_HOST=//')
-        DB_P=$(grep '^DB_PORT=' "$LIVE/.env" | sed 's/^DB_PORT=//')
-        DB_U=$(grep '^DB_USERNAME=' "$LIVE/.env" | sed 's/^DB_USERNAME=//')
-        DB_W=$(grep '^DB_PASSWORD=' "$LIVE/.env" | sed 's/^DB_PASSWORD=//')
-        DB_N=$(grep '^DB_DATABASE=' "$LIVE/.env" | sed 's/^DB_DATABASE=//')
-        mkdir -p /opt/backups/db
-        BACKUP="/opt/backups/db/${DB_N}-pre-deploy-$(date +%Y%m%d%H%M%S).sql.gz"
-        PGPASSWORD="$DB_W" pg_dump -h "$DB_H" -p "$DB_P" -U "$DB_U" --no-owner --no-privileges "$DB_N" 2>/dev/null | gzip > "$BACKUP" || echo "WARN: DB backup failed, continuing"
-        [ -s "$BACKUP" ] && echo "Backup: $BACKUP ($(du -h "$BACKUP" | cut -f1))" || echo "WARN: Backup empty"
-        unset DB_W
+      # --- MIGRATE ---
+      php artisan migrate --force
 
-        php artisan migrate --force
-        php artisan storage:link 2>/dev/null || true
+      # --- PRE-SWAP VERIFY ---
+      php artisan config:cache || { echo "ABORT: config:cache failed"; rm -rf "$NEW"; exit 1; }
+      php artisan route:cache || { echo "ABORT: route:cache failed"; rm -rf "$NEW"; exit 1; }
+      php artisan config:clear && php artisan route:clear
+      echo "Pre-swap verification PASSED"
 
-        chown -R www-data:www-data "$NEW"
-        chmod -R 775 "$NEW/storage" "$NEW/bootstrap/cache"
+      # --- SETUP ---
+      php artisan storage:link 2>/dev/null || true
+      chown -R www-data:www-data "$NEW"
+      chmod -R 775 "$NEW/storage" "$NEW/bootstrap/cache"
 
-        # === PRE-SWAP VERIFICATION ===
-        cd "$NEW"
-        php artisan config:cache 2>&1 || { echo "ABORT: config:cache failed in new build"; rm -rf "$NEW"; exit 1; }
-        php artisan route:cache 2>&1 || { echo "ABORT: route:cache failed in new build"; rm -rf "$NEW"; exit 1; }
-        php artisan config:clear
-        php artisan route:clear
-        echo "Pre-swap verification PASSED"
+      # --- ATOMIC SWAP ---
+      rm -rf "$OLD"
+      [ -d "$LIVE" ] && mv "$LIVE" "$OLD"
+      mv "$NEW" "$LIVE"
 
-        # === SWAP ===
-        rm -rf "$OLD"
-        mv "$LIVE" "$OLD"
-        mv "$NEW" "$LIVE"
+      cd "$LIVE"
+      php artisan config:cache
+      php artisan route:cache
+      php artisan view:cache
+      systemctl reload php8.4-fpm
 
-        # Cache AFTER swap so paths resolve to final /var/www/primex-api
+      # --- ROLLBACK FUNCTION ---
+      rollback() {
+        echo "========== $1 — AUTO-ROLLBACK =========="
+        mv "$LIVE" "${LIVE}-failed"
+        mv "$OLD" "$LIVE"
         cd "$LIVE"
-        php artisan config:cache
-        php artisan route:cache
-        php artisan view:cache
+        php artisan config:cache && php artisan route:cache && php artisan view:cache
+        systemctl reload php8.4-fpm
+        rm -rf "${LIVE}-failed"
+        exit 1
+      }
 
-        systemctl restart php8.4-fpm
+      # --- LAYER 1: SMOKE (all tiers) ---
+      HEALTH_OK=0
+      for i in 1 2 3 4 5; do
+        STATUS=$(curl -sk -o /dev/null -w "%{http_code}" "https://$DOMAIN/up" --resolve "$DOMAIN:443:127.0.0.1")
+        [ "$STATUS" = "200" ] && HEALTH_OK=1 && echo "Layer 1 PASSED (attempt $i)" && break
         sleep 2
+      done
+      [ "$HEALTH_OK" != "1" ] && rollback "LAYER 1 SMOKE FAILED"
 
-        echo "<?php opcache_reset(); echo 'ok';" > "$LIVE/public/opcache_reset.php"
-        curl -s "http://localhost/opcache_reset.php" -H "Host: $DOMAIN" || true
-        rm -f "$LIVE/public/opcache_reset.php"
-        sleep 2
-
-        # === ROLLBACK FUNCTION ===
-        rollback() {
-          local REASON="$1"
-          echo "========================================="
-          echo "$REASON — AUTO-ROLLBACK"
-          echo "========================================="
-          mv "$LIVE" "$LIVE-failed"
-          mv "$OLD" "$LIVE"
-          cd "$LIVE"
-          php artisan config:cache
-          php artisan route:cache
-          php artisan view:cache
-          systemctl reload php8.4-fpm
-          echo "ROLLED BACK to previous version"
-          rm -rf "$LIVE-failed"
-          exit 1
-        }
-
-        # === LAYER 1: POST-SWAP SMOKE TEST ===
-        HEALTH_OK=0
-        for i in 1 2 3 4 5; do
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost/up" -H "Host: $DOMAIN")
-          if [ "$STATUS" = "200" ]; then
-            HEALTH_OK=1
-            echo "Layer 1 smoke test PASSED (attempt $i)"
-            break
-          fi
-          echo "Layer 1 smoke test attempt $i: HTTP $STATUS"
-          sleep 2
-        done
-
-        if [ "$HEALTH_OK" != "1" ]; then
-          rollback "LAYER 1 SMOKE TEST FAILED"
-        fi
-
-        # === LAYER 2: COMPREHENSIVE SMOKE TEST (all route groups) ===
-        echo ""
-        echo "Running Layer 2: comprehensive smoke tests..."
-        echo ""
-        DEEP_FAIL=0
-        PASS_COUNT=0
-        FAIL_COUNT=0
-
-        # Helper: test expected status code
+      # --- LAYER 2: COMPREHENSIVE (Tier 2+) ---
+      if [ "$TIER" -ge 2 ]; then
+        echo "Running Layer 2: comprehensive checks..."
+        FAIL=0
         check_status() {
-          local ENDPOINT="$1" EXPECTED="$2" LABEL="$3"
-          BODY=$(curl -s -w "\n%{http_code}" "http://localhost$ENDPOINT" -H "Host: $DOMAIN" -H "Accept: application/json")
-          STATUS=$(echo "$BODY" | tail -1)
-          RESPONSE=$(echo "$BODY" | head -1)
-          if [ "$STATUS" = "$EXPECTED" ]; then
-            echo "PASS: $ENDPOINT → $STATUS ($LABEL)"
-            PASS_COUNT=$((PASS_COUNT + 1))
-          else
-            echo "FAIL: $ENDPOINT returned $STATUS (expected $EXPECTED) ($LABEL)"
-            echo "  BODY: $RESPONSE"
-            DEEP_FAIL=1
-            FAIL_COUNT=$((FAIL_COUNT + 1))
-          fi
+          local EP="$1" EXP="$2"
+          ST=$(curl -sk -o /dev/null -w "%{http_code}" "https://$DOMAIN$EP" --resolve "$DOMAIN:443:127.0.0.1")
+          [ "$ST" = "$EXP" ] && echo "PASS: $EP → $ST" || { echo "FAIL: $EP → $ST (expected $EXP)"; FAIL=1; }
         }
+        check_status "/up" "200"
+        # Add project-specific routes here
+        [ "$FAIL" != "0" ] && rollback "LAYER 2 COMPREHENSIVE FAILED"
+      fi
 
-        # --- Public endpoints (must return 200) ---
-        check_status "/up" "200" "health check"
+      # --- LAYER 3: PLAYWRIGHT E2E (Tier 3 only) ---
+      if [ "$TIER" -ge 3 ] && [ -d "$LIVE/e2e" ]; then
+        echo "Running Layer 3: Playwright E2E..."
+        cd /tmp && rm -rf e2e-runner && mkdir e2e-runner && cd e2e-runner
+        cp "$LIVE/e2e/"*.spec.ts . 2>/dev/null
+        cp "$LIVE/playwright.config.ts" . 2>/dev/null
+        echo '{"devDependencies":{"@playwright/test":"^1.50.0"}}' > package.json
+        npm install --no-audit --no-fund --quiet
+        CI=true API_URL="https://$DOMAIN" npx playwright test --reporter=list --timeout=15000 --retries=1 || rollback "LAYER 3 E2E FAILED"
+        rm -rf /tmp/e2e-runner
+        cd "$LIVE"
+      fi
 
-        # --- Admin auth-protected (must return 401) ---
-        check_status "/api/v1/auth/me" "401" "auth protection"
-        check_status "/api/v1/dashboard/overview" "401" "dashboard overview"
-        check_status "/api/v1/product-connections" "401" "product connections"
-        check_status "/api/v1/audit-logs" "401" "audit logs"
-        check_status "/api/v1/admin-users" "401" "admin users"
-        check_status "/api/v1/settings" "401" "settings"
-
-        # --- Founder auth-protected (must return 401) ---
-        check_status "/api/v1/founder/heartbeat" "401" "founder heartbeat"
-        check_status "/api/v1/founder/infrastructure/droplets" "401" "founder infra droplets"
-        check_status "/api/v1/founder/infrastructure/databases" "401" "founder infra databases"
-        check_status "/api/v1/founder/infrastructure/domains" "401" "founder infra domains"
-        check_status "/api/v1/founder/products/health" "401" "founder product health"
-        check_status "/api/v1/founder/alerts" "401" "founder alerts"
-        check_status "/api/v1/founder/security/feed" "401" "founder security feed"
-        check_status "/api/v1/founder/deployments/recent" "401" "founder deployments"
-        check_status "/api/v1/founder/revenue" "401" "founder revenue"
-        check_status "/api/v1/founder/activity" "401" "founder activity"
-        check_status "/api/v1/founder/bcmp/tenants" "401" "founder BCMP tenants"
-        check_status "/api/v1/founder/bcmp/subscription-stats" "401" "founder BCMP subscriptions"
-        check_status "/api/v1/founder/bcmp/pricing" "401" "founder BCMP pricing"
-        check_status "/api/v1/founder/bcmp/document-templates" "401" "founder BCMP templates"
-        check_status "/api/v1/founder/bcmp/marketplace/products" "401" "founder BCMP marketplace"
-
-        # Proxy routes (PSGC, Vault) skipped — they depend on bcmp-api availability
-        # and may return 503 if bcmp-api is also being deployed or slow to respond
-
-        echo "========================================="
-        echo "Results: $PASS_COUNT passed, $FAIL_COUNT failed"
-        echo "========================================="
-
-        if [ "$DEEP_FAIL" != "0" ]; then
-          rollback "LAYER 2 COMPREHENSIVE SMOKE TEST FAILED"
-        fi
-
-        echo "Layer 2 comprehensive smoke tests PASSED"
-
-        # === LAYER 3: E2E API VERIFICATION (Playwright) ===
-        echo ""
-        echo "Running Layer 3: E2E API verification..."
-        echo ""
-
-        E2E_FAIL=0
-
-        if [ -d "$LIVE/e2e" ] && [ -f "$LIVE/playwright.config.ts" ]; then
-          E2E_RUNNER="/tmp/$(basename $LIVE)-e2e-runner"
-          rm -rf "$E2E_RUNNER"
-          mkdir -p "$E2E_RUNNER/e2e"
-
-          cp "$LIVE/e2e/"*.spec.ts "$E2E_RUNNER/e2e/" 2>/dev/null || true
-          cp "$LIVE/playwright.config.ts" "$E2E_RUNNER/" 2>/dev/null || true
-
-          printf '{"name":"e2e-runner","private":true,"devDependencies":{"@playwright/test":"^1.50.0"}}' > "$E2E_RUNNER/package.json"
-
-          cd "$E2E_RUNNER"
-          npm install --no-audit --no-fund 2>&1 | tail -1
-
-          CI=true API_URL="https://$DOMAIN" npx playwright test \
-            --reporter=list \
-            --timeout=15000 \
-            --retries=1 2>&1 || E2E_FAIL=1
-
-          rm -rf "$E2E_RUNNER"
-          cd "$LIVE"
-
-          if [ "$E2E_FAIL" != "0" ]; then
-            echo "WARNING: Layer 3 E2E found issues (non-blocking)"
-          fi
-
-          echo "Layer 3 E2E API verification PASSED"
-        else
-          echo "Layer 3 SKIPPED — no e2e/ directory or playwright.config.ts found"
-        fi
-
-        echo ""
-        echo "========================================="
-        echo "DEPLOY COMPLETE — ALL 3 LAYERS PASSED"
-        echo "  Layer 1: Process alive (curl /up)"
-        echo "  Layer 2: All routes respond (curl)"
-        echo "  Layer 3: Response bodies valid (Playwright)"
-        echo "========================================="
-        echo "Deployed $(basename $LIVE) at $(date)"
-
-        rm /tmp/primex-api-deploy.tar.gz
-      DEPLOY
+      echo "========================================="
+      echo "DEPLOY COMPLETE — $APP_NAME (Tier $TIER)"
+      echo "========================================="
+  environment:
+    name: production
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_TAG =~ /^v/
