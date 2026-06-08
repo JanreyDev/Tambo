@@ -24,7 +24,7 @@ php artisan serve
 
 ## Structure
 
-- 19 migration files covering 60+ tables
+- 50 migration files covering 60+ tables
 - Multi-tenant architecture (shared DB, tenant_id + RLS)
 - Modules: Residents, Households, Establishments, Officials, Documents, Judicial/KP, VAWC, Tanod, Finance, Inventory, Disaster/DRRM, GAD, HRIS, Public Portal, AI, Blockchain, Audit Logs
 
