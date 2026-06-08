@@ -1,0 +1,23 @@
+# PrimeX critical paths - require owner (Kael/Jeager) approval before merge.
+# Pairs with protected branches + required MR approvals.
+
+.gitlab-ci.yml          @primex.ventures
+/.gitlab/               @primex.ventures
+.gitignore              @primex.ventures
+*.env.example           @primex.ventures
+
+# infra / deploy
+/infra/                 @primex.ventures
+/deploy/                @primex.ventures
+**/deploy/              @primex.ventures
+Dockerfile              @primex.ventures
+docker-compose*.yml     @primex.ventures
+
+# database migrations
+**/migrations/          @primex.ventures
+/database/migrations/   @primex.ventures
+
+# auth / security
+**/auth/                @primex.ventures
+**/security/            @primex.ventures
+**/middleware/          @primex.ventures
