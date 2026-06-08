@@ -34,10 +34,14 @@ class User extends Authenticatable
         'last_login_at',
         'last_login_ip',
         'status',
+        'preferred_language',
         'preferences',
         'username_changed_at',
         'password_changed_at',
         'two_factor_confirmed_at',
+        'failed_login_attempts',
+        'locked_until',
+        'last_failed_login_at',
         // SECURITY: is_super_admin, two_factor_secret, two_factor_recovery_codes
         // are excluded from $fillable to prevent mass assignment privilege escalation.
         // Set these explicitly: $user->is_super_admin = true;
@@ -59,9 +63,12 @@ class User extends Authenticatable
             'username_changed_at' => 'datetime',
             'password_changed_at' => 'datetime',
             'two_factor_confirmed_at' => 'datetime',
+            'locked_until' => 'datetime',
+            'last_failed_login_at' => 'datetime',
             'password' => 'hashed',
             'is_super_admin' => 'boolean',
             'preferences' => 'array',
+            'failed_login_attempts' => 'integer',
             'two_factor_secret' => 'encrypted',
             'two_factor_recovery_codes' => 'encrypted:array',
         ];
@@ -72,6 +79,22 @@ class User extends Authenticatable
     public function hasTwoFactorEnabled(): bool
     {
         return $this->two_factor_confirmed_at !== null;
+    }
+
+    // ── Account Lockout Helpers ──
+
+    public function isLockedOut(): bool
+    {
+        return $this->locked_until !== null && $this->locked_until->isFuture();
+    }
+
+    public function secondsUntilUnlock(): int
+    {
+        if (! $this->isLockedOut()) {
+            return 0;
+        }
+
+        return max(0, $this->locked_until->getTimestamp() - time());
     }
 
     // ── Relationships ──

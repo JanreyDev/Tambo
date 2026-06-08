@@ -39,6 +39,7 @@ use App\Http\Controllers\Api\V1\Tenant\KpCaseController;
 use App\Http\Controllers\Api\V1\Tenant\KpCaseHearingController;
 use App\Http\Controllers\Api\V1\Tenant\KpCasePartyController;
 use App\Http\Controllers\Api\V1\Tenant\LotBuildingController;
+use App\Http\Controllers\Api\V1\Tenant\AddressEntryController;
 use App\Http\Controllers\Api\V1\Tenant\MapController;
 use App\Http\Controllers\Api\V1\Tenant\MarketplaceController;
 use App\Http\Controllers\Api\V1\Tenant\MessageController;
@@ -76,16 +77,18 @@ Route::prefix('v1')->group(function () {
     // ── Public (no auth) ──
 
     Route::prefix('auth')->group(function () {
+        // turnstile middleware is a no-op when TURNSTILE_SECRET_KEY is unset (current dev state).
+        // Set the key in prod .env to activate bot defense on these endpoints.
         Route::post('login', [AuthController::class, 'login'])
-            ->middleware('throttle:5,1'); // 5 attempts per minute — brute force protection
+            ->middleware(['throttle:5,1', 'turnstile']); // 5/min IP + Turnstile bot gate
         Route::post('check-username', [AuthController::class, 'checkUsername'])
-            ->middleware('throttle:10,1'); // 10 attempts per minute — username lookup
+            ->middleware('throttle:10,1'); // 10/min — read-only username lookup
         Route::post('forgot-password', [AuthController::class, 'forgotPassword'])
-            ->middleware('throttle:5,1'); // 5 attempts per minute
+            ->middleware(['throttle:5,1', 'turnstile']); // 5/min + Turnstile (SMS spam defense)
         Route::post('verify-reset-otp', [AuthController::class, 'verifyResetOtp'])
-            ->middleware('throttle:5,1'); // 5 attempts per minute
+            ->middleware('throttle:5,1'); // 5/min — OTP guesses already rate-limited tightly
         Route::post('reset-password', [AuthController::class, 'resetPassword'])
-            ->middleware('throttle:5,1'); // 5 attempts per minute
+            ->middleware(['throttle:5,1', 'turnstile']); // 5/min + Turnstile
     });
 
     // ── PSGC lookup routes (public -- geographic data, used by founder dashboard proxy) ──
@@ -105,6 +108,9 @@ Route::prefix('v1')->group(function () {
             Route::post('logout', [AuthController::class, 'logout']);
             Route::post('logout-all', [AuthController::class, 'logoutAll']);
         });
+
+        // Per-account preferences (UI language, etc.) — small, frequent, separate from profile
+        Route::patch('me/preferences', [AuthController::class, 'updatePreferences']);
 
         // Account
         Route::prefix('account')->group(function () {
@@ -182,16 +188,23 @@ Route::prefix('v1')->group(function () {
                 Route::get('/', [BarangaySettingsController::class, 'show']);
                 Route::patch('/', [BarangaySettingsController::class, 'update']);
                 Route::get('/usage', [BarangaySettingsController::class, 'usage']);
-                Route::post('/logo', [BarangaySettingsController::class, 'uploadLogo']);
-                Route::post('/seal', [BarangaySettingsController::class, 'uploadSeal']);
+                Route::post('/logo', [BarangaySettingsController::class, 'uploadLogo'])->middleware('throttle:10,1');
+                Route::post('/seal', [BarangaySettingsController::class, 'uploadSeal'])->middleware('throttle:10,1');
+                Route::post('/municipality-logo', [BarangaySettingsController::class, 'uploadMunicipalityLogo'])->middleware('throttle:10,1');
+                Route::get('/boundary', [BarangaySettingsController::class, 'showBoundary']);
+                Route::post('/boundary/refresh', [BarangaySettingsController::class, 'refreshBoundary'])->middleware('throttle:6,1');
             });
 
             // Dashboard
             Route::prefix('dashboard')->group(function () {
                 Route::get('stats', [DashboardController::class, 'stats']);
                 Route::get('activity', [DashboardController::class, 'activity']);
+                Route::get('recent-residents', [DashboardController::class, 'recentResidents']);
                 Route::get('sign-ins', [DashboardController::class, 'signIns']);
                 Route::get('credits', [DashboardController::class, 'credits']);
+                Route::get('document-trend', [DashboardController::class, 'documentTrend']);
+                Route::get('pending-requests', [DashboardController::class, 'pendingRequests']);
+                Route::get('upcoming-events', [DashboardController::class, 'upcomingEvents']);
             });
 
             // ── Mabini AI ──
@@ -238,10 +251,15 @@ Route::prefix('v1')->group(function () {
             Route::get('residents/{resident}/sms-history', [ResidentController::class, 'smsHistory']);
             Route::apiResource('residents', ResidentController::class);
 
+            // ── Address Entries (Smart combobox learned values per barangay) ──
+            Route::get('address-entries', [AddressEntryController::class, 'index']);
+            Route::post('address-entries', [AddressEntryController::class, 'store']);
+
             // ── Map ──
             Route::prefix('map')->group(function () {
                 Route::get('residents', [MapController::class, 'residents']);
                 Route::get('stats', [MapController::class, 'stats']);
+                Route::get('layers', [MapController::class, 'layers']);
             });
             Route::get('establishments/stats', [EstablishmentController::class, 'stats']);
             Route::post('establishments/check-duplicate', [EstablishmentController::class, 'checkDuplicate']);
@@ -270,6 +288,7 @@ Route::prefix('v1')->group(function () {
             Route::apiResource('council-sessions', CouncilSessionController::class);
 
             // ── Documents ──
+            Route::post('document-templates/{id}/clone', [DocumentTemplateController::class, 'clone']);
             Route::apiResource('document-templates', DocumentTemplateController::class);
             Route::get('issued-documents/stats', [IssuedDocumentController::class, 'stats']);
             Route::post('issued-documents/ai-fill', [IssuedDocumentController::class, 'aiFill']);

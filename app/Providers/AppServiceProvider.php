@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use App\Models\Admin\Barangay;
 use App\Models\PersonalAccessToken;
+use App\Observers\BarangayObserver;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -32,5 +34,8 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(60)->by($request->ip());
         });
+
+        // Auto-fetch OSM boundary polygon when a new barangay is onboarded.
+        Barangay::observe(BarangayObserver::class);
     }
 }

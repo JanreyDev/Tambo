@@ -6,7 +6,10 @@ namespace App\Http\Controllers\Api\V1\Tenant;
 
 use App\Http\Controllers\Controller;
 use App\Models\Admin\Barangay;
+use App\Models\Admin\File;
+use App\Models\Platform\AuditLog;
 use App\Models\Platform\SmsTransaction;
+use App\Services\BoundaryFetcherService;
 use App\Services\FileUploadService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,6 +20,7 @@ class BarangaySettingsController extends Controller
 {
     public function __construct(
         private readonly FileUploadService $uploadService,
+        private readonly BoundaryFetcherService $boundaryFetcher,
     ) {}
 
     /**
@@ -49,6 +53,7 @@ class BarangaySettingsController extends Controller
             'motto' => ['nullable', 'string', 'max:500'],
             'office_hours' => ['nullable', 'string', 'max:255'],
             'established_year' => ['nullable', 'integer', 'min:1800', 'max:'.date('Y')],
+            'officials_term' => ['nullable', 'string', 'max:20', 'regex:/^\d{4}-\d{4}$/'],
             'captain_name' => ['nullable', 'string', 'max:200'],
             'contact_phone' => ['nullable', 'string', 'max:20'],
             'contact_email' => ['nullable', 'email', 'max:255'],
@@ -63,8 +68,9 @@ class BarangaySettingsController extends Controller
             'notification_preferences.email_alerts' => ['nullable', 'boolean'],
             'notification_preferences.daily_summary' => ['nullable', 'boolean'],
             'setup_complete' => ['nullable', 'boolean'],
-            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
-            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            // Lat/lng — Philippine geographic bounds (4.5-21.5 N, 116-127 E)
+            'latitude' => ['nullable', 'numeric', 'between:4.5,21.5'],
+            'longitude' => ['nullable', 'numeric', 'between:116,127'],
             // Settings JSONB — operational config
             'settings' => ['nullable', 'array'],
             'settings.certificate_validity_days' => ['nullable', 'integer', 'min:1', 'max:365'],
@@ -74,6 +80,25 @@ class BarangaySettingsController extends Controller
             'settings.cedula_fee' => ['nullable', 'numeric', 'min:0', 'max:10000'],
             'settings.default_signatory_name' => ['nullable', 'string', 'max:200'],
             'settings.default_signatory_title' => ['nullable', 'string', 'max:200'],
+            'settings.document_layout' => ['nullable', 'in:klasiko,moderno,elegante,digital'],
+            'settings.document_paper_size' => ['nullable', 'in:a4,letter,legal'],
+            'settings.document_font' => ['nullable', 'in:times,arial,inter,poppins,merriweather,playfair'],
+            'settings.document_color_theme' => ['nullable', 'in:plain,blue,red,green,yellow,combo-flag,combo-festive,combo-earth,combo-gov,combo-bayanihan,combo-sunrise,combo-coastal,combo-heritage'],
+            'settings.document_design_pattern' => ['nullable', 'in:wave,gradient,bold,photo,minimal,stripe,wreath,sunburst,gothic,scroll,diplomatic,ornate,geometric,bold-stripe,tech'],
+            // Sub-object namespaces — validated loosely (sub-shape validated by each tab's UI)
+            'settings.vawc' => ['nullable', 'array'],
+            'settings.gad' => ['nullable', 'array'],
+            'settings.kp' => ['nullable', 'array'],
+            'settings.residents_dictionaries' => ['nullable', 'array'],
+            // Contact sub-fields — defense in depth (client already validates)
+            'settings.contact' => ['nullable', 'array'],
+            'settings.contact.mobile_number' => ['nullable', 'string', 'regex:/^09\d{9}$/'],
+            'settings.contact.emergency_hotline' => ['nullable', 'string', 'max:30'],
+            'settings.contact.facebook_url' => ['nullable', 'string', 'max:500', 'regex:#^https://(www\.)?(facebook|fb)\.com/#i'],
+            'settings.contact.viber_community_url' => ['nullable', 'string', 'max:500', 'regex:#^https://#i'],
+            'settings.contact.youtube_url' => ['nullable', 'string', 'max:500', 'regex:#^https://(www\.)?youtube\.com/#i'],
+            'settings.contact.twitter_url' => ['nullable', 'string', 'max:500', 'regex:#^https://(www\.)?(twitter|x)\.com/#i'],
+            'settings.contact.instagram_url' => ['nullable', 'string', 'max:500', 'regex:#^https://(www\.)?instagram\.com/#i'],
         ]);
 
         // Sanitize + force UPPERCASE on all text fields
@@ -91,8 +116,17 @@ class BarangaySettingsController extends Controller
         // Whitelist + sanitize settings JSONB keys
         if (isset($validated['settings'])) {
             $allowedSettingsKeys = [
+                // Document workflow
                 'certificate_validity_days', 'clearance_fee', 'indigency_fee',
                 'id_fee', 'cedula_fee', 'default_signatory_name', 'default_signatory_title',
+                'document_layout', 'document_paper_size', 'document_font',
+                'document_color_theme', 'document_design_pattern',
+                // Compliance sub-objects (each has its own shape, validated at frontend)
+                'vawc', 'gad', 'kp',
+                // Contact extras (mobile, hotline, social URLs)
+                'contact',
+                // Per-barangay autocomplete dictionaries for the Residents form
+                'residents_dictionaries',
             ];
             $validated['settings'] = array_intersect_key(
                 $validated['settings'],
@@ -119,7 +153,40 @@ class BarangaySettingsController extends Controller
         }
 
         $barangay = Barangay::findOrFail($user->barangay_id);
+
+        // Capture before-state for audit log (only fields that are about to change)
+        $beforeState = [];
+        foreach (array_keys($validated) as $field) {
+            $beforeState[$field] = $barangay->{$field};
+        }
+
         $barangay->update($validated);
+
+        // Audit log entry — user-facing trail (RA 10173 / Principle 7)
+        try {
+            AuditLog::create([
+                'barangay_id' => $barangay->id,
+                'user_id' => $user->id,
+                'action' => 'settings.updated',
+                'resource_type' => 'barangay_settings',
+                'resource_id' => $barangay->id,
+                'changes' => [
+                    'before' => $beforeState,
+                    'after' => array_intersect_key($barangay->fresh()->toArray(), $validated),
+                    'fields_changed' => array_keys($validated),
+                ],
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'module' => 'settings',
+            ]);
+        } catch (\Throwable $e) {
+            // Audit-log failures must not break the user save flow
+            Log::warning('Audit log write failed for settings update', [
+                'barangay_id' => $barangay->id,
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         Log::info('Barangay settings updated', [
             'barangay_id' => $barangay->id,
@@ -149,6 +216,70 @@ class BarangaySettingsController extends Controller
     public function uploadSeal(Request $request): JsonResponse
     {
         return $this->handleImageUpload($request, 'seal', 'seal_url');
+    }
+
+    /**
+     * Upload city/municipality logo.
+     */
+    public function uploadMunicipalityLogo(Request $request): JsonResponse
+    {
+        return $this->handleImageUpload($request, 'municipality-logo', 'municipality_logo_url');
+    }
+
+    /**
+     * POST /api/v1/settings/boundary/refresh
+     * Re-fetches the OSM boundary polygon for the current barangay.
+     * Idempotent — admin can call as often as needed.
+     */
+    public function refreshBoundary(Request $request): JsonResponse
+    {
+        $barangay = Barangay::findOrFail($request->user()->barangay_id);
+
+        $ok = $this->boundaryFetcher->fetchAndStore($barangay);
+
+        if (! $ok) {
+            return response()->json([
+                'message' => 'No boundary polygon found in OpenStreetMap for this barangay. You can upload a custom GeoJSON file.',
+                'fetched' => false,
+            ], 200);
+        }
+
+        $barangay->refresh();
+
+        AuditLog::create([
+            'user_id' => $request->user()->id,
+            'barangay_id' => $barangay->id,
+            'action' => 'barangay.boundary.refresh',
+            'resource_type' => 'barangay',
+            'resource_id' => $barangay->id,
+            'changes' => [
+                'source' => $barangay->boundary_source,
+                'fetched_at' => $barangay->boundary_fetched_at?->toIso8601String(),
+            ],
+        ]);
+
+        return response()->json([
+            'message' => 'Boundary fetched and saved.',
+            'fetched' => true,
+            'boundary_geojson' => $barangay->boundary_geojson,
+            'boundary_fetched_at' => $barangay->boundary_fetched_at?->toIso8601String(),
+            'boundary_source' => $barangay->boundary_source,
+        ]);
+    }
+
+    /**
+     * GET /api/v1/settings/boundary
+     * Returns the current boundary GeoJSON (or null if not set).
+     */
+    public function showBoundary(Request $request): JsonResponse
+    {
+        $barangay = Barangay::findOrFail($request->user()->barangay_id);
+
+        return response()->json([
+            'boundary_geojson' => $barangay->boundary_geojson,
+            'boundary_fetched_at' => $barangay->boundary_fetched_at?->toIso8601String(),
+            'boundary_source' => $barangay->boundary_source,
+        ]);
     }
 
     /**
@@ -228,11 +359,14 @@ class BarangaySettingsController extends Controller
         }
 
         $request->validate([
-            'file' => ['required', 'file', 'mimes:jpeg,png,webp,svg', 'max:5120'],
+            'file' => ['required', 'file', 'mimes:jpeg,jpg,png', 'max:5120'],
         ]);
 
         $barangay = Barangay::findOrFail($user->barangay_id);
         $path = "bcmp/{$barangay->id}/{$category}s";
+
+        // Remember the previous file URL (if any) so we can delete it after the new one lands
+        $previousUrl = $barangay->{$urlField};
 
         try {
             $file = $this->uploadService->upload(
@@ -247,11 +381,61 @@ class BarangaySettingsController extends Controller
             $url = $this->uploadService->getPublicUrl($file);
             $barangay->update([$urlField => $url]);
 
+            // Delete the previous file (orphan prevention). Best-effort — never fails the request.
+            if ($previousUrl && $previousUrl !== $url) {
+                try {
+                    $oldFile = File::where('barangay_id', $barangay->id)
+                        ->where('category', $category)
+                        ->where('id', '!=', $file->id)
+                        ->whereRaw('? LIKE CONCAT(\'%\', stored_name)', [$previousUrl])
+                        ->first();
+                    if ($oldFile) {
+                        $this->uploadService->delete($oldFile);
+                        Log::info("Old {$category} replaced and deleted", [
+                            'barangay_id' => $barangay->id,
+                            'old_file_id' => $oldFile->id,
+                            'new_file_id' => $file->id,
+                        ]);
+                    }
+                } catch (\Throwable $ex) {
+                    Log::warning("Failed to delete previous {$category} file", [
+                        'barangay_id' => $barangay->id,
+                        'previous_url' => $previousUrl,
+                        'error' => $ex->getMessage(),
+                    ]);
+                }
+            }
+
             Log::info("Barangay {$category} uploaded", [
                 'barangay_id' => $barangay->id,
                 'file_id' => $file->id,
                 'uploaded_by' => $user->id,
             ]);
+
+            // Audit trail
+            try {
+                AuditLog::create([
+                    'barangay_id' => $barangay->id,
+                    'user_id' => $user->id,
+                    'action' => "settings.{$category}_uploaded",
+                    'resource_type' => 'barangay_settings',
+                    'resource_id' => $barangay->id,
+                    'changes' => [
+                        'category' => $category,
+                        'previous_url' => $previousUrl,
+                        'new_url' => $url,
+                        'file_id' => $file->id,
+                    ],
+                    'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                    'module' => 'settings',
+                ]);
+            } catch (\Throwable $e) {
+                Log::warning("Audit log write failed for {$category} upload", [
+                    'barangay_id' => $barangay->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
 
             return response()->json([
                 'message' => ucfirst($category).' uploaded successfully.',
@@ -262,6 +446,12 @@ class BarangaySettingsController extends Controller
             if (str_contains($e->getMessage(), 'Storage limit exceeded')) {
                 return response()->json([
                     'message' => 'Storage limit exceeded. Contact your administrator.',
+                ], 422);
+            }
+
+            if (str_contains($e->getMessage(), 'dimensions too large')) {
+                return response()->json([
+                    'message' => $e->getMessage(),
                 ], 422);
             }
 
@@ -288,6 +478,7 @@ class BarangaySettingsController extends Controller
             'full_address' => $barangay->full_address,
             'logo_url' => $barangay->logo_url,
             'seal_url' => $barangay->seal_url,
+            'municipality_logo_url' => $barangay->municipality_logo_url,
             'contact_phone' => $barangay->contact_phone,
             'contact_email' => $barangay->contact_email,
             'website_url' => $barangay->website_url,

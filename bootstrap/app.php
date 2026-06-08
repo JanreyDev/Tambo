@@ -28,6 +28,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'super_admin' => SuperAdminOnly::class,
             'permission' => CheckPermission::class,
             'feature' => CheckFeatureFlag::class,
+            'turnstile' => \App\Http\Middleware\VerifyTurnstile::class,
         ]);
 
         // ── Global middleware (runs on every request) ──
@@ -36,10 +37,15 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->append(\App\Http\Middleware\RequestId::class);
         $middleware->append(SecurityHeaders::class);
 
-        // ── Global API rate limiting ──
+        // ── Global API rate limiting + cookie-to-header auth bridge ──
         // 60 requests per minute per IP across all API routes.
         // Per-endpoint throttling (login 5/min, OTP 5/min, etc.) still applies on top.
+        //
+        // AuthCookieToHeader runs first so the httpOnly bcmp_token cookie is converted
+        // into an Authorization: Bearer header BEFORE Sanctum's auth:sanctum sees the
+        // request. Existing routes that depend on Bearer tokens keep working unchanged.
         $middleware->api(prepend: [
+            \App\Http\Middleware\AuthCookieToHeader::class,
             'throttle:api',
         ]);
 

@@ -34,15 +34,16 @@ return [
         'Authorization',
         'Accept',
         'X-Requested-With',
-        // X-XSRF-TOKEN removed — token-based auth only, no CSRF cookies
     ],
 
     'exposed_headers' => [],
 
     // 1 hour preflight cache — reduces OPTIONS requests from browsers.
-    // 86400 (24h) was too aggressive; some browsers cap at 2h anyway.
     'max_age' => 3600,
 
-    'supports_credentials' => false,
+    // Required for httpOnly cookie auth — browser must be allowed to attach cookies
+    // on cross-origin XHR. Origins above are explicit (no wildcard) — required by spec
+    // when supports_credentials is true.
+    'supports_credentials' => true,
 
 ];

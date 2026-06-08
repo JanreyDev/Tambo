@@ -9,11 +9,14 @@ use App\Http\Requests\Auth\LoginRequest;
 use App\Models\Platform\LoginLog;
 use App\Models\User;
 use App\Services\SmsService;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\Rules\Password;
+use Symfony\Component\HttpFoundation\Cookie;
 
 class AuthController extends Controller
 {
@@ -26,20 +29,74 @@ class AuthController extends Controller
      *
      * POST /api/v1/auth/login
      */
+    /**
+     * Account lockout policy — server-side defense vs frontend bypass.
+     * After 10 failures within the decay window, lock for 15 minutes.
+     * Decay window means we wipe the counter if the last failure was >60 min ago
+     * (someone fat-fingering their password an hour later shouldn't carry old strikes).
+     */
+    private const MAX_FAILED_ATTEMPTS = 10;
+    private const LOCKOUT_MINUTES = 15;
+    private const FAILURE_DECAY_MINUTES = 60;
+
     public function login(LoginRequest $request): JsonResponse
     {
         $validated = $request->validated();
 
         $user = User::where('username', $validated['username'])->first();
 
-        if (! $user || ! Hash::check($validated['password'], $user->password)) {
-            // Generic response — no user enumeration
+        // Server-side lockout check — fires BEFORE password verification so a locked
+        // account never reveals whether the password was right (anti-enumeration intact).
+        if ($user && $user->isLockedOut()) {
+            $this->logFailedLogin(
+                $request,
+                $validated['username'],
+                $user->id,
+                $user->barangay_id,
+                'account_locked',
+            );
+
+            return response()->json([
+                'message' => 'Invalid credentials.',
+                'retry_after' => $user->secondsUntilUnlock(),
+            ], 423);
+        }
+
+        // password_verify auto-detects the algorithm from the hash prefix
+        // ($2y$ = bcrypt, $argon2id$ = argon2id) so this works during the
+        // bcrypt -> argon2id transition without throwing on mismatched drivers.
+        $passwordValid = $user && password_verify($validated['password'], $user->password);
+
+        if (! $user || ! $passwordValid) {
+            // Increment counter + possibly lock the account.
+            if ($user) {
+                $this->recordFailedAttemptAndMaybeLock($user);
+            }
+
+            // Audit the failed attempt — never reveal which field was wrong.
+            // Logs even when user is null (probes for usernames are forensic signal).
+            $this->logFailedLogin(
+                $request,
+                $validated['username'],
+                $user?->id,
+                $user?->barangay_id,
+                $user ? 'invalid_password' : 'unknown_username',
+            );
+
             return response()->json([
                 'message' => 'Invalid credentials.',
             ], 401);
         }
 
         if ($user->status !== 'active') {
+            $this->logFailedLogin(
+                $request,
+                $validated['username'],
+                $user->id,
+                $user->barangay_id,
+                'account_inactive',
+            );
+
             return response()->json([
                 'message' => 'Account is deactivated. Contact your administrator.',
             ], 403);
@@ -65,7 +122,38 @@ class AuthController extends Controller
         // wrap individual queries in explicit transactions — SET LOCAL would vanish immediately.
         // Only on PostgreSQL — SQLite (used in testing) has no RLS.
         if ($user->barangay_id && DB::getDriverName() === 'pgsql') {
-            DB::statement("SET app.current_barangay_id = '{$user->barangay_id}'");
+            // Parameterized via bindings — UUID is type-validated upstream, but SET cannot accept bindings.
+            // Re-validate as UUID to defend against any unexpected mutation.
+            $sanitizedBarangayId = preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', (string) $user->barangay_id)
+                ? $user->barangay_id
+                : null;
+            if ($sanitizedBarangayId) {
+                DB::statement("SET app.current_barangay_id = '{$sanitizedBarangayId}'");
+            }
+        }
+
+        // Transparent hash migration — bcrypt -> Argon2id silently on successful login.
+        // Use password_get_info to detect the stored algorithm without calling Laravel's
+        // strict driver-specific needsRehash (which throws on cross-algorithm checks).
+        $stored = password_get_info($user->password);
+        $isArgon2id = ($stored['algo'] ?? null) === PASSWORD_ARGON2ID;
+        if (! $isArgon2id) {
+            $user->password = Hash::make($validated['password']);
+            $user->saveQuietly();
+        }
+
+        // Capture pre-login state for the new-device SMS alert BEFORE recordLogin overwrites it.
+        $previousLoginIp = $user->last_login_ip;
+        $previousLoginAt = $user->last_login_at;
+        $isFirstLogin = $previousLoginIp === null;
+
+        // Reset lockout counter atomically on successful authentication.
+        if ($user->failed_login_attempts > 0 || $user->locked_until !== null) {
+            $user->forceFill([
+                'failed_login_attempts' => 0,
+                'locked_until' => null,
+                'last_failed_login_at' => null,
+            ])->saveQuietly();
         }
 
         // Revoke existing tokens for this device (single session per device)
@@ -109,11 +197,58 @@ class AuthController extends Controller
             ],
         ]);
 
-        return response()->json([
+        // New-device SMS alert: scaffolded but disabled. Enable via FEATURE_NEW_DEVICE_SMS_ALERT=true.
+        // Skipped on first-ever login (no prior IP to compare). Failures are silent — alerting
+        // must never block authentication.
+        if (env('FEATURE_NEW_DEVICE_SMS_ALERT', false)
+            && ! $isFirstLogin
+            && $previousLoginIp !== $request->ip()) {
+            $this->notifyNewDeviceLogin($user, $previousLoginIp, $previousLoginAt, $request);
+        }
+
+        // Issue httpOnly secure cookie alongside the JSON token.
+        // Web clients ignore the body token (cookie is auto-attached on subsequent requests).
+        // Mobile clients (Flutter) ignore the cookie and use the body token via Authorization header.
+        // Same token, two delivery mechanisms — XSS-stolen tokens become impossible on web.
+        $expiresAt = $token->accessToken->expires_at;
+        // Compute seconds-until-expiry via UNIX timestamps — Carbon 3's diffInSeconds
+        // returns signed values and direction-sensitive results that misbehave here.
+        $maxAgeSeconds = max(60, $expiresAt->getTimestamp() - time());
+        $isProduction = app()->environment('production');
+
+        $response = response()->json([
             'user' => $this->formatUser($user),
-            'token' => $token->plainTextToken,
-            'expires_at' => $token->accessToken->expires_at,
+            'token' => $token->plainTextToken, // retained for mobile + backward compat
+            'expires_at' => $expiresAt,
         ]);
+
+        // bcmp_token: httpOnly — actual auth credential; JS cannot read it.
+        $response->withCookie(new Cookie(
+            name: 'bcmp_token',
+            value: $token->plainTextToken,
+            expire: time() + $maxAgeSeconds,
+            path: '/',
+            domain: null,
+            secure: $isProduction,
+            httpOnly: true,
+            raw: false,
+            sameSite: Cookie::SAMESITE_LAX,
+        ));
+
+        // bcmp_auth: readable by Next.js middleware (route protection only — no sensitive data).
+        $response->withCookie(new Cookie(
+            name: 'bcmp_auth',
+            value: '1',
+            expire: time() + $maxAgeSeconds,
+            path: '/',
+            domain: null,
+            secure: $isProduction,
+            httpOnly: false,
+            raw: false,
+            sameSite: Cookie::SAMESITE_LAX,
+        ));
+
+        return $response;
     }
 
     /**
@@ -127,6 +262,31 @@ class AuthController extends Controller
         $user->load(['barangay']);
 
         return response()->json($this->formatUser($user));
+    }
+
+    /**
+     * Update the authenticated user's per-account preferences.
+     * Currently supports preferred_language (UI language).
+     *
+     * PATCH /api/v1/me/preferences
+     */
+    public function updatePreferences(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'preferred_language' => ['nullable', 'string', 'in:en,fil'],
+        ]);
+
+        $user = $request->user();
+
+        if (array_key_exists('preferred_language', $validated)) {
+            $user->preferred_language = $validated['preferred_language'] ?? 'en';
+            $user->save();
+        }
+
+        return response()->json([
+            'message' => 'Preferences updated.',
+            'preferred_language' => $user->preferred_language,
+        ]);
     }
 
     /**
@@ -157,9 +317,34 @@ class AuthController extends Controller
 
         $request->user()->currentAccessToken()->delete();
 
+        // Clear both auth cookies — expire immediately and overwrite any existing value.
+        $isProduction = app()->environment('production');
+        $clearTokenCookie = new Cookie(
+            name: 'bcmp_token',
+            value: '',
+            expire: 1,
+            path: '/',
+            domain: null,
+            secure: $isProduction,
+            httpOnly: true,
+            raw: false,
+            sameSite: Cookie::SAMESITE_LAX,
+        );
+        $clearAuthCookie = new Cookie(
+            name: 'bcmp_auth',
+            value: '',
+            expire: 1,
+            path: '/',
+            domain: null,
+            secure: $isProduction,
+            httpOnly: false,
+            raw: false,
+            sameSite: Cookie::SAMESITE_LAX,
+        );
+
         return response()->json([
             'message' => 'Logged out.',
-        ]);
+        ])->withCookie($clearTokenCookie)->withCookie($clearAuthCookie);
     }
 
     /**
@@ -354,6 +539,206 @@ class AuthController extends Controller
 
     // ── Private Helpers ──
 
+    /**
+     * Record a failed attempt and lock the account if the threshold is hit.
+     * Uses an atomic increment to avoid race conditions under parallel requests.
+     * Resets the counter if the last failure was more than FAILURE_DECAY_MINUTES ago
+     * (don't punish a user who fat-fingered once an hour ago).
+     */
+    private function recordFailedAttemptAndMaybeLock(User $user): void
+    {
+        $now = now();
+        $decayThreshold = $now->copy()->subMinutes(self::FAILURE_DECAY_MINUTES);
+
+        $shouldReset = $user->last_failed_login_at !== null
+            && $user->last_failed_login_at->lt($decayThreshold);
+
+        $newAttempts = $shouldReset ? 1 : ($user->failed_login_attempts ?? 0) + 1;
+        $shouldLock = $newAttempts >= self::MAX_FAILED_ATTEMPTS;
+
+        $user->forceFill([
+            'failed_login_attempts' => $newAttempts,
+            'last_failed_login_at' => $now,
+            'locked_until' => $shouldLock ? $now->copy()->addMinutes(self::LOCKOUT_MINUTES) : $user->locked_until,
+        ])->saveQuietly();
+    }
+
+    /**
+     * Send the user an SMS alert when they log in from an IP not seen on their last session.
+     * Best-effort — never blocks the login flow. SMS provider failures are logged silently.
+     */
+    private function notifyNewDeviceLogin(
+        User $user,
+        ?string $previousIp,
+        ?\Illuminate\Support\Carbon $previousAt,
+        Request $request,
+    ): void {
+        try {
+            if (! $user->phone) {
+                return;
+            }
+
+            $previousLabel = $previousAt
+                ? $previousAt->setTimezone('Asia/Manila')->format('M j, g:i A')
+                : 'unknown time';
+            $previousIpLabel = $previousIp ?: 'unknown IP';
+            $newDevice = $this->detectBrowser($request->userAgent()).' on '.$this->detectPlatform($request->userAgent());
+
+            $message = "kapitan.ph: New login detected.\n"
+                ."Device: {$newDevice}\n"
+                ."IP: {$request->ip()}\n"
+                ."Previous: {$previousIpLabel} at {$previousLabel}\n"
+                ."If this wasn't you, change your password immediately.";
+
+            $this->smsService->send(
+                phone: $user->phone,
+                message: $message,
+                barangay: $user->barangay,
+                source: 'security_alert_new_device',
+                sourceId: $user->id,
+            );
+        } catch (\Throwable $e) {
+            \Log::warning('New-device login alert failed', ['error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Log a failed login attempt to the audit trail.
+     * Captures IP, UA, device fingerprint, and the failure reason — forensic signal for credential stuffing.
+     * Never reveals the failure reason to the client (caller still returns generic 401).
+     */
+    private function logFailedLogin(
+        Request $request,
+        string $attemptedUsername,
+        ?string $userId,
+        ?string $barangayId,
+        string $reason,
+    ): void {
+        // RLS context — if we know the user, set it so the insert lands correctly.
+        if ($barangayId && DB::getDriverName() === 'pgsql') {
+            $sanitized = preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $barangayId) ? $barangayId : null;
+            if ($sanitized) {
+                DB::statement("SET app.current_barangay_id = '{$sanitized}'");
+            }
+        }
+
+        try {
+            LoginLog::create([
+                'barangay_id' => $barangayId,
+                'user_id' => $userId,
+                'attempted_username' => substr($attemptedUsername, 0, 64),
+                'action' => 'login_failed',
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'device_info' => [
+                    'device_type' => $this->detectDeviceType($request->userAgent()),
+                    'browser' => $this->detectBrowser($request->userAgent()),
+                    'attempted_username' => substr($attemptedUsername, 0, 64),
+                    'reason' => $reason,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            // Never let audit failure block the login flow — log to Laravel log instead.
+            \Log::warning('Failed to write login_failed audit entry', [
+                'reason' => $reason,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        // Fire Telegram alert for HIGH-SIGNAL failed attempts:
+        //   1. Any attempt against a super_admin account (low-frequency, high-stakes)
+        //   2. 3+ failed attempts for the same known user within 5 minutes (targeting)
+        //   3. 10+ failed attempts from the same IP within 10 minutes (credential stuffing)
+        try {
+            $shouldAlert = false;
+            $alertReason = '';
+
+            // Trigger 1: super_admin probe
+            if ($userId) {
+                $userIsAdmin = (bool) User::where('id', $userId)->where('is_super_admin', true)->exists();
+                if ($userIsAdmin) {
+                    $shouldAlert = true;
+                    $alertReason = 'super_admin attempt';
+                }
+            }
+
+            // Trigger 2: per-username burst
+            if (! $shouldAlert && $userId) {
+                $userBurst = LoginLog::where('user_id', $userId)
+                    ->where('action', 'login_failed')
+                    ->where('created_at', '>=', now()->subMinutes(5))
+                    ->count();
+                if ($userBurst >= 3) {
+                    $shouldAlert = true;
+                    $alertReason = "{$userBurst} failures in 5min";
+                }
+            }
+
+            // Trigger 3: per-IP burst (catches credential stuffing across usernames)
+            if (! $shouldAlert) {
+                $ipBurst = LoginLog::where('ip_address', $request->ip())
+                    ->where('action', 'login_failed')
+                    ->where('created_at', '>=', now()->subMinutes(10))
+                    ->count();
+                if ($ipBurst >= 10) {
+                    $shouldAlert = true;
+                    $alertReason = "{$ipBurst} failures from IP in 10min";
+                }
+            }
+
+            if ($shouldAlert) {
+                $this->sendTelegramSecurityAlert(
+                    title: 'BCMP failed login',
+                    payload: [
+                        'username' => substr($attemptedUsername, 0, 64),
+                        'reason' => $reason,
+                        'trigger' => $alertReason,
+                        'ip' => $request->ip(),
+                        'user_agent' => substr((string) $request->userAgent(), 0, 120),
+                    ],
+                );
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('Telegram alert dispatch failed', ['error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Send a security alert to the operator Telegram channel.
+     * Fire-and-forget with a tight timeout — never blocks the request path more than 2s.
+     * No-ops silently when bot token or chat id is unconfigured (local dev).
+     */
+    private function sendTelegramSecurityAlert(string $title, array $payload): void
+    {
+        $token = (string) config('services.telegram.bot_token', env('TELEGRAM_BOT_TOKEN', ''));
+        $chatId = (string) config('services.telegram.alert_chat_id', env('TELEGRAM_CHAT_ID_JEAGER', ''));
+        if ($token === '' || $chatId === '') {
+            return;
+        }
+
+        $lines = ["🚨 *{$title}*"];
+        foreach ($payload as $k => $v) {
+            // Escape Markdown V1 metacharacters that would break formatting
+            $safe = str_replace(['*', '_', '`', '['], ['', '', '', ''], (string) $v);
+            $lines[] = "*".ucfirst((string) $k)."*: `{$safe}`";
+        }
+        $lines[] = "_".now()->toIso8601String()."_";
+
+        try {
+            Http::timeout(2)->retry(1, 200)->asJson()->post(
+                "https://api.telegram.org/bot{$token}/sendMessage",
+                [
+                    'chat_id' => $chatId,
+                    'text' => implode("\n", $lines),
+                    'parse_mode' => 'Markdown',
+                    'disable_web_page_preview' => true,
+                ],
+            );
+        } catch (ConnectionException $e) {
+            \Log::warning('Telegram connection failed', ['error' => $e->getMessage()]);
+        }
+    }
+
     private function formatUser(User $user): array
     {
         return [
@@ -374,6 +759,7 @@ class AuthController extends Controller
             'username_changed_at' => $user->username_changed_at?->toIso8601String(),
             'password_changed_at' => $user->password_changed_at?->toIso8601String(),
             'two_factor_enabled' => $user->hasTwoFactorEnabled(),
+            'preferred_language' => $user->preferred_language ?? 'en',
             'preferences' => $user->preferences,
             'barangay' => $user->barangay ? [
                 'id' => $user->barangay->id,
@@ -392,6 +778,7 @@ class AuthController extends Controller
                 'storage_used_bytes' => $user->barangay->storage_used_bytes,
                 'storage_limit_bytes' => $user->barangay->storage_limit_bytes,
                 'seal_url' => $user->barangay->seal_url,
+                'municipality_logo_url' => $user->barangay->municipality_logo_url,
                 'contact_phone' => $user->barangay->contact_phone,
                 'contact_email' => $user->barangay->contact_email,
                 'website_url' => $user->barangay->website_url,

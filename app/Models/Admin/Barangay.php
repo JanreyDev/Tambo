@@ -29,6 +29,7 @@ class Barangay extends Model
         'zip_code',
         'logo_url',
         'seal_url',
+        'municipality_logo_url',
         'contact_phone',
         'contact_email',
         'website_url',
@@ -52,6 +53,8 @@ class Barangay extends Model
         'established_year',
         'captain_name',
         'boundary_geojson',
+        'boundary_fetched_at',
+        'boundary_source',
         'setup_complete',
         'document_header_text',
         'document_footer_text',
@@ -77,6 +80,7 @@ class Barangay extends Model
             'setup_complete' => 'boolean',
             'established_year' => 'integer',
             'boundary_geojson' => 'array',
+            'boundary_fetched_at' => 'datetime',
             'notification_preferences' => 'array',
         ];
     }

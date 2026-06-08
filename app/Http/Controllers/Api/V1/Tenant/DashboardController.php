@@ -8,8 +8,12 @@ use App\Http\Controllers\Controller;
 use App\Models\Admin\Barangay;
 use App\Models\Platform\LoginLog;
 use App\Models\Tenant\Documents\IssuedDocument;
+use App\Models\Tenant\Finance\CashbookEntry;
 use App\Models\Tenant\Judicial\BlotterRecord;
 use App\Models\Tenant\Judicial\KpCase;
+use App\Models\Tenant\Judicial\VawcCase;
+use App\Models\Tenant\Officials\CouncilSession;
+use App\Models\Tenant\PublicPortal\PublicDocumentRequest;
 use App\Models\Tenant\Records\Establishment;
 use App\Models\Tenant\Records\LotBuilding;
 use App\Models\Tenant\Resident;
@@ -90,55 +94,232 @@ class DashboardController extends Controller
         $stats['transferred_count'] = (int) ($statusCounts['transferred'] ?? 0);
         $stats['archived_count'] = (int) ($statusCounts['archived'] ?? 0);
 
+        // Public document requests — pending count for dashboard widget
+        $stats['pending_public_requests'] = PublicDocumentRequest::where('barangay_id', $barangayId)
+            ->whereIn('status', ['pending', 'reviewed'])
+            ->count();
+
+        // VAWC active cases (RA 9262)
+        $stats['active_vawc_cases'] = VawcCase::where('barangay_id', $barangayId)
+            ->whereNotIn('status', ['closed', 'dismissed', 'elevated'])
+            ->count();
+
+        // Finance — this month's collections (credits)
+        $stats['collections_this_month'] = (float) CashbookEntry::where('barangay_id', $barangayId)
+            ->where('entry_date', '>=', now()->startOfMonth())
+            ->sum('credit');
+
+        // Finance — this month's disbursements (debits)
+        $stats['disbursements_this_month'] = (float) CashbookEntry::where('barangay_id', $barangayId)
+            ->where('entry_date', '>=', now()->startOfMonth())
+            ->sum('debit');
+
+        // Last-month documents for MoM delta on the Documents Issued stat card
+        $stats['documents_last_month'] = IssuedDocument::where('barangay_id', $barangayId)
+            ->whereBetween('created_at', [
+                now()->subMonthNoOverflow()->startOfMonth(),
+                now()->subMonthNoOverflow()->endOfMonth(),
+            ])
+            ->count();
+
+        // Last-month new residents for MoM delta on the Total Residents card
+        $stats['residents_this_month'] = Resident::where('barangay_id', $barangayId)
+            ->where('created_at', '>=', now()->startOfMonth())
+            ->count();
+
         return response()->json($stats);
     }
 
     /**
-     * Get recent activity feed for the dashboard.
+     * Get last-7-days document generation trend for the Document Generation chart.
+     *
+     * GET /api/v1/dashboard/document-trend
+     */
+    public function documentTrend(Request $request): JsonResponse
+    {
+        $barangayId = $request->user()->barangay_id;
+
+        $startDate = now()->subDays(6)->startOfDay();
+
+        // Postgres-friendly day-grouped count
+        $rows = IssuedDocument::where('barangay_id', $barangayId)
+            ->where('created_at', '>=', $startDate)
+            ->select(DB::raw('DATE(created_at) as day'), DB::raw('count(*) as count'))
+            ->groupBy('day')
+            ->pluck('count', 'day')
+            ->toArray();
+
+        // Fill in zero-days so the chart always has 7 datapoints
+        $trend = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $date = now()->subDays($i)->toDateString();
+            $trend[] = [
+                'date' => $date,
+                'day_label' => now()->subDays($i)->format('D'),
+                'count' => (int) ($rows[$date] ?? 0),
+            ];
+        }
+
+        $total = array_sum(array_column($trend, 'count'));
+
+        // Week-over-week delta
+        $previousWeekTotal = IssuedDocument::where('barangay_id', $barangayId)
+            ->whereBetween('created_at', [
+                now()->subDays(13)->startOfDay(),
+                now()->subDays(7)->endOfDay(),
+            ])
+            ->count();
+
+        $deltaPct = $previousWeekTotal > 0
+            ? round((($total - $previousWeekTotal) / $previousWeekTotal) * 100, 1)
+            : null;
+
+        return response()->json([
+            'trend' => $trend,
+            'total_this_week' => $total,
+            'total_last_week' => $previousWeekTotal,
+            'delta_pct' => $deltaPct,
+        ]);
+    }
+
+    /**
+     * Top pending public document requests.
+     *
+     * GET /api/v1/dashboard/pending-requests
+     */
+    public function pendingRequests(Request $request): JsonResponse
+    {
+        $barangayId = $request->user()->barangay_id;
+        $limit = min((int) $request->get('limit', 5), 20);
+
+        $requests = PublicDocumentRequest::where('barangay_id', $barangayId)
+            ->whereIn('status', ['pending', 'reviewed'])
+            ->latest()
+            ->take($limit)
+            ->get()
+            ->map(fn ($req) => [
+                'id' => $req->id,
+                'request_number' => $req->request_number,
+                'requester_name' => $req->requester_name,
+                'document_type' => $req->document_type,
+                'status' => $req->status,
+                'created_at' => $req->created_at->toIso8601String(),
+                'urgency' => $this->classifyUrgency($req->created_at),
+            ]);
+
+        return response()->json(['requests' => $requests]);
+    }
+
+    /**
+     * Upcoming council sessions / barangay events.
+     *
+     * GET /api/v1/dashboard/upcoming-events
+     */
+    public function upcomingEvents(Request $request): JsonResponse
+    {
+        $barangayId = $request->user()->barangay_id;
+        $limit = min((int) $request->get('limit', 4), 10);
+
+        $events = CouncilSession::where('barangay_id', $barangayId)
+            ->where('date', '>=', now()->toDateString())
+            ->orderBy('date')
+            ->orderBy('time_start')
+            ->take($limit)
+            ->get()
+            ->map(fn ($s) => [
+                'id' => $s->id,
+                'title' => $this->formatSessionTitle($s->session_type, $s->session_number),
+                'session_type' => $s->session_type,
+                'date' => $s->date?->toDateString(),
+                'time_start' => $s->time_start,
+                'venue' => $s->venue,
+            ]);
+
+        return response()->json(['events' => $events]);
+    }
+
+    private function classifyUrgency($createdAt): string
+    {
+        $hoursAgo = $createdAt->diffInHours(now());
+        if ($hoursAgo >= 72) {
+            return 'high';
+        }
+        if ($hoursAgo >= 24) {
+            return 'medium';
+        }
+
+        return 'low';
+    }
+
+    private function formatSessionTitle(?string $type, ?int $number): string
+    {
+        $typeLabel = match ($type) {
+            'regular' => 'Regular Session',
+            'special' => 'Special Session',
+            'public_hearing' => 'Public Hearing',
+            'committee' => 'Committee Meeting',
+            default => 'Council Session',
+        };
+
+        return $number ? "{$typeLabel} #{$number}" : $typeLabel;
+    }
+
+    /**
+     * Get recent document activity feed for the dashboard.
+     * Document-centric (each row = one document issued, with constituent + template + status).
      *
      * GET /api/v1/dashboard/activity
      */
     public function activity(Request $request): JsonResponse
     {
         $barangayId = $request->user()->barangay_id;
-        $limit = min((int) $request->get('limit', 20), 50);
+        $limit = min((int) $request->get('limit', 10), 50);
 
-        // Recent documents
-        $recentDocuments = IssuedDocument::where('barangay_id', $barangayId)
-            ->with('issuedBy:id,first_name,last_name')
+        $documents = IssuedDocument::where('barangay_id', $barangayId)
             ->latest()
             ->take($limit)
             ->get()
             ->map(fn ($doc) => [
-                'type' => 'document',
                 'id' => $doc->id,
-                'description' => "Document #{$doc->document_number} issued",
-                'template_type' => $doc->template_type,
+                'document_number' => $doc->document_number,
+                'template_name' => $doc->template_name,
+                'constituent_name' => $doc->constituent_name,
+                'constituent_number' => $doc->constituent_number,
                 'status' => $doc->status,
-                'user' => $doc->issuedBy?->full_name,
                 'created_at' => $doc->created_at->toIso8601String(),
             ]);
 
-        // Recent residents
-        $recentResidents = Resident::where('barangay_id', $barangayId)
+        return response()->json(['activity' => $documents]);
+    }
+
+    /**
+     * Get recent resident registrations for the dashboard widget.
+     *
+     * GET /api/v1/dashboard/recent-residents
+     */
+    public function recentResidents(Request $request): JsonResponse
+    {
+        $barangayId = $request->user()->barangay_id;
+        $limit = min((int) $request->get('limit', 5), 20);
+
+        $residents = Resident::where('barangay_id', $barangayId)
             ->latest()
             ->take($limit)
-            ->get()
+            ->get(['id', 'first_name', 'last_name', 'middle_name', 'date_of_birth', 'sex', 'purok', 'created_at'])
             ->map(fn ($r) => [
-                'type' => 'resident',
                 'id' => $r->id,
-                'description' => "Resident registered: {$r->full_name}",
-                'status' => $r->status?->value,
+                'first_name' => $r->first_name,
+                'last_name' => $r->last_name,
+                'middle_name' => $r->middle_name,
+                'age' => $r->date_of_birth
+                    ? (int) floor((time() - strtotime((string) $r->date_of_birth)) / 31557600)
+                    : null,
+                'sex' => $r->sex,
+                'purok' => $r->purok,
                 'created_at' => $r->created_at->toIso8601String(),
             ]);
 
-        // Merge and sort by date
-        $activity = $recentDocuments->concat($recentResidents)
-            ->sortByDesc('created_at')
-            ->take($limit)
-            ->values();
-
-        return response()->json(['activity' => $activity]);
+        return response()->json(['residents' => $residents]);
     }
 
     /**
@@ -151,20 +332,27 @@ class DashboardController extends Controller
         $barangayId = $request->user()->barangay_id;
 
         $signIns = LoginLog::where('barangay_id', $barangayId)
-            ->with('user:id,first_name,last_name,photo_url')
+            ->with('user:id,first_name,last_name,username')
             ->latest()
             ->take(20)
             ->get()
-            ->map(fn ($log) => [
-                'id' => $log->id,
-                'user' => $log->user?->full_name,
-                'photo_url' => $log->user?->photo_url,
-                'action' => $log->action,
-                'device_type' => $log->device_type,
-                'browser' => $log->browser,
-                'ip_address' => $log->ip_address,
-                'created_at' => $log->created_at->toIso8601String(),
-            ]);
+            ->map(function ($log) {
+                $deviceInfo = $log->device_info ?? [];
+                $userName = $log->user
+                    ? trim((string) ($log->user->first_name ?? '').' '.($log->user->last_name ?? ''))
+                    : $log->attempted_username;
+
+                return [
+                    'id' => $log->id,
+                    'user' => $userName ?: $log->attempted_username,
+                    'photo_url' => null,
+                    'action' => $log->action,
+                    'device_type' => $deviceInfo['device_type'] ?? $deviceInfo['platform'] ?? 'Unknown',
+                    'browser' => $deviceInfo['browser'] ?? '',
+                    'ip_address' => $log->ip_address,
+                    'created_at' => $log->created_at->toIso8601String(),
+                ];
+            });
 
         return response()->json(['sign_ins' => $signIns]);
     }

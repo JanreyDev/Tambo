@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Models\Platform;
 
+use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class LoginLog extends Model
 {
@@ -24,6 +26,7 @@ class LoginLog extends Model
     protected $fillable = [
         'user_id',
         'barangay_id',
+        'attempted_username',
         'ip_address',
         'user_agent',
         'action',
@@ -35,5 +38,10 @@ class LoginLog extends Model
         return [
             'device_info' => 'array',
         ];
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 }

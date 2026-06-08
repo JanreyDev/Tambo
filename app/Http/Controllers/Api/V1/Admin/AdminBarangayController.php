@@ -307,15 +307,30 @@ class AdminBarangayController extends Controller
                 ]);
             }
 
+            // Boundary auto-fetch status (BarangayObserver fired synchronously during create).
+            // If $brgy->boundary_geojson is set, OSM has the polygon and we likely
+            // also auto-derived the centroid into latitude/longitude. If null, the
+            // admin can fetch manually from Settings → Boundary.
+            $brgy = $result['barangay'];
+            $brgy->refresh();
+
             return response()->json([
                 'message' => 'Barangay onboarded successfully.',
                 'data' => [
                     'barangay' => [
-                        'id' => $result['barangay']->id,
-                        'name' => $result['barangay']->name,
-                        'psgc_code' => $result['barangay']->psgc_code,
-                        'status' => $result['barangay']->status->value,
-                        'subscription_plan' => $result['barangay']->subscription_plan,
+                        'id' => $brgy->id,
+                        'name' => $brgy->name,
+                        'psgc_code' => $brgy->psgc_code,
+                        'status' => $brgy->status->value,
+                        'subscription_plan' => $brgy->subscription_plan,
+                        'latitude' => $brgy->latitude !== null ? (float) $brgy->latitude : null,
+                        'longitude' => $brgy->longitude !== null ? (float) $brgy->longitude : null,
+                    ],
+                    'boundary' => [
+                        'fetched' => $brgy->boundary_geojson !== null,
+                        'source' => $brgy->boundary_source,
+                        'fetched_at' => $brgy->boundary_fetched_at?->toIso8601String(),
+                        'auto_centered' => $brgy->boundary_geojson !== null && $brgy->latitude !== null && empty($validated['latitude']),
                     ],
                     'initial_user' => [
                         'id' => $result['kapitan']->id,

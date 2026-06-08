@@ -229,6 +229,19 @@ class FileUploadService
 
         try {
             $rawContent = $file->getContent();
+
+            // Decompression bomb guard — check dimensions before decoding
+            $info = @getimagesizefromstring($rawContent);
+            if ($info !== false) {
+                [$w, $h] = $info;
+                // Reject anything wider/taller than 10000px (decoded RGBA would be ~400MB+)
+                if ($w > 10000 || $h > 10000) {
+                    throw new \RuntimeException(
+                        "Image dimensions too large ({$w}×{$h}). Maximum allowed is 10000×10000."
+                    );
+                }
+            }
+
             $src = @imagecreatefromstring($rawContent);
 
             if ($src === false) {

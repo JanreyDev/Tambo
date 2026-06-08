@@ -7,10 +7,12 @@ use App\Models\User;
 
 beforeEach(function () {
     $this->barangay = Barangay::factory()->create();
+    // Pass raw password — Eloquent's 'hashed' cast runs the configured driver (argon2id).
+    // bcrypt() here would clash with the 'hashed' cast verification when driver=argon2id.
     $this->user = User::factory()->create([
         'barangay_id' => $this->barangay->id,
         'username' => 'testuser',
-        'password' => bcrypt('password123'),
+        'password' => 'password123',
         'status' => 'active',
     ]);
 });
@@ -120,7 +122,7 @@ test('login fails when subscription is expired', function () {
 test('super admin can login without barangay checks', function () {
     $superAdmin = User::factory()->superAdmin()->create([
         'username' => 'superadmin',
-        'password' => bcrypt('password123'),
+        'password' => 'password123',
     ]);
 
     $response = $this->postJson('/api/v1/auth/login', [
@@ -270,4 +272,207 @@ test('unauthenticated logout returns 401', function () {
     $response = $this->postJson('/api/v1/auth/logout');
 
     $response->assertUnauthorized();
+});
+
+// ── Security: Lockout, Audit, Hash Migration, Cookies ──
+
+test('failed login increments failed_login_attempts counter', function () {
+    $this->postJson('/api/v1/auth/login', [
+        'username' => 'testuser',
+        'password' => 'wrongpassword',
+    ]);
+
+    $this->user->refresh();
+    expect($this->user->failed_login_attempts)->toBe(1);
+    expect($this->user->last_failed_login_at)->not->toBeNull();
+    expect($this->user->locked_until)->toBeNull();
+});
+
+test('account locks after 10 failed attempts', function () {
+    // Seed counter to 9 — one more failure should lock the account.
+    $this->user->forceFill([
+        'failed_login_attempts' => 9,
+        'last_failed_login_at' => now(),
+    ])->saveQuietly();
+
+    // 10th failure — note: throttle:5/min would fire first, so we bypass it for this test
+    $response = $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class)
+        ->postJson('/api/v1/auth/login', [
+            'username' => 'testuser',
+            'password' => 'wrongpassword',
+        ]);
+
+    $response->assertUnauthorized();
+
+    $this->user->refresh();
+    expect($this->user->failed_login_attempts)->toBe(10);
+    expect($this->user->locked_until)->not->toBeNull();
+    expect($this->user->isLockedOut())->toBeTrue();
+});
+
+test('locked account rejects even correct password with 423', function () {
+    $this->user->forceFill([
+        'failed_login_attempts' => 10,
+        'locked_until' => now()->addMinutes(15),
+    ])->saveQuietly();
+
+    $response = $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class)
+        ->postJson('/api/v1/auth/login', [
+            'username' => 'testuser',
+            'password' => 'password123', // CORRECT password
+        ]);
+
+    $response->assertStatus(423)
+        ->assertJsonPath('message', 'Invalid credentials.') // anti-enumeration maintained
+        ->assertJsonStructure(['message', 'retry_after']);
+
+    expect($response->json('retry_after'))->toBeGreaterThan(0);
+});
+
+test('successful login resets lockout counter', function () {
+    $this->user->forceFill([
+        'failed_login_attempts' => 7,
+        'last_failed_login_at' => now()->subMinute(),
+    ])->saveQuietly();
+
+    $response = $this->postJson('/api/v1/auth/login', [
+        'username' => 'testuser',
+        'password' => 'password123',
+    ]);
+
+    $response->assertOk();
+
+    $this->user->refresh();
+    expect($this->user->failed_login_attempts)->toBe(0);
+    expect($this->user->locked_until)->toBeNull();
+    expect($this->user->last_failed_login_at)->toBeNull();
+});
+
+test('failure counter decays after 60 minutes of clean state', function () {
+    // Old strike from 2 hours ago — should reset the counter to 1, not increment to 6
+    $this->user->forceFill([
+        'failed_login_attempts' => 5,
+        'last_failed_login_at' => now()->subHours(2),
+    ])->saveQuietly();
+
+    $this->postJson('/api/v1/auth/login', [
+        'username' => 'testuser',
+        'password' => 'wrongpassword',
+    ]);
+
+    $this->user->refresh();
+    expect($this->user->failed_login_attempts)->toBe(1);
+});
+
+test('unknown-username probe is audited with attempted_username', function () {
+    $this->postJson('/api/v1/auth/login', [
+        'username' => 'definitely_not_a_real_user',
+        'password' => 'WhateverPassword123',
+    ]);
+
+    $log = \App\Models\Platform\LoginLog::where('action', 'login_failed')
+        ->where('attempted_username', 'definitely_not_a_real_user')
+        ->first();
+
+    expect($log)->not->toBeNull();
+    expect($log->user_id)->toBeNull();
+    expect($log->ip_address)->not->toBeNull();
+});
+
+test('failed login audit captures reason and device fingerprint', function () {
+    $this->postJson('/api/v1/auth/login', [
+        'username' => 'testuser',
+        'password' => 'wrongpassword',
+    ]);
+
+    $log = \App\Models\Platform\LoginLog::where('action', 'login_failed')
+        ->where('user_id', $this->user->id)
+        ->first();
+
+    expect($log)->not->toBeNull();
+    expect($log->device_info['reason'] ?? null)->toBe('invalid_password');
+    expect($log->device_info['attempted_username'] ?? null)->toBe('testuser');
+});
+
+test('bcrypt hash is silently migrated to argon2id on successful login', function () {
+    // Manually plant a bcrypt hash via raw DB update — bypasses the 'hashed' cast which
+    // would normally reject cross-algorithm assignment under the argon2id default driver.
+    $bcryptHash = password_hash('password123', PASSWORD_BCRYPT, ['cost' => 4]);
+    \Illuminate\Support\Facades\DB::table('users')
+        ->where('id', $this->user->id)
+        ->update(['password' => $bcryptHash]);
+
+    $this->user->refresh();
+    expect($this->user->password)->toStartWith('$2y$'); // bcrypt confirmed
+
+    $this->postJson('/api/v1/auth/login', [
+        'username' => 'testuser',
+        'password' => 'password123',
+    ]);
+
+    $this->user->refresh();
+    expect($this->user->password)->toStartWith('$argon2id$'); // migrated transparently
+});
+
+test('login sets bcmp_token and bcmp_auth cookies', function () {
+    $response = $this->postJson('/api/v1/auth/login', [
+        'username' => 'testuser',
+        'password' => 'password123',
+    ]);
+
+    $response->assertOk();
+
+    // Cookies are NOT encrypted (raw bearer token + flag); assertCookie would try to decrypt.
+    $cookies = collect($response->headers->getCookies())->keyBy(fn ($c) => $c->getName());
+
+    expect($cookies->has('bcmp_token'))->toBeTrue();
+    expect($cookies->has('bcmp_auth'))->toBeTrue();
+    expect($cookies->get('bcmp_token')->isHttpOnly())->toBeTrue();
+    expect($cookies->get('bcmp_auth')->isHttpOnly())->toBeFalse();
+    expect($cookies->get('bcmp_auth')->getValue())->toBe('1');
+    expect($cookies->get('bcmp_token')->getSameSite())->toBe('lax');
+});
+
+test('logout clears bcmp_token and bcmp_auth cookies', function () {
+    $token = $this->user->createToken('test')->plainTextToken;
+
+    $response = $this->postJson('/api/v1/auth/logout', [], [
+        'Authorization' => "Bearer {$token}",
+    ]);
+
+    $response->assertOk();
+
+    $cookies = collect($response->headers->getCookies())->keyBy(fn ($c) => $c->getName());
+    expect($cookies->get('bcmp_token')?->getExpiresTime() ?? 0)->toBeLessThan(time());
+    expect($cookies->get('bcmp_auth')?->getExpiresTime() ?? 0)->toBeLessThan(time());
+});
+
+test('username regex rejects invalid characters', function () {
+    $response = $this->postJson('/api/v1/auth/login', [
+        'username' => 'user;DROP TABLE users;--',
+        'password' => 'password123',
+    ]);
+
+    $response->assertUnprocessable()
+        ->assertJsonValidationErrors(['username']);
+});
+
+test('username max length enforced at 64 chars', function () {
+    $response = $this->postJson('/api/v1/auth/login', [
+        'username' => str_repeat('a', 65),
+        'password' => 'password123',
+    ]);
+
+    $response->assertUnprocessable()
+        ->assertJsonValidationErrors(['username']);
+});
+
+test('password max length enforced at 128 chars', function () {
+    $response = $this->postJson('/api/v1/auth/login', [
+        'username' => 'testuser',
+        'password' => str_repeat('a', 129),
+    ]);
+
+    $response->assertUnprocessable()
+        ->assertJsonValidationErrors(['password']);
 });
