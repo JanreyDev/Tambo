@@ -14,4 +14,4 @@ const AllResidentsMap = dynamic(() => import("./all-residents-map"), {
 });
 
 export default AllResidentsMap;
-export type { MapResident } from "./all-residents-map";
+export type { MapResident, MapHazardPin, MapEvacuationCenter, MapEstablishment, BaseLayer } from "./all-residents-map";

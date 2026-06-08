@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Tailwind v4 defaults dark: to prefers-color-scheme. We toggle theme via .dark
+   class on <html>, so wire dark: to that instead. Without this, every dark:
+   variant in the codebase is silent dead code. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   /* Accent colors (overridden by JS) */
   --accent-primary: #2563eb;
@@ -118,6 +123,26 @@ input:-webkit-autofill:active {
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+/* Glass popover — for dropdowns, menus, notifications over content (high opacity, strong blur) */
+.glass-popover {
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 12px 48px -8px rgba(0, 0, 0, 0.18), 0 4px 12px -2px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.dark .glass-popover {
+  background: rgba(20, 28, 45, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 48px -8px rgba(0, 0, 0, 0.5), 0 4px 12px -2px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+@supports (backdrop-filter: blur(20px)) {
+  .glass-popover {
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+  }
+}
+
 /* Glass header — for sticky header bar */
 .glass-header {
   background: rgba(255, 255, 255, 0.78);
@@ -161,6 +186,28 @@ input:-webkit-autofill:active {
 @keyframes glass-glow {
   0%, 100% { opacity: 0.4; }
   50% { opacity: 0.7; }
+}
+
+/* Premium login background orbs */
+@keyframes orb-drift-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.12; }
+  50% { transform: translate(60px, -40px) scale(1.08); opacity: 0.20; }
+}
+@keyframes orb-drift-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.08; }
+  50% { transform: translate(-50px, 50px) scale(1.12); opacity: 0.16; }
+}
+@keyframes orb-drift-3 {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.06; }
+  50% { transform: translate(30px, 30px) scale(1.1); opacity: 0.12; }
+}
+@keyframes flag-shimmer {
+  0%, 100% { opacity: 0.55; background-position: 0% 50%; }
+  50% { opacity: 0.85; background-position: 100% 50%; }
+}
+@keyframes login-card-rise {
+  0% { opacity: 0; transform: translateY(12px); }
+  100% { opacity: 1; transform: translateY(0); }
 }
 
 .glass-glow {
@@ -228,11 +275,32 @@ input:-webkit-autofill:active {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15), inset 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
-/* Glass accordion header — frosted glass with accent gradient */
+/* Glass accordion header — quiet glass + login-style left accent rule
+   (was solid blue gradient — replaced for premium restraint). */
 .glass-accordion {
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.85), rgba(59, 130, 246, 0.75));
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  position: relative;
+}
+
+.dark .glass-accordion {
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* Login-style vertical accent rule on the left edge — signature gradient. */
+.glass-accordion::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 0.75rem 0 0 0.75rem;
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.75) 0%, rgba(139, 92, 246, 0.35) 100%);
+  pointer-events: none;
 }
 
 .glass-accordion-closed {

@@ -1,3 +1,21 @@
+// ── GeoJSON types — used by Map page for barangay boundary + spatial overlays ──
+
+export interface GeoJsonGeometry {
+  type: "Polygon" | "MultiPolygon" | "Point" | "LineString";
+  coordinates: number[] | number[][] | number[][][] | number[][][][];
+}
+
+export interface GeoJsonFeature {
+  type: "Feature";
+  properties: Record<string, unknown>;
+  geometry: GeoJsonGeometry;
+}
+
+export interface GeoJsonFeatureCollection {
+  type: "FeatureCollection";
+  features: GeoJsonFeature[];
+}
+
 export interface User {
   id: string;
   username: string;
@@ -13,6 +31,7 @@ export interface User {
   status: string;
   last_login_at: string | null;
   last_login_ip: string | null;
+  preferred_language: "en" | "fil";
   preferences: Record<string, unknown>;
   barangay: Barangay | null;
   roles: string[];
@@ -30,6 +49,7 @@ export interface Barangay {
   zip_code: string | null;
   logo_url: string | null;
   seal_url: string | null;
+  municipality_logo_url: string | null;
   contact_phone: string | null;
   contact_email: string | null;
   website_url: string | null;
@@ -60,6 +80,7 @@ export interface BarangaySettings {
   full_address: string | null;
   logo_url: string | null;
   seal_url: string | null;
+  municipality_logo_url: string | null;
   contact_phone: string | null;
   contact_email: string | null;
   website_url: string | null;
@@ -93,6 +114,50 @@ export interface BarangaySettings {
   };
   population: number;
   status: string;
+}
+
+export type OfficialPosition =
+  | "kapitan"
+  | "kagawad"
+  | "sk_chairperson"
+  | "secretary"
+  | "treasurer"
+  | "tanod_chief"
+  | "lupong_chairperson"
+  | "lupong_member"
+  | "barangay_health_worker"
+  | "day_care_worker"
+  | "custom";
+
+export interface BarangayOfficial {
+  id: string;
+  barangay_id: string;
+  resident_id: string;
+  position: string; // free-text, common values listed in OfficialPosition
+  committee: string | null; // legacy single-committee field, kept for backward compat
+  committees: string[]; // current: array of committee names (kagawads often chair multiple)
+  term_start: string | null;
+  term_end: string | null;
+  appointment_date: string | null;
+  oath_date: string | null;
+  is_elected: boolean;
+  sort_order: number;
+  status: "active" | "inactive" | "suspended";
+  photo_file_id: string | null;
+  signature_file_id: string | null;
+  created_at: string;
+  updated_at: string;
+  // Eager-loaded resident summary (selected columns + computed photo_url)
+  resident?: {
+    id: string;
+    first_name: string;
+    middle_name: string | null;
+    last_name: string;
+    extension_name: string | null;
+    mobile_number: string | null;
+    email: string | null;
+    photo_url?: string | null;
+  } | null;
 }
 
 export interface BarangayUsage {
@@ -164,6 +229,8 @@ export interface PaginatedResponse<T> {
 
 export interface ApiError {
   message: string;
+  status?: number;
+  retry_after?: number;
   errors?: Record<string, string[]>;
 }
 
@@ -197,16 +264,66 @@ export interface DashboardStats {
   deceased_count: number;
   transferred_count: number;
   archived_count: number;
+  // Operational counts (Phase 2 — production dashboard)
+  pending_public_requests: number;
+  active_vawc_cases: number;
+  collections_this_month: number;
+  disbursements_this_month: number;
+  documents_last_month: number;
+  residents_this_month: number;
 }
 
 export interface DashboardActivity {
-  type: "document" | "resident";
   id: string;
-  description: string;
-  template_type?: string;
+  document_number: string | null;
+  template_name: string | null;
+  constituent_name: string | null;
+  constituent_number: string | null;
   status: string | null;
-  user?: string;
   created_at: string;
+}
+
+export interface DashboardRecentResident {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  middle_name: string | null;
+  age: number | null;
+  sex: "male" | "female" | null;
+  purok: string | null;
+  created_at: string;
+}
+
+export interface DashboardDocumentTrendPoint {
+  date: string;
+  day_label: string;
+  count: number;
+}
+
+export interface DashboardDocumentTrend {
+  trend: DashboardDocumentTrendPoint[];
+  total_this_week: number;
+  total_last_week: number;
+  delta_pct: number | null;
+}
+
+export interface DashboardPendingRequest {
+  id: string;
+  request_number: string;
+  requester_name: string;
+  document_type: string;
+  status: string;
+  created_at: string;
+  urgency: "low" | "medium" | "high";
+}
+
+export interface DashboardUpcomingEvent {
+  id: string;
+  title: string;
+  session_type: string | null;
+  date: string | null;
+  time_start: string | null;
+  venue: string | null;
 }
 
 export interface SignInLog {

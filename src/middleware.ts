@@ -45,13 +45,31 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   })();
 
-  // Add security headers to every response
+  // Security headers on every response
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("X-Frame-Options", "DENY");
-  response.headers.set("X-XSS-Protection", "1; mode=block");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-  response.headers.set("Permissions-Policy", "camera=(self), microphone=(), geolocation=(), payment=()");
+  response.headers.set("Permissions-Policy", "camera=(self), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()");
   response.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+  response.headers.set("Cross-Origin-Opener-Policy", "same-origin");
+  response.headers.set("Cross-Origin-Resource-Policy", "same-site");
+
+  // CSP — report-only on the login route first (no FOUC, no broken assets), enforced everywhere else
+  const isLogin = pathname === "/" || pathname === "/login" || pathname === "/forgot-password";
+  const csp = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com data:",
+    "img-src 'self' data: blob: https:",
+    "connect-src 'self' https://api.ipify.org https://api.kapitan.ph https://*.kapitan.ph https://*.ingest.sentry.io",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "upgrade-insecure-requests",
+  ].join("; ");
+  response.headers.set(isLogin ? "Content-Security-Policy-Report-Only" : "Content-Security-Policy", csp);
 
   return response;
 }

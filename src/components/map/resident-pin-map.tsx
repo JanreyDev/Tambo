@@ -16,6 +16,7 @@
 import { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import type { GeoJsonFeatureCollection } from "@/lib/types";
 
 // Fix Leaflet's default marker icon paths (broken by webpack/Next.js asset hashing)
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
@@ -32,6 +33,14 @@ interface Props {
   centerLng: number;
   /** When true the map is a read-only viewer — no click-to-pin, no drag. */
   readOnly?: boolean;
+  /**
+   * Barangay boundary polygon. Auto-fetched on barangay onboarding by
+   * BarangayObserver server-side. When present, the map fits to bounds on
+   * mount (when no pin exists yet) and overlays a dashed accent stroke
+   * matching the Map page style. One source of truth: every map component
+   * reads from the same stored boundary, no per-page Overpass fetch.
+   */
+  boundary?: GeoJsonFeatureCollection | null;
   onPin?: (lat: number, lng: number) => void;
   className?: string;
 }
@@ -42,12 +51,14 @@ export default function ResidentPinMap({
   centerLat,
   centerLng,
   readOnly = false,
+  boundary = null,
   onPin,
   className = "w-full h-56 rounded-lg border border-border overflow-hidden",
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
+  const boundaryLayerRef = useRef<L.GeoJSON | null>(null);
   const onPinRef = useRef(onPin);
 
   // Keep the callback ref current so map click handler never has a stale closure
@@ -118,6 +129,7 @@ export default function ResidentPinMap({
       map.remove();
       mapRef.current = null;
       markerRef.current = null;
+      boundaryLayerRef.current = null;
     };
     // intentionally only runs on mount — center/boundary/readOnly are mount-time values
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -145,6 +157,47 @@ export default function ResidentPinMap({
     mapRef.current.setView([lat, lng], 18);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lat, lng]);
+
+  // ── Sync barangay boundary overlay ─────────────────────────────────
+  // Matches the Map page's overlay style (blue dashed stroke, light fill).
+  // Fits to bounds when no marker is placed yet so the user sees the full
+  // barangay extent. When a marker exists (edit mode), preserves the
+  // marker view so the saved pin stays centered.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (boundaryLayerRef.current) {
+      map.removeLayer(boundaryLayerRef.current);
+      boundaryLayerRef.current = null;
+    }
+
+    if (!boundary || !boundary.features?.length) return;
+
+    const geoLayer = L.geoJSON(boundary as unknown as GeoJSON.GeoJsonObject, {
+      style: {
+        color: "#3b82f6",
+        weight: 2.5,
+        opacity: 0.9,
+        fillColor: "#3b82f6",
+        fillOpacity: 0.04,
+        dashArray: "6,4",
+      },
+      // Pass clicks through to the underlying map so the user can still pin
+      // anywhere — boundary is informational, not blocking.
+      interactive: false,
+    });
+    geoLayer.addTo(map);
+    boundaryLayerRef.current = geoLayer;
+
+    if (!markerRef.current) {
+      try {
+        map.fitBounds(geoLayer.getBounds(), { padding: [20, 20], maxZoom: 16 });
+      } catch {
+        // Geometry may be invalid; ignore.
+      }
+    }
+  }, [boundary]);
 
   return <div ref={containerRef} className={className} />;
 }

@@ -3,16 +3,25 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Map, MapPin, Users, AlertTriangle, Loader2,
-  RefreshCw, Bot, Navigation, ChevronRight,
+  Navigation, ChevronRight,
   Activity, BarChart3, Search, X, ExternalLink,
+  Layers, Building2, Shield,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { cn } from "@/lib/utils";
 import { MabiniButton } from "@/components/ui/mabini-button";
 import { api } from "@/lib/api";
-import type { MapResident } from "@/components/map/all-residents-map-dynamic";
+import type {
+  MapResident,
+  MapHazardPin,
+  MapEvacuationCenter,
+  MapEstablishment,
+  BaseLayer,
+} from "@/components/map/all-residents-map-dynamic";
 import AllResidentsMap from "@/components/map/all-residents-map-dynamic";
+import type { GeoJsonFeatureCollection } from "@/lib/types";
+import { isPointInsideBoundary } from "@/lib/geo";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -51,6 +60,9 @@ export default function MapPage() {
   const [centerLng, setCenterLng] = useState<number>(120.9842);
   const [centerLoaded, setCenterLoaded] = useState(false);
 
+  // Boundary (auto-fetched from OSM at onboarding via BarangayObserver)
+  const [boundary, setBoundary] = useState<GeoJsonFeatureCollection | null>(null);
+
   // Residents data
   const [residents, setResidents] = useState<MapResident[]>([]);
   const [loadingResidents, setLoadingResidents] = useState(true);
@@ -62,15 +74,27 @@ export default function MapPage() {
   const [stats, setStats] = useState<MapStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
 
+  // Overlay layer data
+  const [hazardPins, setHazardPins] = useState<MapHazardPin[]>([]);
+  const [evacuationCenters, setEvacuationCenters] = useState<MapEvacuationCenter[]>([]);
+  const [establishments, setEstablishments] = useState<MapEstablishment[]>([]);
+
   // UI state
   const [selectedResident, setSelectedResident] = useState<MapResident | null>(null);
   const [activeStatusFilter, setActiveStatusFilter] = useState<string | null>(null);
   const [activePurokFilter, setActivePurokFilter] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<"puroks" | "status" | "resident">("puroks");
-  const [refreshKey, setRefreshKey] = useState(0);
-
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+
+  // Map appearance + overlay toggles
+  const [baseLayer, setBaseLayer] = useState<BaseLayer>("streets");
+  const [showHazards, setShowHazards] = useState(false);
+  const [showEvacuation, setShowEvacuation] = useState(false);
+  const [showEstablishments, setShowEstablishments] = useState(false);
+  const [cluster, setCluster] = useState(true);
+  const [showLayerPanel, setShowLayerPanel] = useState(false);
+  const [hoverCoords, setHoverCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   // ── Load barangay center from settings ──────────────────────────────
   useEffect(() => {
@@ -85,7 +109,7 @@ export default function MapPage() {
       .finally(() => setCenterLoaded(true));
   }, []);
 
-  // ── Load map residents ───────────────────────────────────────────────
+  // ── Load map residents (also returns boundary GeoJSON) ──────────────
   const loadResidents = useCallback(() => {
     setLoadingResidents(true);
     setResidentsError(false);
@@ -94,10 +118,43 @@ export default function MapPage() {
         setResidents(res.residents);
         setTotalResidents(res.total);
         setMappedCount(res.mapped);
+        setBoundary(res.barangay?.boundary_geojson ?? null);
+        // If barangay has its own lat/lng (more authoritative), use it
+        if (res.barangay?.latitude !== null && res.barangay?.latitude !== undefined && res.barangay.longitude !== null && res.barangay.longitude !== undefined) {
+          setCenterLat(Number(res.barangay.latitude));
+          setCenterLng(Number(res.barangay.longitude));
+        }
         setLastRefresh(new Date());
       })
       .catch(() => setResidentsError(true))
       .finally(() => setLoadingResidents(false));
+  }, []);
+
+  // ── Load overlay layers (hazards, evacuation, establishments) ───────
+  const loadLayers = useCallback(() => {
+    api.map.layers()
+      .then((res) => {
+        setHazardPins(res.hazard_pins);
+        setEvacuationCenters(res.evacuation_centers);
+        setEstablishments(res.establishments);
+      })
+      .catch(() => {});
+  }, []);
+
+  // ── Manual boundary refresh (admin tool) ────────────────────────────
+  const [refreshingBoundary, setRefreshingBoundary] = useState(false);
+  const refreshBoundary = useCallback(async () => {
+    setRefreshingBoundary(true);
+    try {
+      const res = await api.map.refreshBoundary();
+      if (res.fetched && res.boundary_geojson) {
+        setBoundary(res.boundary_geojson);
+      }
+    } catch {
+      // silent — admin can retry
+    } finally {
+      setRefreshingBoundary(false);
+    }
   }, []);
 
   // ── Load stats ───────────────────────────────────────────────────────
@@ -114,9 +171,10 @@ export default function MapPage() {
     const timer = setTimeout(() => {
       loadResidents();
       loadStats();
+      loadLayers();
     }, 0);
     return () => clearTimeout(timer);
-  }, [centerLoaded, loadResidents, loadStats, refreshKey]);
+  }, [centerLoaded, loadResidents, loadStats, loadLayers]);
 
   // ── Apply filters (computed, not effect) ─────────────────────────────
   const filteredResidents = useMemo(() => {
@@ -135,11 +193,20 @@ export default function MapPage() {
     return result;
   }, [residents, activeStatusFilter, activePurokFilter, search]);
 
-  // ── Refresh ──────────────────────────────────────────────────────────
-  const handleRefresh = () => {
-    setSelectedResident(null);
-    setRefreshKey((k) => k + 1);
-  };
+  // ── Detect residents whose pins fall outside the barangay boundary ───
+  // Returns Set<resident.id>. Empty set when no boundary is set (cannot know).
+  const outsideBoundaryIds = useMemo(() => {
+    const set = new Set<string>();
+    if (!boundary) return set;
+    for (const r of residents) {
+      if (!isPointInsideBoundary(r.latitude, r.longitude, boundary)) {
+        set.add(r.id);
+      }
+    }
+    return set;
+  }, [residents, boundary]);
+
+  const outsideBoundaryCount = outsideBoundaryIds.size;
 
   // ── When resident selected, switch to resident tab ──────────────────
   const handleSelectResident = (r: MapResident) => {
@@ -161,46 +228,8 @@ export default function MapPage() {
         title="Barangay Map"
         description="Live resident location map — pins from registered coordinates"
         breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "Map" }]}
-        actions={
-          <button
-            onClick={handleRefresh}
-            disabled={loadingResidents}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-medium hover:bg-muted transition-colors disabled:opacity-50 min-h-[36px]"
-          >
-            <RefreshCw className={cn("h-3.5 w-3.5", loadingResidents && "animate-spin")} />
-            Refresh
-          </button>
-        }
         className="mb-3 shrink-0"
       />
-
-      {/* ── Mabini AI Insight ──────────────────────────────────────────── */}
-      <div className="flex items-start gap-3 px-4 py-2.5 rounded-xl border border-accent-primary/20 bg-accent-bg/30 mb-3 shrink-0">
-        <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: "var(--accent-primary)", opacity: 0.15 }}>
-          <Bot className="w-3.5 h-3.5" style={{ color: "var(--accent-primary)" }} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold text-foreground">Mabini AI — Spatial Analysis</p>
-          {stats ? (
-            <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-              {mappedCount > 0
-                ? `${mappedCount} of ${totalResidents} residents (${coverage}%) have location data.
-                  ${stats.by_purok[0] ? `${stats.by_purok[0].purok} has the most residents (${stats.by_purok[0].total}).` : ""}
-                  ${stats.unmapped > 0 ? ` ${stats.unmapped} residents still need coordinates — edit their profile to add a pin.` : " All residents are mapped."}`
-                : `No residents have location coordinates yet. Edit a resident profile and use the map to drop a pin.`}
-            </p>
-          ) : (
-            <p className="text-[11px] text-muted-foreground mt-0.5">Loading spatial analysis...</p>
-          )}
-        </div>
-        <button
-          onClick={() => router.push("/dashboard/ai")}
-          className="shrink-0 px-3 py-1.5 text-[10px] font-semibold rounded-lg transition-colors hover:opacity-80"
-          style={{ background: "var(--accent-primary)", color: "#fff" }}
-        >
-          Ask Mabini
-        </button>
-      </div>
 
       {/* ── Map + Sidebar ──────────────────────────────────────────────── */}
       <div className="flex gap-4 flex-1 min-h-0">
@@ -234,14 +263,117 @@ export default function MapPage() {
             )}
           </div>
 
-          {/* Pin count + coverage overlay */}
+          {/* Pin count + Layers button overlay */}
           {!loadingResidents && (
-            <div className="absolute top-3 right-3 z-[1000] flex items-center gap-3">
+            <div className="absolute top-3 right-3 z-[1000] flex items-center gap-2">
               <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-background/95 backdrop-blur-sm border border-border text-[11px] shadow-sm">
                 <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                 <span className="font-semibold text-foreground">{filteredResidents.length}</span>
                 <span className="text-muted-foreground">pins visible</span>
               </div>
+              <button
+                onClick={() => setShowLayerPanel((v) => !v)}
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg backdrop-blur-sm border text-[11px] shadow-sm font-semibold transition-colors",
+                  showLayerPanel
+                    ? "bg-accent-primary text-white border-accent-primary"
+                    : "bg-background/95 text-foreground border-border hover:bg-muted"
+                )}
+                title="Layers"
+              >
+                <Layers className="h-3.5 w-3.5" />
+                Layers
+              </button>
+            </div>
+          )}
+
+          {/* Layer panel — pop out below the Layers button */}
+          {showLayerPanel && (
+            <div className="absolute top-14 right-3 z-[1001] w-64 rounded-xl bg-background/98 backdrop-blur-sm border border-border shadow-2xl p-3 space-y-3">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Base Map</p>
+                <div className="grid grid-cols-3 gap-1">
+                  {(["streets", "satellite", "light"] as const).map((bl) => (
+                    <button
+                      key={bl}
+                      onClick={() => setBaseLayer(bl)}
+                      className={cn(
+                        "px-2 py-1.5 rounded-lg text-[10px] font-semibold capitalize transition-colors",
+                        baseLayer === bl ? "bg-accent-primary text-white" : "bg-muted hover:bg-muted/70 text-foreground"
+                      )}
+                    >
+                      {bl}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Overlays</p>
+                <div className="space-y-1.5">
+                  {[
+                    { label: "Hazard Pins", count: hazardPins.length, icon: AlertTriangle, color: "text-red-500", checked: showHazards, onChange: setShowHazards },
+                    { label: "Evacuation Centers", count: evacuationCenters.length, icon: Shield, color: "text-blue-500", checked: showEvacuation, onChange: setShowEvacuation },
+                    { label: "Establishments", count: establishments.length, icon: Building2, color: "text-violet-500", checked: showEstablishments, onChange: setShowEstablishments },
+                  ].map(({ label, count, icon: Icon, color, checked, onChange }) => (
+                    <label key={label} className="flex items-center gap-2 cursor-pointer hover:bg-muted/40 rounded-lg p-1.5 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(e) => onChange(e.target.checked)}
+                        className="h-3.5 w-3.5 rounded accent-blue-500"
+                      />
+                      <Icon className={cn("h-3.5 w-3.5", color)} />
+                      <span className="flex-1 text-xs font-medium text-foreground">{label}</span>
+                      <span className="text-[10px] text-muted-foreground tabular-nums">{count}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-border">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Options</p>
+                <label className="flex items-center gap-2 cursor-pointer hover:bg-muted/40 rounded-lg p-1.5 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={cluster}
+                    onChange={(e) => setCluster(e.target.checked)}
+                    className="h-3.5 w-3.5 rounded accent-blue-500"
+                  />
+                  <span className="flex-1 text-xs font-medium text-foreground">Cluster pins at low zoom</span>
+                </label>
+              </div>
+
+              <div className="pt-2 border-t border-border">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Barangay Boundary</p>
+                {boundary ? (
+                  <div className="flex items-start gap-2 text-[10px] text-muted-foreground">
+                    <div className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 mt-1" />
+                    <span className="leading-relaxed">Boundary loaded from OpenStreetMap. <button onClick={refreshBoundary} disabled={refreshingBoundary} className="text-accent-primary font-semibold hover:underline disabled:opacity-50">{refreshingBoundary ? "Refreshing..." : "Re-fetch"}</button></span>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <div className="flex items-start gap-2 text-[10px] text-muted-foreground">
+                      <div className="w-2 h-2 rounded-full bg-amber-500 shrink-0 mt-1" />
+                      <span className="leading-relaxed">No boundary set. Try fetching from OSM.</span>
+                    </div>
+                    <button
+                      onClick={refreshBoundary}
+                      disabled={refreshingBoundary}
+                      className="w-full px-2 py-1.5 text-[10px] font-semibold rounded-lg bg-accent-primary text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+                    >
+                      {refreshingBoundary ? "Fetching..." : "Fetch Boundary"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Coordinate hover readout */}
+          {hoverCoords && (
+            <div className="absolute bottom-3 right-3 z-[1000] px-2.5 py-1.5 rounded-lg bg-background/95 backdrop-blur-sm border border-border shadow-sm font-mono text-[10px] text-muted-foreground">
+              {hoverCoords.lat.toFixed(6)}, {hoverCoords.lng.toFixed(6)}
             </div>
           )}
 
@@ -307,6 +439,21 @@ export default function MapPage() {
               selectedId={selectedResident?.id ?? null}
               onSelect={handleSelectResident}
               className="w-full h-full"
+              boundary={boundary}
+              baseLayer={baseLayer}
+              showHazards={showHazards}
+              showEvacuation={showEvacuation}
+              showEstablishments={showEstablishments}
+              hazardPins={hazardPins}
+              evacuationCenters={evacuationCenters}
+              establishments={establishments}
+              cluster={cluster}
+              outsideBoundaryIds={outsideBoundaryIds}
+              onCoordinateHover={(lat, lng) =>
+                lat !== null && lng !== null
+                  ? setHoverCoords({ lat, lng })
+                  : setHoverCoords(null)
+              }
             />
           )}
         </div>
@@ -351,6 +498,23 @@ export default function MapPage() {
               {coverage >= 80 ? "Excellent coverage" : coverage >= 50 ? "Moderate coverage — add more pins" : "Low coverage — many residents need location data"}
             </p>
           </div>
+
+          {/* Outside-boundary warning */}
+          {outsideBoundaryCount > 0 && (
+            <div className="p-3 rounded-xl border border-amber-300/60 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800/40 shrink-0">
+              <div className="flex items-start gap-2.5">
+                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-amber-900 dark:text-amber-200">
+                    {outsideBoundaryCount} pin{outsideBoundaryCount > 1 ? "s" : ""} outside barangay
+                  </p>
+                  <p className="text-[10px] text-amber-700 dark:text-amber-400/80 mt-0.5 leading-relaxed">
+                    Coordinates fall outside the registered boundary. Edit each resident profile and verify their pin.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Tabs: Puroks / Status / Selected */}
           <div className="flex-1 flex flex-col glass rounded-xl overflow-hidden min-h-0">

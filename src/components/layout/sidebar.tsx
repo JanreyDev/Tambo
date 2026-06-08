@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { cn } from "@/lib/utils";
+import { cn, resolvePhotoUrl } from "@/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
 import { useLanguage } from "@/contexts/language-context";
 import {
@@ -27,13 +27,12 @@ import {
   MapPin,
   HardDrive,
   MessageCircle,
-  ChevronDown,
   HelpCircle,
   Sparkles,
   Mail,
   ShoppingBag,
+  Landmark,
 } from "lucide-react";
-import { useState } from "react";
 
 interface NavItemDef {
   labelKey: string;
@@ -45,7 +44,6 @@ interface NavItemDef {
 interface NavGroupDef {
   titleKey: string;
   items: NavItemDef[];
-  collapsible?: boolean;
 }
 
 const navGroupDefs: NavGroupDef[] = [
@@ -85,29 +83,28 @@ const navGroupDefs: NavGroupDef[] = [
     titleKey: "tools",
     items: [
       { labelKey: "mabiniAi", href: "/dashboard/ai", icon: Bot },
-      { labelKey: "email", href: "/dashboard/email", icon: Mail },
-      { labelKey: "marketplace", href: "/dashboard/marketplace", icon: ShoppingBag },
       { labelKey: "drive", href: "/dashboard/drive", icon: HardDrive },
+      { labelKey: "email", href: "/dashboard/email", icon: Mail },
       { labelKey: "publicPortal", href: "/dashboard/public-portal", icon: Globe },
-      { labelKey: "supportTickets", href: "/dashboard/support", icon: MessageCircle },
+      { labelKey: "marketplace", href: "/dashboard/marketplace", icon: ShoppingBag },
     ],
   },
   {
     titleKey: "operations",
-    collapsible: true,
     items: [
       { labelKey: "tanod", href: "/dashboard/tanod", icon: Shield },
       { labelKey: "finance", href: "/dashboard/finance", icon: Receipt },
+      { labelKey: "hris", href: "/dashboard/hris", icon: UserCog },
       { labelKey: "inventory", href: "/dashboard/inventory", icon: Package },
       { labelKey: "disasterDrrm", href: "/dashboard/disaster", icon: AlertTriangle },
       { labelKey: "gad", href: "/dashboard/gad", icon: Heart },
-      { labelKey: "hris", href: "/dashboard/hris", icon: UserCog },
     ],
   },
 ];
 
 const bottomNavItems: NavItemDef[] = [
   { labelKey: "updates", href: "/dashboard/updates", icon: Sparkles },
+  { labelKey: "supportTickets", href: "/dashboard/support", icon: MessageCircle },
   { labelKey: "settings", href: "/dashboard/settings", icon: Settings },
   { labelKey: "helpManual", href: "/dashboard/help", icon: HelpCircle },
 ];
@@ -116,20 +113,12 @@ export function Sidebar() {
   const pathname = usePathname();
   const { user } = useAuth();
   const { t } = useLanguage();
-  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
   const barangay = user?.barangay;
   const barangayName = barangay?.name || "Loading...";
-  const subscriptionLabel = barangay?.subscription_plan
-    ? barangay.subscription_plan.charAt(0).toUpperCase() + barangay.subscription_plan.slice(1) + " Plan"
-    : "Free Plan";
 
   const isActive = (href: string) =>
     pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
-
-  const toggleGroup = (titleKey: string) => {
-    setCollapsedGroups((prev) => ({ ...prev, [titleKey]: !prev[titleKey] }));
-  };
 
   // Resolve translation key to label
   const navLabel = (key: string): string => {
@@ -138,62 +127,92 @@ export function Sidebar() {
 
   return (
     <aside className="hidden lg:flex flex-col w-[232px] glass-sidebar h-screen sticky top-0 shrink-0 overflow-hidden">
-      {/* Barangay Identity */}
-      <div className="px-3 pt-4 pb-2">
-        <div className="relative rounded-xl p-3 overflow-hidden" style={{ background: "var(--accent-primary)" }}>
-          {/* Subtle pattern overlay */}
-          <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle at 70% 20%, white 0.5px, transparent 0.5px)", backgroundSize: "12px 12px" }} />
-          <div className="relative">
-            <div className="flex items-center gap-2.5">
-              {barangay?.logo_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={barangay.logo_url} alt="" className="w-10 h-10 rounded-xl object-cover shrink-0 ring-2 ring-white/30" />
-              ) : (
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-white/20 backdrop-blur-sm">
-                  <MapPin className="w-5 h-5 text-white" />
-                </div>
-              )}
-              <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-bold text-white truncate leading-tight">Brgy. {barangayName}</p>
-                <p className="text-[11px] text-white/70 truncate leading-tight mt-0.5">{subscriptionLabel}</p>
-              </div>
+      {/* Barangay Identity — LGU letterhead pattern (city + barangay seals) */}
+      <div className="px-4 pt-5 pb-4 flex flex-col items-center text-center">
+        {/* Two official seals — city/municipality + barangay */}
+        <div className="flex items-center justify-center gap-2.5">
+          {/* City/Municipality seal — real if uploaded, otherwise icon placeholder */}
+          {barangay?.municipality_logo_url ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={resolvePhotoUrl(barangay.municipality_logo_url)!}
+              alt={`${barangay.city_municipality ?? "City"} seal`}
+              className="w-12 h-12 rounded-full object-cover ring-1 ring-border/60 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.25)] bg-card"
+            />
+          ) : (
+            <div
+              className="w-12 h-12 rounded-full flex items-center justify-center ring-1 ring-dashed ring-muted-foreground/30 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.20)]"
+              style={{
+                background:
+                  "color-mix(in srgb, var(--muted-foreground) 5%, transparent)",
+              }}
+              title={`${barangay?.city_municipality ?? "City / Municipality"} — upload logo in Settings → Logo & Seal`}
+            >
+              <Landmark className="w-5 h-5 text-muted-foreground/50" strokeWidth={1.5} />
             </div>
-            <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-white/15">
-              <span className="text-[10px] font-semibold text-white/50 tracking-wider uppercase">kapitan.ph</span>
-              <span className="flex items-center gap-1 text-[9px] font-medium text-white/40 bg-white/10 px-1.5 py-0.5 rounded">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-                v5.0
-              </span>
+          )}
+
+          {/* Barangay logo — real if uploaded, otherwise icon placeholder
+              (legacy seal_url fallback for barangays that uploaded via pre-2026-05 schema) */}
+          {(barangay?.logo_url || barangay?.seal_url) ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={resolvePhotoUrl(barangay.logo_url || barangay.seal_url)!}
+              alt={`Brgy. ${barangayName} logo`}
+              className="w-12 h-12 rounded-full object-cover ring-1 ring-border/60 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.25)] bg-card"
+            />
+          ) : (
+            <div
+              className="w-12 h-12 rounded-full flex items-center justify-center ring-1 ring-dashed ring-muted-foreground/30 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.20)]"
+              style={{
+                background:
+                  "color-mix(in srgb, var(--muted-foreground) 5%, transparent)",
+              }}
+              title={`Brgy. ${barangayName} — upload seal in Settings → Logo & Seal`}
+            >
+              <Shield className="w-5 h-5 text-muted-foreground/50" strokeWidth={1.5} />
             </div>
-          </div>
+          )}
         </div>
+
+        {/* REPUBLIKA NG PILIPINAS — tiny formal caption (country level) */}
+        <p className="mt-3 text-[8.5px] font-semibold tracking-[0.22em] uppercase text-muted-foreground/55 leading-none">
+          Republika ng Pilipinas
+        </p>
+
+        {/* City/Municipality — comes BEFORE barangay per LGU letterhead hierarchy */}
+        {barangay?.city_municipality && (
+          <p className="mt-1.5 text-[11px] text-muted-foreground/80 tracking-tight truncate max-w-full">
+            {barangay.city_municipality}
+          </p>
+        )}
+
+        {/* Barangay name — most specific, largest visual anchor (Playfair) */}
+        <p
+          className="mt-1 text-[17px] leading-tight text-foreground tracking-[-0.01em] truncate max-w-full px-1"
+          style={{ fontFamily: "var(--font-playfair)" }}
+        >
+          Brgy. {barangayName}
+        </p>
+
+        {/* Divider */}
+        <div className="mt-4 h-px w-10 bg-border/50" />
       </div>
 
       {/* Navigation — fills remaining space, scrolls when content overflows */}
-      <nav className="flex-1 min-h-0 overflow-y-auto px-2 mt-1 pb-2">
+      <nav className="flex-1 min-h-0 overflow-y-auto px-2 mt-2 pb-3">
         {navGroupDefs.map((group, gi) => {
-          const isCollapsed = group.collapsible && collapsedGroups[group.titleKey];
           const groupTitle = group.titleKey ? navLabel(group.titleKey) : "";
 
           return (
-            <div key={gi} className="mb-1">
+            <div key={gi} className="mb-2 last:mb-0">
               {groupTitle && (
-                <button
-                  onClick={group.collapsible ? () => toggleGroup(group.titleKey) : undefined}
-                  className={cn(
-                    "flex items-center justify-between w-full px-2.5 py-1.5 text-[10px] font-semibold text-muted-foreground/70 tracking-widest uppercase",
-                    group.collapsible && "hover:text-muted-foreground cursor-pointer transition-colors"
-                  )}
-                >
-                  <span>{groupTitle}</span>
-                  {group.collapsible && (
-                    <ChevronDown className={cn("w-3 h-3 transition-transform", isCollapsed && "-rotate-90")} />
-                  )}
-                </button>
+                <p className="px-2.5 py-1 mb-1 text-[10px] font-semibold text-muted-foreground/50 tracking-[0.18em] uppercase">
+                  {groupTitle}
+                </p>
               )}
-              {!isCollapsed && (
-                <div className="space-y-px">
-                  {group.items.map((item) => {
+              <div className="space-y-px">
+                {group.items.map((item) => {
                     const Icon = item.icon;
                     const active = isActive(item.href);
                     const label = navLabel(item.labelKey);
@@ -202,14 +221,21 @@ export function Sidebar() {
                         key={item.href}
                         href={item.href}
                         className={cn(
-                          "flex items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[13px] transition-all duration-150",
+                          "group relative flex items-center gap-2.5 rounded-md pl-3 pr-2.5 py-[7px] text-[13px] transition-all duration-150",
                           active
                             ? "font-medium"
                             : "text-muted-foreground hover:text-foreground hover:bg-sidebar-hover"
                         )}
                         style={active ? { color: "var(--accent-primary)", background: "var(--accent-bg)" } : undefined}
                       >
-                        <Icon className="w-4 h-4 shrink-0" />
+                        {/* Active strip — Linear-style 2px accent on the left */}
+                        {active && (
+                          <span
+                            className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-r"
+                            style={{ background: "var(--accent-primary)" }}
+                          />
+                        )}
+                        <Icon className={cn("w-4 h-4 shrink-0 transition-opacity", !active && "opacity-80 group-hover:opacity-100")} />
                         <span className="flex-1 truncate">{label}</span>
                         {item.badge !== undefined && (
                           <span
@@ -227,42 +253,14 @@ export function Sidebar() {
                       </Link>
                     );
                   })}
-                </div>
-              )}
+              </div>
             </div>
           );
         })}
       </nav>
 
-      {/* User profile card */}
-      {user && (
-        <div className="px-3 py-2.5 mx-2 mb-2 rounded-xl glass-subtle shrink-0">
-          <div className="flex items-center gap-2.5">
-            {user.photo_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={user.photo_url} alt="" className="w-8 h-8 rounded-lg object-cover shrink-0" />
-            ) : (
-              <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white shrink-0"
-                style={{ background: "var(--accent-primary)" }}
-              >
-                {(user.first_name?.[0] || "").toUpperCase()}{(user.last_name?.[0] || "").toUpperCase()}
-              </div>
-            )}
-            <div className="min-w-0 flex-1">
-              <p className="text-[12px] font-semibold text-foreground truncate leading-tight">
-                {user.first_name} {user.last_name}
-              </p>
-              <p className="text-[10px] text-muted-foreground truncate leading-tight capitalize">
-                {user.roles?.[0]?.replace(/_/g, " ") || "Staff"}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Bottom — Settings & Help pinned */}
-      <div className="px-2 pb-3 border-t border-border/50 pt-2 shrink-0">
+      {/* Bottom — Updates, Support, Settings, Help pinned */}
+      <div className="px-2 pt-2 border-t border-border/40 shrink-0">
         <div className="space-y-px">
           {bottomNavItems.map((item) => {
             const Icon = item.icon;
@@ -273,18 +271,39 @@ export function Sidebar() {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[13px] transition-all duration-150",
+                  "group relative flex items-center gap-2.5 rounded-md pl-3 pr-2.5 py-[7px] text-[13px] transition-all duration-150",
                   active
                     ? "font-medium"
                     : "text-muted-foreground hover:text-foreground hover:bg-sidebar-hover"
                 )}
                 style={active ? { color: "var(--accent-primary)", background: "var(--accent-bg)" } : undefined}
               >
-                <Icon className="w-4 h-4 shrink-0" />
+                {active && (
+                  <span
+                    className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-r"
+                    style={{ background: "var(--accent-primary)" }}
+                  />
+                )}
+                <Icon className={cn("w-4 h-4 shrink-0 transition-opacity", !active && "opacity-80 group-hover:opacity-100")} />
                 <span className="truncate">{label}</span>
               </Link>
             );
           })}
+        </div>
+
+        {/* Sidebar footer — tiny powered-by wordmark + version pill */}
+        <div className="mt-2 mb-2.5 px-1.5 flex items-center justify-between opacity-55 hover:opacity-90 transition-opacity">
+          <div className="flex items-center gap-1.5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/kapitanph_logo.png" alt="" className="w-3 h-3 rounded shrink-0" />
+            <span className="text-[9px] font-semibold tracking-[0.18em] uppercase text-muted-foreground">
+              kapitan.ph
+            </span>
+          </div>
+          <span className="flex items-center gap-1 text-[9px] font-medium text-muted-foreground">
+            <span className="w-1 h-1 rounded-full bg-emerald-500 shrink-0" />
+            v5.0
+          </span>
         </div>
       </div>
     </aside>

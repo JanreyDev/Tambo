@@ -23,6 +23,7 @@ import { GenerateIdModal } from "@/components/documents/GenerateIdModal";
 import { SendSmsModal, type SmsTargetResident } from "@/components/residents/SendSmsModal";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
+import { useLanguage } from "@/contexts/language-context";
 import { useAiStream } from "@/hooks/use-ai-stream";
 import type { ResidentDetail } from "@/lib/types";
 import { MabiniButton } from "@/components/ui/mabini-button";
@@ -142,6 +143,7 @@ type ActivityLogEntry = {
 };
 
 function ActivityTab({ residentId }: { residentId: string }) {
+  const { t } = useLanguage();
   const [logs, setLogs] = useState<ActivityLogEntry[]>([]);
   const [page, setPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
@@ -231,7 +233,7 @@ function ActivityTab({ residentId }: { residentId: string }) {
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <Activity className="h-4 w-4 text-muted-foreground" />
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Activity Log</h3>
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t.residents.detail.activityLog}</h3>
         {total > 0 && (
           <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-muted text-muted-foreground">{total}</span>
         )}
@@ -313,6 +315,7 @@ type SmsHistoryEntry = {
 };
 
 function SmsHistoryTab({ residentId }: { residentId: string }) {
+  const { t } = useLanguage();
   const [logs, setLogs] = useState<SmsHistoryEntry[]>([]);
   const [page, setPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
@@ -343,7 +346,7 @@ function SmsHistoryTab({ residentId }: { residentId: string }) {
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <MessageSquare className="h-4 w-4 text-muted-foreground" />
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">SMS History</h3>
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t.residents.detail.smsHistory}</h3>
         {total > 0 && (
           <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-muted text-muted-foreground">{total}</span>
         )}
@@ -412,6 +415,7 @@ function SmsHistoryTab({ residentId }: { residentId: string }) {
 // ── Documents Tab ─────────────────────────────────────────────────────────────
 
 function DocumentsTab({ residentId }: { residentId: string }) {
+  const { t } = useLanguage();
   const [docs, setDocs] = useState<import("@/lib/types").IssuedDocument[]>([]);
   const [page, setPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
@@ -453,7 +457,7 @@ function DocumentsTab({ residentId }: { residentId: string }) {
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <ScrollText className="h-4 w-4 text-muted-foreground" />
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Issued Documents</h3>
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t.residents.detail.issuedDocuments}</h3>
         {total > 0 && (
           <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-muted text-muted-foreground">{total}</span>
         )}
@@ -634,6 +638,7 @@ function PersonalInfoTab({
   r: ResidentDetail;
   mabini: { content: string; isStreaming: boolean; error: string | null };
 }) {
+  const { t } = useLanguage();
   const fullAddress = [r.house_block_lot, r.street, r.purok ? `Purok ${r.purok}` : null]
     .filter(Boolean).join(", ");
 
@@ -812,7 +817,7 @@ function PersonalInfoTab({
       <div>
         <div className="flex items-center gap-2 mb-3">
           <Briefcase className="h-4 w-4 text-muted-foreground" />
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Work History</h3>
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t.residents.detail.workHistory}</h3>
         </div>
         {Array.isArray(r.work_history) && (r.work_history as Record<string, unknown>[]).length > 0 ? (
           <div className="space-y-2">
@@ -851,7 +856,7 @@ function PersonalInfoTab({
       <div>
         <div className="flex items-center gap-2 mb-3">
           <Briefcase className="h-4 w-4 text-muted-foreground" />
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Business / Enterprise</h3>
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t.residents.detail.businessEnterprise}</h3>
         </div>
         {Array.isArray(r.business_details) && (r.business_details as Record<string, string>[]).length > 0 ? (
           <div className="space-y-3">
@@ -940,6 +945,7 @@ export default function ResidentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
+  const { t } = useLanguage();
 
   const [resident, setResident] = useState<ResidentDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1227,9 +1233,7 @@ export default function ResidentDetailPage() {
     !resident.religion && "Religion",
     !resident.ethnicity && "Ethnicity",
     !resident.mothers_maiden_name && "Mother's Maiden Name",
-    // Contact
-    !resident.mobile_number && "Mobile Number",
-    !resident.email && "Email Address",
+    // Contact — mobile_number + email are fully optional, not tracked for completeness
     // Address
     !resident.purok && "Purok / Sitio",
     !resident.house_block_lot && "House / Block / Lot",
@@ -1253,14 +1257,14 @@ export default function ResidentDetailPage() {
   ].filter(Boolean) as string[];
 
   const tabs = [
-    { id: "info", label: "Personal Info", icon: <User className="h-3.5 w-3.5" /> },
-    { id: "cases", label: "Cases", icon: <FolderOpen className="h-3.5 w-3.5" /> },
-    { id: "documents", label: "Documents", icon: <ScrollText className="h-3.5 w-3.5" /> },
-    { id: "assistance", label: "Assistance / Solicitation", icon: <HandHeart className="h-3.5 w-3.5" /> },
-    { id: "relatives", label: "Linked Relatives", icon: <Link2 className="h-3.5 w-3.5" /> },
-    { id: "pets", label: "Pets", icon: <PawPrint className="h-3.5 w-3.5" /> },
-    { id: "sms-history", label: "SMS History", icon: <MessageSquare className="h-3.5 w-3.5" /> },
-    { id: "activity", label: "Activity", icon: <Activity className="h-3.5 w-3.5" /> },
+    { id: "info", label: t.residents.detail.tabs.info, icon: <User className="h-3.5 w-3.5" /> },
+    { id: "cases", label: t.residents.detail.tabs.cases, icon: <FolderOpen className="h-3.5 w-3.5" /> },
+    { id: "documents", label: t.residents.detail.tabs.documents, icon: <ScrollText className="h-3.5 w-3.5" /> },
+    { id: "assistance", label: t.residents.detail.tabs.assistance, icon: <HandHeart className="h-3.5 w-3.5" /> },
+    { id: "relatives", label: t.residents.detail.tabs.relatives, icon: <Link2 className="h-3.5 w-3.5" /> },
+    { id: "pets", label: t.residents.detail.tabs.pets, icon: <PawPrint className="h-3.5 w-3.5" /> },
+    { id: "sms-history", label: t.residents.detail.tabs.smsHistory, icon: <MessageSquare className="h-3.5 w-3.5" /> },
+    { id: "activity", label: t.residents.detail.tabs.activity, icon: <Activity className="h-3.5 w-3.5" /> },
   ];
 
   return (
@@ -1272,7 +1276,7 @@ export default function ResidentDetailPage() {
         className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
         <ArrowLeft className="h-4 w-4" />
-        Back to Residents
+        {t.residents.detail.backToResidents}
       </button>
 
       {/* Two-column layout */}
@@ -1302,16 +1306,16 @@ export default function ResidentDetailPage() {
               {/* Status + key badges */}
               <div className="flex flex-wrap justify-center gap-1.5 mt-2">
                 <StatusBadge status={resident.status} />
-                {resident.is_voter && <Badge variant="success" dot>Voter</Badge>}
+                {resident.is_voter && <Badge variant="success" dot>{t.residents.detail.voter}</Badge>}
                 {resident.is_head_of_household && (
                   <span className="relative group">
-                    <Badge variant="warning" dot>Head of Household</Badge>
+                    <Badge variant="warning" dot>{t.residents.detail.headOfHousehold}</Badge>
                   </span>
                 )}
-                {resident.is_organ_donor && <Badge variant="info" dot>Organ Donor</Badge>}
+                {resident.is_organ_donor && <Badge variant="info" dot>{t.residents.detail.organDonor}</Badge>}
                 {resident.registration_source && (
                   <Badge variant={resident.registration_source === "import" ? "warning" : resident.registration_source === "census" ? "info" : "success"} dot>
-                    {resident.registration_source === "form" ? "Form" : resident.registration_source === "import" ? "Imported" : resident.registration_source === "census" ? "Census" : cap(resident.registration_source)}
+                    {resident.registration_source === "form" ? t.residents.detail.sourceForm : resident.registration_source === "import" ? t.residents.detail.sourceImported : resident.registration_source === "census" ? t.residents.detail.sourceCensus : cap(resident.registration_source)}
                   </Badge>
                 )}
               </div>
@@ -1333,11 +1337,11 @@ export default function ResidentDetailPage() {
                 <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                 {resident.date_of_birth ? (
                   <span className="text-foreground">
-                    {age(resident.date_of_birth)} yrs
+                    {age(resident.date_of_birth)} {t.residents.detail.yrs}
                     {resident.sex && <span className="text-muted-foreground"> · {cap(resident.sex)}</span>}
                   </span>
                 ) : (
-                  <span className="text-muted-foreground/50 italic">Age not indicated</span>
+                  <span className="text-muted-foreground/50 italic">{t.residents.detail.ageNotIndicated}</span>
                 )}
               </div>
 
@@ -1347,7 +1351,7 @@ export default function ResidentDetailPage() {
                 {resident.civil_status ? (
                   <span className="text-foreground">{cap(resident.civil_status)}</span>
                 ) : (
-                  <span className="text-muted-foreground/50 italic">Civil status not indicated</span>
+                  <span className="text-muted-foreground/50 italic">{t.residents.detail.civilStatusNotIndicated}</span>
                 )}
               </div>
 
@@ -1357,7 +1361,7 @@ export default function ResidentDetailPage() {
                 {resident.purok ? (
                   <span className="text-foreground">Purok {resident.purok}</span>
                 ) : (
-                  <span className="text-muted-foreground/50 italic">Purok not indicated</span>
+                  <span className="text-muted-foreground/50 italic">{t.residents.detail.purokNotIndicated}</span>
                 )}
               </div>
 
@@ -1367,7 +1371,7 @@ export default function ResidentDetailPage() {
                 {resident.mobile_number ? (
                   <span className="text-foreground">{resident.mobile_number}</span>
                 ) : (
-                  <span className="text-muted-foreground/50 italic">Mobile not indicated</span>
+                  <span className="text-muted-foreground/50 italic">{t.residents.detail.mobileNotIndicated}</span>
                 )}
               </div>
 
@@ -1384,7 +1388,7 @@ export default function ResidentDetailPage() {
             <div className="pt-3 border-t border-border space-y-1">
               <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
                 <Clock className="h-3 w-3 shrink-0" />
-                <span>Registered: {formatDate(resident.registration_date || resident.created_at) ?? "Not indicated"}</span>
+                <span>{t.residents.detail.registered}: {formatDate(resident.registration_date || resident.created_at) ?? t.residents.detail.notIndicated}</span>
               </div>
               {resident.updated_at && (
                 <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
@@ -1635,7 +1639,7 @@ export default function ResidentDetailPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <HandHeart className="h-4 w-4 text-muted-foreground" />
-                        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Assistance / Solicitation</h3>
+                        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t.residents.detail.assistanceSolicitation}</h3>
                       </div>
                       <button type="button" onClick={() => setAssistModalOpen(true)}
                         className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-lg text-white transition-all hover:opacity-90 active:scale-[0.97]"
@@ -1749,7 +1753,7 @@ export default function ResidentDetailPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Link2 className="h-4 w-4 text-muted-foreground" />
-                        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Linked Relatives</h3>
+                        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t.residents.detail.linkedRelatives}</h3>
                         {relList.length > 0 && (
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-accent-bg text-accent-text">{relList.length}</span>
                         )}
@@ -1924,7 +1928,7 @@ export default function ResidentDetailPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <PawPrint className="h-4 w-4 text-muted-foreground" />
-                        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pets</h3>
+                        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t.residents.detail.pets}</h3>
                         {petList.length > 0 && (
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{petList.length}</span>
                         )}
@@ -2032,7 +2036,7 @@ export default function ResidentDetailPage() {
                   <PawPrint className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-semibold text-foreground">Add Pet</h2>
+                  <h2 className="text-sm font-semibold text-foreground">{t.residents.detail.addPet}</h2>
                   <p className="text-[11px] text-muted-foreground">Register a pet for this resident</p>
                 </div>
               </div>
@@ -2109,7 +2113,7 @@ export default function ResidentDetailPage() {
                   <HandHeart className="h-4 w-4 text-accent-primary" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-semibold text-foreground">Add Assistance / Solicitation</h2>
+                  <h2 className="text-sm font-semibold text-foreground">{t.residents.detail.addAssistance}</h2>
                   <p className="text-[11px] text-muted-foreground">Record assistance given to this resident</p>
                 </div>
               </div>

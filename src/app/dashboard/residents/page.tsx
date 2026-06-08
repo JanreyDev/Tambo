@@ -1,13 +1,12 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Home, MapPin, Filter, Upload, MoreHorizontal,
   Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X, Flag,
   AlertTriangle, Phone, Mail, Calendar, User, Heart, FileText, Edit,
-  Camera, Printer, Eye, TrendingUp, ChevronDown, Plus, Fingerprint, CheckCircle, Loader2,
+  Camera, Printer, Eye, ChevronDown, Plus, Fingerprint, CheckCircle, Loader2,
   GraduationCap, Briefcase, Contact, Globe,
   IdCard, Vote, MessageSquare, ScrollText, Archive,
   PawPrint, HandHeart, Link2, Paperclip, Image, Users,
@@ -19,874 +18,47 @@ import { SortableHeader } from "@/components/ui/sortable-header";
 import { cn, resolvePhotoUrl } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
-import type { ApiError, DashboardStats, DuplicateMatch, ResidentSummary, ResidentDetail, PaginatedResponse } from "@/lib/types";
+import { useLanguage } from "@/contexts/language-context";
+import type { ApiError, DashboardStats, DuplicateMatch, ResidentSummary, ResidentDetail, PaginatedResponse, GeoJsonFeatureCollection } from "@/lib/types";
 import { MabiniButton } from "@/components/ui/mabini-button";
 import ResidentPinMap from "@/components/map/resident-pin-map-dynamic";
 import { GenerateDocumentWizard } from "@/components/documents/GenerateDocumentWizard";
 import { GenerateIdModal } from "@/components/documents/GenerateIdModal";
 import { SendSmsModal, type SmsTargetResident } from "@/components/residents/SendSmsModal";
 
+// ── Local extractions (Phase 1 split) ────────────────────────────────
+import {
+  type SmartEntry,
+  puroks, statuses, sexOptions, civilStatuses,
+  bloodTypes, educationLevels, extensions, residentTypes, relationships,
+  sectorOptions, employmentStatuses, complexionOptions,
+  employmentTypeOptions, incomeRanges,
+  businessStatuses, livelihoodTypes, yearOptions,
+  defaultPurokEntries, defaultStreetEntries,
+  defaultCitizenshipEntries, defaultReligionEntries, defaultEthnicityEntries,
+  defaultEmergencyRelEntries, defaultSectorOtherEntries,
+  defaultBusinessTypeEntries, defaultOccupationEntries, defaultSkillEntries,
+  defaultPositionEntries, defaultEmployerEntries,
+  defaultCourseEntries, defaultSchoolEntries, defaultPlaceOfBirthEntries,
+  eduFieldRules,
+} from "./_lib/constants";
+import {
+  type EduEntry, type WorkEntry, type BusinessEntry, type Toast,
+  emptyEdu, emptyWork, emptyBusiness,
+} from "./_lib/types";
+import { isValidPHMobile, isValidEmail, formatPHMobile } from "./_lib/validation";
+import { validateResident } from "./_lib/schemas";
+import { FInput, FSelect, FCheckbox, FCombobox, FDatePicker, FRadio, Section, normalizeAddress, similarity } from "./_components/FormFields";
+import { ToastContainer } from "./_components/Toast";
+import { ResidentStatCards } from "./_components/ResidentStatCards";
 
-// Mock learned address entries -- in production, fetched from barangay_address_entries API
-// The system learns these over time from clerk input (no manual Settings config needed)
-const defaultPurokEntries: SmartEntry[] = [
-  { canonical: "Sampaguita", count: 89, aliases: ["sampaguita", "sampagita"] },
-  { canonical: "Rosal", count: 67, aliases: ["rosal"] },
-  { canonical: "Ilang-Ilang", count: 54, aliases: ["ilang ilang", "ylang ylang"] },
-  { canonical: "Dahlia", count: 41, aliases: ["dahlia"] },
-  { canonical: "Sunflower", count: 38, aliases: ["sun flower"] },
-  { canonical: "Orchid", count: 25, aliases: ["orchid"] },
-  { canonical: "Jasmine", count: 19, aliases: ["jasmin", "jazmine"] },
-];
-const defaultStreetEntries: SmartEntry[] = [
-  { canonical: "Rizal Street", count: 112, aliases: ["rizal st.", "rizal st", "rizal ave"] },
-  { canonical: "Mabini Street", count: 85, aliases: ["mabini st.", "mabini st"] },
-  { canonical: "Bonifacio Avenue", count: 63, aliases: ["bonifacio ave.", "bonifacio ave", "bonifacio blvd"] },
-  { canonical: "Luna Street", count: 47, aliases: ["luna st.", "luna st"] },
-  { canonical: "Del Pilar Street", count: 39, aliases: ["del pilar st.", "del pilar st", "delpillar st"] },
-  { canonical: "Quezon Boulevard", count: 31, aliases: ["quezon blvd.", "quezon blvd", "quezon ave"] },
-  { canonical: "Aguinaldo Street", count: 22, aliases: ["aguinaldo st.", "aguinaldo st"] },
-];
-const defaultPuroks = defaultPurokEntries.map((e) => e.canonical);
 
 // tenantConfig derived from auth context inside component (useAuth hook)
-
 // Resident number generated server-side: RES-{PSGC_CODE}-{SEQUENTIAL_4DIGIT}
+//
+// NOTE: constants, validators, types, FCombobox/FInput/FSelect/etc., and ToastContainer
+// were extracted to ./_lib and ./_components in Phase 1 of the production refactor.
 
-// ── Validation Helpers ──
-const isValidPHMobile = (v: string) => /^09\d{9}$/.test(v.replace(/\s/g, ""));
-const isValidEmail = (v: string) => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(v);
-const formatPHMobile = (raw: string) => {
-  const digits = raw.replace(/\D/g, "").slice(0, 11);
-  // Auto-format: 09XX XXX XXXX
-  if (digits.length <= 4) return digits;
-  if (digits.length <= 7) return `${digits.slice(0, 4)} ${digits.slice(4)}`;
-  return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`;
-};
-
-const puroks = ["All Puroks", ...defaultPuroks];
-const statuses = ["All Status", "Active", "Inactive", "Deceased", "Transferred"];
-const sexOptions = ["All", "Male", "Female"];
-const civilStatuses = ["Single", "Married", "Widowed", "Separated", "Divorced", "Annulled", "Live-in"];
-const bloodTypes = ["", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
-const educationLevels = ["", "No Formal Education", "Elementary Graduate", "High School Graduate", "Vocational", "College Graduate", "Post Graduate"];
-
-// Per-level field rules for Educational Attainment
-function eduFieldRules(level: string) {
-  const noFormal = level === "No Formal Education";
-  const noCourse = noFormal || level === "Elementary Graduate" || level === "High School Graduate";
-  return {
-    allDisabled: noFormal,           // lock every other field
-    courseDisabled: noCourse,        // Course/Program not applicable
-  };
-}
-// religions, citizenshipOptions, ethnicityOptions replaced by SmartEntry arrays (dynamic combobox)
-const extensions = ["", "Jr.", "Sr.", "II", "III", "IV", "V"];
-const residentTypes = ["", "Permanent", "Transient", "Transferee"];
-const relationships = ["Head", "Spouse", "Son", "Daughter", "Father", "Mother", "Brother", "Sister", "Grandson", "Granddaughter", "Nephew", "Niece", "Boarder", "Helper", "Others"];
-const sectorOptions = ["Senior Citizen", "PWD", "Solo Parent", "4Ps Beneficiary", "Farmer", "Nano/Micro Entrepreneur", "Student", "OFW", "TODA Driver", "JODA Driver", "Other Driver", "Vendor", "Working Student", "LGBTQIA+", "With Comorbidities", "IP (Indigenous People)"];
-const employmentStatuses = ["", "Employed", "Self-employed", "Unemployed", "Retired", "Student", "OFW"];
-const complexionOptions = ["", "Fair", "Light Brown", "Brown", "Dark Brown", "Dark"];
-// Smart combobox entries -- in production, learned from clerk input via API
-const defaultCitizenshipEntries: SmartEntry[] = [
-  { canonical: "Filipino", count: 950, aliases: ["pinoy", "filipina", "pilipino"] },
-  { canonical: "American", count: 12, aliases: ["us", "usa", "united states"] },
-  { canonical: "Chinese", count: 8, aliases: ["chinese national"] },
-  { canonical: "Japanese", count: 5, aliases: [] },
-  { canonical: "Korean", count: 5, aliases: ["south korean"] },
-  { canonical: "Australian", count: 3, aliases: ["aussie"] },
-  { canonical: "British", count: 3, aliases: ["uk", "english"] },
-  { canonical: "Canadian", count: 2, aliases: [] },
-  { canonical: "Indian", count: 2, aliases: [] },
-  { canonical: "Indonesian", count: 1, aliases: [] },
-  { canonical: "Malaysian", count: 1, aliases: [] },
-  { canonical: "Singaporean", count: 1, aliases: [] },
-  { canonical: "Spanish", count: 1, aliases: [] },
-  { canonical: "Taiwanese", count: 1, aliases: [] },
-];
-const defaultReligionEntries: SmartEntry[] = [
-  { canonical: "Catholic", count: 620, aliases: ["roman catholic", "rc"] },
-  { canonical: "INC (Iglesia ni Cristo)", count: 85, aliases: ["iglesia ni cristo", "inc", "iglesia"] },
-  { canonical: "Born Again", count: 72, aliases: ["born again christian", "evangelical"] },
-  { canonical: "Muslim", count: 45, aliases: ["islam", "islamic"] },
-  { canonical: "Protestant", count: 28, aliases: [] },
-  { canonical: "Seventh Day Adventist", count: 22, aliases: ["sda", "adventist"] },
-  { canonical: "Baptist", count: 18, aliases: [] },
-  { canonical: "Methodist", count: 12, aliases: ["united methodist"] },
-  { canonical: "Jehovah's Witness", count: 10, aliases: ["jw", "jehovahs witness"] },
-  { canonical: "Mormon", count: 5, aliases: ["lds", "latter day saints"] },
-  { canonical: "Buddhist", count: 3, aliases: [] },
-  { canonical: "Aglipayan", count: 8, aliases: ["philippine independent church", "pic"] },
-];
-const defaultEthnicityEntries: SmartEntry[] = [
-  { canonical: "Tagalog", count: 340, aliases: [] },
-  { canonical: "Cebuano", count: 85, aliases: ["bisaya", "cebuano bisaya"] },
-  { canonical: "Ilocano", count: 78, aliases: ["ilokano"] },
-  { canonical: "Bisaya/Binisaya", count: 65, aliases: ["bisaya", "binisaya"] },
-  { canonical: "Hiligaynon/Ilonggo", count: 42, aliases: ["hiligaynon", "ilonggo"] },
-  { canonical: "Bikol", count: 38, aliases: ["bicolano", "bikolano"] },
-  { canonical: "Waray", count: 32, aliases: ["waray-waray"] },
-  { canonical: "Kapampangan", count: 55, aliases: ["pampango", "pampanga"] },
-  { canonical: "Pangasinan", count: 28, aliases: ["pangasinense"] },
-  { canonical: "Maranao", count: 12, aliases: [] },
-  { canonical: "Maguindanao", count: 10, aliases: ["maguindanaon"] },
-  { canonical: "Tausug", count: 8, aliases: [] },
-  { canonical: "Zamboangueño", count: 15, aliases: ["zamboangueno", "chavacano"] },
-  { canonical: "Ibanag", count: 6, aliases: [] },
-  { canonical: "Ivatan", count: 4, aliases: [] },
-  { canonical: "Kankanaey", count: 3, aliases: [] },
-  { canonical: "Ibaloi", count: 2, aliases: [] },
-  { canonical: "Ifugao", count: 2, aliases: [] },
-  { canonical: "Kalinga", count: 2, aliases: [] },
-  { canonical: "Aeta", count: 20, aliases: ["ayta", "agta"] },
-];
-const employmentTypeOptions = ["", "Full-Time", "Part-Time", "Casual", "Seasonal", "Contractual", "Self-Employed", "Freelance", "OFW"];
-const incomeRanges = ["", "Below 5,000", "5,001 - 10,000", "10,001 - 15,000", "15,001 - 20,000", "20,001 - 30,000", "30,001 - 50,000", "50,001 - 75,000", "75,001 - 100,000", "100,001 - 150,000", "150,001 - 250,000", "250,001 - 500,000", "500,001 - 1,000,000", "Above 1,000,000"];
-
-// ── Reusable Form Fields ──
-function FInput({ label, name, required, type = "text", placeholder = "", value, onChange, className, valid, error, maxLength }: {
-  label: string; name: string; required?: boolean; type?: string; placeholder?: string; value: string; onChange: (name: string, value: string | boolean) => void; className?: string; valid?: boolean; error?: string; maxLength?: number;
-}) {
-  const forceUpper = type === "text" || type === "search";
-  // Normalize value to uppercase at the controlled-input level.
-  // This ensures that values loaded from the DB (edit mode) also reflect the correct case
-  // in the actual form state, not just visually via CSS text-transform.
-  const displayValue = forceUpper ? (value || "").toUpperCase() : (value || "");
-  return (
-    <div className={className}>
-      <label className="block text-xs font-medium text-muted-foreground mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <input type={type} name={name} value={displayValue} maxLength={maxLength} autoComplete="off"
-        onChange={(e) => onChange(name, forceUpper ? e.target.value.toUpperCase() : e.target.value)} placeholder={placeholder}
-        className={cn("w-full px-3 py-2.5 text-sm rounded-xl focus:outline-none transition-all duration-200",
-          forceUpper && "uppercase",
-          error ? "border border-red-500 focus:ring-2 focus:ring-red-300 bg-red-50 dark:bg-red-950/20" :
-          valid ? "border border-green-500 focus:ring-2 focus:ring-green-300 bg-green-50 dark:bg-green-950/20" : "glass-input")} />
-      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
-    </div>
-  );
-}
-
-// ── Custom Date Picker with calendar dropdown ──
-const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-const DAYS_SHORT = ["Su","Mo","Tu","We","Th","Fr","Sa"];
-
-function FDatePicker({ label, name, required, value, onChange, className, valid, error }: {
-  label: string; name: string; required?: boolean; value: string; onChange: (name: string, value: string | boolean) => void; className?: string; valid?: boolean; error?: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
-  const ref = useRef<HTMLDivElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const today = new Date();
-  // Parse current value or default to a sensible view date
-  // Birth date fields default 25 years back; all other date fields default to current year
-  // Strip time component if API returns ISO datetime (e.g. "1990-03-15T00:00:00+00:00")
-  const dateOnly = value?.includes("T") ? value.split("T")[0] : value;
-  const parsed = dateOnly ? new Date(dateOnly + "T00:00:00") : null;
-  const isBirthField = name.toLowerCase().includes("birth") || name.toLowerCase().includes("date_of_birth");
-  const [viewMonth, setViewMonth] = useState(parsed ? parsed.getMonth() : today.getMonth());
-  const [viewYear, setViewYear] = useState(parsed ? parsed.getFullYear() : (isBirthField ? today.getFullYear() - 25 : today.getFullYear()));
-
-  const handleToggle = () => {
-    if (!open && ref.current) {
-      const rect = ref.current.getBoundingClientRect();
-      setDropdownPos({ top: rect.bottom + 4, left: rect.left });
-    }
-    setOpen((v) => !v);
-  };
-
-  // Close on outside click
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (
-        ref.current && !ref.current.contains(e.target as Node) &&
-        dropdownRef.current && !dropdownRef.current.contains(e.target as Node)
-      ) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
-
-  // Build calendar grid for viewMonth/viewYear
-  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
-  const firstDayOfWeek = new Date(viewYear, viewMonth, 1).getDay();
-  const cells: (number | null)[] = [];
-  for (let i = 0; i < firstDayOfWeek; i++) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-
-  const selectDate = (day: number) => {
-    const mm = String(viewMonth + 1).padStart(2, "0");
-    const dd = String(day).padStart(2, "0");
-    onChange(name, `${viewYear}-${mm}-${dd}`);
-    setOpen(false);
-  };
-
-  const isSelected = (day: number) => {
-    if (!parsed) return false;
-    return parsed.getFullYear() === viewYear && parsed.getMonth() === viewMonth && parsed.getDate() === day;
-  };
-
-  const isToday = (day: number) => {
-    return today.getFullYear() === viewYear && today.getMonth() === viewMonth && today.getDate() === day;
-  };
-
-  // Age calculation
-  const age = parsed ? (() => {
-    let a = today.getFullYear() - parsed.getFullYear();
-    const m = today.getMonth() - parsed.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < parsed.getDate())) a--;
-    return a;
-  })() : null;
-
-  // Display value
-  const displayValue = parsed
-    ? `${MONTHS[parsed.getMonth()]} ${parsed.getDate()}, ${parsed.getFullYear()}`
-    : "";
-
-  // Year options: 1920 to current year
-  const yearOptions: number[] = [];
-  for (let y = today.getFullYear(); y >= 1920; y--) yearOptions.push(y);
-
-  const prevMonth = () => {
-    if (viewMonth === 0) { setViewMonth(11); setViewYear(viewYear - 1); }
-    else setViewMonth(viewMonth - 1);
-  };
-  const nextMonth = () => {
-    if (viewMonth === 11) { setViewMonth(0); setViewYear(viewYear + 1); }
-    else setViewMonth(viewMonth + 1);
-  };
-
-  return (
-    <div className={cn("relative", className)} ref={ref}>
-      <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
-      </label>
-      {/* Trigger button */}
-      <button type="button" name={name} onClick={handleToggle}
-        className={cn(
-          "w-full flex items-center gap-2 px-3 py-2.5 text-sm rounded-xl text-left focus:outline-none transition-all duration-200",
-          error ? "border border-red-500 focus:ring-2 focus:ring-red-300 bg-red-50 dark:bg-red-950/20" :
-          valid ? "border border-green-500 focus:ring-2 focus:ring-green-300 bg-green-50 dark:bg-green-950/20" : "glass-input"
-        )}>
-        <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
-        <span className={cn("flex-1 truncate", !displayValue && "text-muted-foreground")}>
-          {displayValue || "Select date"}
-        </span>
-        {age !== null && (
-          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-accent-bg text-accent-text shrink-0">
-            {age} yrs
-          </span>
-        )}
-        <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground shrink-0 transition-transform", open && "rotate-180")} />
-      </button>
-      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
-
-      {/* Calendar dropdown */}
-      {open && typeof window !== "undefined" && createPortal(
-        <div ref={dropdownRef} className="fixed z-[9999] w-72 rounded-xl bg-background border border-border shadow-lg p-3"
-          style={{ top: dropdownPos.top, left: dropdownPos.left }}>
-          {/* Month/Year header */}
-          <div className="flex items-center justify-between mb-2">
-            <button type="button" onClick={prevMonth} className="p-1 rounded-md hover:bg-muted transition-colors">
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <div className="flex items-center gap-1.5">
-              <select value={viewMonth} onChange={(e) => setViewMonth(Number(e.target.value))}
-                className="text-sm font-semibold bg-transparent border-none focus:outline-none cursor-pointer hover:text-accent-text transition-colors">
-                {MONTHS.map((m, i) => <option key={m} value={i}>{m}</option>)}
-              </select>
-              <select value={viewYear} onChange={(e) => setViewYear(Number(e.target.value))}
-                className="text-sm font-semibold bg-transparent border-none focus:outline-none cursor-pointer hover:text-accent-text transition-colors">
-                {yearOptions.map((y) => <option key={y} value={y}>{y}</option>)}
-              </select>
-            </div>
-            <button type="button" onClick={nextMonth} className="p-1 rounded-md hover:bg-muted transition-colors">
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-          {/* Day-of-week headers */}
-          <div className="grid grid-cols-7 mb-1">
-            {DAYS_SHORT.map((d) => (
-              <div key={d} className="text-[10px] font-medium text-muted-foreground text-center py-1">{d}</div>
-            ))}
-          </div>
-          {/* Calendar days */}
-          <div className="grid grid-cols-7">
-            {cells.map((day, i) => (
-              <div key={i} className="flex items-center justify-center">
-                {day ? (
-                  <button type="button" onClick={() => selectDate(day)}
-                    className={cn(
-                      "w-8 h-8 text-xs rounded-lg transition-colors font-medium",
-                      isSelected(day)
-                        ? "text-white shadow-sm"
-                        : isToday(day)
-                        ? "bg-accent-bg/30 text-accent-text font-bold"
-                        : "text-foreground hover:bg-muted"
-                    )}
-                    style={isSelected(day) ? { background: "var(--accent-primary)" } : undefined}>
-                    {day}
-                  </button>
-                ) : <div className="w-8 h-8" />}
-              </div>
-            ))}
-          </div>
-          {/* Quick actions */}
-          <div className="flex items-center justify-between mt-2 pt-2 border-t border-border">
-            <button type="button" onClick={() => { onChange(name, ""); setOpen(false); }}
-              className="text-[11px] text-muted-foreground hover:text-foreground transition-colors">Clear</button>
-            <button type="button" onClick={() => {
-              const mm = String(today.getMonth() + 1).padStart(2, "0");
-              const dd = String(today.getDate()).padStart(2, "0");
-              onChange(name, `${today.getFullYear()}-${mm}-${dd}`);
-              setOpen(false);
-            }}
-              className="text-[11px] font-medium hover:text-accent-text transition-colors" style={{ color: "var(--accent-primary)" }}>Today</button>
-          </div>
-        </div>,
-        document.body
-      )}
-    </div>
-  );
-}
-
-function FSelect({ label, name, options, required, value, onChange, className, error, disabled }: {
-  label: string; name: string; options: string[]; required?: boolean; value: string; onChange: (name: string, value: string | boolean) => void; className?: string; error?: string; disabled?: boolean;
-}) {
-  return (
-    <div className={cn(className, disabled && "opacity-40 pointer-events-none")}>
-      <label className="block text-xs font-medium text-muted-foreground mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <select name={name} value={value} onChange={(e) => onChange(name, e.target.value)} disabled={disabled}
-        className={cn("w-full px-3 py-2.5 text-sm rounded-xl focus:outline-none transition-all duration-200",
-          error ? "border border-red-500 focus:ring-2 focus:ring-red-300 bg-red-50 dark:bg-red-950/20" : "glass-input",
-          disabled && "cursor-not-allowed")}>
-        {options.map((o) => <option key={o} value={o === options[0] && o === "" ? "" : o}>{o || `Select ${label.toLowerCase()}`}</option>)}
-      </select>
-      {error && <p className="text-[11px] text-red-500 mt-1">{error}</p>}
-    </div>
-  );
-}
-
-function FCheckbox({ label, name, checked, onChange }: { label: string; name: string; checked: boolean; onChange: (name: string, value: string | boolean) => void }) {
-  return (
-    <label className="flex items-center gap-2.5 cursor-pointer group">
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(name, e.target.checked)}
-        className="w-4 h-4 rounded border-border text-accent-primary focus:ring-accent-ring" />
-      <span className="text-sm text-foreground group-hover:text-accent-text transition-colors">{label}</span>
-    </label>
-  );
-}
-
-// ── Smart Address Entry (AI-powered fuzzy matching) ──
-// In production: entries stored in barangay_address_entries table via API
-// Learns from clerk input over time -- no manual Settings configuration needed
-
-// Common abbreviation map for Filipino address normalization
-const addressAbbreviations: Record<string, string> = {
-  "st.": "street", "st": "street", "ave.": "avenue", "ave": "avenue",
-  "blvd.": "boulevard", "blvd": "boulevard", "dr.": "drive", "dr": "drive",
-  "rd.": "road", "rd": "road", "ln.": "lane", "ln": "lane",
-  "brgy.": "barangay", "brgy": "barangay", "sts.": "streets",
-};
-
-function normalizeAddress(input: string): string {
-  return input.toLowerCase().replace(/[.,]/g, "").replace(/\s+/g, " ").trim()
-    .split(" ").map((w) => addressAbbreviations[w] || w).join(" ");
-}
-
-function similarity(a: string, b: string): number {
-  const na = normalizeAddress(a);
-  const nb = normalizeAddress(b);
-  if (na === nb) return 1;
-  // Trigram similarity (same approach as PostgreSQL pg_trgm)
-  const triA = new Set<string>(); const triB = new Set<string>();
-  const pa = `  ${na} `; const pb = `  ${nb} `;
-  for (let i = 0; i < pa.length - 2; i++) triA.add(pa.slice(i, i + 3));
-  for (let i = 0; i < pb.length - 2; i++) triB.add(pb.slice(i, i + 3));
-  let intersect = 0;
-  triA.forEach((t) => { if (triB.has(t)) intersect++; });
-  return intersect / (triA.size + triB.size - intersect);
-}
-
-interface SmartEntry { canonical: string; count: number; aliases: string[] }
-
-function FCombobox({ label, name, entries, required, value, onChange, onSubmit, onEntriesChange, placeholder: customPlaceholder, disabled }: {
-  label: string; name: string; entries: SmartEntry[]; required?: boolean; value: string;
-  onChange: (name: string, value: string | boolean) => void;
-  onSubmit?: (value: string) => void;
-  onEntriesChange?: React.Dispatch<React.SetStateAction<SmartEntry[]>>;
-  placeholder?: string;
-  disabled?: boolean;
-}) {
-  const [query, setQuery] = useState("");
-  const [open, setOpen] = useState(false);
-  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  const trimmed = query.trim();
-  const sorted = [...entries].sort((a, b) => b.count - a.count);
-
-  // Fuzzy match: filter by substring OR similarity > 0.4
-  const matched = trimmed
-    ? sorted.map((e) => {
-        const sub = e.canonical.toLowerCase().includes(trimmed.toLowerCase());
-        const sim = similarity(trimmed, e.canonical);
-        const aliasMatch = e.aliases.some((a) => similarity(trimmed, a) > 0.6);
-        return { ...e, score: sub ? 1 : Math.max(sim, aliasMatch ? 0.7 : 0), sim };
-      }).filter((e) => e.score > 0.35).sort((a, b) => b.score - a.score || b.count - a.count)
-    : sorted.map((e) => ({ ...e, score: 1, sim: 0 }));
-
-  // Find "did you mean" suggestion -- high similarity but not exact
-  const exactMatch = entries.some((e) => normalizeAddress(e.canonical) === normalizeAddress(trimmed));
-  const fuzzyMatch = trimmed && !exactMatch
-    ? entries.find((e) => {
-        const sim = similarity(trimmed, e.canonical);
-        return sim > 0.55 && sim < 1;
-      })
-    : null;
-
-  const openCombobox = () => {
-    if (!open && wrapperRef.current) {
-      const rect = wrapperRef.current.getBoundingClientRect();
-      setDropdownPos({ top: rect.bottom + 6, left: rect.left, width: rect.width });
-    }
-    setOpen(true);
-    setQuery("");
-  };
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (
-        wrapperRef.current && !wrapperRef.current.contains(e.target as Node) &&
-        dropdownRef.current && !dropdownRef.current.contains(e.target as Node)
-      ) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  const submitValue = (val: string) => {
-    if (onSubmit) { onSubmit(val); }
-    else if (onEntriesChange) {
-      onEntriesChange((prev) => {
-        const existing = prev.find((e) => e.canonical.toUpperCase() === val.toUpperCase());
-        if (existing) return prev.map((e) => e === existing ? { ...e, count: e.count + 1 } : e);
-        return [...prev, { canonical: val, count: 1, aliases: [] }];
-      });
-    }
-  };
-
-  const handleSelect = (val: string) => {
-    submitValue(val);
-    onChange(name, val);
-    setQuery("");
-    setOpen(false);
-  };
-
-  const handleNew = () => {
-    if (!trimmed) return;
-    submitValue(trimmed);
-    onChange(name, trimmed);
-    setQuery("");
-    setOpen(false);
-  };
-
-  return (
-    <div ref={wrapperRef} className={cn("relative", disabled && "opacity-40 pointer-events-none")}>
-      <label className="block text-xs font-medium text-muted-foreground mb-1.5">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
-      <div className={cn("flex items-center w-full rounded-xl transition-all duration-200",
-        open ? "glass-input" : "glass-input")}
-        style={open ? { borderColor: "var(--accent-primary)", boxShadow: "0 0 0 3px rgba(37, 99, 235, 0.12)" } : undefined}>
-        <input type="text" value={open ? query : value} placeholder={value || customPlaceholder || `Type to search or add...`}
-          className="flex-1 px-3 py-2.5 text-sm bg-transparent focus:outline-none min-w-0 uppercase"
-          disabled={disabled}
-          onFocus={disabled ? undefined : openCombobox}
-          onChange={(e) => { setQuery(e.target.value.toUpperCase()); if (!open) openCombobox(); }}
-          onKeyDown={(e) => { if (e.key === "Enter" && trimmed) { e.preventDefault(); fuzzyMatch ? handleSelect(fuzzyMatch.canonical) : handleNew(); } }} />
-        {value && !open && (
-          <button type="button" onClick={() => { onChange(name, ""); setOpen(true); }}
-            className="px-2 text-muted-foreground hover:text-foreground transition-colors">
-            <X className="h-4 w-4" />
-          </button>
-        )}
-        <ChevronDown className={cn("h-4 w-4 mr-2 text-muted-foreground transition-transform shrink-0", open && "rotate-180")} />
-      </div>
-      {open && typeof window !== "undefined" && createPortal(
-        <div ref={dropdownRef} className="fixed z-[9999] rounded-xl shadow-xl max-h-56 overflow-y-auto bg-background border border-border"
-          style={{ top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }}>
-          {/* "Did you mean" suggestion */}
-          {fuzzyMatch && (
-            <button type="button" onClick={() => handleSelect(fuzzyMatch.canonical)}
-              className="w-full text-left px-3 py-2.5 text-sm bg-amber-50 dark:bg-amber-950/20 border-b border-amber-200 dark:border-amber-900/30 hover:bg-amber-100 dark:hover:bg-amber-950/40 transition-colors">
-              <span className="text-amber-600 dark:text-amber-400 text-xs font-medium">Did you mean:</span>
-              <span className="ml-1.5 font-semibold text-foreground">{fuzzyMatch.canonical}</span>
-              <span className="ml-1.5 text-xs text-muted-foreground">({fuzzyMatch.count} uses)</span>
-            </button>
-          )}
-          {/* Matched entries sorted by relevance + frequency */}
-          {matched.length === 0 && !trimmed && (
-            <div className="px-3 py-2.5 text-sm text-muted-foreground italic">Start typing to add entries. The system learns as you go.</div>
-          )}
-          {matched.length === 0 && trimmed && !fuzzyMatch && (
-            <div className="px-3 py-2 text-xs text-muted-foreground italic">No matches found</div>
-          )}
-          {matched.map((e) => (
-            <button key={e.canonical} type="button" onClick={() => handleSelect(e.canonical)}
-              className={cn("w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors flex items-center justify-between",
-                e.canonical === value && "font-medium text-accent-text bg-accent-primary/5")}>
-              <span>{e.canonical}</span>
-              <span className="text-[10px] text-muted-foreground/60 tabular-nums">{e.count}</span>
-            </button>
-          ))}
-          {/* Add new entry */}
-          {trimmed && !exactMatch && (
-            <button type="button" onClick={handleNew}
-              className="w-full text-left px-3 py-2 text-sm border-t border-border text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-950/30 transition-colors flex items-center gap-2 font-medium">
-              <Plus className="h-4 w-4" />
-              Save &ldquo;{trimmed}&rdquo; as new entry
-            </button>
-          )}
-        </div>,
-        document.body
-      )}
-    </div>
-  );
-}
-
-function FRadio({ label, name, options, value, onChange }: { label: string; name: string; options: { value: string; label: string }[]; value: string; onChange: (name: string, value: string | boolean) => void }) {
-  return (
-    <div>
-      <label className="block text-xs font-medium text-muted-foreground mb-1.5">{label}</label>
-      <div className="flex items-center rounded-xl glass-input overflow-hidden">
-        {options.map((o, i) => (
-          <button key={o.value} type="button" onClick={() => onChange(name, o.value)}
-            className={cn(
-              "flex-1 px-4 py-2.5 text-sm font-medium transition-all duration-200",
-              i > 0 && "border-l border-white/20 dark:border-white/10",
-              value === o.value
-                ? "glass-accordion text-white shadow-md"
-                : "text-foreground hover:bg-white/30 dark:hover:bg-white/5"
-            )}>
-            {o.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ── Collapsible Section (V3-style blue header accordion) ──
-function Section({ icon, title, open, onToggle, children }: {
-  icon: React.ReactNode; title: string; open: boolean; onToggle: () => void; children: React.ReactNode;
-}) {
-  return (
-    <div className="group">
-      <button type="button" onClick={onToggle}
-        className={cn("w-full flex items-center gap-3 px-4 py-3.5 text-left rounded-xl transition-all duration-200",
-          open
-            ? "glass-accordion text-white shadow-lg"
-            : "glass-accordion-closed text-blue-700 dark:text-blue-300 hover:shadow-md")}
-        >
-        <span className="shrink-0 [&>svg]:h-4.5 [&>svg]:w-4.5">{icon}</span>
-        <span className="flex-1 text-sm font-bold uppercase tracking-wider">{title}</span>
-        <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform duration-200", open && "rotate-180")} />
-      </button>
-      <div className={cn("grid transition-all duration-300", open ? "grid-rows-[1fr]" : "grid-rows-[0fr]")}>
-        <div className={cn(open ? "overflow-visible" : "overflow-hidden")}>
-          <div className="glass-section rounded-b-xl mt-px px-5 pt-5 pb-4">
-            {children}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Education Entry ──
-interface EduEntry { level: string; course: string; school: string; start_year: string; end_year: string; currently_studying: boolean; }
-const emptyEdu: EduEntry = { level: "", course: "", school: "", start_year: "", end_year: "", currently_studying: false };
-
-// ── Work / Employment Entry ──
-interface WorkEntry { position: string; company: string; employment_type: string; start_year: string; end_year: string; description: string; }
-const emptyWork: WorkEntry = { position: "", company: "", employment_type: "", start_year: "", end_year: "", description: "" };
-
-// ── Business / Self-Employment Entry ──
-interface BusinessEntry { business_name: string; business_type: string; business_address: string; business_permit_no: string; dti_sec_no: string; monthly_income: string; start_year: string; status: string; description: string; }
-const emptyBusiness: BusinessEntry = { business_name: "", business_type: "", business_address: "", business_permit_no: "", dti_sec_no: "", monthly_income: "", start_year: "", status: "", description: "" };
-const businessStatuses = ["", "Active", "Temporarily Closed", "Closed", "Seasonal"];
-const livelihoodTypes = ["", "Employed", "Self-Employed / Business Owner", "Unemployed", "Retired", "Student", "OFW"];
-
-const defaultEmergencyRelEntries: SmartEntry[] = [
-  { canonical: "Spouse", count: 180, aliases: ["wife", "husband", "asawa"] },
-  { canonical: "Parent", count: 120, aliases: ["father", "mother", "tatay", "nanay", "mama", "papa"] },
-  { canonical: "Sibling", count: 85, aliases: ["brother", "sister", "kapatid"] },
-  { canonical: "Child", count: 60, aliases: ["son", "daughter", "anak"] },
-  { canonical: "Friend", count: 35, aliases: ["kaibigan"] },
-  { canonical: "Relative", count: 28, aliases: ["kamag-anak"] },
-  { canonical: "Neighbor", count: 22, aliases: ["kapitbahay"] },
-  { canonical: "Grandparent", count: 15, aliases: ["lolo", "lola", "grandfather", "grandmother"] },
-  { canonical: "Guardian", count: 10, aliases: ["legal guardian"] },
-  { canonical: "Employer", count: 5, aliases: ["boss"] },
-  { canonical: "Co-worker", count: 3, aliases: ["katrabaho", "officemate"] },
-];
-const defaultSectorOtherEntries: SmartEntry[] = [
-  { canonical: "Tricycle Driver", count: 180, aliases: ["trike", "traysikel", "trisikad"] },
-  { canonical: "Fish Vendor", count: 120, aliases: ["tindera ng isda", "fish seller", "magisda"] },
-  { canonical: "Sari-Sari Store Owner", count: 110, aliases: ["tindahan", "sari sari", "store owner", "tindero", "tindera"] },
-  { canonical: "Construction Worker", count: 95, aliases: ["mason", "karpintero", "carpenter", "tubero", "plumber", "construction"] },
-  { canonical: "Barangay Health Worker", count: 85, aliases: ["bhw", "health worker", "midwife", "hilot"] },
-  { canonical: "Barangay Nutrition Scholar", count: 70, aliases: ["bns", "nutrition scholar"] },
-  { canonical: "Barangay Tanod", count: 65, aliases: ["tanod", "bantay bayan", "peace officer"] },
-  { canonical: "Lupon Member", count: 55, aliases: ["lupon", "lupon tagapamayapa", "katarungang pambarangay"] },
-  { canonical: "SK Member", count: 50, aliases: ["sangguniang kabataan", "sk council", "kabataan"] },
-  { canonical: "Women's Association", count: 45, aliases: ["kababaihan", "women org", "samahan ng kababaihan"] },
-  { canonical: "Jeepney Driver", count: 40, aliases: ["tsuper", "driver", "jeep driver"] },
-  { canonical: "Teacher", count: 38, aliases: ["guro", "titser", "educator"] },
-  { canonical: "Kasambahay", count: 35, aliases: ["katulong", "helper", "domestic worker", "yaya", "maid"] },
-  { canonical: "Church Worker", count: 30, aliases: ["sakristan", "choir", "simbahan", "church volunteer"] },
-  { canonical: "Cooperative Member", count: 28, aliases: ["coop", "kooperatiba", "credit coop"] },
-  { canonical: "Senior Citizen Association", count: 25, aliases: ["osca", "senior org", "samahan ng matatanda"] },
-  { canonical: "PWD Organization", count: 22, aliases: ["pwd org", "disabled org", "samahan ng pwd"] },
-  { canonical: "Market Vendor", count: 20, aliases: ["magtitinda", "palengke", "market seller", "vendor sa palengke"] },
-  { canonical: "Laundry Worker", count: 18, aliases: ["labandera", "labandero", "maglalaba"] },
-  { canonical: "Security Guard", count: 15, aliases: ["guard", "guwardiya", "security"] },
-];
-const defaultBusinessTypeEntries: SmartEntry[] = [
-  { canonical: "Sari-Sari Store", count: 280, aliases: ["tindahan", "store", "sari sari", "magtitinda"] },
-  { canonical: "Carinderia / Eatery", count: 150, aliases: ["karinderia", "karinderya", "eatery", "kainan", "turo-turo", "turo turo"] },
-  { canonical: "Tricycle Operation", count: 130, aliases: ["traysikel", "trike operation", "tricycle", "trike"] },
-  { canonical: "Buy and Sell", count: 95, aliases: ["buy & sell", "trading", "negosyo", "reseller"] },
-  { canonical: "Water Refilling Station", count: 80, aliases: ["water station", "tubig", "refilling", "purified water"] },
-  { canonical: "Laundry Service", count: 70, aliases: ["labahan", "laundry shop", "labandera"] },
-  { canonical: "Piggery / Livestock", count: 65, aliases: ["babuyan", "pig farm", "manukan", "poultry", "livestock"] },
-  { canonical: "Rice Trading", count: 55, aliases: ["bigas", "rice dealer", "bigasan", "rice mill"] },
-  { canonical: "Welding / Fabrication", count: 50, aliases: ["panday", "welding shop", "fabrication", "metal works"] },
-  { canonical: "Beauty Salon / Barbershop", count: 48, aliases: ["parlor", "barbershop", "salon", "beauty parlor", "gupit"] },
-  { canonical: "Farming / Agriculture", count: 45, aliases: ["magsasaka", "bukid", "farm", "palay", "agriculture"] },
-  { canonical: "Fishing", count: 42, aliases: ["mangingisda", "isda", "fishpond", "aquaculture"] },
-  { canonical: "Vulcanizing Shop", count: 38, aliases: ["vulcanizing", "gomahan", "tire repair"] },
-  { canonical: "Computer Shop / Internet Cafe", count: 35, aliases: ["comp shop", "internet cafe", "pisonet", "pisowifi"] },
-  { canonical: "Bakery", count: 32, aliases: ["panaderya", "bakeshop", "bread", "tinapay"] },
-  { canonical: "Construction / Contractor", count: 30, aliases: ["kontratista", "construction", "builder", "mason"] },
-  { canonical: "Jeepney Operation", count: 28, aliases: ["jeepney", "jeep operation", "jeep"] },
-  { canonical: "Food Vending", count: 25, aliases: ["food cart", "street food", "tusok-tusok", "fishball", "vendor"] },
-  { canonical: "Auto / Motor Repair", count: 22, aliases: ["talyer", "mechanic", "auto repair", "motor shop"] },
-  { canonical: "Online Selling", count: 20, aliases: ["online shop", "shopee seller", "lazada", "facebook selling", "online business"] },
-];
-const defaultOccupationEntries: SmartEntry[] = [
-  { canonical: "Farmer", count: 280, aliases: ["magsasaka", "mag-uuma", "bukid", "palay farmer"] },
-  { canonical: "Fisherman", count: 200, aliases: ["mangingisda", "fisher", "isda"] },
-  { canonical: "Tricycle Driver", count: 180, aliases: ["trike driver", "traysikel", "trisikad driver"] },
-  { canonical: "Vendor", count: 160, aliases: ["magtitinda", "tindera", "tindero", "market vendor", "ambulant vendor"] },
-  { canonical: "Construction Worker", count: 150, aliases: ["mason", "karpintero", "carpenter", "tubero", "laborer"] },
-  { canonical: "Teacher", count: 140, aliases: ["guro", "titser", "educator", "instructor"] },
-  { canonical: "Housewife / Homemaker", count: 130, aliases: ["housewife", "homemaker", "maybahay", "nag-aalaga ng bahay"] },
-  { canonical: "Driver", count: 120, aliases: ["tsuper", "jeepney driver", "truck driver", "delivery driver"] },
-  { canonical: "Domestic Worker", count: 110, aliases: ["kasambahay", "katulong", "helper", "yaya", "maid"] },
-  { canonical: "Government Employee", count: 100, aliases: ["gov employee", "empleyado ng gobyerno", "public servant"] },
-  { canonical: "Security Guard", count: 90, aliases: ["guard", "guwardiya", "watchman"] },
-  { canonical: "Barangay Health Worker", count: 85, aliases: ["bhw", "health worker", "midwife"] },
-  { canonical: "Sari-Sari Store Owner", count: 80, aliases: ["tindahan owner", "store owner", "magtitinda"] },
-  { canonical: "Electrician", count: 70, aliases: ["elektrista", "elektrisyan", "electrical"] },
-  { canonical: "Mechanic", count: 65, aliases: ["mekaniko", "auto mechanic", "motor mechanic"] },
-  { canonical: "OFW", count: 60, aliases: ["overseas filipino worker", "abroad", "migrant worker"] },
-  { canonical: "Nurse", count: 55, aliases: ["nars", "registered nurse", "rn"] },
-  { canonical: "Laundry Worker", count: 50, aliases: ["labandera", "labandero", "maglalaba"] },
-  { canonical: "Student", count: 45, aliases: ["estudyante", "mag-aaral", "scholar"] },
-  { canonical: "Retired", count: 40, aliases: ["retirado", "pensioner", "senior"] },
-];
-const defaultSkillEntries: SmartEntry[] = [
-  { canonical: "Welding", count: 150, aliases: ["welder", "panday", "arc welding", "metal fabrication"] },
-  { canonical: "Carpentry", count: 140, aliases: ["karpintero", "woodwork", "furniture making"] },
-  { canonical: "Dressmaking / Tailoring", count: 120, aliases: ["mananahi", "seamstress", "tailor", "sewing"] },
-  { canonical: "Cooking / Food Preparation", count: 110, aliases: ["pagluluto", "chef", "cook", "baking"] },
-  { canonical: "Driving (Professional)", count: 100, aliases: ["pagmamaneho", "professional driver", "LTO license"] },
-  { canonical: "Farming / Agriculture", count: 95, aliases: ["pagsasaka", "crop production", "organic farming"] },
-  { canonical: "Electrical Installation", count: 85, aliases: ["elektrista", "wiring", "electrical work"] },
-  { canonical: "Plumbing", count: 80, aliases: ["tubero", "pipe fitting", "water system"] },
-  { canonical: "Masonry", count: 75, aliases: ["mason", "brick laying", "concrete work", "pagtatayo"] },
-  { canonical: "Fishing", count: 70, aliases: ["pangingisda", "net making", "fish processing"] },
-  { canonical: "Beauty / Hairdressing", count: 65, aliases: ["parlor", "salon", "hair cutting", "gupit", "rebond"] },
-  { canonical: "Auto / Motor Repair", count: 60, aliases: ["mekaniko", "automotive", "motor repair", "talyer"] },
-  { canonical: "Computer Literacy", count: 55, aliases: ["computer", "MS Office", "typing", "encoding"] },
-  { canonical: "Electronics Repair", count: 50, aliases: ["technician", "cellphone repair", "appliance repair"] },
-  { canonical: "Livestock / Animal Husbandry", count: 45, aliases: ["pag-aalaga ng hayop", "piggery", "poultry", "manukan"] },
-  { canonical: "Handicraft / Weaving", count: 40, aliases: ["paghahabi", "basket weaving", "handicraft", "banig"] },
-  { canonical: "Massage / Hilot", count: 35, aliases: ["hilot", "spa", "therapeutic massage", "wellness"] },
-  { canonical: "Painting (House)", count: 30, aliases: ["pintor", "house painting", "wall painting"] },
-  { canonical: "Baking / Pastry", count: 28, aliases: ["baker", "panaderya", "cake making", "pastry chef"] },
-  { canonical: "Online Selling / E-Commerce", count: 25, aliases: ["online business", "shopee", "lazada", "facebook selling"] },
-];
-const defaultPositionEntries: SmartEntry[] = [
-  { canonical: "Laborer / Helper", count: 200, aliases: ["labor", "helper", "kargador", "utility worker"] },
-  { canonical: "Driver", count: 150, aliases: ["tsuper", "delivery driver", "company driver"] },
-  { canonical: "Cashier", count: 120, aliases: ["kahera", "cahier", "cash handler"] },
-  { canonical: "Sales Associate", count: 100, aliases: ["saleslady", "salesman", "sales clerk", "tindera"] },
-  { canonical: "Teacher / Instructor", count: 95, aliases: ["guro", "titser", "faculty", "substitute teacher"] },
-  { canonical: "Security Guard", count: 90, aliases: ["guard", "guwardiya", "security officer"] },
-  { canonical: "Machine Operator", count: 80, aliases: ["operator", "factory worker", "production"] },
-  { canonical: "Office Staff / Clerk", count: 75, aliases: ["clerk", "admin staff", "office assistant", "encoder"] },
-  { canonical: "Foreman / Supervisor", count: 65, aliases: ["forman", "kapatas", "team leader", "supervisor"] },
-  { canonical: "Nurse / Midwife", count: 60, aliases: ["nars", "registered nurse", "komadrona", "midwife"] },
-  { canonical: "Barangay Health Worker", count: 55, aliases: ["bhw", "health worker"] },
-  { canonical: "Maintenance / Janitor", count: 50, aliases: ["janitor", "custodian", "cleaner", "utility"] },
-  { canonical: "Cook / Kitchen Staff", count: 48, aliases: ["cook", "kitchen helper", "kusinero", "kusinera"] },
-  { canonical: "Delivery Rider", count: 45, aliases: ["rider", "grab rider", "foodpanda", "lalamove"] },
-  { canonical: "Technician", count: 42, aliases: ["tech", "electrician", "aircon tech", "IT tech"] },
-  { canonical: "Farm Worker", count: 40, aliases: ["farm hand", "magsasaka", "harvester", "plantation worker"] },
-  { canonical: "Construction Worker", count: 38, aliases: ["mason", "carpenter", "welder", "steel man"] },
-  { canonical: "Domestic Helper", count: 35, aliases: ["kasambahay", "katulong", "yaya", "househelp"] },
-  { canonical: "Factory Worker", count: 30, aliases: ["production staff", "packer", "assembly line"] },
-  { canonical: "Seaman / Seafarer", count: 25, aliases: ["seaman", "marino", "sailor", "ofw seaman"] },
-];
-const defaultEmployerEntries: SmartEntry[] = [
-  { canonical: "Self-Employed", count: 300, aliases: ["sarili", "own business", "self employed", "freelance"] },
-  { canonical: "Department of Education (DepEd)", count: 120, aliases: ["deped", "dep ed", "public school"] },
-  { canonical: "Local Government Unit (LGU)", count: 100, aliases: ["lgu", "municipal", "city hall", "barangay"] },
-  { canonical: "SM Group", count: 80, aliases: ["sm supermarket", "sm mall", "savemore", "sm retail"] },
-  { canonical: "Jollibee Foods Corp.", count: 75, aliases: ["jollibee", "jfc", "chowking", "greenwich", "mang inasal"] },
-  { canonical: "Security Agency", count: 70, aliases: ["agency", "guard agency", "security service"] },
-  { canonical: "Construction Company", count: 65, aliases: ["contractor", "construction firm", "building company"] },
-  { canonical: "Private Household", count: 60, aliases: ["private", "bahay", "employer household", "family employer"] },
-  { canonical: "Department of Health (DOH)", count: 55, aliases: ["doh", "hospital", "rural health unit", "rhu"] },
-  { canonical: "Philippine National Police (PNP)", count: 50, aliases: ["pnp", "police", "pulis"] },
-  { canonical: "Armed Forces of the Philippines (AFP)", count: 45, aliases: ["afp", "military", "army", "sundalo"] },
-  { canonical: "DOLE / PESO", count: 40, aliases: ["dole", "peso", "public employment service"] },
-  { canonical: "Universal Robina Corp.", count: 35, aliases: ["urc", "jack n jill", "c2"] },
-  { canonical: "Puregold", count: 30, aliases: ["puregold", "s&r"] },
-  { canonical: "BPO / Call Center", count: 28, aliases: ["bpo", "call center", "outsourcing", "customer service"] },
-  { canonical: "Grab / Delivery Platform", count: 25, aliases: ["grab", "foodpanda", "lalamove", "angkas"] },
-  { canonical: "Factory / Manufacturing", count: 22, aliases: ["factory", "pabrika", "manufacturing plant"] },
-  { canonical: "Cooperative", count: 20, aliases: ["coop", "kooperatiba", "multi-purpose coop"] },
-  { canonical: "Church / Religious Org", count: 18, aliases: ["simbahan", "church", "religious"] },
-  { canonical: "NGO / Foundation", count: 15, aliases: ["ngo", "foundation", "charity", "non-profit"] },
-];
-// ── Smart Entries: Education ──
-const defaultCourseEntries: SmartEntry[] = [
-  { canonical: "BS Computer Science", count: 45, aliases: ["bscs", "compsci", "cs"] },
-  { canonical: "BS Information Technology", count: 42, aliases: ["bsit", "it", "infotech"] },
-  { canonical: "BS Nursing", count: 80, aliases: ["bsn", "nursing"] },
-  { canonical: "BS Education", count: 75, aliases: ["bsed", "education", "teaching"] },
-  { canonical: "BS Criminology", count: 60, aliases: ["bscrim", "crim", "criminology"] },
-  { canonical: "BS Accountancy", count: 35, aliases: ["bsa", "accountancy", "accounting"] },
-  { canonical: "BS Business Administration", count: 55, aliases: ["bsba", "business admin", "business"] },
-  { canonical: "BS Civil Engineering", count: 30, aliases: ["bsce", "civil eng", "engineering"] },
-  { canonical: "BS Agriculture", count: 28, aliases: ["bsa agri", "agriculture", "agri"] },
-  { canonical: "BS Social Work", count: 22, aliases: ["bssw", "social work"] },
-  { canonical: "Associate in Computer Technology", count: 18, aliases: ["act", "computer tech"] },
-  { canonical: "BS Hotel & Restaurant Management", count: 25, aliases: ["bshrm", "hrm", "hotel management"] },
-  { canonical: "BS Marine Transportation", count: 15, aliases: ["bsmt", "marine", "seaman course"] },
-  { canonical: "Technical Vocational (TESDA)", count: 40, aliases: ["tesda", "tvet", "vocational", "nc2"] },
-  { canonical: "General Academic Strand (GAS)", count: 20, aliases: ["gas", "shs gas", "senior high"] },
-  { canonical: "STEM", count: 18, aliases: ["shs stem", "science tech"] },
-  { canonical: "ABM", count: 15, aliases: ["shs abm", "accountancy business"] },
-  { canonical: "HUMSS", count: 12, aliases: ["shs humss", "humanities"] },
-  { canonical: "TVL", count: 10, aliases: ["shs tvl", "tech voc livelihood"] },
-  { canonical: "BS Pharmacy", count: 20, aliases: ["bspharm", "pharmacy"] },
-];
-const defaultSchoolEntries: SmartEntry[] = [
-  { canonical: "Gordon College", count: 120, aliases: ["gc", "gordon"] },
-  { canonical: "Columban College", count: 85, aliases: ["columban", "cc olongapo"] },
-  { canonical: "Olongapo City National High School", count: 95, aliases: ["ocnhs", "city high"] },
-  { canonical: "Zambales National High School", count: 60, aliases: ["znhs"] },
-  { canonical: "President Ramon Magsaysay State University", count: 55, aliases: ["prmsu", "prms", "magsaysay univ"] },
-  { canonical: "Philippine Christian University", count: 25, aliases: ["pcu"] },
-  { canonical: "STI College", count: 40, aliases: ["sti", "sti olongapo"] },
-  { canonical: "AMA Computer College", count: 35, aliases: ["ama", "amacc"] },
-  { canonical: "University of the Philippines", count: 20, aliases: ["up", "up diliman", "up manila"] },
-  { canonical: "Polytechnic University of the Philippines", count: 30, aliases: ["pup"] },
-  { canonical: "Technological University of the Philippines", count: 25, aliases: ["tup"] },
-  { canonical: "Don Bosco Training Center", count: 18, aliases: ["don bosco", "dbti"] },
-  { canonical: "Subic Bay Colleges", count: 15, aliases: ["sbc"] },
-  { canonical: "Philippine Science High School", count: 10, aliases: ["pisay", "pshs"] },
-  { canonical: "DepEd ALS (Alternative Learning System)", count: 22, aliases: ["als", "alternative learning"] },
-];
-const defaultPlaceOfBirthEntries: SmartEntry[] = [
-  { canonical: "Olongapo City", count: 350, aliases: ["olongapo", "olongapo city, zambales"] },
-  { canonical: "Subic, Zambales", count: 120, aliases: ["subic"] },
-  { canonical: "San Marcelino, Zambales", count: 85, aliases: ["san marcelino"] },
-  { canonical: "Castillejos, Zambales", count: 70, aliases: ["castillejos"] },
-  { canonical: "San Antonio, Zambales", count: 55, aliases: ["san antonio zambales"] },
-  { canonical: "Iba, Zambales", count: 65, aliases: ["iba"] },
-  { canonical: "Tarlac City", count: 45, aliases: ["tarlac", "tarlac city"] },
-  { canonical: "Manila", count: 80, aliases: ["manila city", "city of manila"] },
-  { canonical: "Quezon City", count: 50, aliases: ["qc", "quezon"] },
-  { canonical: "Angeles City, Pampanga", count: 35, aliases: ["angeles city", "angeles"] },
-  { canonical: "San Fernando, Pampanga", count: 28, aliases: ["san fernando pampanga"] },
-  { canonical: "Dagupan City, Pangasinan", count: 22, aliases: ["dagupan"] },
-  { canonical: "Baguio City", count: 25, aliases: ["baguio"] },
-  { canonical: "Zambales", count: 40, aliases: ["zambales province"] },
-  { canonical: "Caloocan City", count: 20, aliases: ["caloocan"] },
-  { canonical: "Makati City", count: 18, aliases: ["makati"] },
-  { canonical: "Cebu City", count: 15, aliases: ["cebu"] },
-  { canonical: "Davao City", count: 12, aliases: ["davao"] },
-  { canonical: "Zamboanga City", count: 10, aliases: ["zamboanga"] },
-  { canonical: "Bataan", count: 30, aliases: ["bataan province", "balanga"] },
-];
-
-// ── Year options ──
-const yearOptions = ["", ...Array.from({ length: 60 }, (_, i) => String(new Date().getFullYear() - i))];
-
-// ── Toast Notification System ──
-interface Toast { id: string; type: "success" | "error" | "warning" | "info"; title: string; message?: string; duration?: number; }
-
-function ToastContainer({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id: string) => void }) {
-  return (
-    <div className="fixed bottom-6 right-6 z-[100] flex flex-col gap-3 pointer-events-none">
-      {toasts.map((toast) => (
-        <ToastItem key={toast.id} toast={toast} onDismiss={onDismiss} />
-      ))}
-    </div>
-  );
-}
-
-function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string) => void }) {
-  const [exiting, setExiting] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    const dur = toast.duration ?? 5000;
-    timerRef.current = setTimeout(() => { setExiting(true); setTimeout(() => onDismiss(toast.id), 300); }, dur);
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [toast.id, toast.duration, onDismiss]);
-
-  const colors = {
-    success: { bg: "bg-emerald-50 dark:bg-emerald-950/40", border: "border-emerald-200 dark:border-emerald-800", icon: "text-emerald-600 dark:text-emerald-400", bar: "bg-emerald-500" },
-    error: { bg: "bg-red-50 dark:bg-red-950/40", border: "border-red-200 dark:border-red-800", icon: "text-red-600 dark:text-red-400", bar: "bg-red-500" },
-    warning: { bg: "bg-amber-50 dark:bg-amber-950/40", border: "border-amber-200 dark:border-amber-800", icon: "text-amber-600 dark:text-amber-400", bar: "bg-amber-500" },
-    info: { bg: "bg-blue-50 dark:bg-blue-950/40", border: "border-blue-200 dark:border-blue-800", icon: "text-blue-600 dark:text-blue-400", bar: "bg-blue-500" },
-  }[toast.type];
-
-  const Icon = toast.type === "success" ? CheckCircle : toast.type === "error" ? X : AlertTriangle;
-
-  return (
-    <div className={cn(
-      "pointer-events-auto w-96 rounded-xl border shadow-2xl overflow-hidden transition-all duration-300",
-      colors.bg, colors.border,
-      exiting ? "opacity-0 translate-x-8" : "opacity-100 translate-x-0 animate-in slide-in-from-right-5 fade-in"
-    )}>
-      <div className="flex items-start gap-3 p-4">
-        <div className={cn("shrink-0 mt-0.5", colors.icon)}>
-          <Icon className="h-5 w-5" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-foreground">{toast.title}</p>
-          {toast.message && <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{toast.message}</p>}
-        </div>
-        <button onClick={() => { setExiting(true); setTimeout(() => onDismiss(toast.id), 300); }}
-          className="shrink-0 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
-          <X className="h-4 w-4" />
-        </button>
-      </div>
-      {/* Progress bar */}
-      <div className="h-1 w-full bg-black/5 dark:bg-white/5">
-        <div className={cn("h-full rounded-full", colors.bar)} style={{ animation: `shrink ${toast.duration ?? 5000}ms linear forwards` }} />
-      </div>
-    </div>
-  );
-}
 
 // ══════════════════════════════════════════════════════════════
 // ── Data URL → Blob (no fetch — works under any CSP) ──
@@ -952,8 +124,41 @@ interface ResidentsPageProps {
 
 export default function ResidentsPage({ censusMode, onCensusRegistered }: ResidentsPageProps = {}) {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  // Translate filter "All X" labels while keeping state values in English.
+  const filterLabel = (v: string): string => {
+    switch (v) {
+      case "All Puroks": return t.residents.filters.allPuroks;
+      case "All Status": return t.residents.filters.allStatus;
+      case "All Civil Status": return t.residents.filters.allCivilStatus;
+      case "All Resident Types": return t.residents.filters.allResidentTypes;
+      case "All Citizenship": return t.residents.filters.allCitizenship;
+      case "All Religion": return t.residents.filters.allReligion;
+      case "All Ethnicity": return t.residents.filters.allEthnicity;
+      case "All Sectors": return t.residents.filters.allSectors;
+      case "Active": return t.residents.status.active;
+      case "Inactive": return t.residents.status.inactive;
+      case "Deceased": return t.residents.status.deceased;
+      case "Transferred": return t.residents.status.transferred;
+      case "All": return t.residents.sex.all;
+      case "Male": return t.residents.sex.male;
+      case "Female": return t.residents.sex.female;
+      default: return v;
+    }
+  };
+
+  // Time-since formatter for table column (today/yesterday/X days/weeks/months/years ago)
+  const formatTimeSince = (daysAgo: number): string => {
+    if (daysAgo === 0) return t.residents.timeSince.today;
+    if (daysAgo === 1) return t.residents.timeSince.yesterday;
+    if (daysAgo < 7) return `${daysAgo} ${t.residents.timeSince.daysAgo}`;
+    if (daysAgo < 30) return `${Math.floor(daysAgo / 7)} ${t.residents.timeSince.weeksAgo}`;
+    if (daysAgo < 365) return `${Math.floor(daysAgo / 30)} ${t.residents.timeSince.monthsAgo}`;
+    return `${Math.floor(daysAgo / 365)} ${t.residents.timeSince.yearsAgo}`;
+  };
   const tenantConfig = {
     barangay: user?.barangay?.name?.toUpperCase() || "",
     city_municipality: user?.barangay?.city_municipality?.toUpperCase() || "",
@@ -977,8 +182,10 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
   const [page, setPage] = useState(1);
   const [viewResident, setViewResident] = useState<ResidentDetail | null>(null);
   const [viewLoading, setViewLoading] = useState(false);
-  const [sortKey, setSortKey] = useState<string | null>(null);
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  // Default to latest-registered first so newly added residents surface at the top.
+  // User can still click any column header to sort differently.
+  const [sortKey, setSortKey] = useState<string | null>("created_at");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [showDelete, setShowDelete] = useState(false);
   const [actionMenu, setActionMenu] = useState<string | null>(null);
   // Track which resident is currently generating a PDF (shows spinner on button)
@@ -1128,7 +335,10 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
   }, []);
   const dismissToast = useCallback((id: string) => setToasts((prev) => prev.filter((t) => t.id !== id)), []);
 
-  // ── Smart Address Entries (AI-learned, no manual config needed) ──
+  // ── Smart Address Entries (per-barangay learned values) ──────────────
+  // Seeded with sensible Philippine defaults; hydrated from the
+  // /address-entries API once on mount. Every value selected/typed fires a
+  // background upsert so the store grows organically per barangay.
   const [purokEntries, setPurokEntries] = useState<SmartEntry[]>(defaultPurokEntries);
   const [streetEntries, setStreetEntries] = useState<SmartEntry[]>(defaultStreetEntries);
   const [citizenshipEntries, setCitizenshipEntries] = useState<SmartEntry[]>(defaultCitizenshipEntries);
@@ -1146,6 +356,51 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
   const [schoolEntries, setSchoolEntries] = useState<SmartEntry[]>(defaultSchoolEntries);
   const [placeOfBirthEntries, setPlaceOfBirthEntries] = useState<SmartEntry[]>(defaultPlaceOfBirthEntries);
 
+  // Hydrate entries from /address-entries on mount.
+  // Strategy: merge API entries on top of seed defaults — higher counts win.
+  // Any API kind with 0 entries falls back to the seed defaults that React initialized with.
+  useEffect(() => {
+    let cancelled = false;
+    api.addressEntries.list().then((res) => {
+      if (cancelled) return;
+      const byKind = res.entries.reduce<Record<string, SmartEntry[]>>((acc, e) => {
+        if (!acc[e.kind]) acc[e.kind] = [];
+        acc[e.kind]!.push({ canonical: e.canonical, count: e.count, aliases: e.aliases });
+        return acc;
+      }, {});
+      // Merge helper — prefer API entries over seed defaults when canonical matches
+      const merge = (seed: SmartEntry[], fromApi: SmartEntry[] | undefined): SmartEntry[] => {
+        if (!fromApi || fromApi.length === 0) return seed;
+        const apiByCanonical = new Map(fromApi.map((e) => [e.canonical.toLowerCase(), e]));
+        const merged = seed.map((s) => apiByCanonical.get(s.canonical.toLowerCase()) ?? s);
+        // Append API-only entries (rows the seed doesn't include)
+        const seedCanonicals = new Set(seed.map((s) => s.canonical.toLowerCase()));
+        for (const e of fromApi) {
+          if (!seedCanonicals.has(e.canonical.toLowerCase())) merged.push(e);
+        }
+        return merged.sort((a, b) => b.count - a.count);
+      };
+      setPurokEntries((prev) => merge(prev, byKind["purok"]));
+      setStreetEntries((prev) => merge(prev, byKind["street"]));
+      setCitizenshipEntries((prev) => merge(prev, byKind["citizenship"]));
+      setReligionEntries((prev) => merge(prev, byKind["religion"]));
+      setEthnicityEntries((prev) => merge(prev, byKind["ethnicity"]));
+      setEmergencyRelEntries((prev) => merge(prev, byKind["emergency_rel"]));
+      setSectorOtherEntries((prev) => merge(prev, byKind["sector_other"]));
+      setBusinessTypeEntries((prev) => merge(prev, byKind["business_type"]));
+      setOccupationEntries((prev) => merge(prev, byKind["occupation"]));
+      setSkillEntries((prev) => merge(prev, byKind["skill"]));
+      setPositionEntries((prev) => merge(prev, byKind["position"]));
+      setEmployerEntries((prev) => merge(prev, byKind["employer"]));
+      setCourseEntries((prev) => merge(prev, byKind["course"]));
+      setSchoolEntries((prev) => merge(prev, byKind["school"]));
+      setPlaceOfBirthEntries((prev) => merge(prev, byKind["place_of_birth"]));
+    }).catch(() => {
+      // Offline-tolerant: defaults already loaded
+    });
+    return () => { cancelled = true; };
+  }, []);
+
   // ── Map State (Google Maps) ──
   // Map state — Leaflet handles the map DOM itself; we only track geocoding status
   const [mapLocating, setMapLocating] = useState(false);
@@ -1155,25 +410,38 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
   const formContainerRef = useRef<HTMLDivElement>(null);
   const [formContainerHeight, setFormContainerHeight] = useState(0);
 
-  const submitEntry = (entries: SmartEntry[], setEntries: React.Dispatch<React.SetStateAction<SmartEntry[]>>, val: string) => {
+  // Update local state immediately for snappy UX, then fire API upsert async.
+  // Backend tolerates the duplicate work — it's idempotent on (barangay_id, kind, canonical).
+  const submitEntry = (
+    _entries: SmartEntry[],
+    setEntries: React.Dispatch<React.SetStateAction<SmartEntry[]>>,
+    val: string,
+    kind?:
+      | "purok" | "street"
+      | "citizenship" | "religion" | "ethnicity"
+      | "occupation" | "skill" | "position" | "employer"
+      | "course" | "school" | "place_of_birth"
+      | "sector_other" | "business_type" | "emergency_rel",
+  ) => {
     setEntries((prev) => {
       const existing = prev.find((e) => normalizeAddress(e.canonical) === normalizeAddress(val));
       if (existing) {
-        // Increment usage count + add alias if new variation
         return prev.map((e) => e.canonical === existing.canonical
           ? { ...e, count: e.count + 1, aliases: e.aliases.includes(val.toLowerCase()) ? e.aliases : [...e.aliases, val.toLowerCase()] }
           : e);
       }
-      // Check if it's a close match to existing (merge as alias)
       const fuzzy = prev.find((e) => similarity(val, e.canonical) > 0.65);
       if (fuzzy) {
         return prev.map((e) => e.canonical === fuzzy.canonical
           ? { ...e, count: e.count + 1, aliases: [...e.aliases, val.toLowerCase()] }
           : e);
       }
-      // Truly new entry
       return [...prev, { canonical: val, count: 1, aliases: [val.toLowerCase()] }];
     });
+    // Fire-and-forget API upsert; silent failure keeps UX uninterrupted offline
+    if (kind) {
+      api.addressEntries.upsert({ kind, canonical: val }).catch(() => { /* offline-tolerant */ });
+    }
   };
 
   // ── Smart Photo System ──
@@ -1554,48 +822,22 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
 
   // ── Submit Handler ──
   const handleSubmit = async () => {
-    const errors: Record<string, string> = {};
-    // Required fields
-    if (!f("first_name").trim()) errors.first_name = "First name is required";
-    if (!f("last_name").trim()) errors.last_name = "Last name is required";
-    if (!f("sex")) errors.sex = "Sex is required";
-    if (!f("date_of_birth")) errors.date_of_birth = "Date of birth is required";
-    if (!f("place_of_birth").trim()) errors.place_of_birth = "Place of birth is required";
-    if (!f("civil_status")) errors.civil_status = "Civil status is required";
-    if (!f("resident_type")) errors.resident_type = "Residence type is required";
+    // Run the shared Zod schema first — catches required, format, range, enum.
+    // Tested in schemas.test.ts (29 cases). Anything Zod-validated is removed
+    // from the inline block below; the remaining checks cover business rules
+    // Zod doesn't express (future dates, Gov-ID length quirks).
+    const zodResult = validateResident(form as Record<string, string | boolean>);
+    const errors: Record<string, string> = zodResult.ok ? {} : { ...zodResult.errors };
 
-    // Tanga-proof: Date of Birth must not be in the future
-    if (f("date_of_birth")) {
+    // Business rule: Date of Birth must not be in the future (Zod only validates format).
+    if (f("date_of_birth") && !errors.date_of_birth) {
       const dob = new Date(f("date_of_birth") + "T00:00:00");
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       if (dob > today) errors.date_of_birth = "Date of birth cannot be in the future";
-      // Must be at least 1 day old (no same-day — use hospital records for newborns)
-      const ageDays = Math.floor((today.getTime() - dob.getTime()) / 86400000);
-      if (ageDays < 0) errors.date_of_birth = "Date of birth cannot be in the future";
     }
 
-    // Tanga-proof: Height bounds (30cm to 250cm)
-    const height = f("height_cm");
-    if (height && (parseFloat(height) < 30 || parseFloat(height) > 250)) {
-      errors.height_cm = "Height must be between 30 and 250 cm";
-    }
-
-    // Tanga-proof: Weight bounds (1kg to 500kg)
-    const weight = f("weight_kg");
-    if (weight && (parseFloat(weight) < 1 || parseFloat(weight) > 500)) {
-      errors.weight_kg = "Weight must be between 1 and 500 kg";
-    }
-
-    // Mobile validation (optional but must be valid if filled)
-    const mobile = f("mobile_number").replace(/\s/g, "");
-    if (mobile && !isValidPHMobile(mobile)) errors.mobile_number = "Must be a valid PH number (09XX XXX XXXX)";
-
-    // Email validation (optional but must be valid if filled)
-    const email = f("email");
-    if (email && !isValidEmail(email)) errors.email = "Must be a valid email address";
-
-    // Tanga-proof: Government ID format hints
+    // Gov-ID length hints — issuer-specific, not in Zod schema
     const tin = f("tin_number").replace(/[^0-9]/g, "");
     if (tin && tin.length !== 9 && tin.length !== 12) errors.tin_number = "TIN must be 9 or 12 digits";
     const sss = f("sss_gsis_number").replace(/[^0-9]/g, "");
@@ -1996,6 +1238,10 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
   const _bLng = user?.barangay?.longitude ? parseFloat(String(user.barangay.longitude)) : NaN;
   const barangayLat = _bLat >= 4 && _bLat <= 21 ? _bLat : 14.5995;
   const barangayLng = _bLng >= 116 && _bLng <= 127 ? _bLng : 120.9842;
+  // Barangay boundary GeoJSON — auto-fetched server-side on onboarding via
+  // BarangayObserver. The map fits to bounds and overlays the polygon, same
+  // as the /dashboard/map page.
+  const barangayBoundary = (user?.barangay?.boundary_geojson ?? null) as GeoJsonFeatureCollection | null;
 
   // Geocode address text → lat/lng using Nominatim (free, no API key required).
   // Leaflet handles map display; geocoding is a plain HTTP call that updates form state.
@@ -2061,18 +1307,6 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
     setPage(1);
   };
 
-  // Real stats from API — full barangay population, not just the current page
-  const totalPopulation = residentStats?.total_residents ?? listTotal;
-  const maleCount = residentStats?.gender_distribution?.male ?? residentStats?.gender_distribution?.Male ?? 0;
-  const femaleCount = residentStats?.gender_distribution?.female ?? residentStats?.gender_distribution?.Female ?? 0;
-  const householdCount = residentStats?.total_households ?? 0;
-  const voterCount = residentStats?.voter_count ?? 0;
-  const pwdCount = residentStats?.pwd_count ?? 0;
-  const seniorCount = residentStats?.senior_citizen_count ?? 0;
-  const activeCount = residentStats?.active_count ?? 0;
-  const deceasedCount = residentStats?.deceased_count ?? 0;
-  const nonActiveCount = (residentStats?.transferred_count ?? 0) + (residentStats?.archived_count ?? 0);
-
   // ══════════════════════════════════════════════════════════
   // ── REGISTRATION FORM (V3-style collapsible + V4 fields)
   // ══════════════════════════════════════════════════════════
@@ -2095,11 +1329,11 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
             <div className="flex items-center gap-2 mb-1">
               <button onClick={() => setMode("list")} className="text-xs text-accent-text hover:underline">&larr; Back to list</button>
             </div>
-            <h1 className="text-xl font-bold text-foreground">{mode === "create" ? "CREATE RESIDENT" : "EDIT RESIDENT"}</h1>
+            <h1 className="text-3xl text-foreground leading-tight" style={{ fontFamily: "var(--font-playfair)", letterSpacing: "-0.015em" }}>{mode === "create" ? "Create Resident" : "Edit Resident"}</h1>
           </div>
-          <div className="text-right text-xs text-muted-foreground">
-            <div className="font-medium">{new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "2-digit", year: "numeric" })}</div>
-            <div className="text-lg font-bold text-foreground">{new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</div>
+          <div className="text-right text-xs text-muted-foreground space-y-0.5">
+            <div className="font-medium">{new Date().toLocaleDateString(user?.preferred_language === "fil" ? "fil-PH" : "en-PH", { weekday: "short", month: "short", day: "2-digit", year: "numeric" })}</div>
+            <div className="font-medium">{new Date().toLocaleTimeString(user?.preferred_language === "fil" ? "fil-PH" : "en-PH", { hour: "2-digit", minute: "2-digit" })}</div>
           </div>
         </div>
 
@@ -2107,8 +1341,8 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
         <div className="form-gradient-bg rounded-2xl p-6 space-y-3 relative">
           {/* 1. Personal Information and Photo (always visible, not collapsible) */}
           <div className="relative z-[1]">
-            <div className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-white glass-accordion shadow-lg">
-              <User className="h-4.5 w-4.5 shrink-0" />
+            <div className="relative w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-foreground glass-accordion">
+              <User className="h-4.5 w-4.5 shrink-0 text-blue-600 dark:text-blue-300" />
               <span className="flex-1 text-sm font-bold uppercase tracking-wider">Personal Information and Photo</span>
             </div>
             <div className="glass-section rounded-b-xl mt-px px-5 pt-5 pb-4">
@@ -2124,11 +1358,12 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                       <FSelect label="Sex" name="sex" options={["", "Male", "Female"]} required value={f("sex")} onChange={updateForm} error={formErrors.sex} />
                       <FDatePicker label="Date of Birth" name="date_of_birth" required value={f("date_of_birth")} onChange={updateForm} valid={dupOk("date_of_birth")} error={formErrors.date_of_birth} />
-                      <FCombobox label="Place of Birth" name="place_of_birth" required entries={placeOfBirthEntries} value={f("place_of_birth")} onChange={updateForm} onEntriesChange={setPlaceOfBirthEntries} />
+                      <FCombobox label="Place of Birth" name="place_of_birth" required entries={placeOfBirthEntries} value={f("place_of_birth")} onChange={updateForm} onSubmit={(val) => submitEntry(placeOfBirthEntries, setPlaceOfBirthEntries, val, "place_of_birth")} />
                       <FSelect label="Civil Status" name="civil_status" options={["", ...civilStatuses]} required value={f("civil_status")} onChange={updateForm} error={formErrors.civil_status} />
                     </div>
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                       <FInput label="Contact No." name="mobile_number" type="tel" placeholder="09XX XXX XXXX" value={f("mobile_number")} onChange={updateForm} maxLength={13} error={formErrors.mobile_number} />
+                      <FInput label="Telephone" name="telephone" type="tel" placeholder="e.g. (02) 8123 4567" value={f("telephone")} onChange={updateForm} />
                       <FInput label="Email Address" name="email" type="email" placeholder="name@example.com" value={f("email")} onChange={updateForm} error={formErrors.email} />
                       <FSelect label="Residence Type" name="resident_type" options={residentTypes} required value={f("resident_type")} onChange={updateForm} error={formErrors.resident_type} />
                       <FRadio label="Head of Household?" name="is_head_of_household" value={fb("is_head_of_household") ? "yes" : "no"}
@@ -2231,7 +1466,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                       {cameraActive ? (
                         <>
                           <button type="button" onClick={capturePhoto}
-                            className="flex-1 px-2 py-1.5 text-[11px] font-semibold rounded-lg text-white transition-colors hover:opacity-90" style={{ background: "var(--accent-primary)" }}>
+                            className="flex-1 px-2 py-1.5 text-[11px] font-semibold rounded-lg border border-blue-500/40 bg-blue-500/10 text-blue-700 dark:text-blue-300 hover:bg-blue-500/15 transition-colors">
                             Capture
                           </button>
                           <button type="button" onClick={stopCamera}
@@ -2243,13 +1478,13 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                         <>
                           {/* Desktop: getUserMedia webcam | Mobile: hidden (use native capture instead) */}
                           <button type="button" onClick={startCamera} disabled={cameraLoading}
-                            className="hidden md:flex flex-1 items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-semibold rounded-lg text-white transition-colors hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed" style={{ background: "var(--accent-primary)" }}>
+                            className="hidden md:flex flex-1 items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-semibold rounded-lg border border-blue-500/40 bg-blue-500/10 text-blue-700 dark:text-blue-300 hover:bg-blue-500/15 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                             {cameraLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
                             {cameraLoading ? "Opening..." : "Camera"}
                           </button>
                           {/* Mobile: opens native camera (back-facing default, user can flip to front) */}
                           <button type="button" onClick={() => photoCaptureRef.current?.click()}
-                            className="flex md:hidden flex-1 items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-semibold rounded-lg text-white transition-colors hover:opacity-90" style={{ background: "var(--accent-primary)" }}>
+                            className="flex md:hidden flex-1 items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-semibold rounded-lg border border-blue-500/40 bg-blue-500/10 text-blue-700 dark:text-blue-300 hover:bg-blue-500/15 transition-colors">
                             <Camera className="h-4 w-4" /> Take Photo
                           </button>
                           <button type="button" onClick={() => photoInputRef.current?.click()}
@@ -2389,18 +1624,19 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
 
           {/* 2. Current Address (always visible, not collapsible) */}
           <div className="relative z-[1]">
-            <div className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-white glass-accordion shadow-lg">
-              <MapPin className="h-4.5 w-4.5 shrink-0" />
+            <div className="relative w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-foreground glass-accordion">
+              <MapPin className="h-4.5 w-4.5 shrink-0 text-blue-600 dark:text-blue-300" />
               <span className="flex-1 text-sm font-bold uppercase tracking-wider">Current Address</span>
             </div>
             <div className="glass-section rounded-b-xl mt-px px-5 pt-5 pb-4">
             <div className="space-y-4">
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <FInput label="House No. / Blk & Lot / Subdivision / Village" name="house_block_lot" placeholder="E.g. Unit 4B Blk 5 Lot 12, Villa Verde Subd. Phase 2" value={f("house_block_lot")} onChange={updateForm} />
                 <FCombobox label="Purok / Sitio" name="purok" entries={purokEntries} value={f("purok")}
-                  onChange={updateForm} onSubmit={(val) => submitEntry(purokEntries, setPurokEntries, val)} />
+                  onChange={updateForm} onSubmit={(val) => submitEntry(purokEntries, setPurokEntries, val, "purok")} />
                 <FCombobox label="Street / Road" name="street" entries={streetEntries} value={f("street")}
-                  onChange={updateForm} onSubmit={(val) => submitEntry(streetEntries, setStreetEntries, val)} />
+                  onChange={updateForm} onSubmit={(val) => submitEntry(streetEntries, setStreetEntries, val, "street")} />
+                <FInput label="Zip Code" name="zip_code" placeholder="e.g. 1230" value={f("zip_code")} onChange={updateForm} maxLength={4} />
               </div>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
@@ -2419,7 +1655,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                     className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-muted/50 text-foreground font-medium cursor-default opacity-80" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Zip Code</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Barangay Zip</label>
                   <input type="text" value={tenantConfig.zip_code} readOnly tabIndex={-1}
                     className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-muted/50 text-foreground font-medium cursor-default opacity-80" />
                 </div>
@@ -2449,6 +1685,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                   lng={f("longitude") ? parseFloat(String(f("longitude"))) : null}
                   centerLat={barangayLat}
                   centerLng={barangayLng}
+                  boundary={barangayBoundary}
                   onPin={(lat, lng) => {
                     updateForm("latitude", lat.toFixed(7));
                     updateForm("longitude", lng.toFixed(7));
@@ -2471,11 +1708,11 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Identity</p>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   <FCombobox label="Citizenship" name="citizenship" entries={citizenshipEntries} value={f("citizenship")}
-                    onChange={updateForm} onSubmit={(val) => submitEntry(citizenshipEntries, setCitizenshipEntries, val)} />
+                    onChange={updateForm} onSubmit={(val) => submitEntry(citizenshipEntries, setCitizenshipEntries, val, "citizenship")} />
                   <FCombobox label="Religion" name="religion" entries={religionEntries} value={f("religion")}
-                    onChange={updateForm} onSubmit={(val) => submitEntry(religionEntries, setReligionEntries, val)} />
+                    onChange={updateForm} onSubmit={(val) => submitEntry(religionEntries, setReligionEntries, val, "religion")} />
                   <FCombobox label="Ethnicity" name="ethnicity" entries={ethnicityEntries} value={f("ethnicity")}
-                    onChange={updateForm} onSubmit={(val) => submitEntry(ethnicityEntries, setEthnicityEntries, val)} />
+                    onChange={updateForm} onSubmit={(val) => submitEntry(ethnicityEntries, setEthnicityEntries, val, "ethnicity")} />
                   <FInput label="Mother's Maiden Name" name="mothers_maiden_name" placeholder="e.g. Santos" value={f("mothers_maiden_name")} onChange={updateForm} />
                 </div>
               </div>
@@ -2513,7 +1750,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                   {/* Others with smart combobox */}
                   <div className="col-span-2 md:col-span-3 lg:col-span-4 mt-1">
                     <FCombobox label="Others" name="sector_other" value={f("sector_other")}
-                      entries={sectorOtherEntries} onEntriesChange={setSectorOtherEntries}
+                      entries={sectorOtherEntries} onSubmit={(val) => submitEntry(sectorOtherEntries, setSectorOtherEntries, val, "sector_other")}
                       onChange={updateForm} placeholder="Type to search or add sector/organization..." />
                   </div>
                 </div>
@@ -2583,10 +1820,10 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                         value={entry.level} onChange={(_, v) => setEduEntries((e) => e.map((x, i) => i === idx ? { ...x, level: String(v) } : x))} />
                       <FCombobox label="Course / Program" name="course" entries={courseEntries} value={entry.course}
                         onChange={(_, v) => setEduEntries((e) => e.map((x, i) => i === idx ? { ...x, course: String(v) } : x))}
-                        onEntriesChange={setCourseEntries} disabled={courseDisabled} />
+                        onSubmit={(val) => submitEntry(courseEntries, setCourseEntries, val, "course")} disabled={courseDisabled} />
                       <FCombobox label="School / Institution" name="school" entries={schoolEntries} value={entry.school}
                         onChange={(_, v) => setEduEntries((e) => e.map((x, i) => i === idx ? { ...x, school: String(v) } : x))}
-                        onEntriesChange={setSchoolEntries} disabled={allDisabled} />
+                        onSubmit={(val) => submitEntry(schoolEntries, setSchoolEntries, val, "school")} disabled={allDisabled} />
                     </div>
                     <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                       <FSelect label="Start Year" name="start_year" options={yearOptions}
@@ -2634,11 +1871,11 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                 <div className="space-y-5">
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                     <FCombobox label="Current Occupation" name="occupation" value={f("occupation")}
-                      entries={occupationEntries} onEntriesChange={setOccupationEntries}
+                      entries={occupationEntries} onSubmit={(val) => submitEntry(occupationEntries, setOccupationEntries, val, "occupation")}
                       onChange={updateForm} placeholder="Type to search or add occupation..." />
                     <FSelect label="Monthly Income Range" name="monthly_income_range" options={incomeRanges} value={f("monthly_income_range")} onChange={updateForm} />
                     <FCombobox label="Skills / Specialization" name="skills" value={f("skills")}
-                      entries={skillEntries} onEntriesChange={setSkillEntries}
+                      entries={skillEntries} onSubmit={(val) => submitEntry(skillEntries, setSkillEntries, val, "skill")}
                       onChange={updateForm} placeholder="Type to search or add skill..." />
                   </div>
                   <div className="space-y-3">
@@ -2651,11 +1888,11 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                         )}
                         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                           <FCombobox label="Position / Job Title" name="position"
-                            value={entry.position} entries={positionEntries} onEntriesChange={setPositionEntries}
+                            value={entry.position} entries={positionEntries} onSubmit={(val) => submitEntry(positionEntries, setPositionEntries, val, "position")}
                             onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, position: String(v) } : x))}
                             placeholder="Type to search or add position..." />
                           <FCombobox label="Company / Employer" name="company"
-                            value={entry.company} entries={employerEntries} onEntriesChange={setEmployerEntries}
+                            value={entry.company} entries={employerEntries} onSubmit={(val) => submitEntry(employerEntries, setEmployerEntries, val, "employer")}
                             onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, company: String(v) } : x))}
                             placeholder="Type to search or add employer..." />
                           <FSelect label="Type of Employment" name="employment_type" options={employmentTypeOptions}
@@ -2695,11 +1932,11 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                       )}
                       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                         <FCombobox label="Position / Job Title" name="position"
-                          value={entry.position} entries={positionEntries} onEntriesChange={setPositionEntries}
+                          value={entry.position} entries={positionEntries} onSubmit={(val) => submitEntry(positionEntries, setPositionEntries, val, "position")}
                           onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, position: String(v) } : x))}
                           placeholder="Type to search or add position..." />
                         <FCombobox label="Company / Employer" name="company"
-                          value={entry.company} entries={employerEntries} onEntriesChange={setEmployerEntries}
+                          value={entry.company} entries={employerEntries} onSubmit={(val) => submitEntry(employerEntries, setEmployerEntries, val, "employer")}
                           onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, company: String(v) } : x))}
                           placeholder="Type to search or add employer..." />
                         <FSelect label="Country of Work" name="employment_type" options={["", "Saudi Arabia", "UAE", "Qatar", "Kuwait", "Bahrain", "Hong Kong", "Singapore", "Taiwan", "Japan", "South Korea", "Italy", "UK", "USA", "Canada", "Australia", "Other"]}
@@ -2735,7 +1972,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                           value={entry.business_name} onChange={(_, v) => setBusinessEntries((e) => { const arr = e.length === 0 ? [{ ...emptyBusiness }] : [...e]; return arr.map((x, i) => i === idx ? { ...x, business_name: String(v) } : x); })} />
                         <FCombobox label="Business Type" name="business_type"
                           value={entry.business_type}
-                          entries={businessTypeEntries} onEntriesChange={setBusinessTypeEntries}
+                          entries={businessTypeEntries} onSubmit={(val) => submitEntry(businessTypeEntries, setBusinessTypeEntries, val, "business_type")}
                           onChange={(_, v) => setBusinessEntries((e) => { const arr = e.length === 0 ? [{ ...emptyBusiness }] : [...e]; return arr.map((x, i) => i === idx ? { ...x, business_type: String(v) } : x); })}
                           placeholder="Type to search or add business type..." />
                         <FSelect label="Status" name="business_status" options={businessStatuses}
@@ -2846,7 +2083,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
               <FInput label="Contact No." name="emergency_contact_phone" placeholder="09XX XXX XXXX" value={f("emergency_contact_phone")} onChange={updateForm} />
               <FInput label="Address" name="emergency_contact_address" placeholder="e.g. #10 Aguinaldo St., East Tapinac, Olongapo City" value={f("emergency_contact_address")} onChange={updateForm} />
               <FCombobox label="Relationship" name="emergency_contact_relationship" entries={emergencyRelEntries} value={f("emergency_contact_relationship")}
-                onChange={updateForm} onSubmit={(val) => submitEntry(emergencyRelEntries, setEmergencyRelEntries, val)} />
+                onChange={updateForm} onSubmit={(val) => submitEntry(emergencyRelEntries, setEmergencyRelEntries, val, "emergency_rel")} />
             </div>
           </Section>
 
@@ -2911,142 +2148,57 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
   return (
     <div className="space-y-6">
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-      <PageHeader title="Residents" description="Manage barangay resident records, profiles, and demographics. Register new residents, update existing records, generate documents and IDs, and track population data across all puroks."
-        breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "Records" }, { label: "Residents" }]}
+      <PageHeader title={t.residents.pageTitle} description={t.residents.pageDescription}
+        breadcrumbs={[{ label: t.residents.breadcrumbs.dashboard, href: "/dashboard" }, { label: t.residents.breadcrumbs.records }, { label: t.residents.breadcrumbs.residents }]}
       />
 
-      {/* Population Overview */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 rounded-xl glass p-5">
-          {listTotal === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
-                <Users className="h-8 w-8 text-muted-foreground/40" />
-              </div>
-              <p className="text-lg font-semibold text-foreground mb-1">No residents registered yet</p>
-              <p className="text-sm text-muted-foreground max-w-sm">Register your first resident to see population demographics, gender distribution, and household statistics.</p>
-            </div>
-          ) : (
-            <>
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total Population</p>
-                  {statsLoading && !residentStats ? (
-                    <div className="h-9 w-24 rounded-lg bg-muted animate-pulse mt-1" />
-                  ) : (
-                    <p className="text-3xl font-bold text-foreground">{totalPopulation.toLocaleString()}</p>
-                  )}
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <div className="flex items-center gap-3 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/30 p-3.5">
-                  <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center shrink-0">
-                    <User className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-medium text-blue-600/70 dark:text-blue-400/70 uppercase tracking-wider">Male</p>
-                    {statsLoading && !residentStats ? <div className="h-7 w-12 rounded bg-blue-100 animate-pulse mt-0.5" /> : (
-                      <>
-                        <p className="text-xl font-bold text-blue-700 dark:text-blue-300">{maleCount.toLocaleString()}</p>
-                        <p className="text-[11px] text-blue-500/70 dark:text-blue-400/50">{totalPopulation > 0 ? Math.round((maleCount / totalPopulation) * 100) : 0}% of total</p>
-                      </>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 rounded-lg bg-pink-50 dark:bg-pink-950/20 border border-pink-100 dark:border-pink-900/30 p-3.5">
-                  <div className="w-10 h-10 rounded-lg bg-pink-100 dark:bg-pink-900/40 flex items-center justify-center shrink-0">
-                    <User className="h-5 w-5 text-pink-600 dark:text-pink-400" />
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-medium text-pink-600/70 dark:text-pink-400/70 uppercase tracking-wider">Female</p>
-                    {statsLoading && !residentStats ? <div className="h-7 w-12 rounded bg-pink-100 animate-pulse mt-0.5" /> : (
-                      <>
-                        <p className="text-xl font-bold text-pink-700 dark:text-pink-300">{femaleCount.toLocaleString()}</p>
-                        <p className="text-[11px] text-pink-500/70 dark:text-pink-400/50">{totalPopulation > 0 ? Math.round((femaleCount / totalPopulation) * 100) : 0}% of total</p>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <div className="flex justify-between text-[10px] font-medium text-muted-foreground">
-                  <span>Gender Distribution</span>
-                  <span>{maleCount}M / {femaleCount}F</span>
-                </div>
-                <div className="h-2.5 rounded-full bg-muted overflow-hidden flex">
-                  <div className="h-full bg-blue-500 dark:bg-blue-400 rounded-l-full transition-all" style={{ width: `${totalPopulation > 0 ? (maleCount / totalPopulation) * 100 : 50}%` }} />
-                  <div className="h-full bg-pink-500 dark:bg-pink-400 rounded-r-full flex-1" />
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-3">
-          <div className="flex-1 rounded-xl glass p-4 flex items-center gap-4">
-            <div className="w-11 h-11 rounded-xl bg-orange-100 dark:bg-orange-900/50 flex items-center justify-center shrink-0">
-              <Home className="h-5 w-5 text-orange-500 dark:text-orange-400" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Households</p>
-              {statsLoading && !residentStats ? <div className="h-7 w-16 rounded bg-muted animate-pulse mt-0.5" /> : (
-                <p className="text-xl font-bold text-foreground">{householdCount.toLocaleString()}</p>
-              )}
-            </div>
-          </div>
-          <div className="flex-1 rounded-xl glass p-4 flex items-center gap-4">
-            <div className="w-11 h-11 rounded-xl bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center shrink-0">
-              <Vote className="h-5 w-5 text-blue-500 dark:text-blue-400" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Registered Voters</p>
-              {statsLoading && !residentStats ? <div className="h-7 w-20 rounded bg-muted animate-pulse mt-0.5" /> : (
-                <div className="flex items-baseline gap-2">
-                  <p className="text-xl font-bold text-foreground">{voterCount.toLocaleString()}</p>
-                  <span className="text-[11px] text-muted-foreground font-medium">{totalPopulation > 0 ? Math.round((voterCount / totalPopulation) * 100) : 0}% of pop.</span>
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="flex-1 rounded-xl glass p-4 flex items-center gap-4">
-            <div className="w-11 h-11 rounded-xl bg-teal-100 dark:bg-teal-900/50 flex items-center justify-center shrink-0">
-              <CheckCircle className="h-5 w-5 text-teal-500 dark:text-teal-400" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Active Residents</p>
-              {statsLoading && !residentStats ? <div className="h-7 w-20 rounded bg-muted animate-pulse mt-0.5" /> : (
-                <div className="flex items-baseline gap-2">
-                  <p className="text-xl font-bold text-foreground">{activeCount.toLocaleString()}</p>
-                  <span className="text-[11px] text-muted-foreground font-medium">{nonActiveCount > 0 ? `${nonActiveCount} transferred/archived` : ""}{deceasedCount > 0 ? `${nonActiveCount > 0 ? ", " : ""}${deceasedCount} deceased` : ""}{nonActiveCount === 0 && deceasedCount === 0 ? "all active" : ""}</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+      <ResidentStatCards residentStats={residentStats} statsLoading={statsLoading} listTotal={listTotal} />
 
       <div className="space-y-3">
-        {/* Search + Actions row */}
+        {/* Search + Actions row — premium with focus glow, filter chip + match counter inside */}
         <div className="flex items-center gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-            <input type="text" value={search} onChange={(e) => handleSearchChange(e.target.value)}
-              placeholder="Search residents..."
-              className="w-full pl-9 pr-4 py-2.5 text-sm rounded-xl glass-input placeholder:text-muted-foreground/60 focus:outline-none transition-all duration-200" />
-          </div>
-          <div className="flex items-center gap-1.5">
-            <button onClick={() => setShowFilters(!showFilters)}
-              className={cn("relative inline-flex items-center justify-center h-10 w-10 rounded-xl border transition-all",
-                showFilters ? "border-accent-primary bg-accent-bg text-accent-text shadow-sm" : "border-border text-muted-foreground hover:text-foreground hover:bg-muted")}
-              title="Filters">
-              <Filter className="h-4 w-4" />
-              {(purokFilter !== "All Puroks" || statusFilter !== "All Status" || sexFilter !== "All" || voterFilter !== "all" || civilStatusFilter !== "All Civil Status" || residentTypeFilter !== "All Resident Types" || hohFilter !== "all" || citizenshipFilter !== "All Citizenship" || religionFilter !== "All Religion" || ethnicityFilter !== "All Ethnicity" || sectorFilter !== "All Sectors") && (
-                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-background" style={{ background: "var(--accent-primary)" }} />
+          <div className="relative flex-1 group">
+            {/* Focus glow ring — appears when input has focus-within */}
+            <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-accent-primary/0 via-accent-primary/[0.08] to-accent-primary/0 opacity-0 group-focus-within:opacity-100 transition-opacity pointer-events-none -m-px" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-accent-primary pointer-events-none transition-colors" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              placeholder={t.residents.search.placeholder}
+              className="relative w-full pl-10 pr-36 py-2.5 text-sm rounded-xl glass-input placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-accent-primary/30 transition-all duration-200"
+            />
+            {/* Right-side cluster: match count + Filters chip + Ctrl+K hint */}
+            <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+              {search && !listLoading && (
+                <span className="text-[10px] font-semibold tabular-nums text-muted-foreground px-1.5">
+                  {listTotal.toLocaleString()}
+                </span>
               )}
-            </button>
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-xs font-medium transition-colors",
+                  showFilters
+                    ? "bg-accent-primary text-white shadow-sm"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                )}
+                title={t.residents.search.filtersTitle}
+              >
+                <Filter className="h-3 w-3" />
+                <span>{t.residents.search.filtersTitle}</span>
+                {(purokFilter !== "All Puroks" || statusFilter !== "All Status" || sexFilter !== "All" || voterFilter !== "all" || civilStatusFilter !== "All Civil Status" || residentTypeFilter !== "All Resident Types" || hohFilter !== "all" || citizenshipFilter !== "All Citizenship" || religionFilter !== "All Religion" || ethnicityFilter !== "All Ethnicity" || sectorFilter !== "All Sectors") && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                )}
+              </button>
+              {/* Ctrl+K hint — keyboard shortcut indicator (hides on focus) */}
+              <kbd className="hidden sm:inline-flex items-center gap-0.5 h-6 px-1.5 rounded-md text-[10px] font-medium border border-border bg-muted/40 text-muted-foreground group-focus-within:opacity-0 transition-opacity">
+                <span className="text-[9px]">⌘</span>K
+              </kbd>
+            </div>
           </div>
-          <button onClick={openCreate} className="inline-flex items-center gap-2 h-10 px-5 text-sm font-semibold rounded-xl text-white shadow-sm transition-all hover:opacity-90 hover:shadow-md active:scale-[0.98]" style={{ background: "var(--accent-primary)" }}>
-            <Plus className="h-4 w-4" /> New Resident
+          <button onClick={openCreate} className="inline-flex items-center gap-2 h-10 px-5 text-sm font-semibold rounded-xl text-white shadow-sm transition-all hover:opacity-90 hover:shadow-lg active:scale-[0.98] hover:-translate-y-0.5 duration-200" style={{ background: "var(--accent-primary)" }}>
+            <Plus className="h-4 w-4" /> {t.residents.search.newResident}
           </button>
         </div>
         {/* Filter chips row */}
@@ -3054,62 +2206,62 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
           <div className="flex flex-wrap items-center gap-2 px-1">
             <span className="inline-flex items-center h-8 px-3 text-xs font-semibold rounded-full bg-muted text-foreground tabular-nums">
               {(purokFilter !== "All Puroks" || statusFilter !== "All Status" || sexFilter !== "All" || voterFilter !== "all" || civilStatusFilter !== "All Civil Status" || residentTypeFilter !== "All Resident Types" || hohFilter !== "all" || citizenshipFilter !== "All Citizenship" || religionFilter !== "All Religion" || ethnicityFilter !== "All Ethnicity" || sectorFilter !== "All Sectors" || search)
-                ? <>{listTotal.toLocaleString()} found <span className="text-muted-foreground font-normal ml-1">of {(residentStats?.total_residents ?? listTotal).toLocaleString()} total</span></>
-                : <>{(residentStats?.total_residents ?? listTotal).toLocaleString()} residents</>
+                ? <>{listTotal.toLocaleString()} {t.residents.search.foundOf} <span className="text-muted-foreground font-normal ml-1">{(residentStats?.total_residents ?? listTotal).toLocaleString()} {t.residents.search.total}</span></>
+                : <>{(residentStats?.total_residents ?? listTotal).toLocaleString()} {t.residents.search.residentsCount}</>
               }
             </span>
             <select value={purokFilter} onChange={(e) => { setPurokFilter(e.target.value); setPage(1); }}
               className="h-8 px-3 text-xs font-medium rounded-full border border-border bg-background hover:bg-muted focus:outline-none focus:ring-2 focus:ring-accent-ring cursor-pointer transition-colors">
-              {puroks.map((p) => <option key={p}>{p}</option>)}
+              {puroks.map((p) => <option key={p} value={p}>{filterLabel(p)}</option>)}
             </select>
             <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
               className="h-8 px-3 text-xs font-medium rounded-full border border-border bg-background hover:bg-muted focus:outline-none focus:ring-2 focus:ring-accent-ring cursor-pointer transition-colors">
-              {statuses.map((s) => <option key={s}>{s}</option>)}
+              {statuses.map((s) => <option key={s} value={s}>{filterLabel(s)}</option>)}
             </select>
             <select value={sexFilter} onChange={(e) => { setSexFilter(e.target.value); setPage(1); }}
               className="h-8 px-3 text-xs font-medium rounded-full border border-border bg-background hover:bg-muted focus:outline-none focus:ring-2 focus:ring-accent-ring cursor-pointer transition-colors">
-              {sexOptions.map((s) => <option key={s}>{s}</option>)}
+              {sexOptions.map((s) => <option key={s} value={s}>{filterLabel(s)}</option>)}
             </select>
             <select value={civilStatusFilter} onChange={(e) => { setCivilStatusFilter(e.target.value); setPage(1); }}
               className="h-8 px-3 text-xs font-medium rounded-full border border-border bg-background hover:bg-muted focus:outline-none focus:ring-2 focus:ring-accent-ring cursor-pointer transition-colors">
-              {["All Civil Status", ...civilStatuses].map((s) => <option key={s}>{s}</option>)}
+              {["All Civil Status", ...civilStatuses].map((s) => <option key={s} value={s}>{filterLabel(s)}</option>)}
             </select>
             <select value={residentTypeFilter} onChange={(e) => { setResidentTypeFilter(e.target.value); setPage(1); }}
               className="h-8 px-3 text-xs font-medium rounded-full border border-border bg-background hover:bg-muted focus:outline-none focus:ring-2 focus:ring-accent-ring cursor-pointer transition-colors">
-              {["All Resident Types", "Permanent", "Transient", "Transferee"].map((s) => <option key={s}>{s}</option>)}
+              {["All Resident Types", "Permanent", "Transient", "Transferee"].map((s) => <option key={s} value={s}>{filterLabel(s)}</option>)}
             </select>
             <select value={voterFilter} onChange={(e) => { setVoterFilter(e.target.value); setPage(1); }}
               className="h-8 px-3 text-xs font-medium rounded-full border border-border bg-background hover:bg-muted focus:outline-none focus:ring-2 focus:ring-accent-ring cursor-pointer transition-colors">
-              <option value="all">All Voters</option>
-              <option value="voter">Registered Voter</option>
-              <option value="non-voter">Non-Voter</option>
+              <option value="all">{t.residents.filters.allVoters}</option>
+              <option value="voter">{t.residents.filters.registeredVoter}</option>
+              <option value="non-voter">{t.residents.filters.nonVoter}</option>
             </select>
             <select value={hohFilter} onChange={(e) => { setHohFilter(e.target.value); setPage(1); }}
               className="h-8 px-3 text-xs font-medium rounded-full border border-border bg-background hover:bg-muted focus:outline-none focus:ring-2 focus:ring-accent-ring cursor-pointer transition-colors">
-              <option value="all">All Households</option>
-              <option value="hoh">Head of Household</option>
-              <option value="non-hoh">Not Head</option>
+              <option value="all">{t.residents.filters.allHouseholds}</option>
+              <option value="hoh">{t.residents.filters.headOfHousehold}</option>
+              <option value="non-hoh">{t.residents.filters.notHead}</option>
             </select>
             <select value={citizenshipFilter} onChange={(e) => { setCitizenshipFilter(e.target.value); setPage(1); }}
               className="h-8 px-3 text-xs font-medium rounded-full border border-border bg-background hover:bg-muted focus:outline-none focus:ring-2 focus:ring-accent-ring cursor-pointer transition-colors">
-              {["All Citizenship", "Filipino", "American", "Chinese", "Japanese", "Korean", "Other"].map((s) => <option key={s}>{s}</option>)}
+              {["All Citizenship", "Filipino", "American", "Chinese", "Japanese", "Korean", "Other"].map((s) => <option key={s} value={s}>{filterLabel(s)}</option>)}
             </select>
             <select value={religionFilter} onChange={(e) => { setReligionFilter(e.target.value); setPage(1); }}
               className="h-8 px-3 text-xs font-medium rounded-full border border-border bg-background hover:bg-muted focus:outline-none focus:ring-2 focus:ring-accent-ring cursor-pointer transition-colors">
-              {["All Religion", "Catholic", "INC (Iglesia ni Cristo)", "Born Again", "Muslim", "Protestant", "Seventh Day Adventist", "Baptist", "Methodist", "Jehovah's Witness", "Mormon", "Aglipayan", "Buddhist", "Other"].map((s) => <option key={s}>{s}</option>)}
+              {["All Religion", "Catholic", "INC (Iglesia ni Cristo)", "Born Again", "Muslim", "Protestant", "Seventh Day Adventist", "Baptist", "Methodist", "Jehovah's Witness", "Mormon", "Aglipayan", "Buddhist", "Other"].map((s) => <option key={s} value={s}>{filterLabel(s)}</option>)}
             </select>
             <select value={ethnicityFilter} onChange={(e) => { setEthnicityFilter(e.target.value); setPage(1); }}
               className="h-8 px-3 text-xs font-medium rounded-full border border-border bg-background hover:bg-muted focus:outline-none focus:ring-2 focus:ring-accent-ring cursor-pointer transition-colors">
-              {["All Ethnicity", "Tagalog", "Ilocano", "Pangasinan", "Pampanga", "Bicolano", "Visayan", "Zamboangueño", "Tausug", "Maranao", "Other"].map((s) => <option key={s}>{s}</option>)}
+              {["All Ethnicity", "Tagalog", "Ilocano", "Pangasinan", "Pampanga", "Bicolano", "Visayan", "Zamboangueño", "Tausug", "Maranao", "Other"].map((s) => <option key={s} value={s}>{filterLabel(s)}</option>)}
             </select>
             <select value={sectorFilter} onChange={(e) => { setSectorFilter(e.target.value); setPage(1); }}
               className="h-8 px-3 text-xs font-medium rounded-full border border-border bg-background hover:bg-muted focus:outline-none focus:ring-2 focus:ring-accent-ring cursor-pointer transition-colors">
-              {["All Sectors", ...sectorOptions].map((s) => <option key={s}>{s}</option>)}
+              {["All Sectors", ...sectorOptions].map((s) => <option key={s} value={s}>{filterLabel(s)}</option>)}
             </select>
             {(purokFilter !== "All Puroks" || statusFilter !== "All Status" || sexFilter !== "All" || voterFilter !== "all" || civilStatusFilter !== "All Civil Status" || residentTypeFilter !== "All Resident Types" || hohFilter !== "all" || citizenshipFilter !== "All Citizenship" || religionFilter !== "All Religion" || ethnicityFilter !== "All Ethnicity" || sectorFilter !== "All Sectors") && (
               <button onClick={() => { setPurokFilter("All Puroks"); setStatusFilter("All Status"); setSexFilter("All"); setVoterFilter("all"); setCivilStatusFilter("All Civil Status"); setResidentTypeFilter("All Resident Types"); setHohFilter("all"); setCitizenshipFilter("All Citizenship"); setReligionFilter("All Religion"); setEthnicityFilter("All Ethnicity"); setSectorFilter("All Sectors"); }}
                 className="inline-flex items-center gap-1 h-8 px-3 text-xs font-medium rounded-full text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/50 transition-colors">
-                <X className="h-4 w-4" /> Clear all
+                <X className="h-4 w-4" /> {t.residents.search.clearAll}
               </button>
             )}
           </div>
@@ -3122,40 +2274,39 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-muted/50 border-b border-border">
-                <SortableHeader sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} label="Barangay ID" field="resident_number" className="whitespace-nowrap" />
-                <SortableHeader sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} label="Full Name" field="last_name" />
-                <SortableHeader sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} label="Age" field="age" className="text-center" />
-                <th className="px-4 py-3 text-center font-medium text-muted-foreground">Gender</th>
-                <th className="px-4 py-3 text-center font-medium text-muted-foreground whitespace-nowrap">Civil Status</th>
-                <th className="px-4 py-3 text-center font-medium text-muted-foreground">Voter</th>
-                <SortableHeader sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} label="Created At" field="created_at" className="whitespace-nowrap text-center" />
-                <th className="px-4 py-3 text-center font-medium text-muted-foreground">Actions</th>
+                <SortableHeader sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} label={t.residents.table.barangayId} field="resident_number" className="whitespace-nowrap" />
+                <SortableHeader sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} label={t.residents.table.fullName} field="last_name" />
+                <SortableHeader sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} label={t.residents.table.age} field="age" className="text-center" />
+                <th className="px-4 py-3 text-center font-medium text-muted-foreground">{t.residents.table.gender}</th>
+                <th className="px-4 py-3 text-center font-medium text-muted-foreground whitespace-nowrap">{t.residents.table.civilStatus}</th>
+                <th className="px-4 py-3 text-center font-medium text-muted-foreground">{t.residents.table.voter}</th>
+                <th className="px-4 py-3 text-center font-medium text-muted-foreground">{t.residents.table.actions}</th>
               </tr>
             </thead>
             <tbody>
               {listLoading ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-16 text-center">
+                  <td colSpan={7} className="px-4 py-16 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
-                      <p className="text-sm text-muted-foreground">Loading residents...</p>
+                      <p className="text-sm text-muted-foreground">{t.residents.table.loading}</p>
                     </div>
                   </td>
                 </tr>
               ) : paged.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-16 text-center">
+                  <td colSpan={7} className="px-4 py-16 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
                         <Users className="w-6 h-6 text-muted-foreground" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-foreground">No residents found</p>
-                        <p className="text-xs text-muted-foreground mt-1">{search || purokFilter !== "All Puroks" || statusFilter !== "All Status" ? "Try adjusting your search or filters." : "Register your first resident or import records from BIMS to get started."}</p>
+                        <p className="text-sm font-medium text-foreground">{t.residents.table.noResidentsFound}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{search || purokFilter !== "All Puroks" || statusFilter !== "All Status" ? t.residents.table.adjustSearchOrFilters : t.residents.table.registerOrImport}</p>
                       </div>
                       {!search && purokFilter === "All Puroks" && statusFilter === "All Status" && (
                         <button onClick={openCreate} className="mt-1 px-4 py-2 text-xs font-semibold rounded-lg text-white transition-all hover:opacity-90" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>
-                          + New Resident
+                          + {t.residents.search.newResident}
                         </button>
                       )}
                     </div>
@@ -3168,7 +2319,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                   const address = [r.house_block_lot, r.street, r.purok ? `Purok ${r.purok}` : ""].filter(Boolean).join(", ").toUpperCase() || "—";
                   const age = r.date_of_birth ? Math.floor((Date.now() - new Date(r.date_of_birth).getTime()) / 31557600000) : null;
                   const daysAgo = Math.floor((Date.now() - new Date(r.created_at).getTime()) / 86400000);
-                  const createdLabel = daysAgo === 0 ? "Today" : daysAgo === 1 ? "Yesterday" : daysAgo < 7 ? `${daysAgo} days ago` : daysAgo < 30 ? `${Math.floor(daysAgo / 7)} weeks ago` : daysAgo < 365 ? `${Math.floor(daysAgo / 30)} months ago` : `${Math.floor(daysAgo / 365)} years ago`;
+                  const createdLabel = formatTimeSince(daysAgo);
                   const greyFlags = r.cross_barangay_flags || [];
                   const hasGreyFlag = greyFlags.length > 0;
                   const hasRedFlag = Array.isArray(r.case_records) && r.case_records.length > 0;
@@ -3184,10 +2335,10 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                           {/* Avatar + flag badges — tooltip anchored to this container, NOT inside the badge span */}
                           <div className="relative shrink-0">
                             {r.photo_url ? (
-                              <img src={resolvePhotoUrl(r.photo_url)!} alt={initials} className="w-11 h-11 rounded-xl object-cover" />
+                              <img src={resolvePhotoUrl(r.photo_url)!} alt={initials} className="w-12 h-12 rounded-xl object-cover ring-1 ring-border/60 shadow-sm" />
                             ) : (
                               <div className={cn(
-                                "w-11 h-11 rounded-xl flex items-center justify-center text-xs font-bold text-white",
+                                "w-12 h-12 rounded-xl flex items-center justify-center text-xs font-bold text-white ring-1 ring-white/20 shadow-sm",
                                 r.sex === "female" ? "bg-gradient-to-br from-pink-400 to-pink-500" : "bg-gradient-to-br from-blue-400 to-blue-500"
                               )}>{initials}</div>
                             )}
@@ -3220,7 +2371,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                                         {r.case_records.slice(0, 3).map((c, i) => (
                                           <div key={i} className={i > 0 ? "border-t border-red-800/50 pt-2" : ""}>
                                             <div className="flex items-center gap-1.5 mb-0.5">
-                                              <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${c.source === "kp_case" ? "bg-red-800 text-red-200" : "bg-orange-900 text-orange-300"}`}>
+                                              <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-md ${c.source === "kp_case" ? "bg-red-800 text-red-200" : "bg-orange-900 text-orange-300"}`}>
                                                 {c.source === "kp_case" ? "KP Case" : "Blotter"}
                                               </span>
                                               <span className="text-xs text-white font-semibold">{c.case_number}</span>
@@ -3297,7 +2448,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                                 {hoveredTooltip === "hoh-" + r.id && (
                                   <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-[60] pointer-events-none whitespace-nowrap">
                                     <div className="bg-amber-900 text-amber-100 text-xs font-semibold rounded-lg px-3 py-1.5 shadow-2xl">
-                                      Head of Household
+                                      {t.residents.tooltips.headOfHousehold}
                                     </div>
                                     <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-amber-900"></div>
                                   </div>
@@ -3335,7 +2486,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                               onMouseEnter={(e) => { e.stopPropagation(); setHoveredTooltip("lt-" + r.id); }}
                               onMouseLeave={() => setHoveredTooltip(null)}
                             >
-                              Last Transaction: {createdLabel}
+                              {t.residents.table.lastTransaction}: {createdLabel}
                               {hoveredTooltip === "lt-" + r.id && (
                                 <span className="absolute left-0 bottom-full mb-2 z-[60] pointer-events-none" style={{width: "250px"}}>
                                   <span className="block bg-slate-900 border border-slate-700 text-white rounded-xl shadow-2xl overflow-hidden">
@@ -3371,13 +2522,30 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                       <td className="px-4 py-3.5 text-center">
                         <span className="text-sm text-foreground">{age ?? "—"}</span>
                       </td>
-                      {/* Gender */}
+                      {/* Gender — subtle pill (premium) */}
                       <td className="px-4 py-3.5 text-center">
-                        <span className="text-sm text-foreground uppercase">{r.sex === "male" ? "MALE" : "FEMALE"}</span>
+                        {r.sex ? (
+                          <span className={cn(
+                            "inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium",
+                            r.sex === "male"
+                              ? "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"
+                              : "bg-pink-50 text-pink-700 dark:bg-pink-950/40 dark:text-pink-300"
+                          )}>
+                            {r.sex === "male" ? t.residents.sex.male : t.residents.sex.female}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">—</span>
+                        )}
                       </td>
-                      {/* Civil Status */}
+                      {/* Civil Status — Title Case in subtle slate pill (premium) */}
                       <td className="px-4 py-3.5 text-center">
-                        <span className="text-sm text-foreground uppercase">{(r.civil_status || "—").toUpperCase()}</span>
+                        {r.civil_status ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 capitalize">
+                            {r.civil_status.toLowerCase()}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">—</span>
+                        )}
                       </td>
                       {/* Voter */}
                       <td className="px-4 py-3.5 text-center">
@@ -3387,7 +2555,9 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                             onMouseEnter={(e) => { e.stopPropagation(); setHoveredTooltip("voter-" + r.id); }}
                             onMouseLeave={() => setHoveredTooltip(null)}
                           >
-                            <Vote className="h-4 w-4 text-emerald-500" />
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                              {t.residents.table.voterYes}
+                            </span>
                             {hoveredTooltip === "voter-" + r.id && (
                               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-[60] pointer-events-none" style={{width: "220px"}}>
                                 <div className="bg-emerald-950 border border-emerald-800 text-white rounded-xl shadow-2xl overflow-hidden">
@@ -3412,39 +2582,37 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                             )}
                           </span>
                         ) : (
-                          <span className="text-sm text-muted-foreground">—</span>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                            {t.residents.table.voterNo}
+                          </span>
                         )}
                       </td>
-                      {/* Created At */}
-                      <td className="px-4 py-3.5 text-center">
-                        <span className="text-sm text-muted-foreground whitespace-nowrap">{createdLabel}</span>
-                      </td>
-                      {/* Actions */}
+                      {/* Actions — unified neutral hover, colored-icon-on-hover (premium look) */}
                       <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-center gap-1">
+                        <div className="flex items-center justify-center gap-0.5 rounded-xl border border-border/40 bg-muted/20 px-1 py-0.5">
                           {/* View */}
                           <button
                             onClick={() => router.push(`/dashboard/residents/${r.id}`)}
-                            className="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/60 transition-colors"
-                            title="View Profile"
+                            className="group p-1.5 rounded-lg hover:bg-blue-500/10 transition-colors"
+                            title={t.residents.actions.viewProfile}
                           >
-                            <Eye className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                            <Eye className="h-3.5 w-3.5 text-muted-foreground group-hover:text-blue-500 transition-colors" />
                           </button>
                           {/* Generate Document */}
                           <button
                             onClick={() => { setDocWizardResidentId(r.id); setDocWizardCategory(null); setShowDocWizard(true); }}
-                            className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 transition-colors"
-                            title="Generate Document"
+                            className="group p-1.5 rounded-lg hover:bg-emerald-500/10 transition-colors"
+                            title={t.residents.actions.generateDocument}
                           >
-                            <ScrollText className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                            <ScrollText className="h-3.5 w-3.5 text-muted-foreground group-hover:text-emerald-500 transition-colors" />
                           </button>
                           {/* Generate ID Card */}
                           <button
                             onClick={() => { setIdModalResidentId(r.id); setShowIdModal(true); }}
-                            className="p-1.5 rounded-lg bg-violet-50 hover:bg-violet-100 dark:bg-violet-950/40 dark:hover:bg-violet-900/60 transition-colors"
-                            title="Generate ID Card"
+                            className="group p-1.5 rounded-lg hover:bg-violet-500/10 transition-colors"
+                            title={t.residents.actions.generateIdCard}
                           >
-                            <IdCard className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
+                            <IdCard className="h-3.5 w-3.5 text-muted-foreground group-hover:text-violet-500 transition-colors" />
                           </button>
                           {/* SMS */}
                           <button
@@ -3457,23 +2625,23 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                               setShowSmsModal(true);
                             }}
                             disabled={!r.mobile_number}
-                            className="p-1.5 rounded-lg bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/40 dark:hover:bg-orange-900/60 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                            title={r.mobile_number ? "Send SMS to " + r.mobile_number : "No mobile number registered"}
+                            className="group p-1.5 rounded-lg hover:bg-orange-500/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                            title={r.mobile_number ? `${t.residents.actions.sendSmsTo} ${r.mobile_number}` : t.residents.actions.noMobileNumber}
                           >
-                            <MessageSquare className="h-3.5 w-3.5 text-orange-600 dark:text-orange-400" />
+                            <MessageSquare className="h-3.5 w-3.5 text-muted-foreground group-hover:text-orange-500 transition-colors group-disabled:group-hover:text-muted-foreground" />
                           </button>
                           {/* More */}
                           <div className="relative">
                             <button
                               onClick={() => setActionMenu(actionMenu === r.id ? null : r.id)}
-                              className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors"
-                              title="More actions"
+                              className="group p-1.5 rounded-lg hover:bg-muted transition-colors"
+                              title={t.residents.actions.moreActions}
                             >
-                              <MoreHorizontal className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
+                              <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
                             </button>
                             {actionMenu === r.id && (
                               <div className="absolute right-0 top-8 z-50 w-44 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-xl shadow-lg py-1.5">
-                                <button onClick={async () => { setActionMenu(null); try { const detail = await api.residents.get(r.id); openEdit(detail); } catch { addToast({ type: "error", title: "Failed to load resident" }); } }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-800 dark:text-gray-100 text-left transition-colors"><Edit className="h-4 w-4 text-gray-500 dark:text-gray-400" /> Edit Profile</button>
+                                <button onClick={async () => { setActionMenu(null); try { const detail = await api.residents.get(r.id); openEdit(detail); } catch { addToast({ type: "error", title: t.residents.actions.failedToLoad }); } }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-800 dark:text-gray-100 text-left transition-colors"><Edit className="h-4 w-4 text-gray-500 dark:text-gray-400" /> {t.residents.actions.editProfile}</button>
                                 <button
                                   onClick={() => { setActionMenu(null); handlePrint(r.id); }}
                                   disabled={printingId === r.id}
@@ -3481,10 +2649,10 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                                   {printingId === r.id
                                     ? <Loader2 className="h-4 w-4 text-gray-500 dark:text-gray-400 animate-spin" />
                                     : <Printer className="h-4 w-4 text-gray-500 dark:text-gray-400" />}
-                                  {printingId === r.id ? "Generating PDF..." : "Print Record"}
+                                  {printingId === r.id ? t.residents.actions.generatingPdf : t.residents.actions.printRecord}
                                 </button>
                                 <div className="border-t border-gray-200 dark:border-slate-600 my-1" />
-                                <button onClick={() => { setActionMenu(null); setArchiveTarget({ id: r.id, first_name: r.first_name, last_name: r.last_name, sex: r.sex, resident_number: r.resident_number }); setArchiveModal(true); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-amber-50 dark:hover:bg-amber-950/20 text-left text-amber-600 dark:text-amber-400 transition-colors"><Archive className="h-4 w-4" /> Archive Record</button>
+                                <button onClick={() => { setActionMenu(null); setArchiveTarget({ id: r.id, first_name: r.first_name, last_name: r.last_name, sex: r.sex, resident_number: r.resident_number }); setArchiveModal(true); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-amber-50 dark:hover:bg-amber-950/20 text-left text-amber-600 dark:text-amber-400 transition-colors"><Archive className="h-4 w-4" /> {t.residents.actions.archiveRecord}</button>
                               </div>
                             )}
                           </div>
@@ -3499,13 +2667,13 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
         </div>
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-border">
-            <p className="text-sm text-muted-foreground">Showing {((safePage - 1) * pageSize) + 1}--{Math.min(safePage * pageSize, listTotal)} of {listTotal} residents</p>
+            <p className="text-sm text-muted-foreground">{t.residents.pagination.showing} {((safePage - 1) * pageSize) + 1}--{Math.min(safePage * pageSize, listTotal)} {t.residents.pagination.of} {listTotal} {t.residents.pagination.residentsLower}</p>
             <div className="flex items-center gap-1">
-              <button onClick={() => setPage(1)} disabled={safePage <= 1} className="p-1.5 rounded hover:bg-muted disabled:opacity-30"><ChevronsLeft className="h-4 w-4" /></button>
-              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage <= 1} className="p-1.5 rounded hover:bg-muted disabled:opacity-30"><ChevronLeft className="h-4 w-4" /></button>
+              <button onClick={() => setPage(1)} disabled={safePage <= 1} className="p-1.5 rounded-md hover:bg-muted disabled:opacity-30"><ChevronsLeft className="h-4 w-4" /></button>
+              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage <= 1} className="p-1.5 rounded-md hover:bg-muted disabled:opacity-30"><ChevronLeft className="h-4 w-4" /></button>
               <span className="px-3 py-1 text-sm font-medium">{safePage} / {totalPages}</span>
-              <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={safePage >= totalPages} className="p-1.5 rounded hover:bg-muted disabled:opacity-30"><ChevronRight className="h-4 w-4" /></button>
-              <button onClick={() => setPage(totalPages)} disabled={safePage >= totalPages} className="p-1.5 rounded hover:bg-muted disabled:opacity-30"><ChevronsRight className="h-4 w-4" /></button>
+              <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={safePage >= totalPages} className="p-1.5 rounded-md hover:bg-muted disabled:opacity-30"><ChevronRight className="h-4 w-4" /></button>
+              <button onClick={() => setPage(totalPages)} disabled={safePage >= totalPages} className="p-1.5 rounded-md hover:bg-muted disabled:opacity-30"><ChevronsRight className="h-4 w-4" /></button>
             </div>
           </div>
         )}
@@ -3519,13 +2687,13 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
               onClick={() => setViewResident(null)}
               className="flex-1 py-2.5 rounded-xl text-sm font-medium border border-border bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
             >
-              Close
+              {t.residents.quickView.close}
             </button>
             <button
               onClick={() => { if (viewResident) { setViewResident(null); router.push(`/dashboard/residents/${viewResident.id}`); } }}
               className="flex-[2] flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold bg-accent-primary hover:bg-accent-hover text-white transition-all shadow-sm"
             >
-              <Eye className="h-4 w-4" /> View Full Profile
+              <Eye className="h-4 w-4" /> {t.residents.quickView.viewFullProfile}
             </button>
           </div>
         }>
@@ -3535,7 +2703,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
             {(viewResident.cross_barangay_flags?.length ?? 0) > 0 && (
               <div className="mb-4 flex items-start gap-2.5 p-3 rounded-xl text-sm bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
                 <Flag className="h-4 w-4 shrink-0 mt-0.5" />
-                <span>Cross-barangay record detected. Verify before issuing documents.</span>
+                <span>{t.residents.quickView.crossBarangayAlert}</span>
               </div>
             )}
 
@@ -3560,14 +2728,14 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                 <p className="text-xs text-muted-foreground mt-0.5 font-mono">{viewResident.resident_number}</p>
                 <div className="flex items-center gap-2 mt-2 flex-wrap">
                   <StatusBadge status={viewResident.status} />
-                  {viewResident.is_voter && <Badge variant="success" dot>Registered Voter</Badge>}
-                  {viewResident.is_head_of_household && <Badge variant="warning" dot>Head of Household</Badge>}
+                  {viewResident.is_voter && <Badge variant="success" dot>{t.residents.quickView.registeredVoter}</Badge>}
+                  {viewResident.is_head_of_household && <Badge variant="warning" dot>{t.residents.quickView.headOfHousehold}</Badge>}
                 </div>
               </div>
 
               {/* Profile completion */}
               <div className="shrink-0 text-right">
-                <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">Profile</div>
+                <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">{t.residents.quickView.profile}</div>
                 <div className="text-2xl font-bold leading-none" style={{ color: viewResident.profile_completion_pct >= 80 ? "#22c55e" : viewResident.profile_completion_pct >= 50 ? "#f59e0b" : "#ef4444" }}>
                   {viewResident.profile_completion_pct}%
                 </div>
@@ -3581,11 +2749,11 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
             <div className="grid grid-cols-2 gap-3">
               {/* Personal */}
               <div className="p-3.5 rounded-xl bg-muted/40 dark:bg-slate-800/40 space-y-2.5">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Personal</p>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{t.residents.quickView.personal}</p>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <span className="text-[11px] text-muted-foreground w-14 shrink-0">Born</span>
+                    <span className="text-[11px] text-muted-foreground w-14 shrink-0">{t.residents.quickView.born}</span>
                     <span className="text-sm font-medium text-foreground truncate">
                       {viewResident.date_of_birth
                         ? (() => { const d = new Date(viewResident.date_of_birth.includes("T") ? viewResident.date_of_birth : viewResident.date_of_birth + "T00:00:00"); return `${d.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })} · ${Math.floor((Date.now() - d.getTime()) / 31557600000)} yrs`; })()
@@ -3594,17 +2762,17 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                   </div>
                   <div className="flex items-center gap-2">
                     <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <span className="text-[11px] text-muted-foreground w-14 shrink-0">Sex</span>
+                    <span className="text-[11px] text-muted-foreground w-14 shrink-0">{t.residents.quickView.sex}</span>
                     <span className="text-sm font-medium text-foreground">{viewResident.sex || "—"}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Heart className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <span className="text-[11px] text-muted-foreground w-14 shrink-0">Civil</span>
+                    <span className="text-[11px] text-muted-foreground w-14 shrink-0">{t.residents.quickView.civil}</span>
                     <span className="text-sm font-medium text-foreground capitalize">{viewResident.civil_status || "—"}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="h-3.5 w-3.5 shrink-0" />
-                    <span className="text-[11px] text-muted-foreground w-14 shrink-0">Blood</span>
+                    <span className="text-[11px] text-muted-foreground w-14 shrink-0">{t.residents.quickView.blood}</span>
                     <span className="text-sm font-medium text-foreground">{viewResident.blood_type || "—"}</span>
                   </div>
                   <div className="flex items-center gap-2">

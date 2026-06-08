@@ -2,15 +2,24 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
-  Save, Upload, Phone, Mail, Clock, Building2, Shield, Bell, FileText,
-  AlertTriangle, X, Globe, CheckCircle, Loader2, Image as ImageIcon, Banknote,
+  Upload, Phone, Mail, Clock, Building2, Shield, Bell, FileText,
+  AlertTriangle, X, Globe, Loader2, Image as ImageIcon, Banknote,
   MessageSquare, HardDrive, Users, Database, CreditCard,
+  ShieldAlert, Heart, Scale, BookOpen, Plus, Trash2,
+  Crown, Smartphone, Siren, MapPin, Facebook, Twitter, Instagram, Youtube,
+  Calendar, Info,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
-import { cn } from "@/lib/utils";
+import { cn, resolvePhotoUrl } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
-import type { BarangaySettings, BarangayUsage, ApiError } from "@/lib/types";
+import { useLanguage } from "@/contexts/language-context";
+import { OfficialsTab } from "@/components/settings/OfficialsTab";
+import { SettingsSaveBar } from "@/components/settings/SettingsSaveBar";
+import { CertificateTypesList } from "@/components/settings/CertificateTypesList";
+import { DocumentLivePreview } from "@/components/settings/DocumentLivePreview";
+import { StructureCardHeader } from "@/components/settings/StructureCardHeader";
+import type { BarangaySettings, BarangayOfficial, BarangayUsage, ApiError } from "@/lib/types";
 
 // ── Reusable Components ──
 
@@ -25,6 +34,8 @@ function SettingsInput({ label, value, onChange, placeholder, icon: Icon, disabl
       <div className="relative">
         {Icon && <Icon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />}
         <input id={id} type={type} value={value} onChange={(e) => onChange(type === "number" ? e.target.value : e.target.value.toUpperCase())} placeholder={placeholder} disabled={disabled}
+          autoComplete="off"
+          data-form-type="other"
           className={cn("w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 transition-colors uppercase",
             error ? "border-red-500 focus:ring-red-500/30" : "border-border",
             Icon && "pl-9", disabled && "opacity-50 cursor-not-allowed")}
@@ -70,76 +81,290 @@ function SettingsToggle({ label, description, checked, onChange }: {
   );
 }
 
-/** Compress image client-side if over maxSizeKB. Returns original if SVG or already small. */
-async function compressImage(file: File, maxSizeKB = 500, maxDim = 1024): Promise<File> {
-  if (file.type === "image/svg+xml" || file.size <= maxSizeKB * 1024) return file;
-  return new Promise((resolve) => {
+/** Tanga-Proof logo normalization: auto-trim solid borders, center-square crop, resize to 512×512 PNG.
+ *  Handles white-margin scans, off-center photos, oversized files. SVG passes through (vector). */
+type NormalizeResult = {
+  file: File;
+  dataUrl: string;
+  originalDimensions: { w: number; h: number };
+  processedDimensions: { w: number; h: number };
+  warnings: string[];
+};
+
+async function normalizeLogoImage(file: File, outputSize = 512): Promise<NormalizeResult> {
+  // Only PNG and JPEG are accepted (SVG + WebP rejected for security/consistency)
+  if (file.type !== "image/png" && file.type !== "image/jpeg") {
+    throw new Error("Only PNG and JPG files are accepted.");
+  }
+  return new Promise((resolve, reject) => {
     const img = new window.Image();
     img.onload = () => {
-      let { width, height } = img;
-      if (width > maxDim || height > maxDim) {
-        const ratio = Math.min(maxDim / width, maxDim / height);
-        width = Math.round(width * ratio);
-        height = Math.round(height * ratio);
+      const origW = img.width;
+      const origH = img.height;
+      const work = document.createElement("canvas");
+      work.width = origW;
+      work.height = origH;
+      const ctx = work.getContext("2d");
+      if (!ctx) { reject(new Error("Canvas unsupported")); return; }
+      ctx.drawImage(img, 0, 0);
+      const data = ctx.getImageData(0, 0, origW, origH).data;
+
+      // Sample 4 corners to detect background
+      const cornerIdx = [0, (origW - 1) * 4, (origH - 1) * origW * 4, ((origH - 1) * origW + origW - 1) * 4];
+      const corners = cornerIdx.map(i => ({ r: data[i], g: data[i+1], b: data[i+2], a: data[i+3] }));
+      const isTransparent = corners.every(c => c.a < 50);
+      const bgR = Math.round(corners.reduce((s, c) => s + c.r, 0) / 4);
+      const bgG = Math.round(corners.reduce((s, c) => s + c.g, 0) / 4);
+      const bgB = Math.round(corners.reduce((s, c) => s + c.b, 0) / 4);
+      const TOL = 30;
+      const isBg = (idx: number): boolean => {
+        if (isTransparent) return data[idx + 3] < 50;
+        return Math.abs(data[idx] - bgR) <= TOL && Math.abs(data[idx+1] - bgG) <= TOL && Math.abs(data[idx+2] - bgB) <= TOL;
+      };
+
+      // Walk in from each edge until we hit a non-bg pixel
+      let top = 0, bottom = origH - 1, left = 0, right = origW - 1;
+      topLoop: for (; top < origH; top++) {
+        for (let x = 0; x < origW; x++) if (!isBg((top * origW + x) * 4)) break topLoop;
       }
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d")!;
-      // White background for JPEG (handles transparency)
-      if (file.type === "image/jpeg") {
-        ctx.fillStyle = "#FFFFFF";
-        ctx.fillRect(0, 0, width, height);
+      bottomLoop: for (; bottom > top; bottom--) {
+        for (let x = 0; x < origW; x++) if (!isBg((bottom * origW + x) * 4)) break bottomLoop;
       }
-      ctx.drawImage(img, 0, 0, width, height);
-      const outputType = file.type === "image/png" ? "image/png" : "image/jpeg";
-      canvas.toBlob((blob) => {
-        resolve(blob ? new File([blob], file.name, { type: outputType }) : file);
-      }, outputType, 0.85);
+      leftLoop: for (; left < origW; left++) {
+        for (let y = top; y <= bottom; y++) if (!isBg((y * origW + left) * 4)) break leftLoop;
+      }
+      rightLoop: for (; right > left; right--) {
+        for (let y = top; y <= bottom; y++) if (!isBg((y * origW + right) * 4)) break rightLoop;
+      }
+
+      // Safety: if trim ate the whole image, revert to full
+      if (right - left < 10 || bottom - top < 10) {
+        top = 0; left = 0; right = origW - 1; bottom = origH - 1;
+      }
+
+      // Pad-to-square: center the trimmed content on a square canvas with longer-side as size.
+      // No content loss — padding fills the shorter side with transparency (PNG) or the detected bg color.
+      const cw = right - left + 1;
+      const ch = bottom - top + 1;
+      const squareSize = Math.max(cw, ch);
+      const offsetX = Math.floor((squareSize - cw) / 2);
+      const offsetY = Math.floor((squareSize - ch) / 2);
+
+      const squared = document.createElement("canvas");
+      squared.width = squareSize;
+      squared.height = squareSize;
+      const sCtx = squared.getContext("2d");
+      if (!sCtx) { reject(new Error("Canvas unsupported")); return; }
+      // If source had transparent corners, leave padding transparent. Otherwise fill with detected bg.
+      if (!isTransparent) {
+        sCtx.fillStyle = `rgb(${bgR}, ${bgG}, ${bgB})`;
+        sCtx.fillRect(0, 0, squareSize, squareSize);
+      }
+      sCtx.drawImage(work, left, top, cw, ch, offsetX, offsetY, cw, ch);
+
+      // Resize the padded square down to outputSize × outputSize
+      const output = document.createElement("canvas");
+      output.width = outputSize;
+      output.height = outputSize;
+      const oCtx = output.getContext("2d");
+      if (!oCtx) { reject(new Error("Canvas unsupported")); return; }
+      oCtx.imageSmoothingEnabled = true;
+      oCtx.imageSmoothingQuality = "high";
+      oCtx.drawImage(squared, 0, 0, outputSize, outputSize);
+
+      const warnings: string[] = [];
+      if (squareSize < 200) warnings.push("Source resolution is low — recommend uploading at least 512×512.");
+      if (file.type === "image/jpeg" && !isTransparent) warnings.push("JPEG with solid background detected — PNG with transparent background gives the cleanest look.");
+      const aspectRatio = cw / ch;
+      if (aspectRatio > 1.5 || aspectRatio < 0.67) warnings.push(`Logo is non-square (${cw}×${ch}). Padded with ${isTransparent ? "transparency" : "matching background"} to keep it square — confirm the result looks right.`);
+      if (cw / origW < 0.3 || ch / origH < 0.3) warnings.push("Significant whitespace was trimmed. If the logo looks too tight, upload a version with less surrounding background.");
+
+      output.toBlob((blob) => {
+        if (!blob) { reject(new Error("Failed to encode image")); return; }
+        const cleanName = file.name.replace(/\.[^.]+$/, "") + ".png";
+        const processedFile = new File([blob], cleanName, { type: "image/png" });
+        resolve({
+          file: processedFile,
+          dataUrl: output.toDataURL("image/png"),
+          originalDimensions: { w: origW, h: origH },
+          processedDimensions: { w: outputSize, h: outputSize },
+          warnings,
+        });
+      }, "image/png");
     };
-    img.onerror = () => resolve(file);
+    img.onerror = () => reject(new Error("Failed to load image"));
     img.src = URL.createObjectURL(file);
   });
+}
+
+/** Modal that shows before/after + sidebar preview, lets user confirm or cancel before upload. */
+function LogoPreviewModal({
+  isOpen, onClose, onConfirm, originalFile, processed, label,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  originalFile: File | null;
+  processed: NormalizeResult | null;
+  label: string;
+}) {
+  if (!isOpen || !processed || !originalFile) return null;
+  const originalUrl = URL.createObjectURL(originalFile);
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="glass-popover rounded-2xl max-w-xl w-full overflow-hidden">
+        <div className="px-6 pt-5 pb-4 border-b border-border">
+          <h3 className="text-lg font-semibold text-foreground">Preview {label}</h3>
+          <p className="text-sm text-muted-foreground mt-0.5">Auto-cropped to a 512×512 square. Confirm below or pick a different image.</p>
+        </div>
+        <div className="px-6 py-5">
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-semibold">Original</p>
+              <div className="aspect-square rounded-lg bg-muted/40 border border-border flex items-center justify-center overflow-hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={originalUrl} alt="Original" className="max-w-full max-h-full object-contain" />
+              </div>
+              <p className="text-[10px] text-muted-foreground/70 mt-1.5 text-center tabular-nums">{processed.originalDimensions.w}×{processed.originalDimensions.h}</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-semibold">Processed</p>
+              <div className="aspect-square rounded-lg bg-muted/40 border border-border overflow-hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={processed.dataUrl} alt="Processed" className="w-full h-full object-contain" />
+              </div>
+              <p className="text-[10px] text-muted-foreground/70 mt-1.5 text-center tabular-nums">512×512 PNG</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 font-semibold">In Sidebar</p>
+              <div className="aspect-square rounded-lg border border-border flex items-center justify-center" style={{ background: "#1a1f2e" }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={processed.dataUrl} alt="Sidebar preview" className="w-14 h-14 rounded-full object-cover ring-1 ring-white/20 shadow-lg" />
+              </div>
+              <p className="text-[10px] text-muted-foreground/70 mt-1.5 text-center">48×48 circle</p>
+            </div>
+          </div>
+          {processed.warnings.length > 0 && (
+            <div className="mt-4 p-3 rounded-lg border border-amber-500/30 bg-amber-500/10 space-y-1">
+              {processed.warnings.map((w, i) => (
+                <p key={i} className="text-[12px] text-amber-600 dark:text-amber-400 flex items-start gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  <span>{w}</span>
+                </p>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="px-6 py-4 border-t border-border flex items-center justify-end gap-2 bg-muted/20">
+          <button onClick={onClose} className="px-4 py-2 text-sm font-medium rounded-lg border border-border hover:bg-muted transition-colors text-foreground">
+            Use Different Image
+          </button>
+          <button onClick={onConfirm} className="px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors"
+            style={{ background: "var(--accent-primary)" }}>
+            Confirm &amp; Upload
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function ImageUpload({ label, hint, currentUrl, onUpload, uploading }: {
   label: string; hint: string; currentUrl: string | null; onUpload: (file: File) => void; uploading: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [processing, setProcessing] = useState(false);
+  const [pendingOriginal, setPendingOriginal] = useState<File | null>(null);
+  const [pendingProcessed, setPendingProcessed] = useState<NormalizeResult | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
+
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const compressed = await compressImage(file);
-      onUpload(compressed);
-    }
     e.target.value = "";
+    if (!file) return;
+
+    // Validate MIME explicitly — drag-drop can bypass the `accept` attr
+    if (file.type !== "image/png" && file.type !== "image/jpeg") {
+      setFileError("Only PNG and JPG files are accepted.");
+      setTimeout(() => setFileError(null), 4000);
+      return;
+    }
+
+    setFileError(null);
+    setProcessing(true);
+    try {
+      const result = await normalizeLogoImage(file);
+      setPendingOriginal(file);
+      setPendingProcessed(result);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to process image.";
+      setFileError(msg);
+      setTimeout(() => setFileError(null), 4000);
+    } finally {
+      setProcessing(false);
+    }
   };
 
+  const handleConfirm = () => {
+    if (pendingProcessed) onUpload(pendingProcessed.file);
+    setPendingOriginal(null);
+    setPendingProcessed(null);
+  };
+
+  const handleCancel = () => {
+    setPendingOriginal(null);
+    setPendingProcessed(null);
+    inputRef.current?.click();
+  };
+
+  const busy = uploading || processing;
+
   return (
-    <div>
-      <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml" className="hidden" onChange={handleFile} />
-      <div onClick={() => !uploading && inputRef.current?.click()}
-        className="border-2 border-dashed border-border rounded-xl p-6 flex flex-col items-center justify-center text-center hover:border-muted-foreground/30 transition-colors cursor-pointer min-h-[180px]">
-        {uploading ? (
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        ) : currentUrl ? (
-          <div className="w-24 h-24 rounded-lg bg-white border border-border flex items-center justify-center mb-2 overflow-hidden">
-            <img src={currentUrl} alt={label} className="max-h-full max-w-full object-contain" />
-          </div>
+    <>
+      <div>
+        <input ref={inputRef} type="file" accept="image/png,image/jpeg" className="hidden" onChange={handleFile} />
+        <div onClick={() => !busy && inputRef.current?.click()}
+          className="border-2 border-dashed border-border rounded-xl p-6 flex flex-col items-center justify-center text-center hover:border-muted-foreground/30 transition-colors cursor-pointer min-h-[180px]">
+          {busy ? (
+            <>
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              <p className="text-[11px] text-muted-foreground mt-2">{processing ? "Auto-cropping…" : "Uploading…"}</p>
+            </>
+          ) : currentUrl ? (
+            <div className="w-24 h-24 rounded-lg bg-white border border-border flex items-center justify-center mb-2 overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={currentUrl} alt={label} className="max-h-full max-w-full object-contain" />
+            </div>
+          ) : (
+            <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-3">
+              <ImageIcon className="h-5 w-5 text-muted-foreground" />
+            </div>
+          )}
+          <p className="text-sm font-medium text-foreground">{label}</p>
+          <p className="text-xs text-muted-foreground mt-1">PNG or JPG, max 5MB · auto-cropped to 512×512</p>
+          <button type="button" className="mt-3 px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted transition-colors"
+            onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }} disabled={busy}>
+            {currentUrl ? "Replace" : "Upload"}
+          </button>
+        </div>
+        {fileError ? (
+          <p className="text-[11px] text-red-500 mt-2 px-1 flex items-center gap-1">
+            <AlertTriangle className="w-3 h-3 shrink-0" />
+            {fileError}
+          </p>
         ) : (
-          <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-3">
-            <ImageIcon className="h-5 w-5 text-muted-foreground" />
-          </div>
+          <p className="text-[11px] text-muted-foreground/70 mt-2 px-1">{hint}</p>
         )}
-        <p className="text-sm font-medium text-foreground">{label}</p>
-        <p className="text-xs text-muted-foreground mt-1">PNG, JPG, or SVG, max 5MB</p>
-        <button type="button" className="mt-3 px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted transition-colors"
-          onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }}>
-          {currentUrl ? "Replace" : "Upload"}
-        </button>
       </div>
-      <p className="text-[11px] text-muted-foreground/70 mt-2 px-1">{hint}</p>
-    </div>
+      <LogoPreviewModal
+        isOpen={!!pendingProcessed}
+        onClose={handleCancel}
+        onConfirm={handleConfirm}
+        originalFile={pendingOriginal}
+        processed={pendingProcessed}
+        label={label}
+      />
+    </>
   );
 }
 
@@ -147,6 +372,7 @@ function ImageUpload({ label, hint, currentUrl, onUpload, uploading }: {
 
 export default function SettingsPage() {
   const { user, refreshUser } = useAuth();
+  const { language, setLanguage, t } = useLanguage();
   const [settings, setSettings] = useState<BarangaySettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -161,16 +387,32 @@ export default function SettingsPage() {
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
   }, []);
 
+  // Snapshot of originally-loaded values per editable field — used to detect unsaved changes.
+  // After successful save, this is refreshed to the new current values for the saved tab.
+  const originalsRef = useRef<Record<string, unknown>>({});
+
   // Form state (editable fields)
   const [zip, setZip] = useState("");
   const [motto, setMotto] = useState("");
   const [officeHours, setOfficeHours] = useState("");
   const [establishedYear, setEstablishedYear] = useState("");
+  const [termStartYear, setTermStartYear] = useState("");
+  const [termEndYear, setTermEndYear] = useState("");
   const [captainName, setCaptainName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [fullAddress, setFullAddress] = useState("");
+  // ── Contact Details (new fields) ──
+  const [mobileNumber, setMobileNumber] = useState("");
+  const [emergencyHotline, setEmergencyHotline] = useState("");
+  const [latitude, setLatitude] = useState("");
+  const [longitude, setLongitude] = useState("");
+  const [facebookUrl, setFacebookUrl] = useState("");
+  const [viberUrl, setViberUrl] = useState("");
+  const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [twitterUrl, setTwitterUrl] = useState("");
+  const [instagramUrl, setInstagramUrl] = useState("");
   const [docHeader, setDocHeader] = useState("");
   const [docFooter, setDocFooter] = useState("");
   const [smsSenderName, setSmsSenderName] = useState("");
@@ -179,9 +421,9 @@ export default function SettingsPage() {
   const [notifEmail, setNotifEmail] = useState(false);
   const [notifDaily, setNotifDaily] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [sealUrl, setSealUrl] = useState<string | null>(null);
+  const [municipalityLogoUrl, setMunicipalityLogoUrl] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
-  const [uploadingSeal, setUploadingSeal] = useState(false);
+  const [uploadingMunicipalityLogo, setUploadingMunicipalityLogo] = useState(false);
   // Fees & signatory (stored in settings JSONB)
   const [certValidityDays, setCertValidityDays] = useState("180");
   const [clearanceFee, setClearanceFee] = useState("0");
@@ -191,25 +433,194 @@ export default function SettingsPage() {
   const [signatoryName, setSignatoryName] = useState("");
   const [signatoryTitle, setSignatoryTitle] = useState("PUNONG BARANGAY");
   const [docLayout, setDocLayout] = useState<"klasiko" | "moderno" | "elegante" | "digital">("klasiko");
+  const [docColorTheme, setDocColorTheme] = useState<
+    | "plain" | "blue" | "red" | "green" | "yellow"
+    | "combo-flag" | "combo-festive" | "combo-earth" | "combo-gov"
+    | "combo-bayanihan" | "combo-sunrise" | "combo-coastal" | "combo-heritage"
+  >("plain");
+  const [docDesignPattern, setDocDesignPattern] = useState<
+    // Classic Sidebar set
+    | "wave" | "gradient" | "bold" | "photo" | "minimal" | "stripe"
+    // Formal Government set
+    | "wreath" | "sunburst" | "gothic" | "scroll" | "diplomatic" | "ornate"
+    // Centered Modern set
+    | "geometric" | "bold-stripe" | "tech"
+  >("wave");
+  const [docPaperSize, setDocPaperSize] = useState<"a4" | "letter" | "legal">("a4");
+  const [docFont, setDocFont] = useState<"times" | "arial" | "inter" | "poppins" | "merriweather" | "playfair">("times");
+  // Track whether the user has touched structure/color/paper at least once.
+  // Patterns stay as dummy placeholders until first interaction so the user
+  // sees the "patterns are generated from your choices" model clearly.
+  const [hasGeneratedPatterns, setHasGeneratedPatterns] = useState(false);
+
+  // Structure → 6 compatible design patterns (no cross-structure clashes)
+  const STRUCTURE_PATTERNS = {
+    klasiko:  ["wave", "gradient", "bold", "photo", "minimal", "stripe"] as const,
+    elegante: ["wreath", "sunburst", "gothic", "scroll", "diplomatic", "ornate"] as const,
+    moderno:  ["wave", "gradient", "minimal", "geometric", "bold-stripe", "tech"] as const,
+    digital:  ["wave", "gradient", "minimal", "geometric", "bold-stripe", "tech"] as const,
+  };
+
+  // Reset the design pattern when the structure changes if the current pattern
+  // is not in the new structure's compatible set.
+  useEffect(() => {
+    const set = STRUCTURE_PATTERNS[docLayout] as readonly string[];
+    if (!set.includes(docDesignPattern)) {
+      setDocDesignPattern(set[0] as typeof docDesignPattern);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [docLayout]);
+
   // Usage/billing data
   const [usage, setUsage] = useState<BarangayUsage | null>(null);
   const [usageLoading, setUsageLoading] = useState(false);
+
+  // Current kapitan — derived from barangay_officials (Officials tab is the source of truth)
+  const [kapitanOfficial, setKapitanOfficial] = useState<BarangayOfficial | null>(null);
+  const [allOfficials, setAllOfficials] = useState<BarangayOfficial[]>([]);
+
+  // Validation errors per editable field — keyed by field name
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string | null>>({});
+
+  // ── VAWC (RA 9262) ──
+  const [vawcOfficerName, setVawcOfficerName] = useState("");
+  const [vawcOfficerPhone, setVawcOfficerPhone] = useState("");
+  const [vawcBcpcName, setVawcBcpcName] = useState("");
+  const [vawcBcpcPhone, setVawcBcpcPhone] = useState("");
+  const [vawcDisclaimer, setVawcDisclaimer] = useState("");
+  const [vawcAccessRestricted, setVawcAccessRestricted] = useState(true);
+
+  // ── GAD (RA 9710) ──
+  const [gadFocalName, setGadFocalName] = useState("");
+  const [gadFocalTitle, setGadFocalTitle] = useState("");
+  const [gadBudgetPercent, setGadBudgetPercent] = useState("5");
+  const [gadPlanUrl, setGadPlanUrl] = useState("");
+
+  // ── KP / Lupong Tagapamayapa (RA 7160 Ch. 7) ──
+  const [kpHearingWindowDays, setKpHearingWindowDays] = useState("15");
+  const [kpMediationExtensionDays, setKpMediationExtensionDays] = useState("15");
+  const [kpArbitrationWindowDays, setKpArbitrationWindowDays] = useState("15");
+  const [kpSummonsTemplate, setKpSummonsTemplate] = useState("");
+
+  // ── Residents Dictionaries (replaces 15 mock seed arrays in residents/page.tsx) ──
+  type DictKey = "puroks" | "streets" | "citizenships" | "religions" | "ethnicities" | "occupations" | "skills" | "positions" | "employers" | "courses" | "schools" | "placesOfBirth" | "businessTypes" | "sectorsOther" | "emergencyRelations";
+  const [dictionaries, setDictionaries] = useState<Record<DictKey, string[]>>({
+    puroks: [], streets: [], citizenships: [], religions: [], ethnicities: [],
+    occupations: [], skills: [], positions: [], employers: [], courses: [],
+    schools: [], placesOfBirth: [], businessTypes: [], sectorsOther: [], emergencyRelations: [],
+  });
+  const [activeDict, setActiveDict] = useState<DictKey>("puroks");
+  const [newDictEntry, setNewDictEntry] = useState("");
 
   // Load settings
   useEffect(() => {
     const load = async () => {
       try {
         const data = await api.settings.get();
+        // Capture originals BEFORE setters so dirty diff is accurate on the very first render.
+        // Refs don't trigger re-renders, so the values must be in place before React commits the state updates.
+        const s = (data.settings as Record<string, unknown> | null) || {};
+        const v0 = (s.vawc as Record<string, unknown> | undefined) || {};
+        const g0 = (s.gad as Record<string, unknown> | undefined) || {};
+        const k0 = (s.kp as Record<string, unknown> | undefined) || {};
+        const c0 = (s.contact as Record<string, unknown> | undefined) || {};
+        const d0 = (s.residents_dictionaries as Record<string, string[]> | undefined) || {};
+        const initialDicts0: Record<DictKey, string[]> = {
+          puroks: d0.puroks || [], streets: d0.streets || [], citizenships: d0.citizenships || [],
+          religions: d0.religions || [], ethnicities: d0.ethnicities || [], occupations: d0.occupations || [],
+          skills: d0.skills || [], positions: d0.positions || [], employers: d0.employers || [],
+          courses: d0.courses || [], schools: d0.schools || [], placesOfBirth: d0.placesOfBirth || [],
+          businessTypes: d0.businessTypes || [], sectorsOther: d0.sectorsOther || [], emergencyRelations: d0.emergencyRelations || [],
+        };
+        originalsRef.current = {
+          zip: data.zip_code || "",
+          motto: data.motto || "",
+          officeHours: data.office_hours || "MON-FRI 8AM-5PM",
+          establishedYear: data.established_year ? String(data.established_year) : "",
+          termStartYear: (typeof data.officials_term === "string" && /^\d{4}-\d{4}$/.test(data.officials_term))
+            ? data.officials_term.split("-")[0] ?? "" : "",
+          termEndYear: (typeof data.officials_term === "string" && /^\d{4}-\d{4}$/.test(data.officials_term))
+            ? data.officials_term.split("-")[1] ?? "" : "",
+          captainName: data.captain_name || "",
+          contactPhone: data.contact_phone || "",
+          contactEmail: data.contact_email || "",
+          websiteUrl: data.website_url || "",
+          fullAddress: data.full_address || "",
+          latitude: data.latitude !== null && data.latitude !== undefined ? String(data.latitude) : "",
+          longitude: data.longitude !== null && data.longitude !== undefined ? String(data.longitude) : "",
+          mobileNumber: (c0.mobile_number as string) || "",
+          emergencyHotline: (c0.emergency_hotline as string) || "",
+          facebookUrl: (c0.facebook_url as string) || "",
+          viberUrl: (c0.viber_community_url as string) || "",
+          youtubeUrl: (c0.youtube_url as string) || "",
+          twitterUrl: (c0.twitter_url as string) || "",
+          instagramUrl: (c0.instagram_url as string) || "",
+          docHeader: data.document_header_text || "",
+          docFooter: data.document_footer_text || "",
+          smsSenderName: data.sms_sender_name || "",
+          notifSmsNewResident: data.notification_preferences?.sms_new_resident || false,
+          notifSmsCert: data.notification_preferences?.sms_certificate_issued || false,
+          notifEmail: data.notification_preferences?.email_alerts || false,
+          notifDaily: data.notification_preferences?.daily_summary || false,
+          certValidityDays: String(s.certificate_validity_days ?? 180),
+          clearanceFee: String(s.clearance_fee ?? 0),
+          indigencyFee: String(s.indigency_fee ?? 0),
+          idFee: String(s.id_fee ?? 0),
+          cedulaFee: String(s.cedula_fee ?? 0),
+          signatoryName: (s.default_signatory_name as string) || "",
+          signatoryTitle: (s.default_signatory_title as string) || "PUNONG BARANGAY",
+          docLayout: (s.document_layout as string) || "klasiko",
+          docPaperSize: (s.document_paper_size as string) || "a4",
+          docFont: (s.document_font as string) || "times",
+          docColorTheme: (s.document_color_theme as string) || "plain",
+          docDesignPattern: (s.document_design_pattern as string) || "wave",
+          vawcOfficerName: (v0.confidentiality_officer_name as string) || "",
+          vawcOfficerPhone: (v0.confidentiality_officer_phone as string) || "",
+          vawcBcpcName: (v0.bcpc_contact_name as string) || "",
+          vawcBcpcPhone: (v0.bcpc_contact_phone as string) || "",
+          vawcDisclaimer: (v0.ra9262_disclaimer as string) || "",
+          vawcAccessRestricted: v0.access_restricted !== false,
+          gadFocalName: (g0.focal_person_name as string) || "",
+          gadFocalTitle: (g0.focal_person_title as string) || "",
+          gadBudgetPercent: String(g0.budget_percent_target ?? 5),
+          gadPlanUrl: (g0.plan_url as string) || "",
+          kpHearingWindowDays: String(k0.hearing_window_days ?? 15),
+          kpMediationExtensionDays: String(k0.mediation_extension_days ?? 15),
+          kpArbitrationWindowDays: String(k0.arbitration_window_days ?? 15),
+          kpSummonsTemplate: (k0.summons_template as string) || "",
+          dictionaries: initialDicts0,
+        };
+
         setSettings(data);
         setZip(data.zip_code || "");
         setMotto(data.motto || "");
         setOfficeHours(data.office_hours || "MON-FRI 8AM-5PM");
         setEstablishedYear(data.established_year ? String(data.established_year) : "");
+        // officials_term is stored as "YYYY-YYYY" string, split it for paired inputs
+        if (typeof data.officials_term === "string" && /^\d{4}-\d{4}$/.test(data.officials_term)) {
+          const [s, e] = data.officials_term.split("-");
+          setTermStartYear(s ?? "");
+          setTermEndYear(e ?? "");
+        } else {
+          setTermStartYear("");
+          setTermEndYear("");
+        }
         setCaptainName(data.captain_name || "");
         setContactPhone(data.contact_phone || "");
         setContactEmail(data.contact_email || "");
         setWebsiteUrl(data.website_url || "");
         setFullAddress(data.full_address || "");
+        setLatitude(data.latitude !== null && data.latitude !== undefined ? String(data.latitude) : "");
+        setLongitude(data.longitude !== null && data.longitude !== undefined ? String(data.longitude) : "");
+        // Contact extras (mobile, hotline, social) stored under settings.contact JSONB
+        const c = ((data.settings as Record<string, unknown> | null)?.contact as Record<string, unknown> | undefined) || {};
+        setMobileNumber((c.mobile_number as string) || "");
+        setEmergencyHotline((c.emergency_hotline as string) || "");
+        setFacebookUrl((c.facebook_url as string) || "");
+        setViberUrl((c.viber_community_url as string) || "");
+        setYoutubeUrl((c.youtube_url as string) || "");
+        setTwitterUrl((c.twitter_url as string) || "");
+        setInstagramUrl((c.instagram_url as string) || "");
         setDocHeader(data.document_header_text || "");
         setDocFooter(data.document_footer_text || "");
         setSmsSenderName(data.sms_sender_name || "");
@@ -218,9 +629,8 @@ export default function SettingsPage() {
         setNotifEmail(data.notification_preferences?.email_alerts || false);
         setNotifDaily(data.notification_preferences?.daily_summary || false);
         setLogoUrl(data.logo_url);
-        setSealUrl(data.seal_url);
-        // Fees & signatory from settings JSONB
-        const s = data.settings || {};
+        setMunicipalityLogoUrl(data.municipality_logo_url);
+        // Fees & signatory from settings JSONB — reuses `s` declared above for originals capture
         setCertValidityDays(String(s.certificate_validity_days ?? 180));
         setClearanceFee(String(s.clearance_fee ?? 0));
         setIndigencyFee(String(s.indigency_fee ?? 0));
@@ -229,6 +639,55 @@ export default function SettingsPage() {
         setSignatoryName(s.default_signatory_name || "");
         setSignatoryTitle(s.default_signatory_title || "PUNONG BARANGAY");
         setDocLayout((s.document_layout as "klasiko" | "moderno" | "elegante" | "digital") || "klasiko");
+        setDocPaperSize((s.document_paper_size as "a4" | "letter" | "legal") || "a4");
+        setDocFont((s.document_font as "times" | "arial" | "inter" | "poppins" | "merriweather" | "playfair") || "times");
+        const loadedColorTheme = (s.document_color_theme as typeof docColorTheme) || "plain";
+        const loadedDesignPattern = (s.document_design_pattern as typeof docDesignPattern) || "wave";
+        setDocColorTheme(loadedColorTheme);
+        setDocDesignPattern(loadedDesignPattern);
+        // If the barangay has previously customized any design field, skip dummy gating.
+        const hasAnyCustom = !!(s.document_paper_size || s.document_font || s.document_color_theme || s.document_design_pattern);
+        if (hasAnyCustom) setHasGeneratedPatterns(true);
+        // VAWC (RA 9262)
+        const v = (s.vawc as Record<string, unknown> | undefined) || {};
+        setVawcOfficerName((v.confidentiality_officer_name as string) || "");
+        setVawcOfficerPhone((v.confidentiality_officer_phone as string) || "");
+        setVawcBcpcName((v.bcpc_contact_name as string) || "");
+        setVawcBcpcPhone((v.bcpc_contact_phone as string) || "");
+        setVawcDisclaimer((v.ra9262_disclaimer as string) || "");
+        setVawcAccessRestricted(v.access_restricted !== false);
+        // GAD (RA 9710)
+        const g = (s.gad as Record<string, unknown> | undefined) || {};
+        setGadFocalName((g.focal_person_name as string) || "");
+        setGadFocalTitle((g.focal_person_title as string) || "");
+        setGadBudgetPercent(String(g.budget_percent_target ?? 5));
+        setGadPlanUrl((g.plan_url as string) || "");
+        // KP / Lupong (RA 7160)
+        const k = (s.kp as Record<string, unknown> | undefined) || {};
+        setKpHearingWindowDays(String(k.hearing_window_days ?? 15));
+        setKpMediationExtensionDays(String(k.mediation_extension_days ?? 15));
+        setKpArbitrationWindowDays(String(k.arbitration_window_days ?? 15));
+        setKpSummonsTemplate((k.summons_template as string) || "");
+        // Residents Dictionaries
+        const d = (s.residents_dictionaries as Record<string, string[]> | undefined) || {};
+        const initialDicts: Record<DictKey, string[]> = {
+          puroks: d.puroks || [],
+          streets: d.streets || [],
+          citizenships: d.citizenships || [],
+          religions: d.religions || [],
+          ethnicities: d.ethnicities || [],
+          occupations: d.occupations || [],
+          skills: d.skills || [],
+          positions: d.positions || [],
+          employers: d.employers || [],
+          courses: d.courses || [],
+          schools: d.schools || [],
+          placesOfBirth: d.placesOfBirth || [],
+          businessTypes: d.businessTypes || [],
+          sectorsOther: d.sectorsOther || [],
+          emergencyRelations: d.emergencyRelations || [],
+        };
+        setDictionaries(initialDicts);
       } catch {
         addToast("Failed to load settings", "error");
       } finally {
@@ -238,66 +697,319 @@ export default function SettingsPage() {
     load();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Save current tab
-  const saveSettings = async (fields: Record<string, unknown>) => {
+  // Save current tab. `postSaveSnapshot` is merged into originalsRef on success so the
+  // dirty-state bar clears for the freshly-saved fields.
+  const saveSettings = async (fields: Record<string, unknown>, postSaveSnapshot?: Record<string, unknown>) => {
     setSaving(true);
     try {
       const res = await api.settings.update(fields as Partial<BarangaySettings>);
       setSettings(res.data);
-      addToast("Settings saved successfully");
+      addToast(t.settings.common.saved);
       refreshUser();
+      if (postSaveSnapshot) {
+        originalsRef.current = { ...originalsRef.current, ...postSaveSnapshot };
+      }
     } catch (e) {
       const err = e as ApiError;
-      addToast(err.message || "Failed to save settings", "error");
+      addToast(err.message || t.settings.common.saveFailed, "error");
     } finally {
       setSaving(false);
     }
   };
 
-  const saveBarangayInfo = () => saveSettings({
-    zip_code: zip || null,
-    motto: motto || null,
-    office_hours: officeHours || null,
-    established_year: establishedYear ? parseInt(establishedYear) : null,
-    captain_name: captainName || null,
-  });
+  const saveBarangayInfo = () => {
+    // Combine paired year inputs back into officials_term ("YYYY-YYYY") if both set,
+    // else null. Partial values are rejected — full pair required.
+    const officialsTerm = termStartYear && termEndYear
+      ? `${termStartYear}-${termEndYear}`
+      : null;
+    return saveSettings(
+      {
+        zip_code: zip || null,
+        motto: motto || null,
+        office_hours: officeHours || null,
+        established_year: establishedYear ? parseInt(establishedYear) : null,
+        officials_term: officialsTerm,
+        // captain_name is now sourced from barangay_officials (Officials tab is source of truth)
+      },
+      { zip, motto, officeHours, establishedYear, termStartYear, termEndYear },
+    );
+  };
 
-  const saveContact = () => saveSettings({
-    contact_phone: contactPhone || null,
-    contact_email: contactEmail || null,
-    website_url: websiteUrl || null,
-    full_address: fullAddress || null,
-  });
-
-  const saveSystem = () => saveSettings({
-    sms_sender_name: smsSenderName || null,
-    settings: {
-      default_signatory_name: signatoryName || null,
-      default_signatory_title: signatoryTitle || null,
+  const saveContact = () => saveSettings(
+    {
+      contact_phone: contactPhone || null,
+      contact_email: contactEmail || null,
+      website_url: websiteUrl || null,
+      full_address: fullAddress || null,
+      latitude: latitude ? parseFloat(latitude) : null,
+      longitude: longitude ? parseFloat(longitude) : null,
+      settings: {
+        contact: {
+          mobile_number: mobileNumber || null,
+          emergency_hotline: emergencyHotline || null,
+          facebook_url: facebookUrl || null,
+          viber_community_url: viberUrl || null,
+          youtube_url: youtubeUrl || null,
+          twitter_url: twitterUrl || null,
+          instagram_url: instagramUrl || null,
+        },
+      },
     },
-  });
-
-  const saveDocuments = () => saveSettings({
-    document_header_text: docHeader || null,
-    document_footer_text: docFooter || null,
-    settings: {
-      certificate_validity_days: certValidityDays ? parseInt(certValidityDays) : 180,
-      clearance_fee: clearanceFee ? parseFloat(clearanceFee) : 0,
-      indigency_fee: indigencyFee ? parseFloat(indigencyFee) : 0,
-      id_fee: idFee ? parseFloat(idFee) : 0,
-      cedula_fee: cedulaFee ? parseFloat(cedulaFee) : 0,
-      document_layout: docLayout,
+    {
+      contactPhone, contactEmail, websiteUrl, fullAddress,
+      latitude, longitude,
+      mobileNumber, emergencyHotline,
+      facebookUrl, viberUrl, youtubeUrl, twitterUrl, instagramUrl,
     },
-  });
+  );
 
-  const saveNotifications = () => saveSettings({
-    notification_preferences: {
-      sms_new_resident: notifSmsNewResident,
-      sms_certificate_issued: notifSmsCert,
-      email_alerts: notifEmail,
-      daily_summary: notifDaily,
+  const saveSystem = () => saveSettings(
+    {
+      sms_sender_name: smsSenderName || null,
+      settings: {
+        default_signatory_name: signatoryName || null,
+        default_signatory_title: signatoryTitle || null,
+      },
     },
+    { smsSenderName, signatoryName, signatoryTitle },
+  );
+
+  const saveDocuments = () => saveSettings(
+    {
+      document_header_text: docHeader || null,
+      document_footer_text: docFooter || null,
+      settings: {
+        certificate_validity_days: certValidityDays ? parseInt(certValidityDays) : 180,
+        clearance_fee: clearanceFee ? parseFloat(clearanceFee) : 0,
+        indigency_fee: indigencyFee ? parseFloat(indigencyFee) : 0,
+        id_fee: idFee ? parseFloat(idFee) : 0,
+        cedula_fee: cedulaFee ? parseFloat(cedulaFee) : 0,
+        document_layout: docLayout,
+        document_paper_size: docPaperSize,
+        document_font: docFont,
+        document_color_theme: docColorTheme,
+        document_design_pattern: docDesignPattern,
+      },
+    },
+    { docHeader, docFooter, certValidityDays, clearanceFee, indigencyFee, idFee, cedulaFee, docLayout, docPaperSize, docFont, docColorTheme, docDesignPattern },
+  );
+
+  const saveNotifications = () => saveSettings(
+    {
+      notification_preferences: {
+        sms_new_resident: notifSmsNewResident,
+        sms_certificate_issued: notifSmsCert,
+        email_alerts: notifEmail,
+        daily_summary: notifDaily,
+      },
+    },
+    { notifSmsNewResident, notifSmsCert, notifEmail, notifDaily },
+  );
+
+  const saveVawc = () => saveSettings(
+    {
+      settings: {
+        vawc: {
+          confidentiality_officer_name: vawcOfficerName || null,
+          confidentiality_officer_phone: vawcOfficerPhone || null,
+          bcpc_contact_name: vawcBcpcName || null,
+          bcpc_contact_phone: vawcBcpcPhone || null,
+          ra9262_disclaimer: vawcDisclaimer || null,
+          access_restricted: vawcAccessRestricted,
+        },
+      },
+    },
+    { vawcOfficerName, vawcOfficerPhone, vawcBcpcName, vawcBcpcPhone, vawcDisclaimer, vawcAccessRestricted },
+  );
+
+  const saveGad = () => saveSettings(
+    {
+      settings: {
+        gad: {
+          focal_person_name: gadFocalName || null,
+          focal_person_title: gadFocalTitle || null,
+          budget_percent_target: gadBudgetPercent ? parseFloat(gadBudgetPercent) : 5,
+          plan_url: gadPlanUrl || null,
+        },
+      },
+    },
+    { gadFocalName, gadFocalTitle, gadBudgetPercent, gadPlanUrl },
+  );
+
+  const saveKp = () => saveSettings(
+    {
+      settings: {
+        kp: {
+          hearing_window_days: kpHearingWindowDays ? parseInt(kpHearingWindowDays) : 15,
+          mediation_extension_days: kpMediationExtensionDays ? parseInt(kpMediationExtensionDays) : 15,
+          arbitration_window_days: kpArbitrationWindowDays ? parseInt(kpArbitrationWindowDays) : 15,
+          summons_template: kpSummonsTemplate || null,
+        },
+      },
+    },
+    { kpHearingWindowDays, kpMediationExtensionDays, kpArbitrationWindowDays, kpSummonsTemplate },
+  );
+
+  const saveDictionaries = () => saveSettings(
+    { settings: { residents_dictionaries: dictionaries } },
+    { dictionaries },
+  );
+
+  const addDictEntry = () => {
+    const v = newDictEntry.trim();
+    if (!v) return;
+    if (dictionaries[activeDict].some((e) => e.toLowerCase() === v.toLowerCase())) {
+      addToast("Entry already exists", "error");
+      return;
+    }
+    setDictionaries({ ...dictionaries, [activeDict]: [...dictionaries[activeDict], v] });
+    setNewDictEntry("");
+  };
+
+  const removeDictEntry = (dict: DictKey, idx: number) => {
+    setDictionaries({ ...dictionaries, [dict]: dictionaries[dict].filter((_, i) => i !== idx) });
+  };
+
+  // ── Dirty-state tracking for the sticky save bar ──
+  // Maps each save-bar tab to (a) its current field snapshot and (b) setters to use on Discard.
+  const tabFieldSnapshot: Record<string, Record<string, unknown>> = {
+    info: { zip, motto, officeHours, establishedYear, termStartYear, termEndYear },
+    contact: {
+      contactPhone, contactEmail, websiteUrl, fullAddress,
+      latitude, longitude,
+      mobileNumber, emergencyHotline,
+      facebookUrl, viberUrl, youtubeUrl, twitterUrl, instagramUrl,
+    },
+    documents: { docHeader, docFooter, certValidityDays, clearanceFee, indigencyFee, idFee, cedulaFee, docLayout, docPaperSize, docFont, docColorTheme, docDesignPattern },
+    system: { smsSenderName, signatoryName, signatoryTitle },
+    notifications: { notifSmsNewResident, notifSmsCert, notifEmail, notifDaily },
+    vawc: { vawcOfficerName, vawcOfficerPhone, vawcBcpcName, vawcBcpcPhone, vawcDisclaimer, vawcAccessRestricted },
+    gad: { gadFocalName, gadFocalTitle, gadBudgetPercent, gadPlanUrl },
+    kp: { kpHearingWindowDays, kpMediationExtensionDays, kpArbitrationWindowDays, kpSummonsTemplate },
+    "residents-dict": { dictionaries },
+  };
+
+  const tabFieldSetters: Record<string, Record<string, (v: unknown) => void>> = {
+    info: { zip: (v) => setZip(v as string), motto: (v) => setMotto(v as string), officeHours: (v) => setOfficeHours(v as string), establishedYear: (v) => setEstablishedYear(v as string), termStartYear: (v) => setTermStartYear(v as string), termEndYear: (v) => setTermEndYear(v as string) },
+    contact: {
+      contactPhone: (v) => setContactPhone(v as string),
+      contactEmail: (v) => setContactEmail(v as string),
+      websiteUrl: (v) => setWebsiteUrl(v as string),
+      fullAddress: (v) => setFullAddress(v as string),
+      latitude: (v) => setLatitude(v as string),
+      longitude: (v) => setLongitude(v as string),
+      mobileNumber: (v) => setMobileNumber(v as string),
+      emergencyHotline: (v) => setEmergencyHotline(v as string),
+      facebookUrl: (v) => setFacebookUrl(v as string),
+      viberUrl: (v) => setViberUrl(v as string),
+      youtubeUrl: (v) => setYoutubeUrl(v as string),
+      twitterUrl: (v) => setTwitterUrl(v as string),
+      instagramUrl: (v) => setInstagramUrl(v as string),
+    },
+    documents: {
+      docHeader: (v) => setDocHeader(v as string),
+      docFooter: (v) => setDocFooter(v as string),
+      certValidityDays: (v) => setCertValidityDays(v as string),
+      clearanceFee: (v) => setClearanceFee(v as string),
+      indigencyFee: (v) => setIndigencyFee(v as string),
+      idFee: (v) => setIdFee(v as string),
+      cedulaFee: (v) => setCedulaFee(v as string),
+      docLayout: (v) => setDocLayout(v as "klasiko" | "moderno" | "elegante" | "digital"),
+      docPaperSize: (v) => setDocPaperSize(v as "a4" | "letter" | "legal"),
+      docFont: (v) => setDocFont(v as "times" | "arial" | "inter" | "poppins" | "merriweather" | "playfair"),
+      docColorTheme: (v) => setDocColorTheme(v as typeof docColorTheme),
+      docDesignPattern: (v) => setDocDesignPattern(v as typeof docDesignPattern),
+    },
+    system: { smsSenderName: (v) => setSmsSenderName(v as string), signatoryName: (v) => setSignatoryName(v as string), signatoryTitle: (v) => setSignatoryTitle(v as string) },
+    notifications: { notifSmsNewResident: (v) => setNotifSmsNewResident(v as boolean), notifSmsCert: (v) => setNotifSmsCert(v as boolean), notifEmail: (v) => setNotifEmail(v as boolean), notifDaily: (v) => setNotifDaily(v as boolean) },
+    vawc: { vawcOfficerName: (v) => setVawcOfficerName(v as string), vawcOfficerPhone: (v) => setVawcOfficerPhone(v as string), vawcBcpcName: (v) => setVawcBcpcName(v as string), vawcBcpcPhone: (v) => setVawcBcpcPhone(v as string), vawcDisclaimer: (v) => setVawcDisclaimer(v as string), vawcAccessRestricted: (v) => setVawcAccessRestricted(v as boolean) },
+    gad: { gadFocalName: (v) => setGadFocalName(v as string), gadFocalTitle: (v) => setGadFocalTitle(v as string), gadBudgetPercent: (v) => setGadBudgetPercent(v as string), gadPlanUrl: (v) => setGadPlanUrl(v as string) },
+    kp: { kpHearingWindowDays: (v) => setKpHearingWindowDays(v as string), kpMediationExtensionDays: (v) => setKpMediationExtensionDays(v as string), kpArbitrationWindowDays: (v) => setKpArbitrationWindowDays(v as string), kpSummonsTemplate: (v) => setKpSummonsTemplate(v as string) },
+    "residents-dict": { dictionaries: (v) => setDictionaries(v as Record<DictKey, string[]>) },
+  };
+
+  // Tabs that use the sticky save bar (self-managed tabs excluded: branding/officials/fees handle their own writes)
+  const SAVE_BAR_TABS = ["info", "contact", "documents", "system", "notifications", "vawc", "gad", "kp", "residents-dict"];
+
+  // Current tab's dirty diff
+  const currentTabSnapshot = tabFieldSnapshot[activeSection] || {};
+  const changedFieldKeys = Object.keys(currentTabSnapshot).filter((key) => {
+    return JSON.stringify(currentTabSnapshot[key]) !== JSON.stringify(originalsRef.current[key]);
   });
+  const isCurrentTabDirty = changedFieldKeys.length > 0;
+  const shouldShowSaveBar = SAVE_BAR_TABS.includes(activeSection) && isCurrentTabDirty;
+
+  const handleDiscardChanges = () => {
+    const setters = tabFieldSetters[activeSection];
+    if (!setters) return;
+    for (const key of Object.keys(currentTabSnapshot)) {
+      const setter = setters[key];
+      if (setter) setter(originalsRef.current[key]);
+    }
+    // Clear any validation errors — discarded values are guaranteed valid (they came from the API)
+    setFieldErrors({});
+  };
+
+  const hasValidationErrors = Object.values(fieldErrors).some((v) => v != null && v !== "");
+
+  // Tab-switch guard — warn if current tab has unsaved changes
+  const handleTabSwitch = (nextSection: string) => {
+    if (nextSection === activeSection) return;
+    if (isCurrentTabDirty) {
+      const ok = typeof window !== "undefined" && window.confirm(
+        `You have ${changedFieldKeys.length} unsaved ${changedFieldKeys.length === 1 ? "change" : "changes"} in this tab. Discard and continue?`,
+      );
+      if (!ok) return;
+      handleDiscardChanges();
+    }
+    setActiveSection(nextSection);
+  };
+
+  // Warn user about unsaved changes when navigating away
+  useEffect(() => {
+    if (!isCurrentTabDirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isCurrentTabDirty]);
+
+  // Fetch the current kapitan from Officials when Barangay Info tab opens
+  useEffect(() => {
+    if (activeSection !== "info") return;
+    let cancelled = false;
+    api.officials.list({ position: "kapitan", per_page: 1, is_active: true })
+      .then((res) => {
+        if (cancelled) return;
+        setKapitanOfficial(res.data?.[0] ?? null);
+      })
+      .catch(() => { /* silent — fall back to legacy captain_name display */ });
+    return () => { cancelled = true; };
+  }, [activeSection]);
+
+  // Fetch ALL active officials for the Klasiko sidebar preview on the Documents tab.
+  // Tenant-scoped by the API; we only need this when the preview is visible.
+  useEffect(() => {
+    if (activeSection !== "documents") return;
+    let cancelled = false;
+    api.officials.list({ per_page: 50, is_active: true, sort_by: "sort_order", sort_dir: "asc" })
+      .then((res) => { if (!cancelled) setAllOfficials(res.data ?? []); })
+      .catch(() => { /* silent — preview falls back to empty list */ });
+    return () => { cancelled = true; };
+  }, [activeSection]);
+
+  // Format the kapitan's display name from the eager-loaded resident
+  const kapitanDisplayName = (() => {
+    if (kapitanOfficial?.resident) {
+      const r = kapitanOfficial.resident;
+      return [r.first_name, r.middle_name, r.last_name, r.extension].filter(Boolean).join(" ");
+    }
+    // Legacy fallback: barangays.captain_name (will be deprecated once Officials is fully adopted)
+    return captainName || "";
+  })();
 
   // Load usage data when fees tab is active
   useEffect(() => {
@@ -324,50 +1036,74 @@ export default function SettingsPage() {
     }
   };
 
-  const handleSealUpload = async (file: File) => {
-    setUploadingSeal(true);
+  const handleMunicipalityLogoUpload = async (file: File) => {
+    setUploadingMunicipalityLogo(true);
     try {
-      const res = await api.settings.uploadSeal(file);
-      setSealUrl(res.url);
-      addToast("Seal uploaded successfully");
+      const res = await api.settings.uploadMunicipalityLogo(file);
+      setMunicipalityLogoUrl(res.url);
+      addToast("City/Municipality logo uploaded successfully");
       refreshUser();
     } catch (e) {
       const err = e as ApiError;
-      addToast(err.message || "Seal upload failed", "error");
+      addToast(err.message || "City/Municipality logo upload failed", "error");
     } finally {
-      setUploadingSeal(false);
+      setUploadingMunicipalityLogo(false);
     }
   };
 
-  const markSetupComplete = async () => {
-    if (!captainName.trim()) { addToast("Captain name is required to complete setup", "error"); return; }
-    if (!contactPhone.trim()) { addToast("Contact phone is required to complete setup", "error"); return; }
-    await saveSettings({ setup_complete: true });
-    addToast("Barangay setup marked as complete!");
-  };
-
-  // Can mark complete?
-  const canComplete = !!(captainName.trim() && contactPhone.trim());
-  const isSetupComplete = settings?.setup_complete ?? false;
-
-  const sections = [
-    { id: "info", label: "Barangay Info", icon: Building2 },
-    { id: "contact", label: "Contact Details", icon: Phone },
-    { id: "branding", label: "Branding", icon: Upload },
-    { id: "fees", label: "Fees & Charges", icon: Banknote },
-    { id: "system", label: "System Preferences", icon: Shield },
-    { id: "documents", label: "Document Settings", icon: FileText },
-    { id: "notifications", label: "Notifications", icon: Bell },
+  const sectionGroups = [
+    {
+      title: t.settings.groups.foundation,
+      items: [
+        { id: "info", label: t.settings.tabs.info, icon: Building2 },
+        { id: "contact", label: t.settings.tabs.contact, icon: Phone },
+        { id: "branding", label: t.settings.tabs.branding, icon: Upload },
+        { id: "officials", label: t.settings.tabs.officials, icon: Users },
+      ],
+    },
+    {
+      title: t.settings.groups.docsServices,
+      items: [
+        { id: "documents", label: t.settings.tabs.documents, icon: FileText },
+        { id: "system", label: t.settings.tabs.systemPrefs, icon: Shield },
+      ],
+    },
+    {
+      title: t.settings.groups.compliance,
+      items: [
+        { id: "vawc", label: t.settings.tabs.vawc, icon: ShieldAlert },
+        { id: "gad", label: t.settings.tabs.gad, icon: Heart },
+        { id: "kp", label: t.settings.tabs.kp, icon: Scale },
+      ],
+    },
+    {
+      title: t.settings.groups.records,
+      items: [
+        { id: "residents-dict", label: t.settings.tabs.residentsDict, icon: BookOpen },
+      ],
+    },
+    {
+      title: t.settings.groups.system,
+      items: [
+        { id: "notifications", label: t.settings.tabs.notifications, icon: Bell },
+        { id: "fees", label: t.settings.tabs.fees, icon: Banknote },
+      ],
+    },
   ];
 
   const saveFn: Record<string, () => void> = {
     info: saveBarangayInfo,
     contact: saveContact,
-    branding: () => {}, // branding saves via upload
-    fees: () => {}, // fees tab is read-only (PrimeX billing)
+    branding: () => {},
+    officials: () => {}, // OfficialsTab manages its own CRUD via per-row save
+    fees: () => {},
     system: saveSystem,
     documents: saveDocuments,
     notifications: saveNotifications,
+    vawc: saveVawc,
+    gad: saveGad,
+    kp: saveKp,
+    "residents-dict": saveDictionaries,
   };
 
   if (loading) {
@@ -381,117 +1117,443 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Settings"
-        description="Configure barangay-level settings, branding, and system preferences"
-        breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "Settings" }]}
-        actions={
-          <div className="flex items-center gap-2">
-            {!isSetupComplete && (
-              <button onClick={markSetupComplete} disabled={!canComplete || saving}
-                className={cn("flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors",
-                  canComplete ? "bg-emerald-600 hover:bg-emerald-700" : "bg-muted text-muted-foreground cursor-not-allowed")}>
-                <CheckCircle className="h-4 w-4" /> Mark Setup Complete
-              </button>
-            )}
-            {activeSection !== "branding" && activeSection !== "fees" && (
-              <button onClick={saveFn[activeSection]} disabled={saving}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors"
-                style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                Save Changes
-              </button>
-            )}
-          </div>
-        }
+        title={t.settings.pageTitle}
+        description={t.settings.pageDescription}
+        breadcrumbs={[{ label: t.nav.dashboard, href: "/dashboard" }, { label: t.settings.pageTitle }]}
       />
 
-      {/* Setup Incomplete Banner */}
-      {!isSetupComplete && (
-        <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-amber-500/30 bg-amber-500/10">
-          <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" />
-          <div className="flex-1">
-            <p className="text-sm font-medium text-amber-600">Setup Incomplete</p>
-            <p className="text-xs text-amber-500/80">Fill in the required fields (Captain Name, Contact Phone) and upload your logo, then click &quot;Mark Setup Complete&quot;.</p>
-          </div>
-        </div>
-      )}
-
       <div className="flex gap-6">
-        {/* Sidebar */}
-        <div className="w-56 shrink-0">
-          <div className="sticky top-6 space-y-1">
-            {sections.map((s) => {
-              const SIcon = s.icon;
-              return (
-                <button key={s.id} onClick={() => setActiveSection(s.id)}
-                  className={cn("w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left",
-                    activeSection === s.id ? "bg-accent-bg text-accent-text" : "text-muted-foreground hover:text-foreground hover:bg-muted")}>
-                  <SIcon className="h-4 w-4 shrink-0" />
-                  {s.label}
-                </button>
-              );
-            })}
+        {/* Sidebar — grouped categories */}
+        <div className="w-60 shrink-0">
+          <div className="sticky top-6 space-y-5">
+            {sectionGroups.map((group) => (
+              <div key={group.title}>
+                <p className="px-3 mb-2 text-[10px] font-semibold text-muted-foreground/55 tracking-[0.18em] uppercase">
+                  {group.title}
+                </p>
+                <div className="space-y-px">
+                  {group.items.map((s) => {
+                    const SIcon = s.icon;
+                    const active = activeSection === s.id;
+                    return (
+                      <button
+                        key={s.id}
+                        onClick={() => handleTabSwitch(s.id)}
+                        className={cn(
+                          "group relative w-full flex items-center gap-2.5 pl-3 pr-2.5 py-[7px] rounded-md text-[13px] transition-all duration-150 text-left",
+                          active ? "font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                        )}
+                        style={active ? { color: "var(--accent-primary)", background: "var(--accent-bg)" } : undefined}
+                      >
+                        {active && (
+                          <span
+                            className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-r"
+                            style={{ background: "var(--accent-primary)" }}
+                          />
+                        )}
+                        <SIcon className={cn("h-4 w-4 shrink-0 transition-opacity", !active && "opacity-80 group-hover:opacity-100")} />
+                        <span className="truncate">{s.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
         {/* Content */}
-        <div className="flex-1 max-w-2xl space-y-6">
+        <div className="flex-1 space-y-6 min-w-0">
 
           {/* Tab 1: Barangay Info */}
           {activeSection === "info" && (
-            <div className="glass rounded-xl p-6">
-              <h2 className="text-lg font-semibold text-foreground mb-1">Barangay Information</h2>
-              <p className="text-sm text-muted-foreground mb-5">Official barangay details used in documents and reports.</p>
-              <div className="space-y-4">
-                <SettingsInput label="Barangay Name" value={settings?.name || ""} onChange={() => {}} icon={Building2} disabled />
-                <div className="grid grid-cols-2 gap-4">
-                  <SettingsInput label="PSGC Code" value={settings?.psgc_code || ""} onChange={() => {}} disabled />
-                  <SettingsInput label="Population" value={settings?.population ? settings.population.toLocaleString() : ""} onChange={() => {}} disabled />
+            <div className="glass rounded-xl overflow-hidden">
+              {/* Page header */}
+              <div className="px-6 pt-6 pb-4 border-b border-border/40">
+                <h2 className="text-lg font-semibold text-foreground">{t.settings.info.title}</h2>
+                <p className="text-sm text-muted-foreground mt-0.5">{t.settings.info.description}</p>
+              </div>
+
+              {/* ── Section 1: Identity & Demographics ── */}
+              <div className="px-6 py-5 border-b border-border/40">
+                <SectionHeader
+                  icon={Building2}
+                  title="Identity & Demographics"
+                  subtitle="Synced from PSGC code — not editable here"
+                />
+                <div className="space-y-4">
+                  <SettingsInput label={t.settings.info.barangayName} value={settings?.name || ""} onChange={() => {}} icon={Building2} disabled />
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <SettingsInput label={t.settings.info.psgcCode} value={settings?.psgc_code || ""} onChange={() => {}} disabled />
+                    <SettingsInput label={t.settings.info.cityMunicipality} value={settings?.city_municipality || ""} onChange={() => {}} disabled />
+                    <SettingsInput label={t.settings.info.province} value={settings?.province || ""} onChange={() => {}} disabled />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <SettingsInput label={t.settings.info.population} value={settings?.population ? settings.population.toLocaleString() : ""} onChange={() => {}} disabled />
+                    <SettingsInput
+                      label={t.settings.info.zipCode}
+                      value={zip}
+                      onChange={(v) => {
+                        setZip(v);
+                        const valid = !v || /^\d{4}$/.test(v);
+                        setFieldErrors((p) => ({ ...p, zip: valid ? null : t.settings.info.zipError }));
+                      }}
+                      placeholder={t.settings.info.zipPlaceholder}
+                      error={fieldErrors.zip || undefined}
+                    />
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <SettingsInput label="City / Municipality" value={settings?.city_municipality || ""} onChange={() => {}} disabled />
-                  <SettingsInput label="Province" value={settings?.province || ""} onChange={() => {}} disabled />
+              </div>
+
+              {/* ── Section 2: Profile ── */}
+              <div className="px-6 py-5 border-b border-border/40">
+                <SectionHeader
+                  icon={Info}
+                  title="Profile"
+                  subtitle="Identity details printed on documents and shown to constituents"
+                />
+                <div className="space-y-4">
+                  <SettingsInput label={t.settings.info.motto} value={motto} onChange={setMotto} placeholder={t.settings.info.mottoPlaceholder} />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <SettingsInput
+                      label={t.settings.info.establishedYear}
+                      value={establishedYear}
+                      onChange={(v) => {
+                        setEstablishedYear(v);
+                        const n = parseInt(v);
+                        const thisYear = new Date().getFullYear();
+                        const valid = !v || (n >= 1900 && n <= thisYear + 1);
+                        setFieldErrors((p) => ({ ...p, establishedYear: valid ? null : `${t.settings.info.yearError} ${thisYear + 1}.` }));
+                      }}
+                      placeholder={t.settings.info.yearPlaceholder}
+                      type="number"
+                      error={fieldErrors.establishedYear || undefined}
+                    />
+                    <SettingsInput
+                      label={t.settings.info.officeHours}
+                      value={officeHours}
+                      onChange={setOfficeHours}
+                      placeholder={t.settings.info.officeHoursPlaceholder}
+                      icon={Clock}
+                    />
+                  </div>
                 </div>
-                <SettingsInput label="ZIP Code" value={zip} onChange={setZip} placeholder="e.g. 1700" />
-                <SettingsInput label="Motto / Tagline" value={motto} onChange={setMotto} placeholder="e.g. Sama-samang Pagbabago" />
-                <div className="grid grid-cols-2 gap-4">
-                  <SettingsInput label="Established Year" value={establishedYear} onChange={setEstablishedYear} placeholder="e.g. 1946" type="number" />
-                  <SettingsInput label="Captain Name" value={captainName} onChange={setCaptainName} placeholder="e.g. Hon. Juan Dela Cruz" />
+              </div>
+
+              {/* ── Section 3: Current Term ── */}
+              <div className="px-6 py-5 border-b border-border/40">
+                <SectionHeader
+                  icon={Calendar}
+                  title="Current Term"
+                  subtitle="Year the active officials were elected and the year their term ends"
+                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <SettingsInput
+                    label="Term Start Year"
+                    value={termStartYear}
+                    onChange={(v) => {
+                      const digits = v.replace(/\D/g, "").slice(0, 4);
+                      setTermStartYear(digits);
+                      const n = parseInt(digits);
+                      const thisYear = new Date().getFullYear();
+                      const valid = !digits || (digits.length === 4 && n >= 1990 && n <= thisYear + 1);
+                      setFieldErrors((p) => ({ ...p, termStartYear: valid ? null : `Year must be 1990 – ${thisYear + 1}.` }));
+                    }}
+                    placeholder="e.g. 2023"
+                    type="number"
+                    error={fieldErrors.termStartYear || undefined}
+                  />
+                  <SettingsInput
+                    label="Term End Year"
+                    value={termEndYear}
+                    onChange={(v) => {
+                      const digits = v.replace(/\D/g, "").slice(0, 4);
+                      setTermEndYear(digits);
+                      const n = parseInt(digits);
+                      const start = parseInt(termStartYear);
+                      const thisYear = new Date().getFullYear();
+                      const valid = !digits || (
+                        digits.length === 4 &&
+                        n >= 1990 &&
+                        n <= thisYear + 10 &&
+                        (Number.isNaN(start) || n > start)
+                      );
+                      setFieldErrors((p) => ({ ...p, termEndYear: valid ? null : "Must be after start year." }));
+                    }}
+                    placeholder="e.g. 2026"
+                    type="number"
+                    error={fieldErrors.termEndYear || undefined}
+                  />
                 </div>
-                <SettingsInput label="Office Hours" value={officeHours || "MON-FRI 8AM-5PM"} onChange={setOfficeHours} placeholder="MON-FRI 8AM-5PM" icon={Clock} disabled />
+                {termStartYear && termEndYear && !fieldErrors.termStartYear && !fieldErrors.termEndYear && (
+                  <p className="text-[11px] text-muted-foreground mt-2 px-1">
+                    Stored as <code className="text-[10px] bg-muted/40 px-1 rounded">{termStartYear}-{termEndYear}</code> on every document footer.
+                  </p>
+                )}
+              </div>
+
+              {/* ── Section 4: Leadership ── */}
+              <div className="px-6 py-5">
+                <SectionHeader
+                  icon={Crown}
+                  title="Leadership"
+                  subtitle="The Punong Barangay name is pulled from the Officials tab"
+                />
+                <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl glass-input">
+                  {kapitanOfficial ? (
+                    <>
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: "var(--accent-bg)", color: "var(--accent-primary)" }}>
+                        <Crown className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{kapitanDisplayName}</p>
+                        <p className="text-[11px] text-muted-foreground">{t.settings.info.captainFromOfficials}</p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-muted">
+                        <Crown className="w-4 h-4 text-muted-foreground/60" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-muted-foreground italic">{t.settings.info.captainNotSet}</p>
+                        <p className="text-[11px] text-muted-foreground/70">{t.settings.info.captainNotSetHint}</p>
+                      </div>
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleTabSwitch("officials")}
+                    className="shrink-0 text-[12px] font-medium hover:underline"
+                    style={{ color: "var(--accent-primary)" }}
+                  >
+                    {t.settings.info.manageInOfficials}
+                  </button>
+                </div>
+                <p className="text-[11px] text-muted-foreground/70 mt-1.5 px-1">
+                  {t.settings.info.captainHelper}
+                </p>
               </div>
             </div>
           )}
 
           {/* Tab 2: Contact Details */}
           {activeSection === "contact" && (
-            <div className="glass rounded-xl p-6">
-              <h2 className="text-lg font-semibold text-foreground mb-1">Contact Details</h2>
-              <p className="text-sm text-muted-foreground mb-5">Contact information displayed on documents and the public portal.</p>
-              <div className="space-y-4">
-                <SettingsInput label="Contact Phone" value={contactPhone} onChange={setContactPhone} icon={Phone} placeholder="e.g. 0917-123-4567" />
-                <SettingsInput label="Contact Email" value={contactEmail} onChange={setContactEmail} icon={Mail} placeholder="e.g. brgy.tambo@paranaque.gov.ph" />
-                <SettingsInput label="Website URL" value={websiteUrl} onChange={setWebsiteUrl} icon={Globe} placeholder="e.g. https://tambo.barangay.org.ph" />
-                <SettingsInput label="Office Address" value={fullAddress} onChange={setFullAddress} placeholder="Barangay Hall, Street, City" />
+            <div className="space-y-4">
+              {/* Top note — set the tone: everything below is optional */}
+              <div className="p-3 rounded-lg glass-subtle flex items-start gap-2.5">
+                <Globe className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0 mt-0.5" />
+                <p className="text-[12px] text-muted-foreground">{t.settings.contact.topNote}</p>
+              </div>
+
+              {/* ─── Section: Communication ──────────────────────────────── */}
+              <div className="glass rounded-xl p-6">
+                <div className="flex items-start gap-3 mb-5">
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: "color-mix(in srgb, var(--accent-primary) 12%, transparent)" }}>
+                    <Phone className="h-4 w-4" style={{ color: "var(--accent-primary)" }} />
+                  </div>
+                  <div className="flex-1">
+                    <h2 className="text-lg font-semibold text-foreground">{t.settings.contact.communication.title}</h2>
+                    <p className="text-sm text-muted-foreground mt-0.5">{t.settings.contact.communication.description}</p>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <SettingsInput
+                    label="Office Landline"
+                    value={contactPhone}
+                    onChange={(v) => {
+                      setContactPhone(v);
+                      const valid = !v || /^[\d\s\-()+]{7,20}$/.test(v);
+                      setFieldErrors((p) => ({ ...p, contactPhone: valid ? null : "Use digits, spaces, +, -, ( )." }));
+                    }}
+                    icon={Phone}
+                    placeholder="e.g. (02) 8123-4567"
+                    error={fieldErrors.contactPhone || undefined}
+                  />
+                  <SettingsInput
+                    label="Mobile / SMS Hotline"
+                    value={mobileNumber}
+                    onChange={(v) => {
+                      setMobileNumber(v);
+                      const digits = v.replace(/\D/g, "");
+                      const valid = !v || /^09\d{9}$/.test(digits);
+                      setFieldErrors((p) => ({ ...p, mobileNumber: valid ? null : "Mobile must be Philippine format: 09XXXXXXXXX." }));
+                    }}
+                    icon={Smartphone}
+                    placeholder="e.g. 09171234567"
+                    error={fieldErrors.mobileNumber || undefined}
+                  />
+                  <SettingsInput
+                    label="Emergency Hotline"
+                    value={emergencyHotline}
+                    onChange={setEmergencyHotline}
+                    icon={Siren}
+                    placeholder="e.g. 09181234567 or (02) 911-1234"
+                  />
+                  <SettingsInput
+                    label="Email"
+                    value={contactEmail}
+                    onChange={(v) => {
+                      setContactEmail(v);
+                      const valid = !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+                      setFieldErrors((p) => ({ ...p, contactEmail: valid ? null : "Enter a valid email address." }));
+                    }}
+                    icon={Mail}
+                    placeholder="e.g. brgy.tambo@paranaque.gov.ph"
+                    error={fieldErrors.contactEmail || undefined}
+                  />
+                  <SettingsInput
+                    label="Website URL"
+                    value={websiteUrl}
+                    onChange={(v) => {
+                      setWebsiteUrl(v);
+                      const valid = !v || /^https:\/\/[^\s]+\.[^\s]+/.test(v);
+                      setFieldErrors((p) => ({ ...p, websiteUrl: valid ? null : "Website must start with https:// for security." }));
+                    }}
+                    icon={Globe}
+                    placeholder="https://tambo.barangay.org.ph"
+                    error={fieldErrors.websiteUrl || undefined}
+                  />
+                </div>
+              </div>
+
+              {/* ─── Section: Address & Location ─────────────────────────── */}
+              <div className="glass rounded-xl p-6">
+                <div className="flex items-start gap-3 mb-5">
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: "color-mix(in srgb, var(--accent-primary) 12%, transparent)" }}>
+                    <MapPin className="h-4 w-4" style={{ color: "var(--accent-primary)" }} />
+                  </div>
+                  <div className="flex-1">
+                    <h2 className="text-lg font-semibold text-foreground">{t.settings.contact.location.title}</h2>
+                    <p className="text-sm text-muted-foreground mt-0.5">{t.settings.contact.location.description}</p>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <SettingsInput
+                    label="Office Address"
+                    value={fullAddress}
+                    onChange={setFullAddress}
+                    placeholder="Barangay Hall, Street, City"
+                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <SettingsInput
+                      label="Latitude"
+                      value={latitude}
+                      onChange={(v) => {
+                        setLatitude(v);
+                        const n = parseFloat(v);
+                        const valid = !v || (!isNaN(n) && n >= 4.5 && n <= 21.5);
+                        setFieldErrors((p) => ({ ...p, latitude: valid ? null : "Latitude must be in Philippine bounds (4.5 to 21.5)." }));
+                      }}
+                      placeholder="e.g. 14.5184"
+                      error={fieldErrors.latitude || undefined}
+                    />
+                    <SettingsInput
+                      label="Longitude"
+                      value={longitude}
+                      onChange={(v) => {
+                        setLongitude(v);
+                        const n = parseFloat(v);
+                        const valid = !v || (!isNaN(n) && n >= 116 && n <= 127);
+                        setFieldErrors((p) => ({ ...p, longitude: valid ? null : "Longitude must be in Philippine bounds (116 to 127)." }));
+                      }}
+                      placeholder="e.g. 120.9938"
+                      error={fieldErrors.longitude || undefined}
+                    />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground/70 px-1">
+                    Find coordinates on Google Maps: right-click on your barangay hall → copy the lat,lng pair.
+                  </p>
+                </div>
+              </div>
+
+              {/* ─── Section: Social Media ───────────────────────────────── */}
+              <div className="glass rounded-xl p-6">
+                <div className="flex items-start gap-3 mb-5">
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: "color-mix(in srgb, var(--accent-primary) 12%, transparent)" }}>
+                    <Globe className="h-4 w-4" style={{ color: "var(--accent-primary)" }} />
+                  </div>
+                  <div className="flex-1">
+                    <h2 className="text-lg font-semibold text-foreground">{t.settings.contact.social.title}</h2>
+                    <p className="text-sm text-muted-foreground mt-0.5">{t.settings.contact.social.description}</p>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <SettingsInput
+                    label="Facebook Page"
+                    value={facebookUrl}
+                    onChange={(v) => {
+                      setFacebookUrl(v);
+                      const valid = !v || /^https:\/\/(www\.)?(facebook|fb)\.com\/[^\s]+/i.test(v);
+                      setFieldErrors((p) => ({ ...p, facebookUrl: valid ? null : "Must be an https:// facebook.com URL." }));
+                    }}
+                    icon={Facebook}
+                    placeholder="https://facebook.com/brgytambo"
+                    error={fieldErrors.facebookUrl || undefined}
+                  />
+                  <SettingsInput
+                    label="Viber Community"
+                    value={viberUrl}
+                    onChange={(v) => {
+                      setViberUrl(v);
+                      const valid = !v || /^https:\/\/[^\s]+\.[^\s]+/.test(v);
+                      setFieldErrors((p) => ({ ...p, viberUrl: valid ? null : "Must start with https://." }));
+                    }}
+                    icon={MessageSquare}
+                    placeholder="https://invite.viber.com/?..."
+                    error={fieldErrors.viberUrl || undefined}
+                  />
+                  <SettingsInput
+                    label="YouTube Channel"
+                    value={youtubeUrl}
+                    onChange={(v) => {
+                      setYoutubeUrl(v);
+                      const valid = !v || /^https:\/\/(www\.)?youtube\.com\/[^\s]+/i.test(v);
+                      setFieldErrors((p) => ({ ...p, youtubeUrl: valid ? null : "Must be an https:// youtube.com URL." }));
+                    }}
+                    icon={Youtube}
+                    placeholder="https://youtube.com/@brgytambo"
+                    error={fieldErrors.youtubeUrl || undefined}
+                  />
+                  <SettingsInput
+                    label="Twitter / X"
+                    value={twitterUrl}
+                    onChange={(v) => {
+                      setTwitterUrl(v);
+                      const valid = !v || /^https:\/\/(www\.)?(twitter|x)\.com\/[^\s]+/i.test(v);
+                      setFieldErrors((p) => ({ ...p, twitterUrl: valid ? null : "Must be an https:// twitter.com or x.com URL." }));
+                    }}
+                    icon={Twitter}
+                    placeholder="https://x.com/brgytambo"
+                    error={fieldErrors.twitterUrl || undefined}
+                  />
+                  <SettingsInput
+                    label="Instagram"
+                    value={instagramUrl}
+                    onChange={(v) => {
+                      setInstagramUrl(v);
+                      const valid = !v || /^https:\/\/(www\.)?instagram\.com\/[^\s]+/i.test(v);
+                      setFieldErrors((p) => ({ ...p, instagramUrl: valid ? null : "Must be an https:// instagram.com URL." }));
+                    }}
+                    icon={Instagram}
+                    placeholder="https://instagram.com/brgytambo"
+                    error={fieldErrors.instagramUrl || undefined}
+                  />
+                </div>
               </div>
             </div>
           )}
 
-          {/* Tab 3: Branding */}
+          {/* Tab 3: Branding — Barangay Logo + City/Municipality Logo */}
           {activeSection === "branding" && (
             <div className="glass rounded-xl p-6">
-              <h2 className="text-lg font-semibold text-foreground mb-1">Barangay Branding</h2>
-              <p className="text-sm text-muted-foreground mb-5">Upload your barangay logo and seal. These appear on documents and the public portal.</p>
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <ImageUpload label="Barangay Logo" hint="Recommended: square image, 512x512px. Appears on documents and certificates."
-                  currentUrl={logoUrl} onUpload={handleLogoUpload} uploading={uploadingLogo} />
-                <ImageUpload label="City/Municipality Logo" hint="Official seal or logo of your city/municipality. PNG with transparent background recommended."
-                  currentUrl={sealUrl} onUpload={handleSealUpload} uploading={uploadingSeal} />
-              </div>
-              <div className="p-3 rounded-lg glass-subtle">
-                <p className="text-xs text-muted-foreground">
-                  These images appear on official documents (certificates, clearances), printed reports, and your barangay.org.ph public portal.
-                </p>
+              <h2 className="text-lg font-semibold text-foreground mb-1">{t.settings.branding.title}</h2>
+              <p className="text-sm text-muted-foreground mb-5">{t.settings.branding.description}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <ImageUpload label="Barangay Logo" hint="The official logo of this barangay. Appears on documents, certificates, the public portal, and the right circle of the sidebar identity. Recommended: square 512×512px."
+                  currentUrl={resolvePhotoUrl(logoUrl)} onUpload={handleLogoUpload} uploading={uploadingLogo} />
+                <ImageUpload label="City / Municipality Logo" hint="The official logo of your city or municipality (e.g. Paranaque City). Appears on document letterheads and the left circle of the sidebar identity."
+                  currentUrl={resolvePhotoUrl(municipalityLogoUrl)} onUpload={handleMunicipalityLogoUpload} uploading={uploadingMunicipalityLogo} />
               </div>
             </div>
           )}
@@ -651,10 +1713,39 @@ export default function SettingsPage() {
                   <p className="text-[11px] text-muted-foreground mt-2 px-1">This name and title appear as the default signatory on certificates and official documents.</p>
                 </div>
 
+                <div className="border-t border-border pt-4 mt-4">
+                  <h3 className="text-sm font-semibold text-foreground mb-1">Display Language</h3>
+                  <p className="text-[11px] text-muted-foreground mb-3">Choose the interface language for Kapitan. Saved to your device.</p>
+                  <div className="inline-flex rounded-xl glass-subtle p-1">
+                    <button
+                      type="button"
+                      onClick={() => setLanguage("en")}
+                      className={cn(
+                        "px-4 py-2 text-[13px] font-semibold rounded-lg transition-all",
+                        language === "en" ? "text-white shadow-sm" : "text-muted-foreground hover:text-foreground"
+                      )}
+                      style={language === "en" ? { background: "var(--accent-primary)" } : undefined}
+                    >
+                      English
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLanguage("fil")}
+                      className={cn(
+                        "px-4 py-2 text-[13px] font-semibold rounded-lg transition-all",
+                        language === "fil" ? "text-white shadow-sm" : "text-muted-foreground hover:text-foreground"
+                      )}
+                      style={language === "fil" ? { background: "var(--accent-primary)" } : undefined}
+                    >
+                      Filipino
+                    </button>
+                  </div>
+                </div>
+
                 <div className="p-3 rounded-lg glass-subtle">
                   <p className="text-xs text-muted-foreground">
-                    Language, date format, and theme preferences are personal settings. Go to{" "}
-                    <a href="/dashboard/account" className="font-medium underline" style={{ color: "var(--accent-primary)" }}>My Account</a> to change them.
+                    Theme and date format preferences are personal —{" "}
+                    <a href="/dashboard/account" className="font-medium underline" style={{ color: "var(--accent-primary)" }}>My Account</a>.
                   </p>
                 </div>
               </div>
@@ -664,316 +1755,1101 @@ export default function SettingsPage() {
           {/* Tab 6: Document Settings */}
           {activeSection === "documents" && (
             <div className="space-y-4">
-              <div className="glass rounded-xl p-6">
-                <h2 className="text-lg font-semibold text-foreground mb-1">Document Settings</h2>
-                <p className="text-sm text-muted-foreground mb-5">Configure the header, footer, fees, and validity for certificates and official documents.</p>
-                <div className="space-y-4">
-                  <SettingsTextarea label="Document Header Text" value={docHeader} onChange={setDocHeader}
-                    placeholder="e.g. Republic of the Philippines\nCity of Paranaque\nBarangay Tambo" rows={3} />
-                  <SettingsTextarea label="Document Footer Text" value={docFooter} onChange={setDocFooter}
-                    placeholder="e.g. This document is valid for 6 months from date of issuance." rows={2} />
+              {/* ── STAGE 1 of 3 — Document Structure (3 production layouts) ── */}
+              <div className="glass rounded-xl p-6 relative overflow-hidden">
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-500/30 to-transparent" />
 
-                  {/* Preview */}
-                  <div className="p-4 rounded-lg border border-border bg-white">
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Preview</p>
-                    <div className="flex items-center gap-3 justify-center mb-3">
-                      {logoUrl && <img src={logoUrl} alt="Logo" className="h-10 w-10 object-contain" />}
-                      <div className="text-center">
-                        {(docHeader || "Republic of the Philippines\nBarangay Tambo").split("\n").map((line, i) => (
-                          <p key={i} className="text-[10px] text-gray-700 font-medium leading-tight">{line}</p>
-                        ))}
-                      </div>
-                      {sealUrl && <img src={sealUrl} alt="City/Municipality Logo" className="h-10 w-10 object-contain" />}
+                <div className="flex items-start justify-between gap-4 mb-1">
+                  <div className="relative pl-4">
+                    <span
+                      className="absolute left-0 top-1 bottom-1 w-0.5 rounded-full"
+                      style={{ background: "linear-gradient(180deg, rgba(59,130,246,0.7) 0%, rgba(139,92,246,0.3) 100%)" }}
+                    />
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Stage 1 of 3</span>
+                      <span className="h-1 w-1 rounded-full bg-muted-foreground/50" />
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.18em]" style={{ color: "var(--accent-primary)" }}>Structure</span>
                     </div>
-                    <div className="border-t border-gray-200 pt-2 mt-2">
-                      <p className="text-[9px] text-gray-500 text-center italic">{docFooter || "Footer text will appear here"}</p>
-                    </div>
+                    <h2
+                      className="text-2xl text-foreground tracking-[-0.01em] leading-tight"
+                      style={{ fontFamily: "var(--font-playfair)" }}
+                    >
+                      Document Structure
+                    </h2>
+                    <p className="text-xs text-muted-foreground mt-1 max-w-2xl">
+                      The layout foundation — where officials, logos, headers, content, signatures, and verification appear on the page. Visual styling comes next. Verification features (QR, hash, ref no., dates) apply to <em>all</em> structures.
+                    </p>
                   </div>
                 </div>
-              </div>
 
-              {/* Certificate Design */}
-              <div className="glass rounded-xl p-6">
-                <h3 className="text-sm font-semibold text-foreground mb-1">Certificate Design</h3>
-                <p className="text-xs text-muted-foreground mb-4">Choose the layout style for all generated PDF certificates and clearances. Anti-epal compliant (DILG MC 2026-006).</p>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent my-5" />
+
+                {/* 3 production structures — body + footer unified, only headers differ */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   {[
                     {
                       id: "klasiko",
-                      label: "Klasiko",
-                      desc: "Traditional layout with dual seals and double-border header. Standard Philippine government style.",
+                      label: "Classic Sidebar",
+                      tag: "Default",
+                      desc: "Officials roster runs vertically on the left, with verification block (QR + ref) below it. Content fills the right. Traditional barangay identity.",
+                      regions: [
+                        "Header: dual logos + Republic / Province / Barangay",
+                        "Left sidebar: officials roster + QR verification",
+                        "Right content: title, body, captain signature",
+                        "Watermark + security strip footer",
+                      ],
                       preview: (
-                        /* ── KLASIKO: double-border header, dual seals, centered text, navy ── */
-                        <div className="w-full bg-white rounded-t-lg overflow-hidden border border-gray-200 font-sans" style={{ fontSize: 0 }}>
-                          {/* Header */}
-                          <div className="px-3 pt-3 pb-2 border-b-2 border-double border-[#1a3a6e]">
-                            <div className="flex items-center justify-between gap-1">
-                              {/* Left seal */}
-                              <div className="w-7 h-7 rounded-full border-2 border-gray-300 bg-gray-50 flex-shrink-0 flex items-center justify-center">
-                                <div className="w-4 h-4 rounded-full border border-gray-300 bg-gray-100" />
+                        <div className="w-full bg-white overflow-hidden border border-gray-200 flex flex-col" style={{ aspectRatio: "3 / 4" }}>
+                          <StructureCardHeader
+                            variant="klasiko"
+                            barangayName={settings?.name}
+                            municipality={settings?.city_municipality}
+                            province={settings?.province}
+                            logoUrl={resolvePhotoUrl(logoUrl)}
+                            municipalityLogoUrl={resolvePhotoUrl(municipalityLogoUrl)}
+                          />
+                          {/* Body: sidebar (officials + term + dates + QR) | content right */}
+                          <div className="flex flex-1 min-h-0">
+                            {(() => {
+                              const validity = parseInt(certValidityDays) || 180;
+                              const todayDate = new Date();
+                              const expireDate = new Date(todayDate.getTime() + validity * 86_400_000);
+                              const fmt = (d: Date) => d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+                              const termStart = termStartYear || "2024";
+                              const termEnd = termEndYear || "2026";
+                              return (
+                                <div className="w-[38%] border-r border-gray-400 bg-white flex flex-col">
+                                  {/* 1. Title + Year combined */}
+                                  <div className="px-2 pt-1.5 pb-1 bg-gradient-to-b from-gray-50/70 to-white border-b border-gray-300">
+                                    <div className="h-0.5 w-5 mx-auto bg-gray-800" />
+                                    <p
+                                      className="text-[6.5px] font-bold tracking-[0.22em] uppercase text-gray-900 text-center mt-0.5 leading-[1.1]"
+                                      style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
+                                    >
+                                      Sangguniang Barangay
+                                    </p>
+                                    <p
+                                      className="text-[8.5px] font-bold text-gray-900 tracking-wider text-center mt-0.5 tabular-nums leading-tight"
+                                      style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
+                                    >
+                                      {termStart} <span className="text-gray-400 font-normal">—</span> {termEnd}
+                                    </p>
+                                  </div>
+
+                                  {/* 2. Officials roster (no dividers between names — typography only) +
+                                       3. Issued / Valid Until integrated into the same column flow */}
+                                  {(() => {
+                                    const POS_ORDER: Record<string, number> = {
+                                      kapitan: 0, kagawad: 1, sk_chair: 2, sk_chairperson: 2, "sk-chair": 2,
+                                      secretary: 3, treasurer: 4,
+                                    };
+                                    const posLabels: Record<string, string> = {
+                                      kapitan: "Punong Barangay",
+                                      kagawad: "Kagawad",
+                                      sk_chair: "SK Chairperson",
+                                      sk_chairperson: "SK Chairperson",
+                                      "sk-chair": "SK Chairperson",
+                                      secretary: "Barangay Secretary",
+                                      treasurer: "Barangay Treasurer",
+                                    };
+                                    const sorted = [...allOfficials].sort((a, b) => {
+                                      const oa = POS_ORDER[a.position] ?? 99;
+                                      const ob = POS_ORDER[b.position] ?? 99;
+                                      return oa - ob;
+                                    });
+                                    return (
+                                      <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+                                        {/* Officials — no dividers, just rhythm */}
+                                        <div className="px-1.5 pt-1.5 pb-1 space-y-[3px] flex-1 overflow-hidden">
+                                          {sorted.map((o) => {
+                                            const firstName = o.resident?.first_name?.trim() || "";
+                                            const lastName = o.resident?.last_name?.trim() || "";
+                                            const fullName = (firstName + " " + lastName).trim() || "—";
+                                            const isKapitan = o.position === "kapitan";
+                                            const posLabel = posLabels[o.position] || o.position || "";
+                                            return (
+                                              <div key={o.id} className="text-center leading-[1]">
+                                                <p
+                                                  className={cn(
+                                                    "truncate tracking-wide",
+                                                    isKapitan
+                                                      ? "text-[7.5px] font-bold text-gray-900 uppercase"
+                                                      : "text-[6px] font-semibold text-gray-800 uppercase"
+                                                  )}
+                                                  style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
+                                                >
+                                                  {fullName}
+                                                </p>
+                                                <p
+                                                  className={cn(
+                                                    "truncate italic mt-px",
+                                                    isKapitan ? "text-[5.5px] text-gray-600" : "text-[4.5px] text-gray-500"
+                                                  )}
+                                                >
+                                                  {posLabel}
+                                                </p>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+
+                                        {/* Ornament separator between officials and dates */}
+                                        <div className="px-3 py-1 flex items-center gap-1">
+                                          <div className="h-px flex-1 bg-gray-300" />
+                                          <div className="w-1 h-1 rotate-45 bg-gray-400" />
+                                          <div className="h-px flex-1 bg-gray-300" />
+                                        </div>
+
+                                        {/* Issued / Valid Until — same column flow, smaller */}
+                                        <div className="px-2 pb-1.5 space-y-px">
+                                          <div className="flex items-baseline justify-between gap-1">
+                                            <p className="text-[5px] tracking-[0.2em] uppercase text-gray-500 italic">Issued</p>
+                                            <p
+                                              className="text-[6.5px] font-semibold text-gray-800 tabular-nums truncate"
+                                              style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
+                                            >
+                                              {fmt(todayDate)}
+                                            </p>
+                                          </div>
+                                          <div className="flex items-baseline justify-between gap-1">
+                                            <p className="text-[5px] tracking-[0.2em] uppercase text-gray-500 italic">Valid Until</p>
+                                            <p
+                                              className="text-[6.5px] font-semibold text-gray-800 tabular-nums truncate"
+                                              style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
+                                            >
+                                              {fmt(expireDate)}
+                                            </p>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })()}
+
+                                  {/* 4. QR verification with PrimeX mark embedded in the center */}
+                                  <div className="px-1.5 py-1.5 border-t-2 border-gray-800 bg-white">
+                                    <p className="text-[5px] font-bold tracking-[0.22em] uppercase text-gray-800 text-center mb-0.5">
+                                      Verify Document
+                                    </p>
+                                    <div className="flex justify-center">
+                                      <div className="relative w-12 h-12 border border-gray-900 p-0.5 bg-white">
+                                        <div className="grid grid-cols-9 gap-px w-full h-full">
+                                          {Array.from({ length: 81 }).map((_, i) => {
+                                            const row = Math.floor(i / 9);
+                                            const col = i % 9;
+                                            // 3 finder squares (TL, TR, BL) — outer ring pattern
+                                            const isFinder =
+                                              (row < 3 && col < 3 && (row === 0 || row === 2 || col === 0 || col === 2)) ||
+                                              (row < 3 && col >= 6 && (row === 0 || row === 2 || col === 6 || col === 8)) ||
+                                              (row >= 6 && col < 3 && (row === 6 || row === 8 || col === 0 || col === 2));
+                                            // Center 3×3 cells reserved for the PrimeX logo overlay → keep blank
+                                            const isCenter = row >= 3 && row <= 5 && col >= 3 && col <= 5;
+                                            const isData = !isFinder && !isCenter && ((i * 37 + 11) % 5 < 2);
+                                            return (
+                                              <div
+                                                key={i}
+                                                className={(isFinder || isData) ? "bg-gray-900" : "bg-transparent"}
+                                              />
+                                            );
+                                          })}
+                                        </div>
+                                        {/* PrimeX mark — small bordered patch centered over the QR */}
+                                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                          <div className="bg-white border border-gray-900 p-px rounded-sm">
+                                            <svg viewBox="0 0 256 256" className="w-3 h-3 text-gray-900" fill="currentColor" aria-label="PrimeX">
+                                              <path d="M 150.23 144.99 C134.71,147.23 124.05,144.91 128.30,140.22 C129.17,139.26 132.05,137.88 134.69,137.16 C145.76,134.14 148.53,132.70 154.00,127.12 C164.19,116.71 166.86,103.09 161.66,88.00 C159.56,81.88 158.17,79.65 154.12,75.89 C141.79,64.43 123.08,62.95 109.50,72.36 C107.85,73.51 95.93,84.95 83.00,97.80 C58.33,122.32 50.53,128.44 39.24,132.17 C36.19,133.18 31.75,134.00 29.38,134.00 C22.24,134.00 11.00,129.12 11.00,126.01 C11.00,124.72 88.06,48.53 92.15,45.79 C94.54,44.18 100.77,40.82 106.00,38.32 L 115.50 33.78 L 146.50 33.57 L 156.84 38.78 C168.47,44.65 173.48,48.54 179.28,56.22 C187.41,66.98 191.00,78.19 191.00,92.84 C191.00,119.94 174.12,141.53 150.23,144.99 ZM 153.04 211.96 C143.77,216.59 143.19,216.74 132.50,217.22 C115.83,217.99 106.60,216.86 99.91,213.25 C82.41,203.80 73.94,194.54 68.24,178.65 C66.04,172.49 65.68,169.83 65.67,159.50 C65.66,150.59 66.13,146.08 67.47,142.00 C73.00,125.17 82.40,114.75 97.22,109.00 C103.87,106.41 106.26,106.00 114.53,106.00 C124.83,106.00 128.00,106.94 128.00,110.00 C128.00,112.27 126.26,113.28 119.63,114.90 C99.88,119.72 89.33,137.02 93.55,157.66 C96.23,170.80 100.79,176.61 113.00,182.41 C118.57,185.06 120.57,185.49 127.00,185.40 C133.17,185.33 135.71,184.75 141.29,182.18 C147.33,179.39 150.72,176.43 171.79,155.48 C203.74,123.73 212.24,117.99 227.26,118.01 C235.73,118.02 245.00,121.53 245.00,124.73 C245.00,126.65 176.30,196.29 167.54,203.25 C164.81,205.42 158.28,209.34 153.04,211.96 Z" />
+                                            </svg>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                            {/* Content right (title + body + signature) */}
+                            <div className="flex-1 p-2 flex flex-col relative">
+                              {/* Universal barangay logo watermark */}
+                              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                <div className="relative w-9 h-9 rounded-full border-2 border-gray-500 opacity-[0.13]">
+                                  <div className="absolute inset-1 rounded-full border border-gray-500" />
+                                </div>
                               </div>
-                              {/* Center text */}
-                              <div className="flex-1 text-center space-y-0.5">
-                                <div className="h-1 bg-gray-400 rounded mx-4" />
-                                <div className="h-1 bg-gray-500 rounded mx-6" />
-                                <div className="h-2 bg-[#1a3a6e] rounded mx-3" />
-                                <div className="h-1 bg-gray-400 rounded mx-8" />
+                              <div className="h-1.5 bg-gray-500 rounded w-3/4 relative" />
+                              <div className="mt-1.5 space-y-1 flex-1 relative">
+                                <div className="h-0.5 bg-gray-200 rounded" />
+                                <div className="h-0.5 bg-gray-200 rounded w-5/6" />
+                                <div className="h-0.5 bg-gray-200 rounded" />
+                                <div className="h-0.5 bg-gray-200 rounded w-4/5" />
+                                <div className="h-0.5 bg-gray-200 rounded w-full" />
+                                <div className="h-0.5 bg-gray-200 rounded w-3/4" />
                               </div>
-                              {/* Right seal */}
-                              <div className="w-7 h-7 rounded-full border-2 border-gray-300 bg-gray-50 flex-shrink-0 flex items-center justify-center">
-                                <div className="w-4 h-4 rounded-full border border-gray-300 bg-gray-100" />
+                              <div className="mt-auto w-16 ml-auto space-y-0.5 relative">
+                                <div className="h-px bg-gray-400" />
+                                <div className="h-0.5 bg-gray-300 rounded" />
                               </div>
                             </div>
                           </div>
-                          {/* Title */}
-                          <div className="px-3 py-1.5 text-center space-y-0.5">
-                            <div className="h-2 bg-[#1a3a6e] rounded mx-6" />
-                            <div className="h-1 bg-gray-300 rounded mx-10" />
-                          </div>
-                          {/* Body lines */}
-                          <div className="px-4 py-1 space-y-1">
-                            <div className="h-1 bg-gray-200 rounded" />
-                            <div className="h-1 bg-gray-200 rounded w-5/6" />
-                            <div className="h-1 bg-gray-200 rounded w-4/5" />
-                            <div className="h-1 bg-gray-200 rounded w-full" />
-                          </div>
-                          {/* Signature row */}
-                          <div className="px-3 pt-1.5 pb-2.5 flex justify-between">
-                            <div className="w-14 text-center space-y-0.5">
-                              <div className="h-px bg-gray-400" />
-                              <div className="h-1 bg-gray-300 rounded" />
-                            </div>
-                            <div className="w-14 text-center space-y-0.5">
-                              <div className="h-px bg-gray-400" />
-                              <div className="h-1 bg-gray-300 rounded" />
-                            </div>
-                          </div>
-                          {/* Footer */}
-                          <div className="px-3 py-1 border-t border-gray-200 flex justify-between items-center">
-                            <div className="space-y-0.5">
-                              <div className="h-0.5 w-10 bg-gray-200 rounded" />
-                              <div className="h-0.5 w-8 bg-gray-200 rounded" />
-                            </div>
-                            <div className="w-5 h-5 border border-gray-300 rounded-sm bg-gray-50" />
-                          </div>
-                        </div>
-                      ),
-                    },
-                    {
-                      id: "moderno",
-                      label: "Moderno",
-                      desc: "Clean modern design with a blue accent bar, single left-aligned seal, and minimal borders.",
-                      preview: (
-                        /* ── MODERNO: 4px blue top bar, single seal left, text right, minimal ── */
-                        <div className="w-full bg-white rounded-t-lg overflow-hidden border border-gray-200" style={{ fontSize: 0 }}>
-                          {/* Blue top accent bar */}
-                          <div className="h-1.5 bg-[#1a56db]" />
-                          {/* Header: seal left, text right */}
-                          <div className="px-3 pt-2 pb-1.5 flex items-start gap-2.5 border-b border-gray-100">
-                            <div className="w-7 h-7 rounded-full border-2 border-gray-300 bg-gray-50 flex-shrink-0 flex items-center justify-center mt-0.5">
-                              <div className="w-4 h-4 rounded-full border border-gray-300 bg-gray-100" />
-                            </div>
-                            <div className="flex-1 space-y-0.5 pt-0.5">
-                              <div className="h-1 bg-gray-400 rounded w-4/5" />
-                              <div className="h-1 bg-gray-400 rounded w-3/5" />
-                              <div className="h-1.5 bg-[#1a3a6e] rounded w-full" />
-                              <div className="h-1 bg-gray-300 rounded w-2/3" />
-                            </div>
-                          </div>
-                          {/* Title with blue underline */}
-                          <div className="px-3 py-1.5">
-                            <div className="h-2 bg-[#1a3a6e] rounded w-3/5" />
-                            <div className="mt-0.5 h-0.5 bg-[#1a56db] rounded w-3/5" />
-                          </div>
-                          {/* Body lines */}
-                          <div className="px-3 space-y-1 pb-1">
-                            <div className="h-1 bg-gray-200 rounded w-full" />
-                            <div className="h-1 bg-gray-200 rounded w-5/6" />
-                            <div className="h-1 bg-gray-200 rounded w-4/5" />
-                          </div>
-                          {/* Signature row */}
-                          <div className="px-3 pt-1 pb-2 flex justify-between">
-                            <div className="w-14 space-y-0.5">
-                              <div className="h-px bg-gray-400" />
-                              <div className="h-1 bg-gray-300 rounded" />
-                            </div>
-                            <div className="w-14 space-y-0.5">
-                              <div className="h-px bg-gray-400" />
-                              <div className="h-1 bg-gray-300 rounded" />
-                            </div>
-                          </div>
-                          {/* Footer */}
-                          <div className="px-3 py-1 border-t border-gray-100 flex justify-between items-center">
-                            <div className="space-y-0.5">
-                              <div className="h-0.5 w-10 bg-gray-200 rounded" />
-                              <div className="h-0.5 w-8 bg-gray-200 rounded" />
-                            </div>
-                            <div className="w-5 h-5 border border-gray-300 rounded-sm bg-gray-50" />
+                          {/* Bottom security strip */}
+                          <div className="px-2.5 py-0.5 border-t border-gray-200 bg-gray-50 flex items-center justify-center flex-shrink-0">
+                            <div className="h-0.5 bg-gray-300 rounded w-2/3" />
                           </div>
                         </div>
                       ),
                     },
                     {
                       id: "elegante",
-                      label: "Elegante",
-                      desc: "Formal style with decorative double-border frame, centered seal, and flanked title rules.",
+                      label: "Formal Government",
+                      tag: "Enterprise",
+                      desc: "Double-border ornate frame around the whole document. Header has thin rules above/below the title. Body + footer shared.",
+                      regions: [
+                        "Outer: double-border ornate frame",
+                        "Header: dual logos + Republic / Province / Barangay",
+                        "Title bar with flanking thin rules",
+                        "Body: centered formal text + watermark",
+                        "Footer: 3-column signatures (Prepared / Reviewed / Approved)",
+                        "Verification strip + security strip",
+                      ],
                       preview: (
-                        /* ── ELEGANTE: outer+inner navy border, centered, flanked title rules ── */
-                        <div className="w-full bg-white rounded-t-lg overflow-hidden border-2 border-[#1a3a6e]" style={{ fontSize: 0 }}>
-                          <div className="m-1 border border-[#8b9dc3] rounded-sm">
-                            {/* Centered header */}
-                            <div className="px-2 pt-2 pb-1.5 flex flex-col items-center border-b border-[#8b9dc3]/50">
-                              <div className="w-7 h-7 rounded-full border-2 border-gray-300 bg-gray-50 flex items-center justify-center">
-                                <div className="w-4 h-4 rounded-full border border-gray-300 bg-gray-100" />
-                              </div>
-                              <div className="mt-1 space-y-0.5 w-full text-center">
-                                <div className="h-1 bg-gray-400 rounded mx-4" />
-                                <div className="h-1 bg-gray-400 rounded mx-6" />
-                                <div className="h-1.5 bg-[#1a3a6e] rounded mx-4" />
-                              </div>
+                        <div className="w-full bg-white overflow-hidden border-2 border-gray-500 flex flex-col" style={{ aspectRatio: "3 / 4" }}>
+                          <div className="m-1 border border-gray-400 flex flex-col flex-1 min-h-0">
+                            <StructureCardHeader
+                              variant="elegante"
+                              barangayName={settings?.name}
+                              municipality={settings?.city_municipality}
+                              province={settings?.province}
+                              logoUrl={resolvePhotoUrl(logoUrl)}
+                              municipalityLogoUrl={resolvePhotoUrl(municipalityLogoUrl)}
+                            />
+                            <div className="px-2 py-1 flex items-center justify-center gap-1 border-b border-gray-200 flex-shrink-0">
+                              <div className="flex-1 h-px bg-gray-300" />
+                              <div className="h-1 bg-gray-600 rounded w-12" />
+                              <div className="flex-1 h-px bg-gray-300" />
                             </div>
-                            {/* Title with flanking rules */}
-                            <div className="px-2 py-1.5 flex items-center justify-center gap-1">
-                              <div className="flex-1 h-px bg-[#8b9dc3]" />
-                              <div className="h-2 bg-[#1a3a6e] rounded w-16" />
-                              <div className="flex-1 h-px bg-[#8b9dc3]" />
-                            </div>
-                            {/* Body lines */}
-                            <div className="px-3 space-y-1 pb-1">
-                              <div className="h-1 bg-gray-200 rounded" />
-                              <div className="h-1 bg-gray-200 rounded w-5/6 mx-auto" />
-                              <div className="h-1 bg-gray-200 rounded w-4/5 mx-auto" />
-                            </div>
-                            {/* Signature centered */}
-                            <div className="px-3 pt-1 pb-2 flex justify-center">
-                              <div className="w-20 space-y-0.5 text-center">
-                                <div className="h-px bg-gray-400" />
-                                <div className="h-1 bg-gray-300 rounded" />
+
+                          {/* Body: shared across all structures (centered + watermark) */}
+                          <div className="relative flex-1 min-h-0 flex flex-col justify-center px-3 py-2 space-y-1">
+                            {/* Universal barangay logo watermark — present on every certificate */}
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                              <div className="relative w-10 h-10 rounded-full border-2 border-gray-500 opacity-[0.13]">
+                                <div className="absolute inset-1 rounded-full border border-gray-500" />
                               </div>
                             </div>
-                            {/* Footer */}
-                            <div className="px-2 py-1 border-t border-[#8b9dc3]/50 flex justify-between items-center">
-                              <div className="space-y-0.5">
-                                <div className="h-0.5 w-8 bg-gray-200 rounded" />
-                                <div className="h-0.5 w-6 bg-gray-200 rounded" />
-                              </div>
-                              <div className="w-5 h-5 border border-gray-300 rounded-sm bg-gray-50" />
+                            <div className="space-y-1 relative">
+                              <div className="h-0.5 bg-gray-200 rounded w-full" />
+                              <div className="h-0.5 bg-gray-200 rounded w-11/12 mx-auto" />
+                              <div className="h-0.5 bg-gray-200 rounded w-5/6 mx-auto" />
+                              <div className="h-0.5 bg-gray-200 rounded w-full" />
+                              <div className="h-0.5 bg-gray-200 rounded w-3/4 mx-auto" />
                             </div>
+                          </div>
+                          {/* Footer: shared across all structures — 3 signatures + QR verification + security strip */}
+                          <div className="px-3 pt-1.5 pb-1 grid grid-cols-3 gap-1.5 border-t border-gray-200 flex-shrink-0">
+                            <div className="space-y-0.5"><div className="h-px bg-gray-400" /><div className="h-0.5 bg-gray-300 rounded" /></div>
+                            <div className="space-y-0.5"><div className="h-px bg-gray-400" /><div className="h-0.5 bg-gray-300 rounded" /></div>
+                            <div className="space-y-0.5"><div className="h-px bg-gray-400" /><div className="h-0.5 bg-gray-300 rounded" /></div>
+                          </div>
+                          <div className="px-3 py-1 border-t border-gray-200 flex items-center gap-1.5 bg-gray-50 flex-shrink-0">
+                            <div className="w-5 h-5 border border-gray-500 bg-white flex-shrink-0 flex items-center justify-center">
+                              <div className="grid grid-cols-3 gap-px w-3 h-3">
+                                {Array.from({ length: 9 }).map((_, i) => (
+                                  <div key={i} className={(i === 0 || i === 2 || i === 4 || i === 6 || i === 8) ? "bg-gray-700" : "bg-gray-300"} />
+                                ))}
+                              </div>
+                            </div>
+                            <div className="flex-1 space-y-0.5">
+                              <div className="h-0.5 bg-gray-400 rounded w-full" />
+                              <div className="h-0.5 bg-gray-300 rounded w-5/6 font-mono" />
+                            </div>
+                          </div>
+                          <div className="px-3 py-0.5 border-t border-gray-200 flex justify-center bg-gray-50 flex-shrink-0">
+                            <div className="h-0.5 bg-gray-300 rounded w-2/3" />
+                          </div>
                           </div>
                         </div>
                       ),
                     },
                     {
-                      id: "digital",
-                      label: "Digital",
-                      desc: "Minimal dark-header design with SHA hash, blue accent title, and prominent QR code.",
+                      id: "moderno",
+                      label: "Centered Modern",
+                      tag: "Digital-Friendly",
+                      desc: "Dual logos centered side-by-side above the Republic header. Modern clean style. Body + footer shared.",
+                      regions: [
+                        "Header: side-by-side logos + Republic / Province / Barangay",
+                        "Title row with hairline accent rule",
+                        "Body: centered single column + watermark",
+                        "Footer: 3 signatories (Captain / Secretary / Treasurer)",
+                        "Verification strip + security strip",
+                      ],
                       preview: (
-                        /* ── DIGITAL: dark slate header band, blue title, hash line, footer band ── */
-                        <div className="w-full bg-white rounded-t-lg overflow-hidden border border-gray-200" style={{ fontSize: 0 }}>
-                          {/* Dark header band */}
-                          <div className="bg-[#0f172a] px-3 py-2.5 flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full border border-white/30 bg-white/10 flex-shrink-0 flex items-center justify-center">
-                              <div className="w-3.5 h-3.5 rounded-full border border-white/40 bg-white/20" />
+                        <div className="w-full bg-white overflow-hidden border border-gray-200 flex flex-col" style={{ aspectRatio: "3 / 4" }}>
+                          <StructureCardHeader
+                            variant="moderno"
+                            barangayName={settings?.name}
+                            municipality={settings?.city_municipality}
+                            province={settings?.province}
+                            logoUrl={resolvePhotoUrl(logoUrl)}
+                            municipalityLogoUrl={resolvePhotoUrl(municipalityLogoUrl)}
+                          />
+
+                          {/* Body: shared across all structures (centered + watermark) */}
+                          <div className="relative flex-1 min-h-0 flex flex-col justify-center px-3 py-2 space-y-1">
+                            {/* Universal barangay logo watermark — present on every certificate */}
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                              <div className="relative w-10 h-10 rounded-full border-2 border-gray-500 opacity-[0.13]">
+                                <div className="absolute inset-1 rounded-full border border-gray-500" />
+                              </div>
                             </div>
-                            <div className="flex-1 space-y-0.5">
-                              <div className="h-1 bg-white/70 rounded w-3/4" />
-                              <div className="h-1 bg-white/50 rounded w-1/2" />
-                              <div className="h-1.5 bg-white/90 rounded w-full" />
-                            </div>
-                          </div>
-                          {/* Blue title + hash line */}
-                          <div className="px-3 pt-2 pb-1">
-                            <div className="h-2 bg-[#2563eb] rounded w-2/3" />
-                            <div className="h-0.5 bg-[#3b82f6]/50 rounded w-4/5 mt-0.5 font-mono" />
-                          </div>
-                          {/* Body lines */}
-                          <div className="px-3 space-y-1 pb-1">
-                            <div className="h-1 bg-gray-200 rounded" />
-                            <div className="h-1 bg-gray-200 rounded w-5/6" />
-                            <div className="h-1 bg-gray-200 rounded w-4/5" />
-                          </div>
-                          {/* Signature row */}
-                          <div className="px-3 pt-0.5 pb-1.5 flex justify-between">
-                            <div className="w-12 space-y-0.5">
-                              <div className="h-px bg-gray-400" />
-                              <div className="h-1 bg-gray-300 rounded" />
-                            </div>
-                            <div className="w-12 space-y-0.5">
-                              <div className="h-px bg-gray-400" />
-                              <div className="h-1 bg-gray-300 rounded" />
+                            <div className="space-y-1 relative">
+                              <div className="h-0.5 bg-gray-200 rounded w-full" />
+                              <div className="h-0.5 bg-gray-200 rounded w-11/12 mx-auto" />
+                              <div className="h-0.5 bg-gray-200 rounded w-5/6 mx-auto" />
+                              <div className="h-0.5 bg-gray-200 rounded w-full" />
+                              <div className="h-0.5 bg-gray-200 rounded w-3/4 mx-auto" />
                             </div>
                           </div>
-                          {/* Footer band */}
-                          <div className="px-3 py-1.5 bg-[#f8fafc] border-t border-gray-200 flex justify-between items-center">
-                            <div className="space-y-0.5">
-                              <div className="h-0.5 w-10 bg-gray-300 rounded" />
-                              <div className="h-0.5 w-12 bg-[#3b82f6]/50 rounded font-mono" />
-                            </div>
-                            <div className="w-6 h-6 border-2 border-gray-400 rounded-sm bg-white flex items-center justify-center">
+                          {/* Footer: shared across all structures — 3 signatures + QR verification + security strip */}
+                          <div className="px-3 pt-1.5 pb-1 grid grid-cols-3 gap-1.5 border-t border-gray-200 flex-shrink-0">
+                            <div className="space-y-0.5"><div className="h-px bg-gray-400" /><div className="h-0.5 bg-gray-300 rounded" /></div>
+                            <div className="space-y-0.5"><div className="h-px bg-gray-400" /><div className="h-0.5 bg-gray-300 rounded" /></div>
+                            <div className="space-y-0.5"><div className="h-px bg-gray-400" /><div className="h-0.5 bg-gray-300 rounded" /></div>
+                          </div>
+                          <div className="px-3 py-1 border-t border-gray-200 flex items-center gap-1.5 bg-gray-50 flex-shrink-0">
+                            <div className="w-5 h-5 border border-gray-500 bg-white flex-shrink-0 flex items-center justify-center">
                               <div className="grid grid-cols-3 gap-px w-3 h-3">
                                 {Array.from({ length: 9 }).map((_, i) => (
-                                  <div key={i} className={cn("rounded-px", [0,2,6,8,4].includes(i) ? "bg-gray-700" : "bg-gray-200")} />
+                                  <div key={i} className={(i === 0 || i === 2 || i === 4 || i === 6 || i === 8) ? "bg-gray-700" : "bg-gray-300"} />
                                 ))}
                               </div>
                             </div>
+                            <div className="flex-1 space-y-0.5">
+                              <div className="h-0.5 bg-gray-400 rounded w-full" />
+                              <div className="h-0.5 bg-gray-300 rounded w-5/6 font-mono" />
+                            </div>
+                          </div>
+                          <div className="px-3 py-0.5 border-t border-gray-200 flex justify-center bg-gray-50 flex-shrink-0">
+                            <div className="h-0.5 bg-gray-300 rounded w-2/3" />
                           </div>
                         </div>
                       ),
                     },
-                  ].map((layout) => (
-                    <button
-                      key={layout.id}
-                      type="button"
-                      onClick={() => setDocLayout(layout.id as typeof docLayout)}
-                      className={cn(
-                        "text-left rounded-xl border-2 transition-all overflow-hidden group",
-                        docLayout === layout.id
-                          ? "border-[var(--accent-primary)] ring-2 ring-[var(--accent-primary)]/20"
-                          : "border-border hover:border-muted-foreground/40"
-                      )}
-                    >
-                      {/* Preview — scales up slightly on hover */}
-                      <div className="overflow-hidden transition-transform duration-200 group-hover:scale-[1.015] origin-top">
-                        {layout.preview}
-                      </div>
-                      <div className="px-3 py-2 border-t border-border/60">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-xs font-semibold text-foreground">{layout.label}</p>
-                          {docLayout === layout.id && (
-                            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full text-white flex-shrink-0" style={{ background: "var(--accent-primary)" }}>
-                              Active
-                            </span>
+                                    ].map((layout) => {
+                    const isActive = docLayout === layout.id;
+                    return (
+                      <button
+                        key={layout.id}
+                        type="button"
+                        onClick={() => { setDocLayout(layout.id as typeof docLayout); setHasGeneratedPatterns(true); }}
+                        aria-label={layout.label}
+                        title={layout.label}
+                        className={cn(
+                          "rounded-xl border-2 transition-all overflow-hidden group relative bg-background/40",
+                          isActive
+                            ? "border-[var(--accent-primary)] ring-2 ring-[var(--accent-primary)]/20 shadow-md"
+                            : "border-border/60 hover:border-blue-500/40"
+                        )}
+                      >
+                        <div className="transition-transform duration-200 group-hover:scale-[1.015] origin-center">
+                          {layout.preview}
+                        </div>
+                        <div className="px-3 py-2.5 border-t border-border/40 bg-background/40 flex items-center justify-between gap-2">
+                          <p className="text-sm font-semibold text-foreground">{layout.label}</p>
+                          {isActive && (
+                            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full text-white shrink-0" style={{ background: "var(--accent-primary)" }}>Active</span>
                           )}
                         </div>
-                        <p className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed">{layout.desc}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Paper size selector */}
+                <div className="mt-6 flex items-center gap-2 mb-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Paper Size</p>
+                  <div className="flex-1 h-px bg-border/60" />
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { id: "a4",     label: "A4",     tag: "Default", desc: "210 × 297 mm", aspect: "210 / 297" },
+                    { id: "letter", label: "Letter", tag: "US",      desc: "8.5 × 11 in",  aspect: "8.5 / 11" },
+                    { id: "legal",  label: "Legal",  tag: "Long",    desc: "8.5 × 13 in (PH long bond)", aspect: "8.5 / 13" },
+                  ].map((paper) => {
+                    const isActive = docPaperSize === paper.id;
+                    return (
+                      <button
+                        key={paper.id}
+                        type="button"
+                        onClick={() => { setDocPaperSize(paper.id as typeof docPaperSize); setHasGeneratedPatterns(true); }}
+                        aria-label={paper.label}
+                        className={cn(
+                          "rounded-lg border-2 p-2.5 flex items-center gap-2.5 transition-all relative bg-background/40",
+                          isActive
+                            ? "border-[var(--accent-primary)] ring-2 ring-[var(--accent-primary)]/20 shadow-sm"
+                            : "border-border/60 hover:border-blue-500/40"
+                        )}
+                      >
+                        <div
+                          className="bg-white border border-gray-300 flex-shrink-0"
+                          style={{ aspectRatio: paper.aspect, height: "40px" }}
+                        />
+                        <div className="flex-1 text-left min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-sm font-semibold text-foreground">{paper.label}</p>
+                            {isActive && (
+                              <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full text-white shrink-0" style={{ background: "var(--accent-primary)" }}>Active</span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">{paper.desc}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Font selector */}
+                <div className="mt-6 flex items-center gap-2 mb-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Document Font</p>
+                  <div className="flex-1 h-px bg-border/60" />
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {[
+                    { id: "times",        label: "Times New Roman", desc: "Traditional serif — DILG standard",  family: '"Times New Roman", Times, serif' },
+                    { id: "arial",        label: "Arial",           desc: "Clean sans-serif — print-safe",      family: 'Arial, Helvetica, sans-serif' },
+                    { id: "inter",        label: "Inter",           desc: "Modern sans-serif — UI grade",       family: 'var(--font-doc-inter), system-ui, sans-serif' },
+                    { id: "poppins",      label: "Poppins",         desc: "Friendly sans-serif — community",    family: 'var(--font-doc-poppins), system-ui, sans-serif' },
+                    { id: "merriweather", label: "Merriweather",    desc: "Premium serif — readable on print",  family: 'var(--font-doc-merriweather), Georgia, serif' },
+                    { id: "playfair",     label: "Playfair Display",desc: "Elegant serif — formal documents",   family: 'var(--font-playfair), Georgia, serif' },
+                  ].map((font) => {
+                    const isActive = docFont === font.id;
+                    return (
+                      <button
+                        key={font.id}
+                        type="button"
+                        onClick={() => { setDocFont(font.id as typeof docFont); setHasGeneratedPatterns(true); }}
+                        aria-label={font.label}
+                        className={cn(
+                          "rounded-lg border-2 p-2.5 flex items-center gap-2.5 transition-all relative bg-background/40",
+                          isActive
+                            ? "border-[var(--accent-primary)] ring-2 ring-[var(--accent-primary)]/20 shadow-sm"
+                            : "border-border/60 hover:border-blue-500/40"
+                        )}
+                      >
+                        <div
+                          className="w-10 h-10 rounded-md bg-white border border-gray-200 flex items-center justify-center flex-shrink-0"
+                          style={{ fontFamily: font.family }}
+                        >
+                          <span className="text-xl text-gray-900 leading-none" style={{ fontFamily: font.family }}>Aa</span>
+                        </div>
+                        <div className="flex-1 text-left min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-sm font-semibold text-foreground truncate" style={{ fontFamily: font.family }}>{font.label}</p>
+                            {isActive && (
+                              <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full text-white shrink-0" style={{ background: "var(--accent-primary)" }}>Active</span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{font.desc}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+              </div>
+
+              {/* ── STAGE 2 of 3 — Visual Design (color + pattern) ── */}
+              <div className="glass rounded-xl p-6 relative overflow-hidden">
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-500/30 to-transparent" />
+
+                <div className="relative pl-4 mb-1">
+                  <span
+                    className="absolute left-0 top-1 bottom-1 w-0.5 rounded-full"
+                    style={{ background: "linear-gradient(180deg, rgba(59,130,246,0.7) 0%, rgba(139,92,246,0.3) 100%)" }}
+                  />
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Stage 2 of 3</span>
+                    <span className="h-1 w-1 rounded-full bg-muted-foreground/50" />
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.18em]" style={{ color: "var(--accent-primary)" }}>Design</span>
+                  </div>
+                  <h2
+                    className="text-2xl text-foreground tracking-[-0.01em] leading-tight"
+                    style={{ fontFamily: "var(--font-playfair)" }}
+                  >
+                    Visual Design
+                  </h2>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-2xl">
+                    First pick a color theme, then choose one of 12 modern design patterns. Both layer on top of your selected structure.
+                  </p>
+                </div>
+
+                <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent my-5" />
+
+                {/* ─────────── PART A — COLOR THEME ─────────── */}
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="text-[10px] font-bold tracking-[0.18em] uppercase px-1.5 py-0.5 rounded text-blue-700 dark:text-blue-300 bg-blue-500/10 border border-blue-500/30">1. Color Theme</span>
+                  <div className="flex-1 h-px bg-border/60" />
+                </div>
+
+                {/* Solid — 5 rectangles */}
+                <div className="mt-3 mb-2 flex items-center gap-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Solid</p>
+                  <div className="flex-1 h-px bg-border/40" />
+                </div>
+                <div className="grid grid-cols-5 gap-3">
+                  {[
+                    { id: "plain",  label: "Plain",  bg: "#1f2937" },
+                    { id: "blue",   label: "Blue",   bg: "#1e40af" },
+                    { id: "red",    label: "Red",    bg: "#991b1b" },
+                    { id: "green",  label: "Green",  bg: "#15803d" },
+                    { id: "yellow", label: "Yellow", bg: "#eab308" },
+                  ].map(({ id, label, bg }) => {
+                    const isActive = docColorTheme === id;
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => { setDocColorTheme(id as typeof docColorTheme); setHasGeneratedPatterns(true); }}
+                        aria-label={label}
+                        className={cn(
+                          "rounded-lg overflow-hidden border-2 transition-all bg-background/40 relative",
+                          isActive
+                            ? "border-[var(--accent-primary)] ring-2 ring-[var(--accent-primary)]/20 shadow-md"
+                            : "border-border/60 hover:border-blue-500/40"
+                        )}
+                      >
+                        <div className="w-full" style={{ aspectRatio: "4 / 3", background: bg }} />
+                        <div className="px-2 py-1.5 bg-background/40 flex items-center justify-between gap-1">
+                          <p className="text-xs font-semibold text-foreground truncate">{label}</p>
+                          {isActive && (
+                            <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full text-white shrink-0" style={{ background: "var(--accent-primary)" }}>Active</span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Combinations — 8 rectangles */}
+                <div className="mt-5 mb-2 flex items-center gap-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Combinations</p>
+                  <div className="flex-1 h-px bg-border/40" />
+                </div>
+                <div className="grid grid-cols-4 gap-3">
+                  {[
+                    { id: "combo-flag",       label: "Philippine Flag", colors: ["#1e40af", "#991b1b", "#eab308"] },
+                    { id: "combo-festive",    label: "Festive",         colors: ["#991b1b", "#eab308"] },
+                    { id: "combo-earth",      label: "Earth & Sky",     colors: ["#15803d", "#1e40af"] },
+                    { id: "combo-gov",        label: "Government",      colors: ["#1e3a8a", "#92400e"] },
+                    { id: "combo-bayanihan",  label: "Bayanihan",       colors: ["#991b1b", "#1e40af"] },
+                    { id: "combo-sunrise",    label: "Sunrise",         colors: ["#eab308", "#991b1b"] },
+                    { id: "combo-coastal",    label: "Coastal",         colors: ["#1e40af", "#15803d"] },
+                    { id: "combo-heritage",   label: "Heritage",        colors: ["#991b1b", "#15803d"] },
+                  ].map((combo) => {
+                    const isActive = docColorTheme === combo.id;
+                    const stops = combo.colors.length === 3
+                      ? `linear-gradient(90deg, ${combo.colors[0]} 0%, ${combo.colors[0]} 33%, ${combo.colors[1]} 33%, ${combo.colors[1]} 66%, ${combo.colors[2]} 66%, ${combo.colors[2]} 100%)`
+                      : `linear-gradient(90deg, ${combo.colors[0]} 0%, ${combo.colors[0]} 50%, ${combo.colors[1]} 50%, ${combo.colors[1]} 100%)`;
+                    return (
+                      <button
+                        key={combo.id}
+                        type="button"
+                        onClick={() => { setDocColorTheme(combo.id as typeof docColorTheme); setHasGeneratedPatterns(true); }}
+                        aria-label={combo.label}
+                        className={cn(
+                          "rounded-lg overflow-hidden border-2 transition-all bg-background/40 relative",
+                          isActive
+                            ? "border-[var(--accent-primary)] ring-2 ring-[var(--accent-primary)]/20 shadow-md"
+                            : "border-border/60 hover:border-blue-500/40"
+                        )}
+                      >
+                        <div className="w-full" style={{ aspectRatio: "4 / 3", background: stops }} />
+                        <div className="px-2 py-1.5 bg-background/40 flex items-center justify-between gap-1">
+                          <p className="text-xs font-semibold text-foreground truncate">{combo.label}</p>
+                          {isActive && (
+                            <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full text-white shrink-0" style={{ background: "var(--accent-primary)" }}>Active</span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Divider between Color Theme and Design Pattern */}
+                <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent my-7" />
+
+                {/* ─────────── PART B — DESIGN PATTERN (structure-aware) ─────────── */}
+                <div className="mb-3 flex items-center gap-2">
+                  <span className="text-[10px] font-bold tracking-[0.18em] uppercase px-1.5 py-0.5 rounded text-blue-700 dark:text-blue-300 bg-blue-500/10 border border-blue-500/30">2. Design Pattern</span>
+                  <div className="flex-1 h-px bg-border/60" />
+                </div>
+
+                {!hasGeneratedPatterns ? (
+                  <>
+                    <div className="mb-3 flex items-start gap-2.5 p-3 rounded-lg border border-dashed border-border/60 bg-background/20">
+                      <span className="mt-0.5 text-[10px] font-bold tracking-wider px-1.5 py-0.5 rounded text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/30">PICK ABOVE</span>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        Choose a <strong className="text-foreground/80">structure</strong>, <strong className="text-foreground/80">paper size</strong>, and <strong className="text-foreground/80">color theme</strong> above. Your 6 design patterns will generate here based on that combination.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {Array.from({ length: 6 }).map((_, i) => (
+                        <div key={i} className="rounded-lg border-2 border-dashed border-border/40 overflow-hidden bg-background/20 relative">
+                          <div className="p-1.5">
+                            <div className="w-full bg-gray-100 dark:bg-slate-800/40 border border-gray-200 dark:border-slate-700/40" style={{ fontSize: 0, aspectRatio: "3 / 4" }}>
+                              <div className="w-full h-full flex flex-col">
+                                <div className="px-2 pt-1.5 pb-1 border-b border-gray-200 dark:border-slate-700/40 flex items-center gap-1 flex-shrink-0">
+                                  <div className="w-3 h-3 rounded-full bg-gray-200 dark:bg-slate-700/60 flex-shrink-0" />
+                                  <div className="flex-1 h-0.5 bg-gray-200 dark:bg-slate-700/60 rounded mx-auto w-3/4" />
+                                  <div className="w-3 h-3 rounded-full bg-gray-200 dark:bg-slate-700/60 flex-shrink-0" />
+                                </div>
+                                <div className="flex-1 p-1.5 space-y-0.5">
+                                  <div className="h-0.5 bg-gray-200 dark:bg-slate-700/40 rounded" />
+                                  <div className="h-0.5 bg-gray-200 dark:bg-slate-700/40 rounded w-5/6" />
+                                  <div className="h-0.5 bg-gray-200 dark:bg-slate-700/40 rounded w-4/5" />
+                                </div>
+                                <div className="px-2 py-0.5 border-t border-gray-200 dark:border-slate-700/40 flex-shrink-0">
+                                  <div className="h-0.5 bg-gray-200 dark:bg-slate-700/40 rounded w-1/2" />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="px-2 py-1.5 border-t border-border/40 bg-background/20">
+                            <p className="text-xs font-semibold text-muted-foreground/60">Pattern {i + 1}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (() => {
+                  const colorMap: Record<string, { primary: string; accent: string; tint: string; secondary?: string }> = {
+                    plain:           { primary: "#1f2937", accent: "#6b7280", tint: "#f3f4f6" },
+                    blue:            { primary: "#1e40af", accent: "#3b82f6", tint: "#dbeafe" },
+                    red:             { primary: "#991b1b", accent: "#ef4444", tint: "#fee2e2" },
+                    green:           { primary: "#15803d", accent: "#22c55e", tint: "#dcfce7" },
+                    yellow:          { primary: "#eab308", accent: "#eab308", tint: "#fef3c7" },
+                    "combo-flag":      { primary: "#1e40af", accent: "#ef4444", tint: "#fef3c7", secondary: "#991b1b" },
+                    "combo-festive":   { primary: "#991b1b", accent: "#eab308", tint: "#fef3c7", secondary: "#eab308" },
+                    "combo-earth":     { primary: "#15803d", accent: "#3b82f6", tint: "#dcfce7", secondary: "#1e40af" },
+                    "combo-gov":       { primary: "#1e3a8a", accent: "#92400e", tint: "#fef3c7", secondary: "#92400e" },
+                    "combo-bayanihan": { primary: "#991b1b", accent: "#3b82f6", tint: "#fee2e2", secondary: "#1e40af" },
+                    "combo-sunrise":   { primary: "#eab308", accent: "#ef4444", tint: "#fef3c7", secondary: "#991b1b" },
+                    "combo-coastal":   { primary: "#1e40af", accent: "#22c55e", tint: "#dbeafe", secondary: "#15803d" },
+                    "combo-heritage":  { primary: "#991b1b", accent: "#22c55e", tint: "#fee2e2", secondary: "#15803d" },
+                  };
+                  const FALLBACK = { primary: "#1f2937", accent: "#6b7280", tint: "#f3f4f6" } as const;
+                  const t = (colorMap[docColorTheme] ?? FALLBACK) as { primary: string; accent: string; tint: string; secondary?: string };
+
+                  const hasSidebar = docLayout === "klasiko";
+                  const isFormal = docLayout === "elegante";
+
+                  // Watermark used in body of every preview
+                  const Watermark = ({ size = "w-9 h-9" }: { size?: string }) => (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className={cn("relative rounded-full border-2 opacity-[0.13]", size)} style={{ borderColor: t.primary }}>
+                        <div className="absolute inset-1 rounded-full border" style={{ borderColor: t.primary }} />
                       </div>
-                    </button>
-                  ))}
+                    </div>
+                  );
+
+                  // Pattern-specific decoration helpers (reusable across structures)
+                  const WreathCorners = () => (
+                    <>
+                      <span className="absolute top-0 left-0 w-5 h-5 z-10 pointer-events-none" style={{ background: `radial-gradient(ellipse at top left, ${t.accent}66, transparent 60%)`, transform: "rotate(-15deg)" }} />
+                      <span className="absolute top-0 right-0 w-5 h-5 z-10 pointer-events-none" style={{ background: `radial-gradient(ellipse at top right, ${t.accent}66, transparent 60%)`, transform: "rotate(15deg)" }} />
+                      <span className="absolute bottom-0 left-0 w-5 h-5 z-10 pointer-events-none" style={{ background: `radial-gradient(ellipse at bottom left, ${t.accent}66, transparent 60%)`, transform: "rotate(15deg)" }} />
+                      <span className="absolute bottom-0 right-0 w-5 h-5 z-10 pointer-events-none" style={{ background: `radial-gradient(ellipse at bottom right, ${t.accent}66, transparent 60%)`, transform: "rotate(-15deg)" }} />
+                    </>
+                  );
+                  const ScrollDots = () => (
+                    <>
+                      <span className="absolute -top-1 -left-1 w-2.5 h-2.5 rounded-full z-10" style={{ background: t.primary }} />
+                      <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full z-10" style={{ background: t.primary }} />
+                      <span className="absolute -bottom-1 -left-1 w-2.5 h-2.5 rounded-full z-10" style={{ background: t.primary }} />
+                      <span className="absolute -bottom-1 -right-1 w-2.5 h-2.5 rounded-full z-10" style={{ background: t.primary }} />
+                    </>
+                  );
+                  const DiplomaticBrackets = () => (
+                    <>
+                      <span className="absolute top-1 left-1 w-3.5 h-3.5 border-t-2 border-l-2 z-10 pointer-events-none" style={{ borderColor: t.primary }} />
+                      <span className="absolute top-1 right-1 w-3.5 h-3.5 border-t-2 border-r-2 z-10 pointer-events-none" style={{ borderColor: t.primary }} />
+                      <span className="absolute bottom-1 left-1 w-3.5 h-3.5 border-b-2 border-l-2 z-10 pointer-events-none" style={{ borderColor: t.primary }} />
+                      <span className="absolute bottom-1 right-1 w-3.5 h-3.5 border-b-2 border-r-2 z-10 pointer-events-none" style={{ borderColor: t.primary }} />
+                    </>
+                  );
+                  const OrnateFrame = () => (
+                    <div className="absolute inset-2 border z-10 pointer-events-none" style={{ borderColor: t.accent }}>
+                      <div className="absolute inset-0.5 border" style={{ borderColor: t.primary, borderStyle: "dashed" }} />
+                    </div>
+                  );
+                  const TechHatch = () => (
+                    <div className="absolute top-0 right-0 w-12 h-12 z-10 pointer-events-none overflow-hidden">
+                      <div className="absolute inset-0" style={{ background: `repeating-linear-gradient(135deg, ${t.accent}33 0 2px, transparent 2px 5px)` }} />
+                    </div>
+                  );
+                  const SunburstRays = ({ size = "w-16 h-16" }: { size?: string }) => (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className={cn("opacity-[0.16] rounded-full", size)} style={{ background: `conic-gradient(from 0deg, ${t.accent} 0deg 10deg, transparent 10deg 30deg, ${t.accent} 30deg 40deg, transparent 40deg 60deg, ${t.accent} 60deg 70deg, transparent 70deg 90deg, ${t.accent} 90deg 100deg, transparent 100deg 120deg, ${t.accent} 120deg 130deg, transparent 130deg 150deg, ${t.accent} 150deg 160deg, transparent 160deg 180deg, ${t.accent} 180deg 190deg, transparent 190deg 210deg, ${t.accent} 210deg 220deg, transparent 220deg 240deg, ${t.accent} 240deg 250deg, transparent 250deg 270deg, ${t.accent} 270deg 280deg, transparent 280deg 300deg, ${t.accent} 300deg 310deg, transparent 310deg 330deg, ${t.accent} 330deg 340deg, transparent 340deg 360deg)` }} />
+                    </div>
+                  );
+
+                  // Render the full structure (matching Stage 1 detail) + pattern decoration.
+                  const renderPreview = (patternId: string) => {
+                    const isWave = patternId === "wave";
+                    const isGradient = patternId === "gradient";
+                    const isBold = patternId === "bold";
+                    const isPhoto = patternId === "photo";
+                    const isMinimal = patternId === "minimal";
+                    const isStripe = patternId === "stripe";
+                    const isWreath = patternId === "wreath";
+                    const isSunburst = patternId === "sunburst";
+                    const isGothic = patternId === "gothic";
+                    const isScroll = patternId === "scroll";
+                    const isDiplomatic = patternId === "diplomatic";
+                    const isOrnate = patternId === "ornate";
+                    const isGeometric = patternId === "geometric";
+                    const isBoldStripe = patternId === "bold-stripe";
+                    const isTech = patternId === "tech";
+
+                    const titleBg = isGothic ? "#111827" : t.primary;
+                    const titleHeight = isGothic ? "h-2.5" : "h-1.5";
+                    const cornerClip = isGeometric
+                      ? "polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px))"
+                      : undefined;
+
+                    // Sidebar styling (Classic only)
+                    const sidebarBg = isGradient
+                      ? `linear-gradient(180deg, ${t.primary}, ${t.primary}dd)`
+                      : isBold
+                        ? "#0f172a"
+                        : "#f9fafb";
+                    const sidebarInverted = isGradient || isBold;
+                    const sidebarHeadColor = sidebarInverted ? "rgba(255,255,255,0.9)" : "#6b7280";
+                    const sidebarTextColor = sidebarInverted ? "rgba(255,255,255,0.55)" : "#d1d5db";
+                    const sidebarFooterBg = sidebarInverted ? "rgba(0,0,0,0.2)" : "#f3f4f6";
+
+                    // ─────────── CLASSIC SIDEBAR ───────────
+                    if (hasSidebar) {
+                      return (
+                        <div className="w-full bg-white overflow-hidden border border-gray-200 flex flex-col relative" style={{ fontSize: 0, aspectRatio: "3 / 4" }}>
+                          {isWreath && <WreathCorners />}
+                          {isWave && (
+                            <svg viewBox="0 0 200 14" preserveAspectRatio="none" className="w-full h-3 block flex-shrink-0">
+                              <path d="M0,0 L200,0 L200,8 Q150,16 100,8 T0,10 Z" fill={t.primary} />
+                              <path d="M0,0 L200,0 L200,5 Q150,12 100,5 T0,6 Z" fill={t.accent} fillOpacity="0.5" />
+                            </svg>
+                          )}
+                          {/* Header — 3 column (dual logos + multi-line republic text) */}
+                          <div className="px-2.5 pt-2 pb-1.5 border-b border-gray-300 flex items-center gap-2 flex-shrink-0">
+                            <div className="w-6 h-6 rounded-full border border-gray-300 bg-gray-100 flex-shrink-0" />
+                            <div className="flex-1 space-y-0.5">
+                              <div className="h-0.5 bg-gray-400 rounded mx-auto w-3/4" />
+                              <div className="h-0.5 bg-gray-400 rounded mx-auto w-1/2" />
+                              <div className={cn(titleHeight, "rounded mx-auto w-2/3 mt-0.5")} style={{ background: titleBg }} />
+                            </div>
+                            <div className="w-6 h-6 rounded-full border border-gray-300 bg-gray-100 flex-shrink-0" />
+                          </div>
+                          {/* Body — sidebar | content right */}
+                          <div className="flex flex-1 min-h-0 relative">
+                            {isStripe && (
+                              <div className="absolute top-0 bottom-0 z-10 pointer-events-none" style={{ left: "38%", width: "2.5px", background: t.primary, transform: "translateX(-1.25px)" }} />
+                            )}
+                            <div className="w-[38%] border-r border-gray-300 flex flex-col" style={{ background: sidebarBg }}>
+                              {isPhoto && (
+                                <div className="p-1.5 border-b border-gray-300" style={{ background: sidebarInverted ? "rgba(0,0,0,0.15)" : "#f3f4f6" }}>
+                                  <div className="w-full bg-white border border-gray-300" style={{ aspectRatio: "1 / 1" }} />
+                                </div>
+                              )}
+                              <div className="p-1.5 space-y-0.5 flex-1">
+                                <div className="h-0.5 rounded w-3/4" style={{ background: sidebarHeadColor }} />
+                                <div className="h-0.5 rounded" style={{ background: sidebarTextColor }} />
+                                <div className="h-0.5 rounded w-5/6" style={{ background: sidebarTextColor }} />
+                                <div className="h-0.5 rounded" style={{ background: sidebarTextColor }} />
+                                <div className="h-0.5 rounded w-3/4" style={{ background: sidebarTextColor }} />
+                                <div className="h-0.5 rounded" style={{ background: sidebarTextColor }} />
+                                <div className="h-0.5 rounded w-4/5" style={{ background: sidebarTextColor }} />
+                              </div>
+                              <div className="border-t border-gray-300 p-1.5 flex flex-col items-center gap-0.5" style={{ background: sidebarFooterBg }}>
+                                <div className="w-6 h-6 border bg-white flex items-center justify-center" style={{ borderColor: sidebarInverted ? "rgba(255,255,255,0.6)" : "#6b7280" }}>
+                                  <div className="grid grid-cols-3 gap-px w-3.5 h-3.5">
+                                    {Array.from({ length: 9 }).map((_, i) => (
+                                      <div key={i} className={(i === 0 || i === 2 || i === 4 || i === 6 || i === 8) ? "bg-gray-700" : "bg-gray-300"} />
+                                    ))}
+                                  </div>
+                                </div>
+                                <div className="h-0.5 rounded w-full mt-0.5" style={{ background: sidebarHeadColor }} />
+                                <div className="h-0.5 rounded w-5/6" style={{ background: sidebarTextColor }} />
+                                <div className="h-0.5 rounded w-4/5" style={{ background: sidebarTextColor }} />
+                              </div>
+                            </div>
+                            <div className="flex-1 p-2 flex flex-col relative">
+                              <Watermark />
+                              <div className="h-1.5 rounded w-3/4 relative" style={{ background: t.primary }} />
+                              <div className="mt-1.5 space-y-1 flex-1 relative">
+                                <div className="h-0.5 bg-gray-200 rounded" />
+                                <div className="h-0.5 bg-gray-200 rounded w-5/6" />
+                                <div className="h-0.5 bg-gray-200 rounded" />
+                                <div className="h-0.5 bg-gray-200 rounded w-4/5" />
+                                <div className="h-0.5 bg-gray-200 rounded w-full" />
+                                <div className="h-0.5 bg-gray-200 rounded w-3/4" />
+                              </div>
+                              <div className="mt-auto w-14 ml-auto space-y-0.5 relative">
+                                <div className="h-px bg-gray-400" />
+                                <div className="h-0.5 bg-gray-300 rounded" />
+                              </div>
+                            </div>
+                          </div>
+                          {/* Security strip */}
+                          <div className="px-2.5 py-0.5 border-t border-gray-200 bg-gray-50 flex items-center justify-center flex-shrink-0">
+                            <div className="h-0.5 bg-gray-300 rounded w-2/3" />
+                          </div>
+                          {isWave && (
+                            <svg viewBox="0 0 200 14" preserveAspectRatio="none" className="w-full h-3 block flex-shrink-0">
+                              <path d="M0,4 Q50,-4 100,4 T200,4 L200,14 L0,14 Z" fill={t.accent} fillOpacity="0.5" />
+                              <path d="M0,6 Q50,0 100,6 T200,6 L200,14 L0,14 Z" fill={t.primary} />
+                            </svg>
+                          )}
+                        </div>
+                      );
+                    }
+
+                    // ─────────── FORMAL GOVERNMENT ───────────
+                    if (isFormal) {
+                      return (
+                        <div className="w-full bg-white overflow-hidden border-2 flex flex-col relative" style={{ fontSize: 0, aspectRatio: "3 / 4", borderColor: t.primary, clipPath: cornerClip }}>
+                          {isWreath && <WreathCorners />}
+                          {isScroll && <ScrollDots />}
+                          {isDiplomatic && <DiplomaticBrackets />}
+                          {isOrnate && <OrnateFrame />}
+                          {isTech && <TechHatch />}
+                          <div className="m-1 border border-gray-400 flex flex-col flex-1 min-h-0">
+                            {/* Header — 3-column with multi-line text */}
+                            <div className="px-2 pt-1.5 pb-1 border-b border-gray-300 flex items-center gap-1.5 flex-shrink-0">
+                              <div className="w-6 h-6 rounded-full border-2 border-gray-500 bg-gray-50 flex-shrink-0" />
+                              <div className="flex-1 space-y-0.5">
+                                <div className="h-0.5 bg-gray-400 rounded mx-auto w-full" />
+                                <div className="h-0.5 bg-gray-400 rounded mx-auto w-2/3" />
+                                <div className={cn(titleHeight, "rounded mx-auto w-4/5")} style={{ background: titleBg }} />
+                              </div>
+                              <div className="w-6 h-6 rounded-full border-2 border-gray-500 bg-gray-50 flex-shrink-0" />
+                            </div>
+                            {/* Title bar with thin rules flanking */}
+                            <div className="px-2 py-1 flex items-center justify-center gap-1 border-b border-gray-200 flex-shrink-0">
+                              <div className="flex-1 h-px bg-gray-300" />
+                              <div className="h-1 bg-gray-600 rounded w-12" style={{ background: titleBg }} />
+                              <div className="flex-1 h-px bg-gray-300" />
+                            </div>
+                            {/* Body */}
+                            <div className="relative flex-1 min-h-0 flex flex-col justify-center px-3 py-2 space-y-1">
+                              {isSunburst && <SunburstRays size="w-16 h-16" />}
+                              <Watermark size="w-10 h-10" />
+                              <div className="space-y-1 relative">
+                                <div className="h-0.5 bg-gray-200 rounded w-full" />
+                                <div className="h-0.5 bg-gray-200 rounded w-11/12 mx-auto" />
+                                <div className="h-0.5 bg-gray-200 rounded w-5/6 mx-auto" />
+                                <div className="h-0.5 bg-gray-200 rounded w-full" />
+                                <div className="h-0.5 bg-gray-200 rounded w-3/4 mx-auto" />
+                              </div>
+                            </div>
+                            {/* 3-column signatures */}
+                            <div className="px-2 pt-1.5 pb-1 grid grid-cols-3 gap-1.5 border-t border-gray-300 flex-shrink-0">
+                              <div className="space-y-0.5"><div className="h-px bg-gray-500" /><div className="h-0.5 bg-gray-400 rounded" /><div className="h-0.5 bg-gray-300 rounded w-3/4" /></div>
+                              <div className="space-y-0.5"><div className="h-px bg-gray-500" /><div className="h-0.5 bg-gray-400 rounded" /><div className="h-0.5 bg-gray-300 rounded w-3/4" /></div>
+                              <div className="space-y-0.5"><div className="h-px bg-gray-500" /><div className="h-0.5 bg-gray-400 rounded" /><div className="h-0.5 bg-gray-300 rounded w-3/4" /></div>
+                            </div>
+                            {/* Verification strip */}
+                            <div className="px-2 py-1 border-t border-gray-300 flex items-center gap-1.5 bg-gray-50 flex-shrink-0">
+                              <div className="w-6 h-6 border border-gray-500 bg-white flex-shrink-0 flex items-center justify-center">
+                                <div className="grid grid-cols-3 gap-px w-3.5 h-3.5">
+                                  {Array.from({ length: 9 }).map((_, i) => (
+                                    <div key={i} className={(i === 0 || i === 2 || i === 4 || i === 6 || i === 8) ? "bg-gray-700" : "bg-gray-300"} />
+                                  ))}
+                                </div>
+                              </div>
+                              <div className="flex-1 space-y-0.5">
+                                <div className="h-0.5 bg-gray-400 rounded w-full" />
+                                <div className="h-0.5 bg-gray-300 rounded w-5/6 font-mono" />
+                              </div>
+                            </div>
+                            {/* Security strip */}
+                            <div className="px-2 py-0.5 border-t border-gray-300 flex justify-center bg-gray-50 flex-shrink-0">
+                              <div className="h-0.5 bg-gray-300 rounded w-2/3" />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    // ─────────── CENTERED MODERN ───────────
+                    return (
+                      <div className="w-full bg-white overflow-hidden border border-gray-200 flex flex-col relative" style={{ fontSize: 0, aspectRatio: "3 / 4", clipPath: cornerClip }}>
+                        {isTech && <TechHatch />}
+                        {isBoldStripe && <div className="h-2.5 flex-shrink-0" style={{ background: t.primary }} />}
+                        {isGradient && <div className="h-2 flex-shrink-0" style={{ background: `linear-gradient(90deg, ${t.primary}, ${t.primary}dd)` }} />}
+                        {isWave && (
+                          <svg viewBox="0 0 200 14" preserveAspectRatio="none" className="w-full h-3 block flex-shrink-0">
+                            <path d="M0,0 L200,0 L200,8 Q150,16 100,8 T0,10 Z" fill={t.primary} />
+                            <path d="M0,0 L200,0 L200,5 Q150,12 100,5 T0,6 Z" fill={t.accent} fillOpacity="0.5" />
+                          </svg>
+                        )}
+                        {/* Header — dual logos centered side-by-side + multi-line text below */}
+                        <div className="px-3 pt-2 pb-1.5 border-b border-gray-300 flex flex-col items-center flex-shrink-0">
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="w-6 h-6 rounded-full border border-dashed border-gray-400 bg-gray-50 flex-shrink-0" />
+                            <div className="w-6 h-6 rounded-full border border-gray-300 bg-gray-100 flex-shrink-0" />
+                          </div>
+                          <div className="space-y-0.5 w-3/4 mt-1.5">
+                            <div className="h-0.5 bg-gray-400 rounded mx-auto w-full" />
+                            <div className="h-0.5 bg-gray-400 rounded mx-auto w-2/3" />
+                            <div className={cn(titleHeight, "rounded mx-auto w-5/6")} style={{ background: titleBg }} />
+                          </div>
+                        </div>
+                        {isMinimal && <div className="h-px flex-shrink-0" style={{ background: t.accent }} />}
+                        {/* Title row */}
+                        <div className="px-3 py-1 flex flex-col items-center flex-shrink-0">
+                          <div className="h-1 bg-gray-500 rounded w-1/2" style={{ background: titleBg }} />
+                          <div className="mt-0.5 h-px bg-gray-400 rounded w-1/3" />
+                        </div>
+                        {/* Body */}
+                        <div className="relative flex-1 min-h-0 flex flex-col justify-center px-4 py-2 space-y-1">
+                          {isSunburst && <SunburstRays size="w-14 h-14" />}
+                          <Watermark size="w-9 h-9" />
+                          <div className="space-y-1 relative">
+                            <div className="h-0.5 bg-gray-200 rounded" />
+                            <div className="h-0.5 bg-gray-200 rounded w-5/6 mx-auto" />
+                            <div className="h-0.5 bg-gray-200 rounded w-4/5" />
+                            <div className="h-0.5 bg-gray-200 rounded" />
+                            <div className="h-0.5 bg-gray-200 rounded w-3/4 mx-auto" />
+                          </div>
+                        </div>
+                        {/* 3 signatories row */}
+                        <div className="px-3 pt-1.5 pb-1 grid grid-cols-3 gap-1.5 border-t border-gray-200 flex-shrink-0">
+                          <div className="space-y-0.5"><div className="h-px bg-gray-400" /><div className="h-0.5 bg-gray-300 rounded" /></div>
+                          <div className="space-y-0.5"><div className="h-px bg-gray-400" /><div className="h-0.5 bg-gray-300 rounded" /></div>
+                          <div className="space-y-0.5"><div className="h-px bg-gray-400" /><div className="h-0.5 bg-gray-300 rounded" /></div>
+                        </div>
+                        {/* Verification strip */}
+                        <div className="px-3 py-1 border-t border-gray-200 flex items-center gap-1.5 bg-gray-50 flex-shrink-0">
+                          <div className="w-5 h-5 border border-gray-500 bg-white flex-shrink-0 flex items-center justify-center">
+                            <div className="grid grid-cols-3 gap-px w-3 h-3">
+                              {Array.from({ length: 9 }).map((_, i) => (
+                                <div key={i} className={(i === 0 || i === 2 || i === 4 || i === 6 || i === 8) ? "bg-gray-700" : "bg-gray-300"} />
+                              ))}
+                            </div>
+                          </div>
+                          <div className="flex-1 space-y-0.5">
+                            <div className="h-0.5 bg-gray-400 rounded w-full" />
+                            <div className="h-0.5 bg-gray-300 rounded w-5/6 font-mono" />
+                          </div>
+                        </div>
+                        {/* Security strip */}
+                        <div className="px-3 py-0.5 border-t border-gray-200 flex justify-center bg-gray-50 flex-shrink-0">
+                          <div className="h-0.5 bg-gray-300 rounded w-2/3" />
+                        </div>
+                        {isWave && (
+                          <svg viewBox="0 0 200 14" preserveAspectRatio="none" className="w-full h-3 block flex-shrink-0">
+                            <path d="M0,4 Q50,-4 100,4 T200,4 L200,14 L0,14 Z" fill={t.accent} fillOpacity="0.5" />
+                            <path d="M0,6 Q50,0 100,6 T200,6 L200,14 L0,14 Z" fill={t.primary} />
+                          </svg>
+                        )}
+                      </div>
+                    );
+                  };
+
+                  // Filter to the 6 patterns curated for the selected structure
+                  const PATTERN_LABELS: Record<string, string> = {
+                    wave: "Wave", gradient: "Gradient", bold: "Bold", photo: "Photo", minimal: "Minimal", stripe: "Stripe",
+                    wreath: "Wreath", sunburst: "Sunburst", gothic: "Gothic", scroll: "Scroll", diplomatic: "Diplomatic", ornate: "Ornate",
+                    geometric: "Geometric", "bold-stripe": "Bold Stripe", tech: "Tech",
+                  };
+                  const patternIds = (STRUCTURE_PATTERNS[docLayout] as readonly string[]) ?? STRUCTURE_PATTERNS.klasiko;
+                  const patterns: Array<{ id: string; label: string }> = patternIds.map((id) => ({ id, label: PATTERN_LABELS[id] ?? id }));
+
+                  return (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {patterns.map((p) => {
+                        const isActive = docDesignPattern === p.id;
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => setDocDesignPattern(p.id as typeof docDesignPattern)}
+                            aria-label={p.label}
+                            className={cn(
+                              "rounded-lg transition-all overflow-hidden group relative bg-background/40 border-2",
+                              isActive
+                                ? "border-[var(--accent-primary)] ring-2 ring-[var(--accent-primary)]/20 shadow-md"
+                                : "border-border/60 hover:border-blue-500/40"
+                            )}
+                          >
+                            <div className="p-1.5">{renderPreview(p.id)}</div>
+                            <div className="px-2 py-1.5 bg-background/40 flex items-center justify-between gap-1 border-t border-border/40">
+                              <p className="text-xs font-semibold text-foreground truncate">{p.label}</p>
+                              {isActive && (
+                                <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full text-white shrink-0" style={{ background: "var(--accent-primary)" }}>Active</span>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+
+                <div className="mt-5 flex items-start gap-2.5 p-3 rounded-lg border border-border/40 bg-background/30">
+                  <span className="mt-0.5 text-[10px] font-bold tracking-wider px-1.5 py-0.5 rounded text-blue-700 dark:text-blue-300 bg-blue-500/10 border border-blue-500/30">NEXT</span>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    <strong className="text-foreground/80">Stage 3 — Certificates</strong> below lets you add, edit, and delete the actual certificates your barangay issues. Each one inherits the chosen structure + color + design pattern.
+                  </p>
                 </div>
               </div>
 
-              {/* Document Fees */}
-              <div className="glass rounded-xl p-6">
-                <h3 className="text-sm font-semibold text-foreground mb-1">Document Fees</h3>
-                <p className="text-xs text-muted-foreground mb-4">Default fees for certificates and services. Amount in Philippine Pesos (PHP).</p>
-                <div className="space-y-4">
-                  <SettingsInput label="Certificate Validity (Days)" value={certValidityDays} onChange={setCertValidityDays} placeholder="180" type="number" />
-                  <p className="text-[11px] text-muted-foreground -mt-2 px-1">Number of days a certificate/clearance is valid after issuance. Default: 180 days.</p>
-                  <div className="grid grid-cols-2 gap-4">
-                    <SettingsInput label="Barangay Clearance Fee" value={clearanceFee} onChange={setClearanceFee} placeholder="0.00" type="number" />
-                    <SettingsInput label="Certificate of Indigency Fee" value={indigencyFee} onChange={setIndigencyFee} placeholder="0.00" type="number" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <SettingsInput label="Barangay ID Fee" value={idFee} onChange={setIdFee} placeholder="0.00" type="number" />
-                    <SettingsInput label="Cedula Fee" value={cedulaFee} onChange={setCedulaFee} placeholder="0.00" type="number" />
-                  </div>
-                  <div className="p-3 rounded-lg glass-subtle">
-                    <p className="text-xs text-muted-foreground">
-                      These fees are used as defaults when issuing certificates. Staff can override per transaction if needed.
-                    </p>
-                  </div>
-                </div>
-              </div>
+              {/* ── Live Document Preview ── */}
+              <DocumentLivePreview
+                layout={docLayout}
+                paperSize={docPaperSize}
+                font={docFont}
+                colorTheme={docColorTheme}
+                barangayName={settings?.name ?? null}
+                municipality={settings?.city_municipality ?? null}
+                province={settings?.province ?? null}
+                logoUrl={resolvePhotoUrl(logoUrl)}
+                municipalityLogoUrl={resolvePhotoUrl(municipalityLogoUrl)}
+                signatoryName={signatoryName}
+                signatoryTitle={signatoryTitle}
+              />
+
+              {/* ── STAGE 3 of 3 — Certificate Types (CRUD list) ── */}
+              <CertificateTypesList
+                onToast={(message, type) => addToast(message, type ?? "success")}
+                structureLabel={(() => {
+                  const m: Record<string, string> = { klasiko: "Classic Sidebar", moderno: "Centered Modern", elegante: "Formal Government", digital: "Classic Sidebar" };
+                  return m[docLayout] || "Classic Sidebar";
+                })()}
+                colorThemeLabel={(() => {
+                  const m: Record<string, string> = {
+                    plain: "Plain", blue: "Blue", red: "Red", green: "Green", yellow: "Yellow",
+                    "combo-flag": "Philippine Flag", "combo-festive": "Festive",
+                    "combo-earth": "Earth & Sky", "combo-gov": "Government",
+                    "combo-bayanihan": "Bayanihan", "combo-sunrise": "Sunrise",
+                    "combo-coastal": "Coastal", "combo-heritage": "Heritage",
+                  };
+                  return m[docColorTheme] || "Plain";
+                })()}
+                designPatternLabel={(() => {
+                  const m: Record<string, string> = {
+                    wave: "Wave", gradient: "Gradient", bold: "Bold", photo: "Photo", minimal: "Minimal", stripe: "Stripe",
+                    wreath: "Wreath", sunburst: "Sunburst", gothic: "Gothic", scroll: "Scroll", diplomatic: "Diplomatic", ornate: "Ornate",
+                    geometric: "Geometric", "bold-stripe": "Bold Stripe", tech: "Tech",
+                  };
+                  return m[docDesignPattern] || "Wave";
+                })()}
+                paperSizeLabel={docPaperSize === "a4" ? "A4" : docPaperSize === "letter" ? "Letter" : "Legal"}
+                fontLabel={(() => {
+                  const m: Record<typeof docFont, string> = {
+                    times: "Times New Roman", arial: "Arial", inter: "Inter",
+                    poppins: "Poppins", merriweather: "Merriweather", playfair: "Playfair Display",
+                  };
+                  return m[docFont] || "Times New Roman";
+                })()}
+              />
             </div>
           )}
 
@@ -995,19 +2871,214 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {/* Setup status */}
-          {isSetupComplete && (
-            <div className="flex items-center gap-2 px-4 py-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10">
-              <CheckCircle className="h-4 w-4 text-emerald-500" />
-              <p className="text-sm text-emerald-600 font-medium">Barangay setup is complete</p>
+          {/* Officials — Sangguniang Barangay roster */}
+          {activeSection === "officials" && (
+            <OfficialsTab onToast={(message, type) => addToast(message, type ?? "success")} />
+          )}
+
+          {/* VAWC (RA 9262) — compliance-critical */}
+          {activeSection === "vawc" && (
+            <div className="space-y-4">
+              <div className="glass rounded-xl p-6">
+                <div className="flex items-start gap-3 mb-5">
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: "color-mix(in srgb, var(--accent-primary) 12%, transparent)" }}>
+                    <ShieldAlert className="h-4 w-4" style={{ color: "var(--accent-primary)" }} />
+                  </div>
+                  <div className="flex-1">
+                    <h2 className="text-lg font-semibold text-foreground">VAWC Configuration</h2>
+                    <p className="text-sm text-muted-foreground mt-0.5">Compliance with RA 9262 (Anti-Violence Against Women and Their Children Act).</p>
+                  </div>
+                  <span className="text-[10px] font-semibold px-2 py-1 rounded-full bg-red-500/10 text-red-500 uppercase tracking-wide shrink-0">RA 9262</span>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground mb-3">Confidentiality Officer</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <SettingsInput label="Officer Name" value={vawcOfficerName} onChange={setVawcOfficerName} placeholder="E.G. MARIA SANTOS" icon={Users} />
+                      <SettingsInput label="Officer Phone" value={vawcOfficerPhone} onChange={setVawcOfficerPhone} placeholder="0917-XXX-XXXX" icon={Phone} />
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-2 px-1">The designated VAWC desk officer who handles confidential reports per RA 9262 Sec 9.</p>
+                  </div>
+                  <div className="border-t border-border pt-4 mt-4">
+                    <h3 className="text-sm font-semibold text-foreground mb-3">BCPC Contact (Barangay Council for the Protection of Children)</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <SettingsInput label="BCPC Lead Name" value={vawcBcpcName} onChange={setVawcBcpcName} placeholder="E.G. HON. PEDRO REYES" icon={Users} />
+                      <SettingsInput label="BCPC Phone" value={vawcBcpcPhone} onChange={setVawcBcpcPhone} placeholder="0917-XXX-XXXX" icon={Phone} />
+                    </div>
+                  </div>
+                  <div className="border-t border-border pt-4 mt-4">
+                    <SettingsTextarea label="RA 9262 Disclaimer (Printed on VAWC Documents)" value={vawcDisclaimer} onChange={setVawcDisclaimer}
+                      placeholder="E.G. This record is protected under RA 9262. Unauthorized disclosure is punishable by law." rows={3} />
+                  </div>
+                  <div className="border-t border-border pt-4 mt-4">
+                    <SettingsToggle label="Restrict VAWC Access to Authorized Staff Only"
+                      description="When ON, only the Captain, VAWC officer, and BCPC lead can read VAWC records. Required by RA 9262 Sec 44."
+                      checked={vawcAccessRestricted} onChange={setVawcAccessRestricted} />
+                  </div>
+                </div>
+              </div>
             </div>
           )}
+
+          {/* GAD (RA 9710) — compliance */}
+          {activeSection === "gad" && (
+            <div className="glass rounded-xl p-6">
+              <div className="flex items-start gap-3 mb-5">
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: "color-mix(in srgb, var(--accent-primary) 12%, transparent)" }}>
+                  <Heart className="h-4 w-4" style={{ color: "var(--accent-primary)" }} />
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-lg font-semibold text-foreground">GAD Configuration</h2>
+                  <p className="text-sm text-muted-foreground mt-0.5">Gender and Development setup per RA 9710 (Magna Carta of Women).</p>
+                </div>
+                <span className="text-[10px] font-semibold px-2 py-1 rounded-full bg-pink-500/10 text-pink-500 uppercase tracking-wide shrink-0">RA 9710</span>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground mb-3">GAD Focal Person</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <SettingsInput label="Focal Person Name" value={gadFocalName} onChange={setGadFocalName} placeholder="E.G. ANA DELA CRUZ" icon={Users} />
+                    <SettingsInput label="Position / Title" value={gadFocalTitle} onChange={setGadFocalTitle} placeholder="E.G. KAGAWAD" />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-2 px-1">The Sangguniang Barangay member designated as GAD Focal Person per PCW guidelines.</p>
+                </div>
+                <div className="border-t border-border pt-4 mt-4">
+                  <SettingsInput label="GAD Budget Target (%)" value={gadBudgetPercent} onChange={setGadBudgetPercent} placeholder="5" type="number" />
+                  <p className="text-[11px] text-muted-foreground mt-2 px-1">Minimum percentage of barangay budget allocated to GAD programs. RA 9710 Sec 36(a) mandates at least 5%.</p>
+                </div>
+                <div className="border-t border-border pt-4 mt-4">
+                  <SettingsInput label="GAD Plan Document URL (optional)" value={gadPlanUrl} onChange={setGadPlanUrl} placeholder="https://drive.../gad-plan-2026.pdf" icon={FileText} />
+                  <p className="text-[11px] text-muted-foreground mt-2 px-1">Link to your approved Annual GAD Plan and Budget (GPB) for transparency and audit.</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* KP / Lupong Tagapamayapa (RA 7160) — compliance */}
+          {activeSection === "kp" && (
+            <div className="space-y-4">
+              <div className="glass rounded-xl p-6">
+                <div className="flex items-start gap-3 mb-5">
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: "color-mix(in srgb, var(--accent-primary) 12%, transparent)" }}>
+                    <Scale className="h-4 w-4" style={{ color: "var(--accent-primary)" }} />
+                  </div>
+                  <div className="flex-1">
+                    <h2 className="text-lg font-semibold text-foreground">Katarungang Pambarangay</h2>
+                    <p className="text-sm text-muted-foreground mt-0.5">Lupong Tagapamayapa configuration per RA 7160 (Local Government Code) Book III Chapter 7.</p>
+                  </div>
+                  <span className="text-[10px] font-semibold px-2 py-1 rounded-full bg-amber-500/10 text-amber-500 uppercase tracking-wide shrink-0">RA 7160</span>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground mb-3">Procedural Timeframes</h3>
+                    <div className="grid grid-cols-3 gap-4">
+                      <SettingsInput label="Mediation Window (Days)" value={kpHearingWindowDays} onChange={setKpHearingWindowDays} placeholder="15" type="number" />
+                      <SettingsInput label="Mediation Extension (Days)" value={kpMediationExtensionDays} onChange={setKpMediationExtensionDays} placeholder="15" type="number" />
+                      <SettingsInput label="Arbitration Window (Days)" value={kpArbitrationWindowDays} onChange={setKpArbitrationWindowDays} placeholder="15" type="number" />
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-2 px-1">RA 7160 Sec 410: Punong Barangay must mediate within 15 days. Lupon mediation may extend another 15. Arbitration 15 days max.</p>
+                  </div>
+                  <div className="border-t border-border pt-4 mt-4">
+                    <SettingsTextarea label="Default Summons Template" value={kpSummonsTemplate} onChange={setKpSummonsTemplate}
+                      placeholder="E.G. By authority vested in me as Punong Barangay of {barangay}, you are hereby summoned to appear before the Lupon Tagapamayapa on {date} at {time}..." rows={5} />
+                    <p className="text-[11px] text-muted-foreground mt-2 px-1">Template used when issuing summons for KP mediation. Variables: {"{barangay}"}, {"{respondent}"}, {"{complainant}"}, {"{date}"}, {"{time}"}, {"{case_no}"}.</p>
+                  </div>
+                </div>
+              </div>
+              <div className="p-3 rounded-lg glass-subtle">
+                <p className="text-xs text-muted-foreground">
+                  <strong className="text-foreground/80">Lupong Members Roster</strong> — list management UI coming in next phase. For now, members are added directly in the KP Cases page.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Residents Dictionaries — replaces 15 hardcoded mock seed arrays */}
+          {activeSection === "residents-dict" && (
+            <div className="glass rounded-xl p-6">
+              <div className="flex items-start gap-3 mb-5">
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: "color-mix(in srgb, var(--accent-primary) 12%, transparent)" }}>
+                  <BookOpen className="h-4 w-4" style={{ color: "var(--accent-primary)" }} />
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-lg font-semibold text-foreground">Residents Dictionaries</h2>
+                  <p className="text-sm text-muted-foreground mt-0.5">Autocomplete suggestions for resident form fields. Per-barangay, learned over time.</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-[200px_1fr] gap-4">
+                {/* Left: dictionary picker */}
+                <div className="space-y-px">
+                  {([
+                    ["puroks", "Puroks"], ["streets", "Streets"], ["citizenships", "Citizenships"],
+                    ["religions", "Religions"], ["ethnicities", "Ethnicities"], ["occupations", "Occupations"],
+                    ["skills", "Skills"], ["positions", "Job Positions"], ["employers", "Employers"],
+                    ["courses", "Courses / Programs"], ["schools", "Schools"], ["placesOfBirth", "Places of Birth"],
+                    ["businessTypes", "Business Types"], ["sectorsOther", "Sectors (Other)"], ["emergencyRelations", "Emergency Relations"],
+                  ] as Array<[DictKey, string]>).map(([key, label]) => {
+                    const count = dictionaries[key]?.length || 0;
+                    const active = activeDict === key;
+                    return (
+                      <button key={key} onClick={() => { setActiveDict(key); setNewDictEntry(""); }}
+                        className={cn("w-full flex items-center justify-between px-3 py-2 rounded-md text-[12px] transition-colors text-left",
+                          active ? "font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted")}
+                        style={active ? { color: "var(--accent-primary)", background: "var(--accent-bg)" } : undefined}>
+                        <span className="truncate">{label}</span>
+                        <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0", active ? "" : "bg-muted text-muted-foreground")}
+                          style={active ? { background: "var(--accent-primary)", color: "white" } : undefined}>{count}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {/* Right: entries for active dictionary */}
+                <div className="space-y-3">
+                  <div className="flex gap-2">
+                    <input type="text" value={newDictEntry} onChange={(e) => setNewDictEntry(e.target.value.toUpperCase())}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addDictEntry(); } }}
+                      placeholder="Add new entry (press Enter)"
+                      className="flex-1 px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 transition-colors uppercase"
+                      style={{ "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties} />
+                    <button onClick={addDictEntry} disabled={!newDictEntry.trim()}
+                      className={cn("px-3 py-2 rounded-xl text-sm font-medium text-white transition-colors flex items-center gap-1.5",
+                        newDictEntry.trim() ? "" : "opacity-50 cursor-not-allowed")}
+                      style={newDictEntry.trim() ? { background: "var(--accent-primary)" } : { background: "var(--muted)" }}>
+                      <Plus className="h-4 w-4" /> Add
+                    </button>
+                  </div>
+                  {dictionaries[activeDict].length === 0 ? (
+                    <div className="border border-dashed border-border rounded-xl p-8 text-center">
+                      <BookOpen className="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
+                      <p className="text-sm text-muted-foreground">No entries yet</p>
+                      <p className="text-[11px] text-muted-foreground/60 mt-1">Add the first entry above to start building this dictionary.</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5">
+                      {dictionaries[activeDict].map((entry, idx) => (
+                        <span key={`${entry}-${idx}`}
+                          className="inline-flex items-center gap-1.5 pl-2.5 pr-1 py-1 rounded-lg glass-subtle text-[12px] text-foreground/80 group">
+                          {entry}
+                          <button onClick={() => removeDictEntry(activeDict, idx)}
+                            className="w-5 h-5 rounded flex items-center justify-center text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                            title="Remove">
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-[11px] text-muted-foreground px-1">
+                    These appear as autocomplete suggestions in the Residents Create/Edit modal. Type in the resident form to learn new entries automatically once API learning ships.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
 
       {/* Toasts */}
       {toasts.length > 0 && (
-        <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
+        <div className="fixed bottom-20 right-6 z-50 flex flex-col gap-2">
           {toasts.map((toast) => (
             <div key={toast.id}
               className={cn("flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg text-sm font-medium text-white animate-in slide-in-from-right-5 fade-in duration-300",
@@ -1020,6 +3091,43 @@ export default function SettingsPage() {
           ))}
         </div>
       )}
+
+      {/* Sticky bottom save bar — slides in when current tab has unsaved changes */}
+      <SettingsSaveBar
+        isDirty={shouldShowSaveBar}
+        changedCount={changedFieldKeys.length}
+        saving={saving || hasValidationErrors}
+        onSave={() => { if (!hasValidationErrors) saveFn[activeSection]?.(); }}
+        onDiscard={handleDiscardChanges}
+      />
+
+      {/* Pad bottom so the sticky bar doesn't cover content */}
+      {shouldShowSaveBar && <div className="h-20" />}
+    </div>
+  );
+}
+
+function SectionHeader({
+  icon: Icon,
+  title,
+  subtitle,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  subtitle?: string;
+}) {
+  return (
+    <div className="flex items-start gap-3 mb-4">
+      <div
+        className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+        style={{ background: "color-mix(in srgb, var(--accent-primary) 12%, transparent)" }}
+      >
+        <Icon className="h-4 w-4" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+        {subtitle && <p className="text-[12px] text-muted-foreground mt-0.5">{subtitle}</p>}
+      </div>
     </div>
   );
 }

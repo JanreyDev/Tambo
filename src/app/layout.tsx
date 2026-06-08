@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
+import { Geist, Geist_Mono, Playfair_Display, Inter, Poppins, Merriweather } from "next/font/google";
 import { Providers } from "@/components/providers";
 import { APP_VERSION } from "@/lib/version";
 import "./globals.css";
@@ -18,6 +18,27 @@ const playfair = Playfair_Display({
   variable: "--font-playfair",
   subsets: ["latin"],
   weight: ["400", "600", "700"],
+});
+
+const inter = Inter({
+  variable: "--font-doc-inter",
+  subsets: ["latin"],
+  weight: ["400", "600", "700"],
+  display: "swap",
+});
+
+const poppins = Poppins({
+  variable: "--font-doc-poppins",
+  subsets: ["latin"],
+  weight: ["400", "600", "700"],
+  display: "swap",
+});
+
+const merriweather = Merriweather({
+  variable: "--font-doc-merriweather",
+  subsets: ["latin"],
+  weight: ["400", "700"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -61,7 +82,7 @@ export default function RootLayout({
         <meta name="referrer" content="no-referrer" />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} ${inter.variable} ${poppins.variable} ${merriweather.variable} antialiased`}
       >
         <Providers>{children}</Providers>
       </body>

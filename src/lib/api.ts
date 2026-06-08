@@ -1,51 +1,63 @@
-import type { AiConversation, AiConversationSummary, AiCredits, AiStreamEvent, ApiError, BarangaySettings, BarangayUsage, DashboardCredits, DashboardStats, DocumentTemplate, DuplicateMatch, Establishment, EstablishmentFormPayload, IssuedDocument, IssueDocumentPayload, KpCaseDetail, KpCaseHearing, KpCaseListItem, KpCaseParty, LoginResponse, LotBuilding, PaginatedResponse, ResidentDetail, ResidentSummary, User } from "./types";
+import type { AiConversation, AiConversationSummary, AiCredits, AiStreamEvent, ApiError, BarangayOfficial, BarangaySettings, BarangayUsage, DashboardActivity, DashboardCredits, DashboardDocumentTrend, DashboardPendingRequest, DashboardRecentResident, DashboardStats, DashboardUpcomingEvent, DocumentTemplate, DuplicateMatch, Establishment, EstablishmentFormPayload, GeoJsonFeatureCollection, IssuedDocument, IssueDocumentPayload, KpCaseDetail, KpCaseHearing, KpCaseListItem, KpCaseParty, LoginResponse, LotBuilding, PaginatedResponse, ResidentDetail, ResidentSummary, SignInLog, User } from "./types";
 
 // In dev, requests go through Next.js rewrite proxy (/api/v1 -> bcmp-api:8000/api/v1)
 // In production, NEXT_PUBLIC_API_URL points directly to the API domain
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
 
-const TOKEN_KEY = "bcmp_token";
-const REMEMBER_KEY = "bcmp_remember";
-const AUTH_COOKIE = "bcmp_auth";
+const LEGACY_TOKEN_KEY = "bcmp_token";
+const LEGACY_REMEMBER_KEY = "bcmp_remember";
+const AUTH_INDICATOR_COOKIE = "bcmp_auth";
 
 type RequestOptions = {
   headers?: Record<string, string>;
   skipAuth?: boolean;
 };
 
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  // Check both storages — token could be in either
-  return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
+// Auth is now cookie-based: backend issues an httpOnly bcmp_token cookie at login.
+// All fetch calls below use `credentials: 'include'` so the browser auto-attaches it.
+// JS can never read the real token (XSS-stolen-token attacks become impossible).
+//
+// The non-httpOnly `bcmp_auth` cookie is a yes/no indicator readable from JS — used
+// by Next.js middleware for route protection and by hasAuthCookie() below to decide
+// whether to attempt /auth/me on app boot.
+
+function hasAuthCookie(): boolean {
+  if (typeof window === "undefined") return false;
+  return document.cookie
+    .split(";")
+    .some((c) => c.trim().startsWith(`${AUTH_INDICATOR_COOKIE}=1`));
 }
 
-function setToken(token: string, remember = false): void {
+// Legacy localStorage cleanup — older versions stored tokens here.
+// Wipes any stale entries left over from the pre-cookie era.
+function purgeLegacyTokens(): void {
   if (typeof window === "undefined") return;
-  // Store preference
-  localStorage.setItem(REMEMBER_KEY, String(remember));
-  // Clear from both first
-  localStorage.removeItem(TOKEN_KEY);
-  sessionStorage.removeItem(TOKEN_KEY);
-  // Store in the correct one
-  if (remember) {
-    localStorage.setItem(TOKEN_KEY, token);
-  } else {
-    sessionStorage.setItem(TOKEN_KEY, token);
-  }
-  // Set auth cookie for middleware (server-side route protection)
-  const maxAge = remember ? 30 * 24 * 60 * 60 : ""; // 30 days or session
-  document.cookie = `${AUTH_COOKIE}=1; path=/; SameSite=Lax${maxAge ? `; max-age=${maxAge}` : ""}`;
+  localStorage.removeItem(LEGACY_TOKEN_KEY);
+  sessionStorage.removeItem(LEGACY_TOKEN_KEY);
+  localStorage.removeItem(LEGACY_REMEMBER_KEY);
+}
+
+// Kept for API surface compatibility. With cookie auth, the backend manages
+// the real token lifecycle via Set-Cookie. These functions only manage the
+// non-sensitive `bcmp_auth` indicator and clean up legacy localStorage entries.
+function getToken(): string | null {
+  // Returns "1" if the indicator cookie is set — used as a boolean gate by callers.
+  // The actual bearer token is httpOnly and not accessible to JS.
+  return hasAuthCookie() ? "1" : null;
+}
+
+function setToken(_token: string, _remember = false): void {
+  // No-op on web — the backend already set bcmp_token + bcmp_auth via Set-Cookie.
+  // Just clean up any stale legacy entries that might still exist.
+  purgeLegacyTokens();
 }
 
 function clearToken(): void {
   if (typeof window === "undefined") return;
-  // Clear token from both storages
-  localStorage.removeItem(TOKEN_KEY);
-  sessionStorage.removeItem(TOKEN_KEY);
-  // Clear remember preference
-  localStorage.removeItem(REMEMBER_KEY);
-  // Clear auth cookie (middleware uses this for server-side route protection)
-  document.cookie = `${AUTH_COOKIE}=; path=/; max-age=0; SameSite=Lax`;
+  purgeLegacyTokens();
+  // Best-effort clear of the indicator cookie (real httpOnly cookie is cleared
+  // server-side by /auth/logout). Path must match how it was originally set.
+  document.cookie = `${AUTH_INDICATOR_COOKIE}=; path=/; max-age=0; SameSite=Lax`;
 }
 
 async function request<T>(
@@ -61,16 +73,10 @@ async function request<T>(
     ...options?.headers,
   };
 
-  if (!options?.skipAuth) {
-    const token = getToken();
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-  }
-
   const res = await fetch(`${BASE_URL}${path}`, {
     method,
     headers,
+    credentials: "include",
     body: isFormData ? body : (body ? JSON.stringify(body) : undefined),
   });
 
@@ -84,9 +90,13 @@ async function request<T>(
   }
 
   if (!res.ok) {
-    const error: ApiError = await res.json().catch(() => ({
-      message: `Request failed with status ${res.status}`,
-    }));
+    const body: Partial<ApiError> = await res.json().catch(() => ({}));
+    const error: ApiError = {
+      message: body.message || `Request failed with status ${res.status}`,
+      status: res.status,
+      ...(typeof body.retry_after === "number" ? { retry_after: body.retry_after } : {}),
+      ...(body.errors ? { errors: body.errors } : {}),
+    };
     throw error;
   }
 
@@ -105,14 +115,10 @@ async function uploadFile<T>(
     Accept: "application/json",
   };
 
-  const token = getToken();
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-
   const res = await fetch(`${BASE_URL}${path}`, {
     method: "POST",
     headers,
+    credentials: "include",
     body: formData,
   });
 
@@ -146,14 +152,10 @@ async function streamRequest(
     "Content-Type": "application/json",
   };
 
-  const token = getToken();
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-
   const res = await fetch(`${BASE_URL}${path}`, {
     method: "POST",
     headers,
+    credentials: "include",
     body: JSON.stringify(body),
     signal,
   });
@@ -204,6 +206,20 @@ async function streamRequest(
   }
 }
 
+export type OfficialPayload = {
+  resident_id: string;
+  position: string;
+  committees?: string[] | null; // current: array of committee names
+  committee?: string | null;    // legacy single-committee field
+  term_start?: string | null;   // now optional (relaxed 2026-05-14)
+  term_end?: string | null;     // now optional
+  appointment_date?: string | null;
+  oath_date?: string | null;
+  is_elected?: boolean;
+  sort_order?: number;
+  status?: "active" | "inactive" | "suspended";
+};
+
 const api = {
   getToken,
   setToken,
@@ -233,6 +249,10 @@ const api = {
     logout: () => api.post<void>("/auth/logout"),
 
     logoutAll: () => api.post<void>("/auth/logout-all"),
+
+    /** Save per-account UI preferences (currently: preferred_language). */
+    updatePreferences: (data: { preferred_language?: "en" | "fil" }) =>
+      api.patch<{ message: string; preferred_language: "en" | "fil" }>("/me/preferences", data),
 
     checkUsername: (username: string) =>
       api.post<{ exists: boolean; has_phone?: boolean; phone_masked?: string | null; message?: string }>(
@@ -387,6 +407,18 @@ const api = {
       api.get<DashboardStats>("/dashboard/stats"),
     getCredits: () =>
       api.get<DashboardCredits>("/dashboard/credits"),
+    getActivity: (limit = 10) =>
+      api.get<{ activity: DashboardActivity[] }>(`/dashboard/activity?limit=${limit}`),
+    getRecentResidents: (limit = 5) =>
+      api.get<{ residents: DashboardRecentResident[] }>(`/dashboard/recent-residents?limit=${limit}`),
+    getSignIns: () =>
+      api.get<{ sign_ins: SignInLog[] }>("/dashboard/sign-ins"),
+    getDocumentTrend: () =>
+      api.get<DashboardDocumentTrend>("/dashboard/document-trend"),
+    getPendingRequests: (limit = 5) =>
+      api.get<{ requests: DashboardPendingRequest[] }>(`/dashboard/pending-requests?limit=${limit}`),
+    getUpcomingEvents: (limit = 4) =>
+      api.get<{ events: DashboardUpcomingEvent[] }>(`/dashboard/upcoming-events?limit=${limit}`),
   },
 
   settings: {
@@ -408,8 +440,40 @@ const api = {
       return uploadFile<{ message: string; url: string; file_id: string }>("/settings/seal", formData);
     },
 
+    uploadMunicipalityLogo: (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      return uploadFile<{ message: string; url: string; file_id: string }>("/settings/municipality-logo", formData);
+    },
+
     getUsage: () =>
       api.get<{ data: BarangayUsage }>("/settings/usage").then(r => r.data),
+  },
+
+  officials: {
+    list: (params?: { search?: string; position?: string; is_active?: boolean; per_page?: number; sort_by?: string; sort_dir?: "asc" | "desc" }) => {
+      const query = new URLSearchParams();
+      if (params?.search) query.set("search", params.search);
+      if (params?.position) query.set("position", params.position);
+      if (params?.is_active !== undefined) query.set("is_active", String(params.is_active));
+      if (params?.per_page) query.set("per_page", String(params.per_page));
+      if (params?.sort_by) query.set("sort_by", params.sort_by);
+      if (params?.sort_dir) query.set("sort_dir", params.sort_dir);
+      const qs = query.toString();
+      return api.get<PaginatedResponse<BarangayOfficial>>(`/officials${qs ? `?${qs}` : ""}`);
+    },
+
+    get: (id: string) =>
+      api.get<{ official: BarangayOfficial }>(`/officials/${id}`).then(r => r.official),
+
+    create: (data: OfficialPayload) =>
+      api.post<{ message: string; official: BarangayOfficial }>("/officials", data),
+
+    update: (id: string, data: Partial<OfficialPayload>) =>
+      api.put<{ message: string; official: BarangayOfficial }>(`/officials/${id}`, data),
+
+    delete: (id: string) =>
+      api.delete<{ message: string }>(`/officials/${id}`),
   },
 
   residents: {
@@ -619,13 +683,29 @@ const api = {
   },
 
   documentTemplates: {
-    list: (params?: { search?: string; category?: string; is_active?: boolean; per_page?: number }) => {
+    list: (params?: {
+      search?: string;
+      category?: string;
+      constituent_type?: string;
+      status?: string;
+      is_active?: boolean;
+      owned_only?: boolean;
+      system_only?: boolean;
+      sort_by?: string;
+      sort_dir?: "asc" | "desc";
+      per_page?: number;
+    }) => {
       const query = new URLSearchParams();
       if (params?.search) query.set("search", params.search);
       if (params?.category) query.set("category", params.category);
+      if (params?.constituent_type) query.set("constituent_type", params.constituent_type);
+      if (params?.status) query.set("status", params.status);
       if (params?.is_active !== undefined) query.set("is_active", String(params.is_active));
+      if (params?.owned_only) query.set("owned_only", "1");
+      if (params?.system_only) query.set("system_only", "1");
+      if (params?.sort_by) query.set("sort_by", params.sort_by);
+      if (params?.sort_dir) query.set("sort_dir", params.sort_dir);
       query.set("per_page", String(params?.per_page ?? 100));
-      query.set("sort_by", "sort_order");
       const qs = query.toString();
       return api.get<PaginatedResponse<DocumentTemplate>>(`/document-templates${qs ? `?${qs}` : ""}`);
     },
@@ -641,6 +721,12 @@ const api = {
 
     delete: (id: string) =>
       api.delete<{ message: string }>(`/document-templates/${id}`),
+
+    clone: (id: string, name?: string) =>
+      api.post<{ message: string; document_template: DocumentTemplate }>(
+        `/document-templates/${id}/clone`,
+        name ? { name } : {},
+      ),
   },
 
   issuedDocuments: {
@@ -697,6 +783,39 @@ const api = {
       }>("/issued-documents/ai-fill", data),
   },
 
+  addressEntries: {
+    /**
+     * List per-barangay learned autocomplete entries.
+     * Replaces the hardcoded default*Entries arrays that used to live in the
+     * Residents page. Supply ?kind=purok|street|citizenship|... to filter.
+     */
+    list: (kind?: string) =>
+      api.get<{
+        entries: Array<{
+          id: string;
+          kind: string;
+          canonical: string;
+          count: number;
+          aliases: string[];
+        }>;
+      }>(`/address-entries${kind ? `?kind=${encodeURIComponent(kind)}` : ""}`),
+
+    /**
+     * Upsert a value for the given kind. Bumps count on existing entries,
+     * creates a new row otherwise. Called every time a clerk picks a value.
+     */
+    upsert: (data: { kind: string; canonical: string; alias?: string }) =>
+      api.post<{
+        entry: {
+          id: string;
+          kind: string;
+          canonical: string;
+          count: number;
+          aliases: string[];
+        };
+      }>("/address-entries", data),
+  },
+
   map: {
     residents: () =>
       api.get<{
@@ -712,6 +831,15 @@ const api = {
         }>;
         total: number;
         mapped: number;
+        barangay: {
+          id: string;
+          name: string;
+          latitude: number | null;
+          longitude: number | null;
+          boundary_geojson: GeoJsonFeatureCollection | null;
+          boundary_fetched_at: string | null;
+          boundary_source: string | null;
+        } | null;
       }>("/map/residents"),
 
     stats: () =>
@@ -723,6 +851,16 @@ const api = {
         by_purok: Array<{ purok: string; total: number; mapped: number }>;
         by_status: Array<{ status: string; count: number }>;
       }>("/map/stats"),
+
+    layers: () =>
+      api.get<{
+        hazard_pins: Array<{ id: string; type: string; name: string; description: string | null; severity: string | null; status: string | null; latitude: number; longitude: number }>;
+        evacuation_centers: Array<{ id: string; name: string; event_name: string | null; cause_type: string | null; status: string | null; evacuee_count: number; family_count: number; latitude: number; longitude: number }>;
+        establishments: Array<{ id: string; name: string; type: string | null; status: string | null; latitude: number; longitude: number }>;
+      }>("/map/layers"),
+
+    refreshBoundary: () =>
+      api.post<{ message: string; fetched: boolean; boundary_geojson?: GeoJsonFeatureCollection; boundary_fetched_at?: string; boundary_source?: string }>("/settings/boundary/refresh"),
   },
 
   establishments: {
