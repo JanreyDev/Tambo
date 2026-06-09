@@ -7,7 +7,7 @@ import {
   MessageSquare, HardDrive, Users, Database, CreditCard,
   ShieldAlert, Heart, Scale, BookOpen, Plus, Trash2,
   Crown, Smartphone, Siren, MapPin, Facebook, Twitter, Instagram, Youtube,
-  Calendar, Info, User, ChevronDown,
+  Calendar, Info, User, ChevronDown, Search, Eye, Edit2,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { cn, resolvePhotoUrl } from "@/lib/utils";
@@ -667,6 +667,33 @@ function ResponsiveThumbnail({ layout, docPaperSize, docFont, docColorTheme, doc
   );
 }
 
+
+const RESIDENT_CERTIFICATES = [
+  { id: 1, iconType: "clearance", title: "Barangay Clearance", isGlobal: false, badgeColor: "blue", description: "Certificate for general clearance issued by the barangay.", theme: "Blue", themeColor: "#3b82f6", pattern: "Wave • Classic Sidebar", modifiedDate: "Today, 10:30 AM", author: "Juan Dela Cruz" },
+  { id: 2, iconType: "residency", title: "Certificate of Residency", isGlobal: true, badgeColor: "green", description: "Certificate for proof of residency.", theme: "Earth & Sky", themeColor: "#22c55e", themeColor2: "#3b82f6", pattern: "Wave • Classic Sidebar", modifiedDate: "Jun 8, 2026 03:25 PM", author: "Juan Dela Cruz" },
+  { id: 3, iconType: "indigency", title: "Certificate of Indigency", isGlobal: false, badgeColor: "red", description: "Certificate for indigent residents.", theme: "Red", themeColor: "#ef4444", pattern: "Minimal • Formal Government", modifiedDate: "Jun 7, 2026 09:45 AM", author: "Juan Dela Cruz" },
+  { id: 4, iconType: "goodmoral", title: "Certificate of Good Moral Character", isGlobal: false, badgeColor: "purple", description: "Certificate of good moral standing.", theme: "Green", themeColor: "#22c55e", pattern: "Wave • Classic Sidebar", modifiedDate: "Jun 7, 2026 11:20 AM", author: "Juan Dela Cruz" },
+  { id: 5, iconType: "soloparent", title: "Certificate of Solo Parent", isGlobal: true, badgeColor: "green", description: "Certificate for solo parents.", theme: "Earth & Sky", themeColor: "#22c55e", themeColor2: "#3b82f6", pattern: "Wave • Classic Sidebar", modifiedDate: "Jun 6, 2026 04:15 PM", author: "Juan Dela Cruz" },
+  { id: 6, iconType: "norecord", title: "Certificate of No Record", isGlobal: true, badgeColor: "green", description: "Certificate for no derogatory record.", theme: "Earth & Sky", themeColor: "#22c55e", themeColor2: "#3b82f6", pattern: "Wave • Classic Sidebar", modifiedDate: "Jun 5, 2026 02:30 PM", author: "Juan Dela Cruz" },
+];
+
+function CertIcon({ type }: { type: string }) {
+  const iconProps = "w-5 h-5";
+  const bgColors: Record<string, string> = {
+    clearance: "bg-blue-500/10 text-blue-500",
+    residency: "bg-green-500/10 text-green-500",
+    indigency: "bg-red-500/10 text-red-500",
+    goodmoral: "bg-purple-500/10 text-purple-500",
+    soloparent: "bg-yellow-500/10 text-yellow-500",
+    norecord: "bg-teal-500/10 text-teal-500",
+  };
+  return (
+    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${bgColors[type] || "bg-gray-500/10 text-gray-500"}`}>
+      <FileText className={iconProps} />
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const { user, refreshUser } = useAuth();
   const { language, setLanguage, t } = useLanguage();
@@ -674,6 +701,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeSection, setActiveSection] = useState("info");
+  const [customizeTab, setCustomizeTab] = useState<"global" | "resident" | "establishment" | "lot">("global");
 
   // Toast
   const [toasts, setToasts] = useState<{ id: number; message: string; type: "success" | "error" }[]>([]);
@@ -2034,25 +2062,42 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="flex items-center gap-6 px-6 border-b border-border/40 overflow-x-auto">
-                  <button className="flex items-center gap-2 py-3 border-b-2 border-[var(--accent-primary)] text-[var(--accent-primary)] font-medium text-sm whitespace-nowrap">
+                  <button 
+                    onClick={() => setCustomizeTab("global")}
+                    className={`flex items-center gap-2 py-3 border-b-2 font-medium text-sm whitespace-nowrap transition-colors ${customizeTab === "global" ? "border-[var(--accent-primary)] text-[var(--accent-primary)]" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                  >
                     <Globe className="w-4 h-4" /> Global Theme
                   </button>
-                  <button className="flex items-center gap-2 py-3 border-b-2 border-transparent text-muted-foreground hover:text-foreground font-medium text-sm whitespace-nowrap opacity-50 cursor-not-allowed">
+                  <button 
+                    onClick={() => setCustomizeTab("resident")}
+                    className={`flex items-center gap-2 py-3 border-b-2 font-medium text-sm whitespace-nowrap transition-colors ${customizeTab === "resident" ? "border-blue-500 text-blue-500" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                  >
                     <User className="w-4 h-4" /> Resident Certificates
                   </button>
-                  <button className="flex items-center gap-2 py-3 border-b-2 border-transparent text-muted-foreground hover:text-foreground font-medium text-sm whitespace-nowrap opacity-50 cursor-not-allowed">
+                  <button 
+                    onClick={() => setCustomizeTab("establishment")}
+                    className={`flex items-center gap-2 py-3 border-b-2 font-medium text-sm whitespace-nowrap transition-colors ${customizeTab === "establishment" ? "border-purple-500 text-purple-500" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                  >
                     <Building2 className="w-4 h-4" /> Establishment Certificates
                   </button>
-                  <button className="flex items-center gap-2 py-3 border-b-2 border-transparent text-muted-foreground hover:text-foreground font-medium text-sm whitespace-nowrap opacity-50 cursor-not-allowed">
+                  <button 
+                    onClick={() => setCustomizeTab("lot")}
+                    className={`flex items-center gap-2 py-3 border-b-2 font-medium text-sm whitespace-nowrap transition-colors ${customizeTab === "lot" ? "border-amber-500 text-amber-500" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                  >
                     <MapPin className="w-4 h-4" /> Lot & Building Certificates
                   </button>
                   <div className="flex-1" />
-                  <button className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted transition-colors text-foreground whitespace-nowrap">Reset to Default</button>
-                  <button onClick={() => saveDocuments()} className="px-3 py-1.5 text-xs font-medium rounded-lg text-white transition-colors whitespace-nowrap" style={{ background: "var(--accent-primary)" }}>
-                    <div className="flex items-center gap-1.5"><Shield className="w-3.5 h-3.5" /> Save Global Theme</div>
-                  </button>
+                  {customizeTab === "global" && (
+                    <>
+                      <button className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted transition-colors text-foreground whitespace-nowrap">Reset to Default</button>
+                      <button onClick={() => saveDocuments()} className="px-3 py-1.5 text-xs font-medium rounded-lg text-white transition-colors whitespace-nowrap" style={{ background: "var(--accent-primary)" }}>
+                        <div className="flex items-center gap-1.5"><Shield className="w-3.5 h-3.5" /> Save Global Theme</div>
+                      </button>
+                    </>
+                  )}
                 </div>
 
+                {customizeTab === "global" && (
                 <div className="p-6 bg-muted/5">
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                     <div className="lg:col-span-7 space-y-6">
@@ -2253,6 +2298,112 @@ export default function SettingsPage() {
                     </div>
                   </div>
                 </div>
+                )}
+                
+                {/* --- RESIDENT CERTIFICATES TAB --- */}
+                {customizeTab === "resident" && (
+                  <div className="p-6 bg-muted/5 flex flex-col gap-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <h3 className="text-base font-semibold text-foreground">Resident Certificates</h3>
+                        <p className="text-xs text-muted-foreground mt-0.5">Manage certificate designs for residents. Each certificate can use the global theme or have its own custom design.</p>
+                      </div>
+                      <button className="px-3 py-1.5 text-xs font-medium rounded-lg text-white transition-colors flex items-center gap-1.5 whitespace-nowrap bg-blue-600 hover:bg-blue-700">
+                        <Plus className="w-3.5 h-3.5" /> New Certificate Design
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-3 w-full max-w-lg">
+                      <div className="relative flex-1">
+                        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                        <input type="text" placeholder="Search certificates..." className="w-full bg-background border border-border/80 rounded-lg pl-9 pr-3 py-2 text-sm text-foreground focus:outline-none focus:border-blue-500 transition-colors" />
+                      </div>
+                      <div className="relative w-40">
+                        <select className="w-full bg-background border border-border/80 rounded-lg pl-3 pr-8 py-2 text-sm text-foreground focus:outline-none focus:border-blue-500 transition-colors appearance-none cursor-pointer">
+                          <option value="all">All Status</option>
+                          <option value="global">Global Theme</option>
+                          <option value="custom">Custom Theme</option>
+                        </select>
+                        <ChevronDown className="w-4 h-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                      </div>
+                    </div>
+
+                    <div className="w-full overflow-x-auto pb-4">
+                      <table className="w-full text-left border-collapse min-w-[800px]">
+                        <thead>
+                          <tr className="border-b border-border/40 text-xs text-muted-foreground font-semibold uppercase tracking-wider">
+                            <th className="pb-3 px-4 w-[40%]">Certificate</th>
+                            <th className="pb-3 px-4 w-[25%]">Theme</th>
+                            <th className="pb-3 px-4 w-[25%]">Last Modified</th>
+                            <th className="pb-3 px-4 w-[10%] text-center">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/20">
+                          {RESIDENT_CERTIFICATES.map(cert => (
+                            <tr key={cert.id} className="group hover:bg-background/40 transition-colors">
+                              <td className="py-4 px-4 align-top">
+                                <div className="flex gap-4">
+                                  <CertIcon type={cert.iconType} />
+                                  <div className="flex flex-col gap-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-semibold text-sm text-foreground">{cert.title}</span>
+                                      <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-sm ${cert.isGlobal ? 'bg-green-500/10 text-green-500' : cert.badgeColor === 'blue' ? 'bg-blue-500/10 text-blue-500' : cert.badgeColor === 'red' ? 'bg-red-500/10 text-red-500' : 'bg-purple-500/10 text-purple-500'}`}>
+                                        {cert.isGlobal ? 'Global Theme' : 'Custom Theme'}
+                                      </span>
+                                    </div>
+                                    <span className="text-[11px] text-muted-foreground">{cert.description}</span>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="py-4 px-4 align-top">
+                                <div className="flex flex-col gap-1">
+                                  <div className="flex items-center gap-2 text-sm text-foreground font-medium">
+                                    <div className="flex items-center justify-center">
+                                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cert.themeColor }}></div>
+                                      {cert.themeColor2 && (
+                                        <div className="w-2.5 h-2.5 rounded-full -ml-1 border border-background" style={{ backgroundColor: cert.themeColor2 }}></div>
+                                      )}
+                                    </div>
+                                    {cert.theme}
+                                  </div>
+                                  <span className="text-[11px] text-muted-foreground">{cert.pattern}</span>
+                                </div>
+                              </td>
+                              <td className="py-4 px-4 align-top">
+                                <div className="flex flex-col gap-1">
+                                  <span className="text-sm text-foreground">{cert.modifiedDate}</span>
+                                  <span className="text-[11px] text-muted-foreground">by {cert.author}</span>
+                                </div>
+                              </td>
+                              <td className="py-4 px-4 align-top">
+                                <div className="flex items-center justify-center gap-3 pt-1">
+                                  <button className="text-muted-foreground hover:text-foreground transition-colors"><Eye className="w-4 h-4" /></button>
+                                  <button className="text-muted-foreground hover:text-blue-500 transition-colors"><Edit2 className="w-4 h-4" /></button>
+                                  <button className="text-muted-foreground hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-between bg-blue-500/5 border border-blue-500/10 rounded-xl p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
+                          <Info className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-foreground">Global Theme is the default design applied to all certificates.</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">Certificates with custom themes will override the global settings.</p>
+                        </div>
+                      </div>
+                      <button onClick={() => setCustomizeTab("global")} className="text-xs font-medium text-foreground hover:text-blue-500 px-3 py-1.5 transition-colors border border-border/80 rounded-lg bg-background hover:bg-muted whitespace-nowrap">
+                        Go to Global Theme &gt;
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
