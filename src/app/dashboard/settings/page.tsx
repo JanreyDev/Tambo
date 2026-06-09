@@ -2116,13 +2116,29 @@ export default function SettingsPage() {
                   )}
                 </div>
 
-                {customizeTab === "global" && (
+                { (customizeTab === "global" || customizeTab === "editor") && (
                 <div className="p-6 bg-muted/5">
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                     <div className="lg:col-span-7 space-y-6">
                       <div>
-                        <h3 className="text-base font-semibold text-foreground mb-1">Global Theme Settings</h3>
-                        <p className="text-xs text-muted-foreground mb-5">This theme will be applied as the default design for all certificates.</p>
+                        {customizeTab === "global" ? (
+                          <>
+                            <h3 className="text-base font-semibold text-foreground mb-1">Global Theme Settings</h3>
+                            <p className="text-xs text-muted-foreground mb-5">This theme will be applied as the default design for all certificates.</p>
+                          </>
+                        ) : (
+                          <>
+                            <div className="flex items-center gap-3 mb-1">
+                              <button onClick={() => setCustomizeTab("resident")} className="p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors -ml-2">
+                                <ArrowLeft className="w-5 h-5" />
+                              </button>
+                              <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+                                Editing Custom Theme <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 text-[10px] uppercase font-bold tracking-wider">{CERTIFICATE_OPTIONS.find(c => c.id === selectedCertType)?.title || "Draft"}</span>
+                              </h3>
+                            </div>
+                            <p className="text-xs text-muted-foreground mb-5 ml-9">You are customizing the layout specifically for this certificate. Changes here will not affect the global theme.</p>
+                          </>
+                        )}
 
                         {/* Document Structure — tiny real previews */}
                         <div className="mb-6">
@@ -2582,29 +2598,6 @@ export default function SettingsPage() {
                         </div>
                       </div>
                     )}
-                  </div>
-                )}
-
-                {/* --- CUSTOM EDITOR MOCK VIEW --- */}
-                {customizeTab === "editor" && (
-                  <div className="p-6 bg-muted/5 flex flex-col gap-6">
-                    <div className="flex items-center gap-3 pb-4 border-b border-border/40">
-                      <button onClick={() => setCustomizeTab("resident")} className="p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors">
-                        <ArrowLeft className="w-5 h-5" />
-                      </button>
-                      <div>
-                        <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
-                          Editing Custom Theme <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 text-[10px] uppercase font-bold tracking-wider">Draft</span>
-                        </h3>
-                        <p className="text-xs text-muted-foreground mt-0.5">You are customizing the layout specifically for this certificate.</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex flex-col items-center justify-center py-20 opacity-50">
-                       <Palette className="w-16 h-16 text-muted-foreground mb-4" />
-                       <h2 className="text-xl font-bold text-foreground">Custom Certificate Editor</h2>
-                       <p className="text-sm text-muted-foreground mt-2 max-w-sm text-center">This interface will allow you to modify layout, fields, and colors independently from the Global Theme.</p>
-                    </div>
                   </div>
                 )}
               </div>
