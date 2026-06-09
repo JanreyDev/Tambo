@@ -46,15 +46,24 @@ class RolePermissionSeeder extends Seeder
         ];
 
         foreach ($permissions as $perm) {
-            Permission::create(['name' => $perm, 'guard_name' => 'sanctum']);
+            Permission::firstOrCreate(
+                ['name' => $perm, 'guard_name' => 'sanctum'],
+                ['name' => $perm, 'guard_name' => 'sanctum'],
+            );
         }
 
         // Create roles and assign permissions
-        $kapitan = Role::create(['name' => 'kapitan', 'guard_name' => 'sanctum']);
-        $kapitan->givePermissionTo(Permission::all());
+        $kapitan = Role::firstOrCreate(
+            ['name' => 'kapitan', 'guard_name' => 'sanctum'],
+            ['name' => 'kapitan', 'guard_name' => 'sanctum'],
+        );
+        $kapitan->syncPermissions(Permission::all());
 
-        $secretary = Role::create(['name' => 'secretary', 'guard_name' => 'sanctum']);
-        $secretary->givePermissionTo([
+        $secretary = Role::firstOrCreate(
+            ['name' => 'secretary', 'guard_name' => 'sanctum'],
+            ['name' => 'secretary', 'guard_name' => 'sanctum'],
+        );
+        $secretary->syncPermissions([
             'residents.view', 'residents.create', 'residents.edit',
             'establishments.view', 'establishments.create', 'establishments.edit',
             'lots-buildings.view', 'lots-buildings.create', 'lots-buildings.edit',
