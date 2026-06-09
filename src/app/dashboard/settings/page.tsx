@@ -7,7 +7,7 @@ import {
   MessageSquare, HardDrive, Users, Database, CreditCard,
   ShieldAlert, Heart, Scale, BookOpen, Plus, Trash2,
   Crown, Smartphone, Siren, MapPin, Facebook, Twitter, Instagram, Youtube,
-  Calendar, Info,
+  Calendar, Info, User,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { cn, resolvePhotoUrl } from "@/lib/utils";
@@ -367,6 +367,112 @@ function ImageUpload({ label, hint, currentUrl, onUpload, uploading }: {
     </>
   );
 }
+
+const PREVIEW_FALLBACK_OFFICIALS = [
+  { key: "kapitan", name: "JUAN DELA CRUZ", position: "Punong Barangay", photoUrl: null, initials: "JD" },
+  { key: "kagawad-1", name: "MARIA SANTOS", position: "Kagawad", photoUrl: null, initials: "MS" },
+  { key: "kagawad-2", name: "JOSE REYES", position: "Kagawad", photoUrl: null, initials: "JR" },
+  { key: "kagawad-3", name: "LINDA OCAMPO", position: "Kagawad", photoUrl: null, initials: "LO" },
+  { key: "kagawad-4", name: "RICO MENDOZA", position: "Kagawad", photoUrl: null, initials: "RM" },
+  { key: "kagawad-5", name: "ANNA GARCIA", position: "Kagawad", photoUrl: null, initials: "AG" },
+  { key: "sk", name: "MARY CRUZ", position: "SK Chairperson", photoUrl: null, initials: "MC" },
+  { key: "secretary", name: "ANA REYES", position: "Barangay Secretary", photoUrl: null, initials: "AR" },
+  { key: "treasurer", name: "PABLO SANTOS", position: "Barangay Treasurer", photoUrl: null, initials: "PS" },
+];
+
+const PREVIEW_POSITION_ORDER: Record<string, number> = {
+  kapitan: 0,
+  kagawad: 1,
+  sk_chair: 2,
+  sk_chairperson: 2,
+  "sk-chair": 2,
+  secretary: 3,
+  treasurer: 4,
+};
+
+const PREVIEW_POSITION_LABELS: Record<string, string> = {
+  kapitan: "Punong Barangay",
+  kagawad: "Kagawad",
+  sk_chair: "SK Chairperson",
+  sk_chairperson: "SK Chairperson",
+  "sk-chair": "SK Chairperson",
+  secretary: "Barangay Secretary",
+  treasurer: "Barangay Treasurer",
+};
+
+function getPreviewOfficials(allOfficials: BarangayOfficial[]) {
+  const normalized = [...allOfficials]
+    .sort((a, b) => (PREVIEW_POSITION_ORDER[a.position] ?? 99) - (PREVIEW_POSITION_ORDER[b.position] ?? 99))
+    .map((official) => {
+      const firstName = official.resident?.first_name?.trim() || "";
+      const lastName = official.resident?.last_name?.trim() || "";
+      const fullName = `${firstName} ${lastName}`.trim();
+
+      if (!fullName) return null;
+
+      return {
+        key: official.id,
+        name: fullName.toUpperCase(),
+        position: PREVIEW_POSITION_LABELS[official.position] || official.position || "Official",
+        photoUrl: resolvePhotoUrl(official.resident?.photo_url ?? null),
+        initials: `${firstName[0] || "?"}${lastName[0] || "?"}`.toUpperCase(),
+      };
+    })
+    .filter((official): official is { key: string; name: string; position: string; photoUrl: string | null; initials: string } => !!official);
+
+  return normalized.length > 0 ? normalized : PREVIEW_FALLBACK_OFFICIALS;
+}
+
+function getOfficialDisplayName(official?: BarangayOfficial | null): string | null {
+  if (!official?.resident) return null;
+
+  const parts = [
+    official.resident.first_name?.trim(),
+    official.resident.middle_name?.trim(),
+    official.resident.last_name?.trim(),
+    official.resident.extension_name?.trim(),
+  ].filter(Boolean);
+
+  return parts.length > 0 ? parts.join(" ").toUpperCase() : null;
+}
+
+function findOfficialByPosition(allOfficials: BarangayOfficial[], positions: string[]): BarangayOfficial | null {
+  for (const position of positions) {
+    const match = allOfficials.find((official) => official.position === position);
+    if (match) return match;
+  }
+  return null;
+}
+
+function getPreviewCertificateCopy(barangayName?: string | null, municipality?: string | null) {
+  const barangay = barangayName?.trim() || "Barangay San Roque";
+  const city = municipality?.trim() || "City of Caloocan";
+
+  return {
+    title: "BARANGAY CLEARANCE",
+    salutation: "TO WHOM IT MAY CONCERN:",
+    paragraphs: [
+      `This is to certify that JUAN MIGUEL SANTOS, 32 years old, Filipino, and a resident of ${barangay}, ${city}, is personally known to this office and is a law-abiding member of the community.`,
+      "Based on available barangay records, he has no pending derogatory record or unresolved community complaint on file as of the date of issuance.",
+      "This certification is issued upon the request of the above-named person for local employment and other lawful purposes.",
+    ],
+    controlNo: "BC-2026-00123",
+    requestedBy: "JUAN MIGUEL SANTOS",
+    purpose: "LOCAL EMPLOYMENT",
+  };
+}
+
+const PREVIEW_FONT_FAMILY: Record<
+  "times" | "arial" | "inter" | "poppins" | "merriweather" | "playfair",
+  string
+> = {
+  times: '"Times New Roman", Times, serif',
+  arial: "Arial, Helvetica, sans-serif",
+  inter: "var(--font-doc-inter), system-ui, sans-serif",
+  poppins: "var(--font-doc-poppins), system-ui, sans-serif",
+  merriweather: "var(--font-doc-merriweather), Georgia, serif",
+  playfair: "var(--font-playfair), Georgia, serif",
+};
 
 // ── Main Page ──
 
@@ -1010,6 +1116,21 @@ export default function SettingsPage() {
     // Legacy fallback: barangays.captain_name (will be deprecated once Officials is fully adopted)
     return captainName || "";
   })();
+
+  const previewOfficials = getPreviewOfficials(allOfficials);
+  const previewCopy = getPreviewCertificateCopy(settings?.name, settings?.city_municipality);
+  const previewCaptainOfficial = findOfficialByPosition(allOfficials, ["kapitan"]);
+  const previewSecretaryOfficial = findOfficialByPosition(allOfficials, ["secretary"]);
+  const previewTreasurerOfficial = findOfficialByPosition(allOfficials, ["treasurer"]);
+  const previewCaptainName = getOfficialDisplayName(previewCaptainOfficial) || kapitanDisplayName.toUpperCase() || "JUAN DELA CRUZ";
+  const previewSecretaryName = getOfficialDisplayName(previewSecretaryOfficial) || "ANA REYES";
+  const previewTreasurerName = getOfficialDisplayName(previewTreasurerOfficial) || "PABLO SANTOS";
+  const previewSignatoryName = (signatoryName || previewCaptainName || "JUAN DELA CRUZ").toUpperCase();
+  const previewSignatoryTitle = (signatoryTitle || "PUNONG BARANGAY").toUpperCase();
+  const previewIssueDate = new Date();
+  const previewExpiryDate = new Date(previewIssueDate.getTime() + (parseInt(certValidityDays) || 180) * 86_400_000);
+  const previewFormatDate = (d: Date) => d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+  const previewFontFamily = PREVIEW_FONT_FAMILY[docFont];
 
   // Load usage data when fees tab is active
   useEffect(() => {
@@ -1799,7 +1920,7 @@ export default function SettingsPage() {
                         "Watermark + security strip footer",
                       ],
                       preview: (
-                        <div className="w-full bg-white overflow-hidden border border-gray-200 flex flex-col" style={{ aspectRatio: "3 / 4" }}>
+                        <div className="w-full bg-white overflow-hidden border border-gray-200 flex flex-col" style={{ aspectRatio: "3 / 4", fontFamily: previewFontFamily }}>
                           <StructureCardHeader
                             variant="klasiko"
                             barangayName={settings?.name}
@@ -1811,10 +1932,6 @@ export default function SettingsPage() {
                           {/* Body: sidebar (officials + term + dates + QR) | content right */}
                           <div className="flex flex-1 min-h-0">
                             {(() => {
-                              const validity = parseInt(certValidityDays) || 180;
-                              const todayDate = new Date();
-                              const expireDate = new Date(todayDate.getTime() + validity * 86_400_000);
-                              const fmt = (d: Date) => d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
                               const termStart = termStartYear || "2024";
                               const termEnd = termEndYear || "2026";
                               return (
@@ -1824,13 +1941,13 @@ export default function SettingsPage() {
                                     <div className="h-0.5 w-5 mx-auto bg-gray-800" />
                                     <p
                                       className="text-[6.5px] font-bold tracking-[0.22em] uppercase text-gray-900 text-center mt-0.5 leading-[1.1]"
-                                      style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
+                                      style={{ fontFamily: previewFontFamily }}
                                     >
                                       Sangguniang Barangay
                                     </p>
                                     <p
                                       className="text-[8.5px] font-bold text-gray-900 tracking-wider text-center mt-0.5 tabular-nums leading-tight"
-                                      style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
+                                      style={{ fontFamily: previewFontFamily }}
                                     >
                                       {termStart} <span className="text-gray-400 font-normal">—</span> {termEnd}
                                     </p>
@@ -1839,50 +1956,38 @@ export default function SettingsPage() {
                                   {/* 2. Officials roster (no dividers between names — typography only) +
                                        3. Issued / Valid Until integrated into the same column flow */}
                                   {(() => {
-                                    const POS_ORDER: Record<string, number> = {
-                                      kapitan: 0, kagawad: 1, sk_chair: 2, sk_chairperson: 2, "sk-chair": 2,
-                                      secretary: 3, treasurer: 4,
-                                    };
-                                    const posLabels: Record<string, string> = {
-                                      kapitan: "Punong Barangay",
-                                      kagawad: "Kagawad",
-                                      sk_chair: "SK Chairperson",
-                                      sk_chairperson: "SK Chairperson",
-                                      "sk-chair": "SK Chairperson",
-                                      secretary: "Barangay Secretary",
-                                      treasurer: "Barangay Treasurer",
-                                    };
-                                    const sorted = [...allOfficials].sort((a, b) => {
-                                      const oa = POS_ORDER[a.position] ?? 99;
-                                      const ob = POS_ORDER[b.position] ?? 99;
-                                      return oa - ob;
-                                    });
+                                    const sorted = previewOfficials;
                                     return (
                                       <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
                                         {/* Officials — no dividers, just rhythm */}
-                                        <div className="px-1.5 pt-1.5 pb-1 space-y-[3px] flex-1 overflow-hidden">
-                                          {sorted.map((o) => {
-                                            const firstName = o.resident?.first_name?.trim() || "";
-                                            const lastName = o.resident?.last_name?.trim() || "";
-                                            const fullName = (firstName + " " + lastName).trim() || "—";
-                                            const isKapitan = o.position === "kapitan";
-                                            const posLabel = posLabels[o.position] || o.position || "";
+                                        <div className="px-1.5 pt-1.5 pb-1 space-y-[4px] flex-1 overflow-hidden">
+                                          {sorted.map((o, index) => {
+                                            const fullName = o.name;
+                                            const isKapitan = index === 0;
+                                            const posLabel = o.position;
                                             return (
-                                              <div key={o.id} className="text-center leading-[1]">
+                                              <div key={o.key} className="flex flex-col items-center text-center leading-[1]">
+                                                <div
+                                                  className={cn(
+                                                    "shrink-0 mb-0.5",
+                                                    isKapitan ? "w-6 h-6" : "w-5 h-5"
+                                                  )}
+                                                  aria-hidden="true"
+                                                />
                                                 <p
                                                   className={cn(
-                                                    "truncate tracking-wide",
+                                                    "truncate tracking-wide w-full",
                                                     isKapitan
                                                       ? "text-[7.5px] font-bold text-gray-900 uppercase"
                                                       : "text-[6px] font-semibold text-gray-800 uppercase"
                                                   )}
-                                                  style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
+                                                  style={{ fontFamily: previewFontFamily }}
                                                 >
                                                   {fullName}
                                                 </p>
                                                 <p
                                                   className={cn(
-                                                    "truncate italic mt-px",
+                                                    "truncate italic mt-px w-full",
                                                     isKapitan ? "text-[5.5px] text-gray-600" : "text-[4.5px] text-gray-500"
                                                   )}
                                                 >
@@ -1906,18 +2011,18 @@ export default function SettingsPage() {
                                             <p className="text-[5px] tracking-[0.2em] uppercase text-gray-500 italic">Issued</p>
                                             <p
                                               className="text-[6.5px] font-semibold text-gray-800 tabular-nums truncate"
-                                              style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
+                                              style={{ fontFamily: previewFontFamily }}
                                             >
-                                              {fmt(todayDate)}
+                                              {previewFormatDate(previewIssueDate)}
                                             </p>
                                           </div>
                                           <div className="flex items-baseline justify-between gap-1">
                                             <p className="text-[5px] tracking-[0.2em] uppercase text-gray-500 italic">Valid Until</p>
                                             <p
                                               className="text-[6.5px] font-semibold text-gray-800 tabular-nums truncate"
-                                              style={{ fontFamily: 'var(--font-playfair), Georgia, serif' }}
+                                              style={{ fontFamily: previewFontFamily }}
                                             >
-                                              {fmt(expireDate)}
+                                              {previewFormatDate(previewExpiryDate)}
                                             </p>
                                           </div>
                                         </div>
@@ -1931,7 +2036,7 @@ export default function SettingsPage() {
                                       Verify Document
                                     </p>
                                     <div className="flex justify-center">
-                                      <div className="relative w-12 h-12 border border-gray-900 p-0.5 bg-white">
+                                      <div className="relative w-10 h-10 border border-gray-900 p-0.5 bg-white">
                                         <div className="grid grid-cols-9 gap-px w-full h-full">
                                           {Array.from({ length: 81 }).map((_, i) => {
                                             const row = Math.floor(i / 9);
@@ -1955,7 +2060,7 @@ export default function SettingsPage() {
                                         {/* PrimeX mark — small bordered patch centered over the QR */}
                                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                                           <div className="bg-white border border-gray-900 p-px rounded-sm">
-                                            <svg viewBox="0 0 256 256" className="w-3 h-3 text-gray-900" fill="currentColor" aria-label="PrimeX">
+                                            <svg viewBox="0 0 256 256" className="w-2.5 h-2.5 text-gray-900" fill="currentColor" aria-label="PrimeX">
                                               <path d="M 150.23 144.99 C134.71,147.23 124.05,144.91 128.30,140.22 C129.17,139.26 132.05,137.88 134.69,137.16 C145.76,134.14 148.53,132.70 154.00,127.12 C164.19,116.71 166.86,103.09 161.66,88.00 C159.56,81.88 158.17,79.65 154.12,75.89 C141.79,64.43 123.08,62.95 109.50,72.36 C107.85,73.51 95.93,84.95 83.00,97.80 C58.33,122.32 50.53,128.44 39.24,132.17 C36.19,133.18 31.75,134.00 29.38,134.00 C22.24,134.00 11.00,129.12 11.00,126.01 C11.00,124.72 88.06,48.53 92.15,45.79 C94.54,44.18 100.77,40.82 106.00,38.32 L 115.50 33.78 L 146.50 33.57 L 156.84 38.78 C168.47,44.65 173.48,48.54 179.28,56.22 C187.41,66.98 191.00,78.19 191.00,92.84 C191.00,119.94 174.12,141.53 150.23,144.99 ZM 153.04 211.96 C143.77,216.59 143.19,216.74 132.50,217.22 C115.83,217.99 106.60,216.86 99.91,213.25 C82.41,203.80 73.94,194.54 68.24,178.65 C66.04,172.49 65.68,169.83 65.67,159.50 C65.66,150.59 66.13,146.08 67.47,142.00 C73.00,125.17 82.40,114.75 97.22,109.00 C103.87,106.41 106.26,106.00 114.53,106.00 C124.83,106.00 128.00,106.94 128.00,110.00 C128.00,112.27 126.26,113.28 119.63,114.90 C99.88,119.72 89.33,137.02 93.55,157.66 C96.23,170.80 100.79,176.61 113.00,182.41 C118.57,185.06 120.57,185.49 127.00,185.40 C133.17,185.33 135.71,184.75 141.29,182.18 C147.33,179.39 150.72,176.43 171.79,155.48 C203.74,123.73 212.24,117.99 227.26,118.01 C235.73,118.02 245.00,121.53 245.00,124.73 C245.00,126.65 176.30,196.29 167.54,203.25 C164.81,205.42 158.28,209.34 153.04,211.96 Z" />
                                             </svg>
                                           </div>
@@ -1967,31 +2072,42 @@ export default function SettingsPage() {
                               );
                             })()}
                             {/* Content right (title + body + signature) */}
-                            <div className="flex-1 p-2 flex flex-col relative">
+                            <div className="flex-1 p-2 pt-3 flex flex-col relative">
                               {/* Universal barangay logo watermark */}
                               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                                 <div className="relative w-9 h-9 rounded-full border-2 border-gray-500 opacity-[0.13]">
                                   <div className="absolute inset-1 rounded-full border border-gray-500" />
                                 </div>
                               </div>
-                              <div className="h-1.5 bg-gray-500 rounded w-3/4 relative" />
-                              <div className="mt-1.5 space-y-1 flex-1 relative">
-                                <div className="h-0.5 bg-gray-200 rounded" />
-                                <div className="h-0.5 bg-gray-200 rounded w-5/6" />
-                                <div className="h-0.5 bg-gray-200 rounded" />
-                                <div className="h-0.5 bg-gray-200 rounded w-4/5" />
-                                <div className="h-0.5 bg-gray-200 rounded w-full" />
-                                <div className="h-0.5 bg-gray-200 rounded w-3/4" />
+                              <div className="relative">
+                                <p className="text-[8px] font-bold tracking-[0.22em] text-gray-800 uppercase text-center">
+                                  {previewCopy.title}
+                                </p>
+                                <div className="h-1.5 bg-gray-500 rounded w-3/4 mx-auto mt-1 relative" />
                               </div>
-                              <div className="mt-auto w-16 ml-auto space-y-0.5 relative">
-                                <div className="h-px bg-gray-400" />
-                                <div className="h-0.5 bg-gray-300 rounded" />
+                              <div className="mt-1.5 flex-1 relative text-[6px] leading-[1.45] text-gray-700">
+                                <p className="font-semibold uppercase text-gray-800 mb-1 mt-5">{previewCopy.salutation}</p>
+                                {previewCopy.paragraphs.map((paragraph) => (
+                                  <p key={paragraph} className="mb-1 text-justify">{paragraph}</p>
+                                ))}
+                                <div className="mt-2 space-y-0.5 text-[5px]">
+                                  <p><span className="font-semibold">Requested By:</span> {previewCopy.requestedBy}</p>
+                                  <p><span className="font-semibold">Purpose:</span> {previewCopy.purpose}</p>
+                                </div>
+                              </div>
+                              <div className="mt-auto w-24 ml-auto text-center relative">
+                                <p className="text-[6px] font-bold text-gray-800 uppercase truncate">{previewSignatoryName}</p>
+                                <div className="h-px bg-gray-400 mt-0.5" />
+                                <div className="text-[4.5px] text-gray-500 uppercase mt-0.5 tracking-wide">{previewSignatoryTitle}</div>
                               </div>
                             </div>
                           </div>
                           {/* Bottom security strip */}
                           <div className="px-2.5 py-0.5 border-t border-gray-200 bg-gray-50 flex items-center justify-center flex-shrink-0">
-                            <div className="h-0.5 bg-gray-300 rounded w-2/3" />
+                            <div className="flex items-center justify-between w-full text-[4.5px] uppercase tracking-[0.18em] text-gray-500">
+                              <span>{previewCopy.controlNo}</span>
+                              <span>Not Valid Without Seal</span>
+                            </div>
                           </div>
                         </div>
                       ),
@@ -2010,7 +2126,7 @@ export default function SettingsPage() {
                         "Verification strip + security strip",
                       ],
                       preview: (
-                        <div className="w-full bg-white overflow-hidden border-2 border-gray-500 flex flex-col" style={{ aspectRatio: "3 / 4" }}>
+                        <div className="w-full bg-white overflow-hidden border-2 border-gray-500 flex flex-col" style={{ aspectRatio: "3 / 4", fontFamily: previewFontFamily }}>
                           <div className="m-1 border border-gray-400 flex flex-col flex-1 min-h-0">
                             <StructureCardHeader
                               variant="elegante"
@@ -2034,19 +2150,33 @@ export default function SettingsPage() {
                                 <div className="absolute inset-1 rounded-full border border-gray-500" />
                               </div>
                             </div>
-                            <div className="space-y-1 relative">
-                              <div className="h-0.5 bg-gray-200 rounded w-full" />
-                              <div className="h-0.5 bg-gray-200 rounded w-11/12 mx-auto" />
-                              <div className="h-0.5 bg-gray-200 rounded w-5/6 mx-auto" />
-                              <div className="h-0.5 bg-gray-200 rounded w-full" />
-                              <div className="h-0.5 bg-gray-200 rounded w-3/4 mx-auto" />
+                            <div className="space-y-1 relative text-center">
+                              <p className="text-[7px] font-bold tracking-[0.22em] uppercase text-gray-800">{previewCopy.title}</p>
+                              <p className="text-[5.5px] font-semibold uppercase text-gray-600">{previewCopy.salutation}</p>
+                              <div className="space-y-1 text-[5px] leading-[1.45] text-gray-700">
+                                {previewCopy.paragraphs.map((paragraph) => (
+                                  <p key={paragraph} className="text-justify">{paragraph}</p>
+                                ))}
+                              </div>
                             </div>
                           </div>
                           {/* Footer: shared across all structures — 3 signatures + QR verification + security strip */}
                           <div className="px-3 pt-1.5 pb-1 grid grid-cols-3 gap-1.5 border-t border-gray-200 flex-shrink-0">
-                            <div className="space-y-0.5"><div className="h-px bg-gray-400" /><div className="h-0.5 bg-gray-300 rounded" /></div>
-                            <div className="space-y-0.5"><div className="h-px bg-gray-400" /><div className="h-0.5 bg-gray-300 rounded" /></div>
-                            <div className="space-y-0.5"><div className="h-px bg-gray-400" /><div className="h-0.5 bg-gray-300 rounded" /></div>
+                            <div className="text-center">
+                              <div className="h-px bg-gray-400" />
+                              <p className="mt-0.5 text-[4.5px] font-semibold uppercase text-gray-700 truncate">{previewSignatoryName}</p>
+                              <p className="text-[4px] uppercase text-gray-500">Prepared By</p>
+                            </div>
+                            <div className="text-center">
+                              <div className="h-px bg-gray-400" />
+                              <p className="mt-0.5 text-[4.5px] font-semibold uppercase text-gray-700 truncate">{previewSecretaryName}</p>
+                              <p className="text-[4px] uppercase text-gray-500">Reviewed By</p>
+                            </div>
+                            <div className="text-center">
+                              <div className="h-px bg-gray-400" />
+                              <p className="mt-0.5 text-[4.5px] font-semibold uppercase text-gray-700 truncate">{previewSignatoryTitle}</p>
+                              <p className="text-[4px] uppercase text-gray-500">Approved By</p>
+                            </div>
                           </div>
                           <div className="px-3 py-1 border-t border-gray-200 flex items-center gap-1.5 bg-gray-50 flex-shrink-0">
                             <div className="w-5 h-5 border border-gray-500 bg-white flex-shrink-0 flex items-center justify-center">
@@ -2056,13 +2186,13 @@ export default function SettingsPage() {
                                 ))}
                               </div>
                             </div>
-                            <div className="flex-1 space-y-0.5">
-                              <div className="h-0.5 bg-gray-400 rounded w-full" />
-                              <div className="h-0.5 bg-gray-300 rounded w-5/6 font-mono" />
+                            <div className="flex-1 space-y-0.5 text-[4.5px] uppercase tracking-[0.16em] text-gray-500">
+                              <div>{previewCopy.controlNo}</div>
+                              <div>Issued {previewFormatDate(previewIssueDate)}</div>
                             </div>
                           </div>
                           <div className="px-3 py-0.5 border-t border-gray-200 flex justify-center bg-gray-50 flex-shrink-0">
-                            <div className="h-0.5 bg-gray-300 rounded w-2/3" />
+                            <div className="text-[4.5px] uppercase tracking-[0.18em] text-gray-500">Not Valid Without Official Seal</div>
                           </div>
                           </div>
                         </div>
@@ -2081,7 +2211,7 @@ export default function SettingsPage() {
                         "Verification strip + security strip",
                       ],
                       preview: (
-                        <div className="w-full bg-white overflow-hidden border border-gray-200 flex flex-col" style={{ aspectRatio: "3 / 4" }}>
+                        <div className="w-full bg-white overflow-hidden border border-gray-200 flex flex-col" style={{ aspectRatio: "3 / 4", fontFamily: previewFontFamily }}>
                           <StructureCardHeader
                             variant="moderno"
                             barangayName={settings?.name}
@@ -2099,19 +2229,33 @@ export default function SettingsPage() {
                                 <div className="absolute inset-1 rounded-full border border-gray-500" />
                               </div>
                             </div>
-                            <div className="space-y-1 relative">
-                              <div className="h-0.5 bg-gray-200 rounded w-full" />
-                              <div className="h-0.5 bg-gray-200 rounded w-11/12 mx-auto" />
-                              <div className="h-0.5 bg-gray-200 rounded w-5/6 mx-auto" />
-                              <div className="h-0.5 bg-gray-200 rounded w-full" />
-                              <div className="h-0.5 bg-gray-200 rounded w-3/4 mx-auto" />
+                            <div className="space-y-1 relative text-center">
+                              <p className="text-[7px] font-bold tracking-[0.22em] uppercase text-gray-800">{previewCopy.title}</p>
+                              <p className="text-[5.5px] font-semibold uppercase text-gray-600">{previewCopy.salutation}</p>
+                              <div className="space-y-1 text-[5px] leading-[1.45] text-gray-700">
+                                {previewCopy.paragraphs.map((paragraph) => (
+                                  <p key={paragraph} className="text-justify">{paragraph}</p>
+                                ))}
+                              </div>
                             </div>
                           </div>
                           {/* Footer: shared across all structures — 3 signatures + QR verification + security strip */}
                           <div className="px-3 pt-1.5 pb-1 grid grid-cols-3 gap-1.5 border-t border-gray-200 flex-shrink-0">
-                            <div className="space-y-0.5"><div className="h-px bg-gray-400" /><div className="h-0.5 bg-gray-300 rounded" /></div>
-                            <div className="space-y-0.5"><div className="h-px bg-gray-400" /><div className="h-0.5 bg-gray-300 rounded" /></div>
-                            <div className="space-y-0.5"><div className="h-px bg-gray-400" /><div className="h-0.5 bg-gray-300 rounded" /></div>
+                            <div className="text-center">
+                              <div className="h-px bg-gray-400" />
+                              <p className="mt-0.5 text-[4.5px] font-semibold uppercase text-gray-700 truncate">{previewSignatoryName}</p>
+                              <p className="text-[4px] uppercase text-gray-500">Captain</p>
+                            </div>
+                            <div className="text-center">
+                              <div className="h-px bg-gray-400" />
+                              <p className="mt-0.5 text-[4.5px] font-semibold uppercase text-gray-700 truncate">{previewSecretaryName}</p>
+                              <p className="text-[4px] uppercase text-gray-500">Secretary</p>
+                            </div>
+                            <div className="text-center">
+                              <div className="h-px bg-gray-400" />
+                              <p className="mt-0.5 text-[4.5px] font-semibold uppercase text-gray-700 truncate">{previewTreasurerName}</p>
+                              <p className="text-[4px] uppercase text-gray-500">Treasurer</p>
+                            </div>
                           </div>
                           <div className="px-3 py-1 border-t border-gray-200 flex items-center gap-1.5 bg-gray-50 flex-shrink-0">
                             <div className="w-5 h-5 border border-gray-500 bg-white flex-shrink-0 flex items-center justify-center">
@@ -2121,13 +2265,13 @@ export default function SettingsPage() {
                                 ))}
                               </div>
                             </div>
-                            <div className="flex-1 space-y-0.5">
-                              <div className="h-0.5 bg-gray-400 rounded w-full" />
-                              <div className="h-0.5 bg-gray-300 rounded w-5/6 font-mono" />
+                            <div className="flex-1 space-y-0.5 text-[4.5px] uppercase tracking-[0.16em] text-gray-500">
+                              <div>{previewCopy.controlNo}</div>
+                              <div>Issued {previewFormatDate(previewIssueDate)}</div>
                             </div>
                           </div>
                           <div className="px-3 py-0.5 border-t border-gray-200 flex justify-center bg-gray-50 flex-shrink-0">
-                            <div className="h-0.5 bg-gray-300 rounded w-2/3" />
+                            <div className="text-[4.5px] uppercase tracking-[0.18em] text-gray-500">Not Valid Without Seal / Signature</div>
                           </div>
                         </div>
                       ),
@@ -2528,7 +2672,7 @@ export default function SettingsPage() {
                     // ─────────── CLASSIC SIDEBAR ───────────
                     if (hasSidebar) {
                       return (
-                        <div className="w-full bg-white overflow-hidden border border-gray-200 flex flex-col relative" style={{ fontSize: 0, aspectRatio: "3 / 4" }}>
+                        <div className="w-full bg-white overflow-hidden border border-gray-200 flex flex-col relative" style={{ fontSize: 0, aspectRatio: "3 / 4", fontFamily: previewFontFamily }}>
                           {isWreath && <WreathCorners />}
                           {isWave && (
                             <svg viewBox="0 0 200 14" preserveAspectRatio="none" className="w-full h-3 block flex-shrink-0">
@@ -2613,7 +2757,7 @@ export default function SettingsPage() {
                     // ─────────── FORMAL GOVERNMENT ───────────
                     if (isFormal) {
                       return (
-                        <div className="w-full bg-white overflow-hidden border-2 flex flex-col relative" style={{ fontSize: 0, aspectRatio: "3 / 4", borderColor: t.primary, clipPath: cornerClip }}>
+                        <div className="w-full bg-white overflow-hidden border-2 flex flex-col relative" style={{ fontSize: 0, aspectRatio: "3 / 4", borderColor: t.primary, clipPath: cornerClip, fontFamily: previewFontFamily }}>
                           {isWreath && <WreathCorners />}
                           {isScroll && <ScrollDots />}
                           {isDiplomatic && <DiplomaticBrackets />}
@@ -2679,7 +2823,7 @@ export default function SettingsPage() {
 
                     // ─────────── CENTERED MODERN ───────────
                     return (
-                      <div className="w-full bg-white overflow-hidden border border-gray-200 flex flex-col relative" style={{ fontSize: 0, aspectRatio: "3 / 4", clipPath: cornerClip }}>
+                      <div className="w-full bg-white overflow-hidden border border-gray-200 flex flex-col relative" style={{ fontSize: 0, aspectRatio: "3 / 4", clipPath: cornerClip, fontFamily: previewFontFamily }}>
                         {isTech && <TechHatch />}
                         {isBoldStripe && <div className="h-2.5 flex-shrink-0" style={{ background: t.primary }} />}
                         {isGradient && <div className="h-2 flex-shrink-0" style={{ background: `linear-gradient(90deg, ${t.primary}, ${t.primary}dd)` }} />}
@@ -2807,6 +2951,7 @@ export default function SettingsPage() {
                 paperSize={docPaperSize}
                 font={docFont}
                 colorTheme={docColorTheme}
+                designPattern={docDesignPattern}
                 barangayName={settings?.name ?? null}
                 municipality={settings?.city_municipality ?? null}
                 province={settings?.province ?? null}

@@ -1,8 +1,11 @@
 import type { AiConversation, AiConversationSummary, AiCredits, AiStreamEvent, ApiError, BarangayOfficial, BarangaySettings, BarangayUsage, DashboardActivity, DashboardCredits, DashboardDocumentTrend, DashboardPendingRequest, DashboardRecentResident, DashboardStats, DashboardUpcomingEvent, DocumentTemplate, DuplicateMatch, Establishment, EstablishmentFormPayload, GeoJsonFeatureCollection, IssuedDocument, IssueDocumentPayload, KpCaseDetail, KpCaseHearing, KpCaseListItem, KpCaseParty, LoginResponse, LotBuilding, PaginatedResponse, ResidentDetail, ResidentSummary, SignInLog, User } from "./types";
 
 // In dev, requests go through Next.js rewrite proxy (/api/v1 -> bcmp-api:8000/api/v1)
-// In production, NEXT_PUBLIC_API_URL points directly to the API domain
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
+// In production, NEXT_PUBLIC_API_URL points directly to the API domain.
+// This keeps local login requests on the same origin so cookies and proxying work reliably.
+const BASE_URL = process.env.NODE_ENV === "production"
+  ? process.env.NEXT_PUBLIC_API_URL || "/api/v1"
+  : "/api/v1";
 
 const LEGACY_TOKEN_KEY = "bcmp_token";
 const LEGACY_REMEMBER_KEY = "bcmp_remember";

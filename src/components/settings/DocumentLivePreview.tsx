@@ -10,12 +10,17 @@ type ColorTheme =
   | "plain" | "blue" | "red" | "green" | "yellow"
   | "combo-flag" | "combo-festive" | "combo-earth" | "combo-gov"
   | "combo-bayanihan" | "combo-sunrise" | "combo-coastal" | "combo-heritage";
+type DesignPattern =
+  | "wave" | "gradient" | "bold" | "photo" | "minimal" | "stripe"
+  | "wreath" | "sunburst" | "gothic" | "scroll" | "diplomatic" | "ornate"
+  | "geometric" | "bold-stripe" | "tech";
 
 interface Props {
   layout: Layout;
   paperSize: PaperSize;
   font: Font;
   colorTheme: ColorTheme;
+  designPattern: DesignPattern;
   barangayName?: string | null;
   municipality?: string | null;
   province?: string | null;
@@ -95,7 +100,7 @@ const SAMPLE_OFFICIALS = [
 ];
 
 export function DocumentLivePreview({
-  layout, paperSize, font, colorTheme,
+  layout, paperSize, font, colorTheme, designPattern,
   barangayName, municipality, province, logoUrl, municipalityLogoUrl,
   signatoryName, signatoryTitle,
 }: Props) {
@@ -146,6 +151,7 @@ export function DocumentLivePreview({
               municipalityLogoUrl={municipalityLogoUrl ?? null}
               signName={docSignName}
               signTitle={docSignTitle}
+              designPattern={designPattern}
             />
           )}
           {effectiveLayout === "elegante" && (
@@ -158,6 +164,7 @@ export function DocumentLivePreview({
               municipalityLogoUrl={municipalityLogoUrl ?? null}
               signName={docSignName}
               signTitle={docSignTitle}
+              designPattern={designPattern}
             />
           )}
           {effectiveLayout === "moderno" && (
@@ -170,6 +177,7 @@ export function DocumentLivePreview({
               municipalityLogoUrl={municipalityLogoUrl ?? null}
               signName={docSignName}
               signTitle={docSignTitle}
+              designPattern={designPattern}
             />
           )}
         </div>
@@ -184,6 +192,7 @@ export function DocumentLivePreview({
 
 interface BodyProps {
   c: { primary: string; accent: string; tint: string };
+  designPattern: DesignPattern;
   barangay: string;
   municipality: string;
   province: string;
@@ -279,12 +288,88 @@ function Watermark({ c }: { c: BodyProps["c"] }) {
   );
 }
 
+function PatternDecor({
+  c,
+  designPattern,
+}: {
+  c: BodyProps["c"];
+  designPattern: DesignPattern;
+}) {
+  switch (designPattern) {
+    case "minimal":
+      return <div className="absolute inset-x-8 top-6 h-px opacity-70 pointer-events-none" style={{ background: c.accent }} />;
+    case "gradient":
+      return <div className="absolute inset-x-0 top-0 h-10 opacity-20 pointer-events-none" style={{ background: `linear-gradient(90deg, ${c.primary}, ${c.accent})` }} />;
+    case "wave":
+      return (
+        <>
+          <svg viewBox="0 0 200 20" preserveAspectRatio="none" className="absolute -left-px -right-px top-0 h-8 w-[calc(100%+2px)] opacity-30 pointer-events-none">
+            <path d="M0,6 Q50,18 100,8 T200,10 L200,0 L0,0 Z" fill={c.primary} />
+          </svg>
+          <svg viewBox="0 0 200 20" preserveAspectRatio="none" className="absolute -left-px -right-px bottom-0 h-8 w-[calc(100%+2px)] opacity-20 pointer-events-none">
+            <path d="M0,20 Q50,2 100,12 T200,10 L200,20 L0,20 Z" fill={c.accent} />
+          </svg>
+        </>
+      );
+    case "bold":
+    case "bold-stripe":
+      return <div className="absolute inset-x-0 top-0 h-10 pointer-events-none" style={{ background: c.primary, opacity: designPattern === "bold" ? 0.18 : 0.28 }} />;
+    case "stripe":
+      return <div className="absolute top-0 bottom-0 left-[36%] w-1 opacity-35 pointer-events-none" style={{ background: c.primary }} />;
+    case "photo":
+      return <div className="absolute inset-0 opacity-[0.06] pointer-events-none" style={{ background: `radial-gradient(circle at 20% 20%, ${c.accent} 0, transparent 28%), radial-gradient(circle at 80% 70%, ${c.primary} 0, transparent 30%)` }} />;
+    case "wreath":
+      return (
+        <>
+          <div className="absolute top-2 left-2 w-12 h-12 rounded-full opacity-15 pointer-events-none" style={{ background: `radial-gradient(circle, ${c.accent}, transparent 65%)` }} />
+          <div className="absolute top-2 right-2 w-12 h-12 rounded-full opacity-15 pointer-events-none" style={{ background: `radial-gradient(circle, ${c.accent}, transparent 65%)` }} />
+        </>
+      );
+    case "sunburst":
+      return <div className="absolute left-1/2 top-1/2 w-48 h-48 -translate-x-1/2 -translate-y-1/2 rounded-full opacity-[0.08] pointer-events-none" style={{ background: `conic-gradient(${c.accent} 0 12deg, transparent 12deg 24deg)` }} />;
+    case "gothic":
+      return <div className="absolute inset-x-0 top-0 h-6 pointer-events-none" style={{ background: "#111827", opacity: 0.14 }} />;
+    case "scroll":
+      return (
+        <>
+          <div className="absolute top-2 left-2 w-3 h-3 rounded-full pointer-events-none" style={{ background: c.primary, opacity: 0.45 }} />
+          <div className="absolute top-2 right-2 w-3 h-3 rounded-full pointer-events-none" style={{ background: c.primary, opacity: 0.45 }} />
+          <div className="absolute bottom-2 left-2 w-3 h-3 rounded-full pointer-events-none" style={{ background: c.primary, opacity: 0.45 }} />
+          <div className="absolute bottom-2 right-2 w-3 h-3 rounded-full pointer-events-none" style={{ background: c.primary, opacity: 0.45 }} />
+        </>
+      );
+    case "diplomatic":
+      return (
+        <>
+          <div className="absolute top-3 left-3 w-5 h-5 border-t-2 border-l-2 opacity-40 pointer-events-none" style={{ borderColor: c.primary }} />
+          <div className="absolute top-3 right-3 w-5 h-5 border-t-2 border-r-2 opacity-40 pointer-events-none" style={{ borderColor: c.primary }} />
+          <div className="absolute bottom-3 left-3 w-5 h-5 border-b-2 border-l-2 opacity-40 pointer-events-none" style={{ borderColor: c.primary }} />
+          <div className="absolute bottom-3 right-3 w-5 h-5 border-b-2 border-r-2 opacity-40 pointer-events-none" style={{ borderColor: c.primary }} />
+        </>
+      );
+    case "ornate":
+      return <div className="absolute inset-3 border border-dashed opacity-30 pointer-events-none" style={{ borderColor: c.accent }} />;
+    case "geometric":
+      return (
+        <>
+          <div className="absolute top-0 right-0 w-16 h-16 opacity-15 pointer-events-none" style={{ background: `linear-gradient(135deg, ${c.primary} 0 50%, transparent 50% 100%)` }} />
+          <div className="absolute bottom-0 left-0 w-16 h-16 opacity-10 pointer-events-none" style={{ background: `linear-gradient(315deg, ${c.accent} 0 50%, transparent 50% 100%)` }} />
+        </>
+      );
+    case "tech":
+      return <div className="absolute top-0 right-0 w-28 h-28 opacity-[0.12] pointer-events-none" style={{ background: `repeating-linear-gradient(135deg, ${c.accent} 0 2px, transparent 2px 6px)` }} />;
+    default:
+      return null;
+  }
+}
+
 // ── KLASIKO — Classic Sidebar ─────────────────────────────────────
 
 function KlasikoBody(props: BodyProps) {
-  const { c, signName, signTitle } = props;
+  const { c, signName, signTitle, designPattern } = props;
   return (
-    <div className="w-full h-full flex flex-col text-[8px]">
+    <div className="w-full h-full flex flex-col text-[8px] relative overflow-hidden">
+      <PatternDecor c={c} designPattern={designPattern} />
       <HeaderBlock {...props} />
 
       <div className="flex flex-1 min-h-0">
@@ -336,9 +421,10 @@ function KlasikoBody(props: BodyProps) {
 // ── ELEGANTE — Formal Government (ornate frame) ───────────────────
 
 function EleganteBody(props: BodyProps) {
-  const { c, signName, signTitle } = props;
+  const { c, signName, signTitle, designPattern } = props;
   return (
-    <div className="w-full h-full p-2.5" style={{ background: c.tint }}>
+    <div className="w-full h-full p-2.5 relative overflow-hidden" style={{ background: c.tint }}>
+      <PatternDecor c={c} designPattern={designPattern} />
       <div className="w-full h-full border-2 p-1.5" style={{ borderColor: c.primary }}>
         <div className="w-full h-full border bg-white flex flex-col text-[8px]" style={{ borderColor: c.accent, borderStyle: "dashed" }}>
           <HeaderBlock {...props} />
@@ -389,9 +475,10 @@ function EleganteBody(props: BodyProps) {
 // ── MODERNO — Centered Modern (clean) ─────────────────────────────
 
 function ModernoBody(props: BodyProps) {
-  const { c, signName, signTitle } = props;
+  const { c, signName, signTitle, designPattern } = props;
   return (
-    <div className="w-full h-full flex flex-col bg-white text-[8px]">
+    <div className="w-full h-full flex flex-col bg-white text-[8px] relative overflow-hidden">
+      <PatternDecor c={c} designPattern={designPattern} />
       {/* Compact centered header */}
       <div className="px-4 pt-5 pb-3 text-center">
         <div className="flex items-center justify-center gap-3 mb-1.5">
