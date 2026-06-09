@@ -7,7 +7,7 @@ import {
   MessageSquare, HardDrive, Users, Database, CreditCard,
   ShieldAlert, Heart, Scale, BookOpen, Plus, Trash2,
   Crown, Smartphone, Siren, MapPin, Facebook, Twitter, Instagram, Youtube,
-  Calendar, Info, User, ChevronDown, Search, Eye, Edit2,
+  Calendar, Info, User, ChevronDown, Search, Eye, Edit2, CheckCircle, Circle, Car, Accessibility, Briefcase, Palette, ArrowRight, ArrowLeft,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { cn, resolvePhotoUrl } from "@/lib/utils";
@@ -668,6 +668,18 @@ function ResponsiveThumbnail({ layout, docPaperSize, docFont, docColorTheme, doc
 }
 
 
+
+const CERTIFICATE_OPTIONS = [
+  { id: "indigency", title: "Certificate of Indigency", description: "Certificate for indigent residents.", icon: FileText, color: "text-blue-500", bg: "bg-blue-500/10", border: "border-blue-500", hex: "#3b82f6" },
+  { id: "goodmoral", title: "Certificate of Good Moral Character", description: "Certificate of good moral standing.", icon: FileText, color: "text-green-500", bg: "bg-green-500/10", border: "border-green-500", hex: "#22c55e" },
+  { id: "soloparent", title: "Certificate of Solo Parent", description: "Certificate for solo parents.", icon: FileText, color: "text-purple-500", bg: "bg-purple-500/10", border: "border-purple-500", hex: "#a855f7" },
+  { id: "norecord", title: "Certificate of No Record", description: "Certificate for no derogatory record.", icon: FileText, color: "text-amber-500", bg: "bg-amber-500/10", border: "border-amber-500", hex: "#f59e0b" },
+  { id: "barangayid", title: "Barangay ID", description: "Official identification issued by the barangay.", icon: CreditCard, color: "text-cyan-500", bg: "bg-cyan-500/10", border: "border-cyan-500", hex: "#06b6d4" },
+  { id: "vehicle", title: "Vehicle Clearance", description: "Clearance for registered vehicles.", icon: Car, color: "text-orange-500", bg: "bg-orange-500/10", border: "border-orange-500", hex: "#f97316" },
+  { id: "pwd", title: "PWD Certificate", description: "Certificate for persons with disability.", icon: Accessibility, color: "text-pink-500", bg: "bg-pink-500/10", border: "border-pink-500", hex: "#ec4899" },
+  { id: "other", title: "And Many More", description: "Explore other certificate types.", icon: Briefcase, color: "text-teal-500", bg: "bg-teal-500/10", border: "border-teal-500", hex: "#14b8a6" },
+];
+
 const RESIDENT_CERTIFICATES = [
   { id: 1, iconType: "clearance", title: "Barangay Clearance", isGlobal: false, badgeColor: "blue", description: "Certificate for general clearance issued by the barangay.", theme: "Blue", themeColor: "#3b82f6", pattern: "Wave • Classic Sidebar", modifiedDate: "Today, 10:30 AM", author: "Juan Dela Cruz" },
   { id: 2, iconType: "residency", title: "Certificate of Residency", isGlobal: true, badgeColor: "green", description: "Certificate for proof of residency.", theme: "Earth & Sky", themeColor: "#22c55e", themeColor2: "#3b82f6", pattern: "Wave • Classic Sidebar", modifiedDate: "Jun 8, 2026 03:25 PM", author: "Juan Dela Cruz" },
@@ -701,7 +713,14 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeSection, setActiveSection] = useState("info");
-  const [customizeTab, setCustomizeTab] = useState<"global" | "resident" | "establishment" | "lot">("global");
+  const [customizeTab, setCustomizeTab] = useState<"global" | "resident" | "establishment" | "lot" | "editor">("global");
+  
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalStep, setModalStep] = useState(1);
+  const [selectedCertType, setSelectedCertType] = useState<string | null>(null);
+  const [themeSource, setThemeSource] = useState<"global" | "custom">("global");
+
 
   // Toast
   const [toasts, setToasts] = useState<{ id: number; message: string; type: "success" | "error" }[]>([]);
@@ -2308,7 +2327,7 @@ export default function SettingsPage() {
                         <h3 className="text-base font-semibold text-foreground">Resident Certificates</h3>
                         <p className="text-xs text-muted-foreground mt-0.5">Manage certificate designs for residents. Each certificate can use the global theme or have its own custom design.</p>
                       </div>
-                      <button className="px-3 py-1.5 text-xs font-medium rounded-lg text-white transition-colors flex items-center gap-1.5 whitespace-nowrap bg-blue-600 hover:bg-blue-700">
+                      <button onClick={() => { setIsModalOpen(true); setModalStep(1); setSelectedCertType(null); setThemeSource("global"); }} className="px-3 py-1.5 text-xs font-medium rounded-lg text-white transition-colors flex items-center gap-1.5 whitespace-nowrap bg-blue-600 hover:bg-blue-700">
                         <Plus className="w-3.5 h-3.5" /> New Certificate Design
                       </button>
                     </div>
@@ -2401,6 +2420,190 @@ export default function SettingsPage() {
                       <button onClick={() => setCustomizeTab("global")} className="text-xs font-medium text-foreground hover:text-blue-500 px-3 py-1.5 transition-colors border border-border/80 rounded-lg bg-background hover:bg-muted whitespace-nowrap">
                         Go to Global Theme &gt;
                       </button>
+                    </div>
+                  
+                    {/* Add New Certificate Modal */}
+                    {isModalOpen && (
+                      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                        <div className="w-full max-w-3xl rounded-xl border border-border bg-[#0f172a] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+                          {/* Header */}
+                          <div className="flex items-center justify-between p-6 pb-4">
+                            <div>
+                              <h2 className="text-xl font-bold text-white">Add New Certificate Design</h2>
+                              <p className="text-sm text-slate-400 mt-1">
+                                Step {modalStep} of 2: {modalStep === 1 ? "Select Certificate" : "Choose Theme Source"}
+                              </p>
+                            </div>
+                            <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white transition-colors">
+                              <X className="w-5 h-5" />
+                            </button>
+                          </div>
+
+                          {/* Body */}
+                          <div className="flex-1 overflow-y-auto p-6 pt-0">
+                            {modalStep === 1 && (
+                              <div className="flex flex-col gap-4">
+                                {!selectedCertType ? (
+                                  <>
+                                    <div className="relative">
+                                      <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                                      <input type="text" placeholder="Search certificate..." className="w-full bg-[#1e293b] border border-slate-700/50 rounded-lg pl-9 pr-3 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors" />
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mt-2">
+                                      {CERTIFICATE_OPTIONS.map(opt => {
+                                        const Icon = opt.icon;
+                                        return (
+                                          <button
+                                            key={opt.id}
+                                            onClick={() => setSelectedCertType(opt.id)}
+                                            className="group flex flex-col items-center justify-center p-5 rounded-xl border border-slate-700/50 bg-slate-800/30 hover:border-slate-500 hover:bg-slate-800/50 transition-all text-center gap-3"
+                                          >
+                                            <div className="w-12 h-12 rounded-2xl bg-slate-900/50 flex items-center justify-center mb-1">
+                                              <Icon className={`w-6 h-6 ${opt.color}`} />
+                                            </div>
+                                            <div className="flex flex-col items-center gap-1">
+                                              <span className="text-sm font-semibold text-white leading-tight">{opt.title}</span>
+                                              <span className="text-[10px] text-slate-400 leading-snug px-1">{opt.description}</span>
+                                            </div>
+                                            <div className="mt-2 w-4 h-4 rounded-full border border-slate-600 flex items-center justify-center">
+                                            </div>
+                                          </button>
+                                        )
+                                      })}
+                                    </div>
+                                  </>
+                                ) : (
+                                  <div className="p-6 rounded-xl border border-slate-700/50 bg-slate-800/30 flex items-center justify-between mt-2">
+                                    <div className="flex items-center gap-5">
+                                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${CERTIFICATE_OPTIONS.find(c => c.id === selectedCertType)?.bg}`}>
+                                        {(() => {
+                                          const opt = CERTIFICATE_OPTIONS.find(c => c.id === selectedCertType);
+                                          if (!opt) return null;
+                                          const Icon = opt.icon;
+                                          return <Icon className={`w-7 h-7 ${opt.color}`} />;
+                                        })()}
+                                      </div>
+                                      <div className="flex flex-col gap-1">
+                                        <h3 className="text-lg font-bold text-white">{CERTIFICATE_OPTIONS.find(c => c.id === selectedCertType)?.title}</h3>
+                                        <p className="text-sm text-slate-400">{CERTIFICATE_OPTIONS.find(c => c.id === selectedCertType)?.description}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {modalStep === 2 && (
+                              <div className="flex flex-col gap-4 mt-2">
+                                <button
+                                  onClick={() => setThemeSource("global")}
+                                  className={`flex items-start gap-4 p-5 rounded-xl border transition-all text-left ${themeSource === "global" ? "border-blue-500 bg-blue-500/5" : "border-slate-700/50 bg-slate-800/30 hover:border-slate-500"}`}
+                                >
+                                  <div className="w-12 h-12 shrink-0 rounded-2xl bg-slate-900/50 flex items-center justify-center">
+                                    <Globe className={`w-6 h-6 ${themeSource === "global" ? "text-blue-500" : "text-slate-400"}`} />
+                                  </div>
+                                  <div className="flex-1 pt-1">
+                                    <h3 className="text-base font-bold text-white mb-1">Use Global Theme</h3>
+                                    <p className="text-sm text-slate-400 leading-snug">Use the current global theme settings. You can always change it later.</p>
+                                  </div>
+                                  <div className="pt-2">
+                                    {themeSource === "global" ? (
+                                      <CheckCircle className="w-5 h-5 text-blue-500" />
+                                    ) : (
+                                      <Circle className="w-5 h-5 text-slate-600" />
+                                    )}
+                                  </div>
+                                </button>
+
+                                <button
+                                  onClick={() => setThemeSource("custom")}
+                                  className={`flex items-start gap-4 p-5 rounded-xl border transition-all text-left ${themeSource === "custom" ? "border-blue-500 bg-blue-500/5" : "border-slate-700/50 bg-slate-800/30 hover:border-slate-500"}`}
+                                >
+                                  <div className="w-12 h-12 shrink-0 rounded-2xl bg-slate-900/50 flex items-center justify-center">
+                                    <Palette className={`w-6 h-6 ${themeSource === "custom" ? "text-blue-500" : "text-slate-400"}`} />
+                                  </div>
+                                  <div className="flex-1 pt-1">
+                                    <h3 className="text-base font-bold text-white mb-1">Create Custom Theme</h3>
+                                    <p className="text-sm text-slate-400 leading-snug">Customize the design, colors, structure, fonts and other settings uniquely for this certificate.</p>
+                                  </div>
+                                  <div className="pt-2">
+                                    {themeSource === "custom" ? (
+                                      <CheckCircle className="w-5 h-5 text-blue-500" />
+                                    ) : (
+                                      <Circle className="w-5 h-5 text-slate-600" />
+                                    )}
+                                  </div>
+                                </button>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Footer */}
+                          <div className="p-6 pt-4 border-t border-slate-800 flex items-center justify-between bg-slate-900/50">
+                            {modalStep === 1 ? (
+                              <>
+                                {selectedCertType ? (
+                                  <button onClick={() => setSelectedCertType(null)} className="px-4 py-2 text-sm font-medium text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800 transition-colors flex items-center gap-2">
+                                    <Edit2 className="w-3.5 h-3.5" /> Change Certificate
+                                  </button>
+                                ) : (
+                                  <div></div>
+                                )}
+                                <div className="flex items-center gap-3">
+                                  <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm font-medium text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800 transition-colors">Cancel</button>
+                                  <button 
+                                    disabled={!selectedCertType}
+                                    onClick={() => setModalStep(2)} 
+                                    className="px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    Next
+                                  </button>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <button onClick={() => setModalStep(1)} className="px-4 py-2 text-sm font-medium text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800 transition-colors">Back</button>
+                                <button 
+                                  onClick={() => {
+                                    setIsModalOpen(false);
+                                    if (themeSource === "custom") {
+                                      setCustomizeTab("editor");
+                                    } else {
+                                      addToast("Certificate successfully added with Global Theme!", "success");
+                                    }
+                                  }}
+                                  className="px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                                >
+                                  Continue
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* --- CUSTOM EDITOR MOCK VIEW --- */}
+                {customizeTab === "editor" && (
+                  <div className="p-6 bg-muted/5 flex flex-col gap-6">
+                    <div className="flex items-center gap-3 pb-4 border-b border-border/40">
+                      <button onClick={() => setCustomizeTab("resident")} className="p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors">
+                        <ArrowLeft className="w-5 h-5" />
+                      </button>
+                      <div>
+                        <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+                          Editing Custom Theme <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 text-[10px] uppercase font-bold tracking-wider">Draft</span>
+                        </h3>
+                        <p className="text-xs text-muted-foreground mt-0.5">You are customizing the layout specifically for this certificate.</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex flex-col items-center justify-center py-20 opacity-50">
+                       <Palette className="w-16 h-16 text-muted-foreground mb-4" />
+                       <h2 className="text-xl font-bold text-foreground">Custom Certificate Editor</h2>
+                       <p className="text-sm text-muted-foreground mt-2 max-w-sm text-center">This interface will allow you to modify layout, fields, and colors independently from the Global Theme.</p>
                     </div>
                   </div>
                 )}
