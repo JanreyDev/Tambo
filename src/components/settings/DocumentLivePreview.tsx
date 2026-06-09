@@ -28,6 +28,9 @@ interface Props {
   municipalityLogoUrl?: string | null;
   signatoryName?: string | null;
   signatoryTitle?: string | null;
+  hideChrome?: boolean;
+  fitToContainer?: boolean;
+  fitScale?: number;
 }
 
 const ASPECT_RATIO: Record<PaperSize, string> = {
@@ -102,7 +105,7 @@ const SAMPLE_OFFICIALS = [
 export function DocumentLivePreview({
   layout, paperSize, font, colorTheme, designPattern,
   barangayName, municipality, province, logoUrl, municipalityLogoUrl,
-  signatoryName, signatoryTitle,
+  signatoryName, signatoryTitle, hideChrome, fitToContainer, fitScale = 1,
 }: Props) {
   const c = COLORS[colorTheme] ?? COLORS.plain;
   const fontFamily = FONT_FAMILY[font];
@@ -121,6 +124,297 @@ export function DocumentLivePreview({
   // Klasiko & digital both use the sidebar layout
   const effectiveLayout = layout === "digital" ? "klasiko" : layout;
 
+  if (hideChrome) {
+    const previewDocument = (
+      <div
+        className="bg-white text-[#1a1a1a] shadow-xl border border-gray-200 overflow-hidden"
+        style={{
+          width: fitToContainer ? "100%" : "560px",
+          height: fitToContainer ? "100%" : undefined,
+          aspectRatio: meta.aspect,
+          fontFamily,
+          color: "#1a1a1a",
+        }}
+      >
+        {effectiveLayout === "klasiko" && (
+          <KlasikoBody
+            c={c}
+            barangay={docBarangay}
+            municipality={docMunicipality}
+            province={docProvince}
+            logoUrl={logoUrl ?? null}
+            municipalityLogoUrl={municipalityLogoUrl ?? null}
+            signName={docSignName}
+            signTitle={docSignTitle}
+            designPattern={designPattern}
+          />
+        )}
+        {effectiveLayout === "elegante" && (
+          <EleganteBody
+            c={c}
+            barangay={docBarangay}
+            municipality={docMunicipality}
+            province={docProvince}
+            logoUrl={logoUrl ?? null}
+            municipalityLogoUrl={municipalityLogoUrl ?? null}
+            signName={docSignName}
+            signTitle={docSignTitle}
+            designPattern={designPattern}
+          />
+        )}
+        {effectiveLayout === "moderno" && (
+          <ModernoBody
+            c={c}
+            barangay={docBarangay}
+            municipality={docMunicipality}
+            province={docProvince}
+            logoUrl={logoUrl ?? null}
+            municipalityLogoUrl={municipalityLogoUrl ?? null}
+            signName={docSignName}
+            signTitle={docSignTitle}
+            designPattern={designPattern}
+          />
+        )}
+      </div>
+    );
+
+    if (fitToContainer && fitScale !== 1) {
+      return (
+        <div className="relative w-full overflow-hidden" style={{ aspectRatio: meta.aspect }}>
+          <div
+            style={{
+              width: "560px",
+              transform: `scale(${fitScale})`,
+              transformOrigin: "top left",
+            }}
+          >
+            {previewDocument}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      previewDocument
+    );
+  }
+
+  if (hideChrome) {
+    return (
+        <div
+          className="bg-white text-[#1a1a1a] shadow-xl border border-gray-200 overflow-hidden"
+          style={{
+            width: "min(100%, 560px)",
+            aspectRatio: meta.aspect,
+            fontFamily,
+            color: "#1a1a1a",
+          }}
+        >
+          {effectiveLayout === "klasiko" && (
+            <KlasikoBody
+              c={c}
+              barangay={docBarangay}
+              municipality={docMunicipality}
+              province={docProvince}
+              logoUrl={logoUrl ?? null}
+              municipalityLogoUrl={municipalityLogoUrl ?? null}
+              signName={docSignName}
+              signTitle={docSignTitle}
+              designPattern={designPattern}
+            />
+          )}
+          {effectiveLayout === "elegante" && (
+            <EleganteBody
+              c={c}
+              barangay={docBarangay}
+              municipality={docMunicipality}
+              province={docProvince}
+              logoUrl={logoUrl ?? null}
+              municipalityLogoUrl={municipalityLogoUrl ?? null}
+              signName={docSignName}
+              signTitle={docSignTitle}
+              designPattern={designPattern}
+            />
+          )}
+          {effectiveLayout === "moderno" && (
+            <ModernoBody
+              c={c}
+              barangay={docBarangay}
+              municipality={docMunicipality}
+              province={docProvince}
+              logoUrl={logoUrl ?? null}
+              municipalityLogoUrl={municipalityLogoUrl ?? null}
+              signName={docSignName}
+              signTitle={docSignTitle}
+              designPattern={designPattern}
+            />
+          )}
+        </div>
+    );
+  }
+
+  if (hideChrome) {
+    return (
+        <div
+          className="bg-white text-[#1a1a1a] shadow-xl border border-gray-200 overflow-hidden"
+          style={{
+            width: "min(100%, 560px)",
+            aspectRatio: meta.aspect,
+            fontFamily,
+            color: "#1a1a1a",
+          }}
+        >
+          {effectiveLayout === "klasiko" && (
+            <KlasikoBody
+              c={c}
+              barangay={docBarangay}
+              municipality={docMunicipality}
+              province={docProvince}
+              logoUrl={logoUrl ?? null}
+              municipalityLogoUrl={municipalityLogoUrl ?? null}
+              signName={docSignName}
+              signTitle={docSignTitle}
+              designPattern={designPattern}
+            />
+          )}
+          {effectiveLayout === "elegante" && (
+            <EleganteBody
+              c={c}
+              barangay={docBarangay}
+              municipality={docMunicipality}
+              province={docProvince}
+              logoUrl={logoUrl ?? null}
+              municipalityLogoUrl={municipalityLogoUrl ?? null}
+              signName={docSignName}
+              signTitle={docSignTitle}
+              designPattern={designPattern}
+            />
+          )}
+          {effectiveLayout === "moderno" && (
+            <ModernoBody
+              c={c}
+              barangay={docBarangay}
+              municipality={docMunicipality}
+              province={docProvince}
+              logoUrl={logoUrl ?? null}
+              municipalityLogoUrl={municipalityLogoUrl ?? null}
+              signName={docSignName}
+              signTitle={docSignTitle}
+              designPattern={designPattern}
+            />
+          )}
+        </div>
+    );
+  }
+
+  if (hideChrome) {
+    return (
+        <div
+          className="bg-white text-[#1a1a1a] shadow-xl border border-gray-200 overflow-hidden"
+          style={{
+            width: "min(100%, 560px)",
+            aspectRatio: meta.aspect,
+            fontFamily,
+            color: "#1a1a1a",
+          }}
+        >
+          {effectiveLayout === "klasiko" && (
+            <KlasikoBody
+              c={c}
+              barangay={docBarangay}
+              municipality={docMunicipality}
+              province={docProvince}
+              logoUrl={logoUrl ?? null}
+              municipalityLogoUrl={municipalityLogoUrl ?? null}
+              signName={docSignName}
+              signTitle={docSignTitle}
+              designPattern={designPattern}
+            />
+          )}
+          {effectiveLayout === "elegante" && (
+            <EleganteBody
+              c={c}
+              barangay={docBarangay}
+              municipality={docMunicipality}
+              province={docProvince}
+              logoUrl={logoUrl ?? null}
+              municipalityLogoUrl={municipalityLogoUrl ?? null}
+              signName={docSignName}
+              signTitle={docSignTitle}
+              designPattern={designPattern}
+            />
+          )}
+          {effectiveLayout === "moderno" && (
+            <ModernoBody
+              c={c}
+              barangay={docBarangay}
+              municipality={docMunicipality}
+              province={docProvince}
+              logoUrl={logoUrl ?? null}
+              municipalityLogoUrl={municipalityLogoUrl ?? null}
+              signName={docSignName}
+              signTitle={docSignTitle}
+              designPattern={designPattern}
+            />
+          )}
+        </div>
+    );
+  }
+
+  if (hideChrome) {
+    return (
+        <div
+          className="bg-white text-[#1a1a1a] shadow-xl border border-gray-200 overflow-hidden"
+          style={{
+            width: "min(100%, 560px)",
+            aspectRatio: meta.aspect,
+            fontFamily,
+            color: "#1a1a1a",
+          }}
+        >
+          {effectiveLayout === "klasiko" && (
+            <KlasikoBody
+              c={c}
+              barangay={docBarangay}
+              municipality={docMunicipality}
+              province={docProvince}
+              logoUrl={logoUrl ?? null}
+              municipalityLogoUrl={municipalityLogoUrl ?? null}
+              signName={docSignName}
+              signTitle={docSignTitle}
+              designPattern={designPattern}
+            />
+          )}
+          {effectiveLayout === "elegante" && (
+            <EleganteBody
+              c={c}
+              barangay={docBarangay}
+              municipality={docMunicipality}
+              province={docProvince}
+              logoUrl={logoUrl ?? null}
+              municipalityLogoUrl={municipalityLogoUrl ?? null}
+              signName={docSignName}
+              signTitle={docSignTitle}
+              designPattern={designPattern}
+            />
+          )}
+          {effectiveLayout === "moderno" && (
+            <ModernoBody
+              c={c}
+              barangay={docBarangay}
+              municipality={docMunicipality}
+              province={docProvince}
+              logoUrl={logoUrl ?? null}
+              municipalityLogoUrl={municipalityLogoUrl ?? null}
+              signName={docSignName}
+              signTitle={docSignTitle}
+              designPattern={designPattern}
+            />
+          )}
+        </div>
+    );
+  }
+
   return (
     <div className="rounded-2xl border border-border/40 bg-background/40 p-5">
       <div className="flex items-center gap-2 mb-3">
@@ -133,9 +427,9 @@ export function DocumentLivePreview({
 
       <div className="flex justify-center">
         <div
-          className="bg-white text-[#1a1a1a] shadow-xl border border-gray-200 overflow-hidden"
+          className="bg-white text-[#1a1a1a] shadow-xl border border-gray-200 overflow-hidden w-full"
           style={{
-            width: "min(100%, 560px)",
+            maxWidth: "560px",
             aspectRatio: meta.aspect,
             fontFamily,
             color: "#1a1a1a",
@@ -368,51 +662,96 @@ function PatternDecor({
 function KlasikoBody(props: BodyProps) {
   const { c, signName, signTitle, designPattern } = props;
   return (
-    <div className="w-full h-full flex flex-col text-[8px] relative overflow-hidden">
+    <div className="w-full h-full flex flex-col text-[8px] relative overflow-hidden bg-white">
       <PatternDecor c={c} designPattern={designPattern} />
       <HeaderBlock {...props} />
 
       <div className="flex flex-1 min-h-0">
-        {/* Left sidebar: officials + QR */}
-        <aside className="w-[36%] flex-shrink-0 border-r flex flex-col" style={{ borderColor: c.primary + "33", background: c.tint }}>
-          <div className="p-2 flex-1 overflow-hidden">
-            <p className="text-[8px] font-bold uppercase tracking-wider mb-1 pb-1 border-b" style={{ color: c.primary, borderColor: c.primary + "55" }}>
-              Sangguniang Barangay
-            </p>
-            <ul className="space-y-0.5 text-[7px] leading-tight">
-              {SAMPLE_OFFICIALS.slice(0, 9).map((o) => (
+        {/* Left sidebar */}
+        <aside className="w-[36%] flex-shrink-0 border-r flex flex-col z-10 relative" style={{ borderColor: c.primary + "33", background: c.tint }}>
+          <div className="p-3 flex-1 overflow-hidden flex flex-col">
+            <div className="text-center mb-3">
+              <p className="text-[7.5px] font-bold tracking-[0.15em] leading-tight" style={{ color: c.primary }}>SANGGUNIANG BARANGAY</p>
+              <p className="text-[8px] font-bold tracking-widest mt-0.5" style={{ color: c.primary }}>2024 — 2026</p>
+            </div>
+            
+            <div className="h-px w-full mb-3" style={{ background: c.primary + "55" }} />
+            
+            <ul className="space-y-3 text-center flex-1 overflow-hidden">
+              {SAMPLE_OFFICIALS.slice(0, 7).map((o) => (
                 <li key={o.name}>
-                  <p className="font-semibold text-gray-800">{o.name}</p>
-                  <p className="text-gray-500">{o.position}</p>
+                  <p className="font-bold text-[7px] uppercase tracking-wide" style={{ color: c.primary }}>{o.name}</p>
+                  <p className="text-[6px] italic text-gray-700">{o.position}</p>
                 </li>
               ))}
             </ul>
+
+            <div className="mt-2">
+              <div className="flex items-center justify-center gap-1 mb-2">
+                <div className="h-px flex-1" style={{ background: c.primary + "44" }} />
+                <div className="w-1.5 h-1.5 rotate-45" style={{ background: c.primary + "88" }} />
+                <div className="h-px flex-1" style={{ background: c.primary + "44" }} />
+              </div>
+              
+              <div className="space-y-1 mb-2">
+                <div className="flex justify-between items-center text-[6px]">
+                  <span className="uppercase tracking-widest italic text-gray-600">ISSUED</span>
+                  <span className="font-bold" style={{ color: c.primary }}>{SAMPLE.issuedDate}</span>
+                </div>
+                <div className="flex justify-between items-center text-[6px]">
+                  <span className="uppercase tracking-widest italic text-gray-600">VALID UNTIL</span>
+                  <span className="font-bold" style={{ color: c.primary }}>Nov 16, 2026</span>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="p-2 border-t flex justify-center" style={{ borderColor: c.primary + "33", background: "white" }}>
-            <QrAndControl c={c} controlNo={SAMPLE.controlNo} dateLabel={SAMPLE.issuedDate} />
+
+          <div className="border-t-[1.5px] p-2 flex flex-col items-center z-10" style={{ borderColor: c.primary, background: c.tint }}>
+            <p className="text-[6px] font-bold tracking-[0.2em] uppercase mb-1.5" style={{ color: c.primary }}>VERIFY DOCUMENT</p>
+            <div className="border-[1.5px] p-0.5 bg-white" style={{ borderColor: c.primary }}>
+              <QrCode className="w-10 h-10" strokeWidth={1.5} style={{ color: c.primary }} />
+            </div>
           </div>
         </aside>
 
         {/* Right content */}
-        <main className="flex-1 p-4 relative">
+        <main className="flex-1 p-6 relative z-10 bg-white/40">
           <Watermark c={c} />
-          <div className="relative">
-            <h2
-              className="text-center font-bold tracking-wider mb-2"
-              style={{ color: c.primary, fontSize: 14, letterSpacing: 1 }}
-            >
-              {SAMPLE.title}
-            </h2>
-            <p className="text-[9px] font-semibold uppercase mb-2" style={{ color: c.primary }}>{SAMPLE.salutation}</p>
-            <div className="text-[8px] text-justify leading-relaxed text-gray-800 whitespace-pre-line">{SAMPLE.body}</div>
-            <SignatureLine c={c} name={signName} title={signTitle} />
+          <div className="relative z-10 h-full flex flex-col">
+            <div className="text-center mb-6">
+              <h2 className="font-bold tracking-[0.2em] text-[13px]" style={{ color: c.primary }}>
+                {SAMPLE.title}
+              </h2>
+              <div className="h-1.5 rounded-full w-[70%] mx-auto mt-2 opacity-80" style={{ background: c.accent }} />
+            </div>
+            
+            <p className="text-[7.5px] font-bold uppercase mb-3 tracking-wide" style={{ color: c.primary }}>{SAMPLE.salutation}</p>
+            
+            <div className="text-[7.5px] text-justify leading-[1.6] text-gray-800 whitespace-pre-line mb-4">
+              {SAMPLE.body}
+            </div>
+            
+            <div className="text-[6.5px] mb-8 ml-8">
+              <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1">
+                <span className="font-bold" style={{ color: c.primary }}>Requested By:</span>
+                <span className="uppercase text-gray-800">JUAN MIGUEL SANTOS</span>
+                <span className="font-bold" style={{ color: c.primary }}>Purpose:</span>
+                <span className="uppercase text-gray-800">LOCAL EMPLOYMENT</span>
+              </div>
+            </div>
+            
+            <div className="mt-auto self-end text-center w-40">
+              <p className="text-[8.5px] font-bold uppercase tracking-wider" style={{ color: c.primary }}>{signName}</p>
+              <div className="h-px w-full my-1" style={{ background: c.primary + "88" }} />
+              <p className="text-[6.5px] uppercase tracking-widest text-gray-600">{signTitle}</p>
+            </div>
           </div>
         </main>
       </div>
 
-      <footer className="px-3 py-1 border-t flex items-center justify-between" style={{ borderColor: c.primary + "33", background: c.tint }}>
-        <span className="text-[6px] tracking-wider uppercase text-gray-500">Not Valid Without Seal</span>
-        <span className="text-[6px] tracking-wider uppercase" style={{ color: c.primary }}>{props.barangay}</span>
+      <footer className="px-3 py-1.5 flex items-center justify-between z-10 border-t" style={{ borderColor: c.primary + "33", background: c.tint }}>
+        <span className="text-[6px] tracking-wider uppercase text-gray-500">{SAMPLE.controlNo}</span>
+        <span className="text-[6px] tracking-wider uppercase text-gray-500 font-semibold">NOT VALID WITHOUT SEAL</span>
       </footer>
     </div>
   );

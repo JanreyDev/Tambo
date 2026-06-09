@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import {  useState, useEffect, useCallback, useRef } from "react";
 import {
   Upload, Phone, Mail, Clock, Building2, Shield, Bell, FileText,
   AlertTriangle, X, Globe, Loader2, Image as ImageIcon, Banknote,
   MessageSquare, HardDrive, Users, Database, CreditCard,
   ShieldAlert, Heart, Scale, BookOpen, Plus, Trash2,
   Crown, Smartphone, Siren, MapPin, Facebook, Twitter, Instagram, Youtube,
-  Calendar, Info, User,
+  Calendar, Info, User, ChevronDown,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { cn, resolvePhotoUrl } from "@/lib/utils";
@@ -73,7 +73,7 @@ function SettingsToggle({ label, description, checked, onChange }: {
         <div className={cn("w-10 h-6 rounded-full flex items-center px-0.5 transition-colors duration-200",
           checked ? "" : "bg-muted")}
           style={checked ? { background: "var(--accent-primary)" } : undefined}>
-          <div className={cn("w-5 h-5 rounded-full bg-white shadow transition-transform duration-200",
+          <div className={cn("w-3 h-3 rounded-full bg-white shadow transition-transform duration-200",
             checked ? "translate-x-4" : "translate-x-0")} />
         </div>
       </button>
@@ -475,6 +475,197 @@ const PREVIEW_FONT_FAMILY: Record<
 };
 
 // ── Main Page ──
+
+
+const THEMES_LIST = [
+  { id: "plain",  label: "Plain",  colors: ["#1f2937"] },
+  { id: "blue",   label: "Blue",   colors: ["#1e40af"] },
+  { id: "red",    label: "Red",    colors: ["#991b1b"] },
+  { id: "green",  label: "Green",  colors: ["#15803d"] },
+  { id: "yellow", label: "Yellow", colors: ["#eab308"] },
+  { id: "combo-flag",       label: "Philippine Flag", colors: ["#1e40af", "#991b1b", "#eab308"] },
+  { id: "combo-festive",    label: "Festive",         colors: ["#991b1b", "#eab308"] },
+  { id: "combo-earth",      label: "Earth & Sky",     colors: ["#15803d", "#1e40af"] },
+  { id: "combo-gov",        label: "Government",      colors: ["#1e3a8a", "#92400e"] },
+  { id: "combo-bayanihan",  label: "Bayanihan",       colors: ["#991b1b", "#1e40af"] },
+  { id: "combo-sunrise",    label: "Sunrise",         colors: ["#eab308", "#991b1b"] },
+  { id: "combo-coastal",    label: "Coastal",         colors: ["#1e40af", "#15803d"] },
+  { id: "combo-heritage",   label: "Heritage",        colors: ["#991b1b", "#15803d"] },
+];
+
+function ColorThemeDropdown({ value, onChange }: { value: string, onChange: (val: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const activeTheme = THEMES_LIST.find(t => t.id === value) || THEMES_LIST[0];
+
+  return (
+    <div className="relative w-full" ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="w-full bg-background/60 border-2 border-border/60 rounded-lg pl-3 pr-3 py-2 text-sm font-medium text-foreground hover:border-blue-500/40 focus:border-[var(--accent-primary)] focus:ring-2 focus:ring-[var(--accent-primary)]/20 outline-none transition-all flex items-center justify-between"
+      >
+        <span className="truncate">{activeTheme.label}</span>
+        <div className="flex items-center gap-2">
+          <div className="flex h-5 w-10 rounded border border-border/40 overflow-hidden shadow-sm">
+            {activeTheme.colors.map((c, i) => (
+              <div key={i} className="h-full flex-1" style={{ backgroundColor: c }} />
+            ))}
+          </div>
+          <ChevronDown className="w-4 h-4 text-muted-foreground" />
+        </div>
+      </button>
+
+      {open && (
+        <div className="absolute z-50 top-full left-0 right-0 mt-1.5 bg-background border border-border/80 rounded-lg shadow-xl max-h-60 overflow-y-auto p-1">
+          {THEMES_LIST.map((theme) => (
+            <button
+              key={theme.id}
+              type="button"
+              onClick={() => { onChange(theme.id); setOpen(false); }}
+              className={`w-full flex items-center justify-between px-2.5 py-2 text-sm rounded-md transition-colors ${
+                value === theme.id ? "bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] font-semibold" : "text-foreground hover:bg-muted"
+              }`}
+            >
+              <span>{theme.label}</span>
+              <div className="flex h-4 w-8 rounded border border-border/40 overflow-hidden shadow-sm">
+                {theme.colors.map((c, i) => (
+                  <div key={i} className="h-full flex-1" style={{ backgroundColor: c }} />
+                ))}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+const PATTERN_LABELS: Record<string, string> = {
+  wave: "Wave", gradient: "Gradient", bold: "Bold", photo: "Photo", minimal: "Minimal", stripe: "Stripe",
+  wreath: "Wreath", sunburst: "Sunburst", gothic: "Gothic", scroll: "Scroll", diplomatic: "Diplomatic", ornate: "Ornate",
+  geometric: "Geometric", "bold-stripe": "Bold Stripe", tech: "Tech",
+};
+
+function renderPatternPreviewIcon(id: string) {
+  switch(id) {
+    case 'wave': return <div className="w-full h-full bg-blue-500/10 overflow-hidden relative"><div className="absolute top-1/2 left-[-10%] w-[120%] h-[120%] bg-blue-500/40 rounded-[50%]" /></div>;
+    case 'gradient': return <div className="w-full h-full" style={{ background: "linear-gradient(135deg, rgba(59,130,246,0.5) 0%, rgba(139,92,246,0.5) 100%)" }} />;
+    case 'stripe': return <div className="w-full h-full" style={{ background: "repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(59,130,246,0.3) 2px, rgba(59,130,246,0.3) 4px)" }} />;
+    case 'bold-stripe': return <div className="w-full h-full" style={{ background: "repeating-linear-gradient(0deg, transparent, transparent 4px, rgba(59,130,246,0.6) 4px, rgba(59,130,246,0.6) 8px)" }} />;
+    case 'minimal': return <div className="w-full h-full border border-border/40 bg-background/80" />;
+    case 'bold': return <div className="w-full h-full bg-foreground/5 border-l-[3px] border-blue-500" />;
+    case 'photo': return <div className="w-full h-full bg-foreground/10 flex items-center justify-center"><ImageIcon className="w-2.5 h-2.5 text-muted-foreground/50" /></div>;
+    case 'geometric': return <div className="w-full h-full bg-foreground/5 relative overflow-hidden"><div className="absolute -right-1 -top-1 w-4 h-4 bg-blue-500/30 rotate-45" /></div>;
+    default: return <div className="w-full h-full border border-dashed border-border/60 bg-foreground/5 flex items-center justify-center"><div className="w-1/2 h-px bg-border/80" /></div>;
+  }
+}
+
+function DesignPatternDropdown({ value, options, onChange }: { value: string, options: string[], onChange: (val: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const label = PATTERN_LABELS[value] || value;
+
+  return (
+    <div className="relative w-full" ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="w-full bg-background/60 border-2 border-border/60 rounded-lg pl-3 pr-3 py-2 text-sm font-medium text-foreground hover:border-blue-500/40 focus:border-[var(--accent-primary)] focus:ring-2 focus:ring-[var(--accent-primary)]/20 outline-none transition-all flex items-center justify-between"
+      >
+        <span className="truncate">{label}</span>
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 rounded border border-border/40 overflow-hidden shadow-sm flex items-center justify-center">
+            {renderPatternPreviewIcon(value)}
+          </div>
+          <ChevronDown className="w-4 h-4 text-muted-foreground" />
+        </div>
+      </button>
+
+      {open && (
+        <div className="absolute z-50 top-full left-0 right-0 mt-1.5 bg-background border border-border/80 rounded-lg shadow-xl max-h-60 overflow-y-auto p-1">
+          {options.map((id) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => { onChange(id); setOpen(false); }}
+              className={`w-full flex items-center justify-between px-2.5 py-2 text-sm rounded-md transition-colors ${
+                value === id ? "bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] font-semibold" : "text-foreground hover:bg-muted"
+              }`}
+            >
+              <span>{PATTERN_LABELS[id] || id}</span>
+              <div className="w-5 h-5 rounded border border-border/40 overflow-hidden shadow-sm flex items-center justify-center">
+                {renderPatternPreviewIcon(id)}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- Responsive Thumbnail Component for perfectly scaling miniature previews ---
+function ResponsiveThumbnail({ layout, docPaperSize, docFont, docColorTheme, docDesignPattern, settings, logoUrl, municipalityLogoUrl, signatoryName, signatoryTitle }: any) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0.3);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      if (!entries[0]) return;
+      const { width } = entries[0].contentRect;
+      setScale(width / 560); // 560 is the base width of the DocumentLivePreview
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={containerRef} className="w-full relative flex justify-center overflow-hidden" style={{ height: 560 * 1.414 * scale }}>
+      <div style={{ transform: `scale(${scale})`, transformOrigin: "top center", width: 560, height: 560 * 1.414, flexShrink: 0 }}>
+        <DocumentLivePreview
+          layout={layout}
+          paperSize={docPaperSize}
+          font={docFont}
+          colorTheme={docColorTheme}
+          designPattern={docDesignPattern}
+          barangayName={settings?.name ?? null}
+          municipality={settings?.city_municipality ?? null}
+          province={settings?.province ?? null}
+          logoUrl={logoUrl}
+          municipalityLogoUrl={municipalityLogoUrl}
+          signatoryName={signatoryName}
+          signatoryTitle={signatoryTitle}
+          hideChrome={true}
+        />
+      </div>
+    </div>
+  );
+}
 
 export default function SettingsPage() {
   const { user, refreshUser } = useAuth();
@@ -1027,16 +1218,30 @@ export default function SettingsPage() {
       docColorTheme: (v) => setDocColorTheme(v as typeof docColorTheme),
       docDesignPattern: (v) => setDocDesignPattern(v as typeof docDesignPattern),
     },
+    "customize-template": {
+      docLayout: (v) => setDocLayout(v as "klasiko" | "moderno" | "elegante" | "digital"),
+      docPaperSize: (v) => setDocPaperSize(v as "a4" | "letter" | "legal"),
+      docFont: (v) => setDocFont(v as "times" | "arial" | "inter" | "poppins" | "merriweather" | "playfair"),
+      docColorTheme: (v) => setDocColorTheme(v as typeof docColorTheme),
+      docDesignPattern: (v) => setDocDesignPattern(v as typeof docDesignPattern),
+    },
     system: { smsSenderName: (v) => setSmsSenderName(v as string), signatoryName: (v) => setSignatoryName(v as string), signatoryTitle: (v) => setSignatoryTitle(v as string) },
     notifications: { notifSmsNewResident: (v) => setNotifSmsNewResident(v as boolean), notifSmsCert: (v) => setNotifSmsCert(v as boolean), notifEmail: (v) => setNotifEmail(v as boolean), notifDaily: (v) => setNotifDaily(v as boolean) },
     vawc: { vawcOfficerName: (v) => setVawcOfficerName(v as string), vawcOfficerPhone: (v) => setVawcOfficerPhone(v as string), vawcBcpcName: (v) => setVawcBcpcName(v as string), vawcBcpcPhone: (v) => setVawcBcpcPhone(v as string), vawcDisclaimer: (v) => setVawcDisclaimer(v as string), vawcAccessRestricted: (v) => setVawcAccessRestricted(v as boolean) },
     gad: { gadFocalName: (v) => setGadFocalName(v as string), gadFocalTitle: (v) => setGadFocalTitle(v as string), gadBudgetPercent: (v) => setGadBudgetPercent(v as string), gadPlanUrl: (v) => setGadPlanUrl(v as string) },
     kp: { kpHearingWindowDays: (v) => setKpHearingWindowDays(v as string), kpMediationExtensionDays: (v) => setKpMediationExtensionDays(v as string), kpArbitrationWindowDays: (v) => setKpArbitrationWindowDays(v as string), kpSummonsTemplate: (v) => setKpSummonsTemplate(v as string) },
     "residents-dict": { dictionaries: (v) => setDictionaries(v as Record<DictKey, string[]>) },
+    "customize-template": {
+      docLayout: (v) => setDocLayout(v as "klasiko" | "moderno" | "elegante" | "digital"),
+      docPaperSize: (v) => setDocPaperSize(v as "a4" | "letter" | "legal"),
+      docFont: (v) => setDocFont(v as "times" | "arial" | "inter" | "poppins" | "merriweather" | "playfair"),
+      docColorTheme: (v) => setDocColorTheme(v as typeof docColorTheme),
+      docDesignPattern: (v) => setDocDesignPattern(v as typeof docDesignPattern),
+    },
   };
 
   // Tabs that use the sticky save bar (self-managed tabs excluded: branding/officials/fees handle their own writes)
-  const SAVE_BAR_TABS = ["info", "contact", "documents", "system", "notifications", "vawc", "gad", "kp", "residents-dict"];
+  const SAVE_BAR_TABS = ["info", "contact", "documents", "customize-template", "system", "notifications", "vawc", "gad", "kp", "residents-dict"];
 
   // Current tab's dirty diff
   const currentTabSnapshot = tabFieldSnapshot[activeSection] || {};
@@ -1099,7 +1304,7 @@ export default function SettingsPage() {
   // Fetch ALL active officials for the Klasiko sidebar preview on the Documents tab.
   // Tenant-scoped by the API; we only need this when the preview is visible.
   useEffect(() => {
-    if (activeSection !== "documents") return;
+    if (activeSection !== "documents" && activeSection !== "customize-template") return;
     let cancelled = false;
     api.officials.list({ per_page: 50, is_active: true, sort_by: "sort_order", sort_dir: "asc" })
       .then((res) => { if (!cancelled) setAllOfficials(res.data ?? []); })
@@ -1186,6 +1391,7 @@ export default function SettingsPage() {
       title: t.settings.groups.docsServices,
       items: [
         { id: "documents", label: t.settings.tabs.documents, icon: FileText },
+        { id: "customize-template", label: "Customize Template", icon: ImageIcon },
         { id: "system", label: t.settings.tabs.systemPrefs, icon: Shield },
       ],
     },
@@ -1220,6 +1426,7 @@ export default function SettingsPage() {
     fees: () => {},
     system: saveSystem,
     documents: saveDocuments,
+    "customize-template": saveDocuments,
     notifications: saveNotifications,
     vawc: saveVawc,
     gad: saveGad,
@@ -1816,6 +2023,240 @@ export default function SettingsPage() {
             </div>
           )}
 
+          
+          {/* Tab: Customize Template */}
+          {activeSection === "customize-template" && (
+            <div className="space-y-4">
+              <div className="glass rounded-xl overflow-hidden">
+                <div className="px-6 pt-6 pb-4 border-b border-border/40">
+                  <h2 className="text-lg font-semibold text-foreground">Customize Template</h2>
+                  <p className="text-sm text-muted-foreground mt-0.5">Manage global theme and certificate designs for your documents.</p>
+                </div>
+
+                <div className="flex items-center gap-6 px-6 border-b border-border/40 overflow-x-auto">
+                  <button className="flex items-center gap-2 py-3 border-b-2 border-[var(--accent-primary)] text-[var(--accent-primary)] font-medium text-sm whitespace-nowrap">
+                    <Globe className="w-4 h-4" /> Global Theme
+                  </button>
+                  <button className="flex items-center gap-2 py-3 border-b-2 border-transparent text-muted-foreground hover:text-foreground font-medium text-sm whitespace-nowrap opacity-50 cursor-not-allowed">
+                    <User className="w-4 h-4" /> Resident Certificates
+                  </button>
+                  <button className="flex items-center gap-2 py-3 border-b-2 border-transparent text-muted-foreground hover:text-foreground font-medium text-sm whitespace-nowrap opacity-50 cursor-not-allowed">
+                    <Building2 className="w-4 h-4" /> Establishment Certificates
+                  </button>
+                  <button className="flex items-center gap-2 py-3 border-b-2 border-transparent text-muted-foreground hover:text-foreground font-medium text-sm whitespace-nowrap opacity-50 cursor-not-allowed">
+                    <MapPin className="w-4 h-4" /> Lot & Building Certificates
+                  </button>
+                  <div className="flex-1" />
+                  <button className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border hover:bg-muted transition-colors text-foreground whitespace-nowrap">Reset to Default</button>
+                  <button onClick={() => saveDocuments()} className="px-3 py-1.5 text-xs font-medium rounded-lg text-white transition-colors whitespace-nowrap" style={{ background: "var(--accent-primary)" }}>
+                    <div className="flex items-center gap-1.5"><Shield className="w-3.5 h-3.5" /> Save Global Theme</div>
+                  </button>
+                </div>
+
+                <div className="p-6 bg-muted/5">
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    <div className="lg:col-span-7 space-y-6">
+                      <div>
+                        <h3 className="text-base font-semibold text-foreground mb-1">Global Theme Settings</h3>
+                        <p className="text-xs text-muted-foreground mb-5">This theme will be applied as the default design for all certificates.</p>
+
+                        {/* Document Structure — tiny real previews */}
+                        <div className="mb-6">
+                          <div className="flex items-center gap-2 mb-3">
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Document Structure</p>
+                            <div className="flex-1 h-px bg-border/60" />
+                          </div>
+                          <div className="grid grid-cols-3 gap-3">
+                            {([
+                              { id: "klasiko" as const, label: "Classic Sidebar" },
+                              { id: "elegante" as const, label: "Formal Government" },
+                              { id: "moderno" as const, label: "Centered Modern" },
+                            ] as const).map((layout) => {
+                              const isActive = docLayout === layout.id;
+                              return (
+                                <button
+                                  key={layout.id}
+                                  type="button"
+                                  onClick={() => { setDocLayout(layout.id as typeof docLayout); setHasGeneratedPatterns(true); }}
+                                  aria-label={layout.label}
+                                  className={cn(
+                                    "rounded-lg border-2 transition-all overflow-hidden group relative bg-background/40",
+                                    isActive
+                                      ? "border-[var(--accent-primary)] ring-2 ring-[var(--accent-primary)]/20 shadow-md"
+                                      : "border-border/60 hover:border-blue-500/40"
+                                  )}
+                                >
+                                  <div className="pointer-events-none select-none w-full">
+                                    <ResponsiveThumbnail
+                                      layout={layout.id}
+                                      docPaperSize={docPaperSize}
+                                      docFont={docFont}
+                                      docColorTheme={docColorTheme}
+                                      docDesignPattern={docDesignPattern}
+                                      settings={settings}
+                                      logoUrl={resolvePhotoUrl(logoUrl)}
+                                      municipalityLogoUrl={resolvePhotoUrl(municipalityLogoUrl)}
+                                      signatoryName={signatoryName}
+                                      signatoryTitle={signatoryTitle}
+                                    />
+                                  </div>
+                                  <div className="px-2 py-1.5 border-t border-border/40 bg-background/40 flex items-center justify-between gap-1">
+                                    <p className="text-[11px] font-semibold text-foreground truncate">{layout.label}</p>
+                                    {isActive && (
+                                      <span className="text-[8px] font-medium px-1 py-0.5 rounded-full text-white shrink-0" style={{ background: "var(--accent-primary)" }}>Active</span>
+                                    )}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Color Theme and Design Pattern - Compressed Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+                          {/* Color Theme */}
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground mb-1.5">Color Theme</p>
+                            <ColorThemeDropdown 
+                              value={docColorTheme} 
+                              onChange={(val) => { setDocColorTheme(val as any); setHasGeneratedPatterns(true); }} 
+                            />
+                          </div>
+
+                          {/* Design Pattern */}
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground mb-1.5">Design Pattern</p>
+                            <DesignPatternDropdown 
+                              value={docDesignPattern} 
+                              options={STRUCTURE_PATTERNS[docLayout] || STRUCTURE_PATTERNS.klasiko}
+                              onChange={(val) => setDocDesignPattern(val as any)} 
+                            />
+                          </div>
+                        </div>
+
+                        {/* Document Font Horizontal Block */}
+                        <div className="flex flex-col md:flex-row bg-background/40 rounded-xl p-4 mb-4 border border-border/60 shadow-sm">
+                          <div className="md:w-1/3 mb-3 md:mb-0 pr-4">
+                            <h4 className="text-[13px] font-semibold text-foreground">Document Font</h4>
+                            <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">Select the default font for all certificates.</p>
+                          </div>
+                          <div className="md:w-2/3 flex flex-col sm:flex-row items-center gap-4">
+                            <div className="relative w-full sm:w-1/2">
+                              <select
+                                value={docFont}
+                                onChange={(e) => { setDocFont(e.target.value as any); setHasGeneratedPatterns(true); }}
+                                className="w-full bg-background/60 border-2 border-border/60 rounded-lg pl-3 pr-8 py-2.5 text-sm font-medium text-foreground hover:border-blue-500/40 focus:border-[var(--accent-primary)] focus:ring-2 focus:ring-[var(--accent-primary)]/20 outline-none transition-all appearance-none cursor-pointer"
+                              >
+                                <option value="times">Times New Roman</option>
+                                <option value="arial">Arial</option>
+                                <option value="inter">Inter</option>
+                                <option value="poppins">Poppins</option>
+                                <option value="merriweather">Merriweather</option>
+                                <option value="playfair">Playfair Display</option>
+                              </select>
+                              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                            </div>
+                            <div 
+                              className="w-full sm:w-1/2 bg-background/60 border border-border/60 rounded-lg p-2.5 text-foreground flex items-center justify-center text-center text-sm"
+                              style={{ 
+                                fontFamily: docFont === "times" ? "'Times New Roman', Times, serif" : 
+                                            docFont === "arial" ? "Arial, sans-serif" :
+                                            docFont === "inter" ? "'Inter', sans-serif" :
+                                            docFont === "poppins" ? "'Poppins', sans-serif" :
+                                            docFont === "merriweather" ? "'Merriweather', serif" :
+                                            docFont === "playfair" ? "'Playfair Display', serif" : "inherit"
+                              }}
+                            >
+                              The quick brown fox jumps over the lazy dog.
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Paper Size Horizontal Block */}
+                        <div className="flex flex-col md:flex-row bg-background/40 rounded-xl p-4 mb-6 border border-border/60 shadow-sm">
+                          <div className="md:w-1/3 mb-3 md:mb-0 pr-4">
+                            <h4 className="text-[13px] font-semibold text-foreground">Paper Size</h4>
+                            <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">Select the default paper size.</p>
+                          </div>
+                          <div className="md:w-2/3 grid grid-cols-3 gap-3 w-full">
+                            {[
+                              { id: "a4", label: "A4", dims: "210 x 297 mm" },
+                              { id: "letter", label: "Letter", dims: "8.5 x 11 in" },
+                              { id: "legal", label: "Legal", dims: "8.5 x 13 in" },
+                            ].map((size) => {
+                              const isActive = docPaperSize === size.id;
+                              return (
+                                <button
+                                  key={size.id}
+                                  type="button"
+                                  onClick={() => { setDocPaperSize(size.id as any); setHasGeneratedPatterns(true); }}
+                                  className={`relative flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${
+                                    isActive 
+                                      ? "border-blue-500 bg-blue-500/5 ring-4 ring-blue-500/10" 
+                                      : "border-border/60 bg-background/60 hover:border-blue-500/40 hover:bg-background/80"
+                                  }`}
+                                >
+                                  {isActive && (
+                                    <div className="absolute top-2 right-2 bg-blue-500 text-white rounded p-0.5">
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                    </div>
+                                  )}
+                                  <span className={`font-bold ${isActive ? 'text-foreground' : 'text-foreground/80'}`}>{size.label}</span>
+                                  <span className="text-[10px] text-muted-foreground mt-1">{size.dims}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right: Sticky Live Preview */}
+                    <div className="lg:col-span-5 relative">
+                      <div className="sticky top-6">
+                        <div className="flex items-center justify-between mb-3">
+                          <div>
+                            <h3 className="text-sm font-semibold text-foreground">Live Preview</h3>
+                            <p className="text-[10px] text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                              Updates in real-time as you change settings.
+                            </p>
+                          </div>
+                        </div>
+                        <div className="rounded-xl border border-border bg-background p-2 shadow-sm overflow-hidden flex justify-center">
+                          <DocumentLivePreview
+                            layout={docLayout}
+                            paperSize={docPaperSize}
+                            font={docFont}
+                            colorTheme={docColorTheme}
+                            designPattern={docDesignPattern}
+                            barangayName={settings?.name ?? null}
+                            municipality={settings?.city_municipality ?? null}
+                            province={settings?.province ?? null}
+                            logoUrl={resolvePhotoUrl(logoUrl)}
+                            municipalityLogoUrl={resolvePhotoUrl(municipalityLogoUrl)}
+                            signatoryName={signatoryName}
+                            signatoryTitle={signatoryTitle}
+                          />
+                        </div>
+                        <div className="mt-4 p-3 rounded-xl border border-border bg-background shadow-sm">
+                          <h4 className="text-[10px] font-semibold text-foreground uppercase tracking-wider mb-2">Current Settings</h4>
+                          <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+                            <div className="text-muted-foreground">Structure</div><div className="text-foreground capitalize font-medium">{docLayout}</div>
+                            <div className="text-muted-foreground">Color Theme</div><div className="text-foreground capitalize font-medium">{docColorTheme}</div>
+                            <div className="text-muted-foreground">Pattern</div><div className="text-foreground capitalize font-medium">{docDesignPattern}</div>
+                            <div className="text-muted-foreground">Font</div><div className="text-foreground capitalize font-medium">{docFont}</div>
+                            <div className="text-muted-foreground">Paper Size</div><div className="text-foreground uppercase font-medium">{docPaperSize}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Tab 5: System Preferences */}
           {activeSection === "system" && (
             <div className="glass rounded-xl p-6">
@@ -1906,7 +2347,7 @@ export default function SettingsPage() {
                 <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent my-5" />
 
                 {/* 3 production structures — body + footer unified, only headers differ */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-4 lg:w-[90%]">
                   {[
                     {
                       id: "klasiko",
@@ -1937,16 +2378,16 @@ export default function SettingsPage() {
                               return (
                                 <div className="w-[38%] border-r border-gray-400 bg-white flex flex-col">
                                   {/* 1. Title + Year combined */}
-                                  <div className="px-2 pt-1.5 pb-1 bg-gradient-to-b from-gray-50/70 to-white border-b border-gray-300">
+                                  <div className="px-1 pt-1 pb-0.5 bg-gradient-to-b from-gray-50/70 to-white border-b border-gray-300">
                                     <div className="h-0.5 w-5 mx-auto bg-gray-800" />
                                     <p
-                                      className="text-[6.5px] font-bold tracking-[0.22em] uppercase text-gray-900 text-center mt-0.5 leading-[1.1]"
+                                      className="text-[3.5px] font-bold tracking-[0.22em] uppercase text-gray-900 text-center mt-0.5 leading-[1.1]"
                                       style={{ fontFamily: previewFontFamily }}
                                     >
                                       Sangguniang Barangay
                                     </p>
                                     <p
-                                      className="text-[8.5px] font-bold text-gray-900 tracking-wider text-center mt-0.5 tabular-nums leading-tight"
+                                      className="text-[6.5px] font-bold text-gray-900 tracking-wider text-center mt-0.5 tabular-nums leading-tight"
                                       style={{ fontFamily: previewFontFamily }}
                                     >
                                       {termStart} <span className="text-gray-400 font-normal">—</span> {termEnd}
@@ -1970,7 +2411,7 @@ export default function SettingsPage() {
                                                 <div
                                                   className={cn(
                                                     "shrink-0 mb-0.5",
-                                                    isKapitan ? "w-6 h-6" : "w-5 h-5"
+                                                    isKapitan ? "w-4 h-4" : "w-3 h-3"
                                                   )}
                                                   aria-hidden="true"
                                                 />
@@ -1978,8 +2419,8 @@ export default function SettingsPage() {
                                                   className={cn(
                                                     "truncate tracking-wide w-full",
                                                     isKapitan
-                                                      ? "text-[7.5px] font-bold text-gray-900 uppercase"
-                                                      : "text-[6px] font-semibold text-gray-800 uppercase"
+                                                      ? "text-[4px] font-bold text-gray-900 uppercase"
+                                                      : "text-[4.5px] font-semibold text-gray-800 uppercase"
                                                   )}
                                                   style={{ fontFamily: previewFontFamily }}
                                                 >
@@ -1988,7 +2429,7 @@ export default function SettingsPage() {
                                                 <p
                                                   className={cn(
                                                     "truncate italic mt-px w-full",
-                                                    isKapitan ? "text-[5.5px] text-gray-600" : "text-[4.5px] text-gray-500"
+                                                    isKapitan ? "text-[4px] text-gray-600" : "text-[4.5px] text-gray-500"
                                                   )}
                                                 >
                                                   {posLabel}
@@ -2008,18 +2449,18 @@ export default function SettingsPage() {
                                         {/* Issued / Valid Until — same column flow, smaller */}
                                         <div className="px-2 pb-1.5 space-y-px">
                                           <div className="flex items-baseline justify-between gap-1">
-                                            <p className="text-[5px] tracking-[0.2em] uppercase text-gray-500 italic">Issued</p>
+                                            <p className="text-[3.5px] tracking-[0.2em] uppercase text-gray-500 italic">Issued</p>
                                             <p
-                                              className="text-[6.5px] font-semibold text-gray-800 tabular-nums truncate"
+                                              className="text-[3.5px] font-semibold text-gray-800 tabular-nums truncate"
                                               style={{ fontFamily: previewFontFamily }}
                                             >
                                               {previewFormatDate(previewIssueDate)}
                                             </p>
                                           </div>
                                           <div className="flex items-baseline justify-between gap-1">
-                                            <p className="text-[5px] tracking-[0.2em] uppercase text-gray-500 italic">Valid Until</p>
+                                            <p className="text-[3.5px] tracking-[0.2em] uppercase text-gray-500 italic">Valid Until</p>
                                             <p
-                                              className="text-[6.5px] font-semibold text-gray-800 tabular-nums truncate"
+                                              className="text-[3.5px] font-semibold text-gray-800 tabular-nums truncate"
                                               style={{ fontFamily: previewFontFamily }}
                                             >
                                               {previewFormatDate(previewExpiryDate)}
@@ -2032,7 +2473,7 @@ export default function SettingsPage() {
 
                                   {/* 4. QR verification with PrimeX mark embedded in the center */}
                                   <div className="px-1.5 py-1.5 border-t-2 border-gray-800 bg-white">
-                                    <p className="text-[5px] font-bold tracking-[0.22em] uppercase text-gray-800 text-center mb-0.5">
+                                    <p className="text-[3.5px] font-bold tracking-[0.22em] uppercase text-gray-800 text-center mb-0.5">
                                       Verify Document
                                     </p>
                                     <div className="flex justify-center">
@@ -2085,18 +2526,18 @@ export default function SettingsPage() {
                                 </p>
                                 <div className="h-1.5 bg-gray-500 rounded w-3/4 mx-auto mt-1 relative" />
                               </div>
-                              <div className="mt-1.5 flex-1 relative text-[6px] leading-[1.45] text-gray-700">
+                              <div className="mt-1.5 flex-1 relative text-[4.5px] leading-[1.45] text-gray-700">
                                 <p className="font-semibold uppercase text-gray-800 mb-1 mt-5">{previewCopy.salutation}</p>
                                 {previewCopy.paragraphs.map((paragraph) => (
                                   <p key={paragraph} className="mb-1 text-justify">{paragraph}</p>
                                 ))}
-                                <div className="mt-2 space-y-0.5 text-[5px]">
+                                <div className="mt-2 space-y-0.5 text-[3.5px]">
                                   <p><span className="font-semibold">Requested By:</span> {previewCopy.requestedBy}</p>
                                   <p><span className="font-semibold">Purpose:</span> {previewCopy.purpose}</p>
                                 </div>
                               </div>
                               <div className="mt-auto w-24 ml-auto text-center relative">
-                                <p className="text-[6px] font-bold text-gray-800 uppercase truncate">{previewSignatoryName}</p>
+                                <p className="text-[4.5px] font-bold text-gray-800 uppercase truncate">{previewSignatoryName}</p>
                                 <div className="h-px bg-gray-400 mt-0.5" />
                                 <div className="text-[4.5px] text-gray-500 uppercase mt-0.5 tracking-wide">{previewSignatoryTitle}</div>
                               </div>
@@ -2152,8 +2593,8 @@ export default function SettingsPage() {
                             </div>
                             <div className="space-y-1 relative text-center">
                               <p className="text-[7px] font-bold tracking-[0.22em] uppercase text-gray-800">{previewCopy.title}</p>
-                              <p className="text-[5.5px] font-semibold uppercase text-gray-600">{previewCopy.salutation}</p>
-                              <div className="space-y-1 text-[5px] leading-[1.45] text-gray-700">
+                              <p className="text-[4px] font-semibold uppercase text-gray-600">{previewCopy.salutation}</p>
+                              <div className="space-y-1 text-[3.5px] leading-[1.45] text-gray-700">
                                 {previewCopy.paragraphs.map((paragraph) => (
                                   <p key={paragraph} className="text-justify">{paragraph}</p>
                                 ))}
@@ -2179,7 +2620,7 @@ export default function SettingsPage() {
                             </div>
                           </div>
                           <div className="px-3 py-1 border-t border-gray-200 flex items-center gap-1.5 bg-gray-50 flex-shrink-0">
-                            <div className="w-5 h-5 border border-gray-500 bg-white flex-shrink-0 flex items-center justify-center">
+                            <div className="w-3 h-3 border border-gray-500 bg-white flex-shrink-0 flex items-center justify-center">
                               <div className="grid grid-cols-3 gap-px w-3 h-3">
                                 {Array.from({ length: 9 }).map((_, i) => (
                                   <div key={i} className={(i === 0 || i === 2 || i === 4 || i === 6 || i === 8) ? "bg-gray-700" : "bg-gray-300"} />
@@ -2231,8 +2672,8 @@ export default function SettingsPage() {
                             </div>
                             <div className="space-y-1 relative text-center">
                               <p className="text-[7px] font-bold tracking-[0.22em] uppercase text-gray-800">{previewCopy.title}</p>
-                              <p className="text-[5.5px] font-semibold uppercase text-gray-600">{previewCopy.salutation}</p>
-                              <div className="space-y-1 text-[5px] leading-[1.45] text-gray-700">
+                              <p className="text-[4px] font-semibold uppercase text-gray-600">{previewCopy.salutation}</p>
+                              <div className="space-y-1 text-[3.5px] leading-[1.45] text-gray-700">
                                 {previewCopy.paragraphs.map((paragraph) => (
                                   <p key={paragraph} className="text-justify">{paragraph}</p>
                                 ))}
@@ -2258,7 +2699,7 @@ export default function SettingsPage() {
                             </div>
                           </div>
                           <div className="px-3 py-1 border-t border-gray-200 flex items-center gap-1.5 bg-gray-50 flex-shrink-0">
-                            <div className="w-5 h-5 border border-gray-500 bg-white flex-shrink-0 flex items-center justify-center">
+                            <div className="w-3 h-3 border border-gray-500 bg-white flex-shrink-0 flex items-center justify-center">
                               <div className="grid grid-cols-3 gap-px w-3 h-3">
                                 {Array.from({ length: 9 }).map((_, i) => (
                                   <div key={i} className={(i === 0 || i === 2 || i === 4 || i === 6 || i === 8) ? "bg-gray-700" : "bg-gray-300"} />
@@ -2539,7 +2980,7 @@ export default function SettingsPage() {
                           <div className="p-1.5">
                             <div className="w-full bg-gray-100 dark:bg-slate-800/40 border border-gray-200 dark:border-slate-700/40" style={{ fontSize: 0, aspectRatio: "3 / 4" }}>
                               <div className="w-full h-full flex flex-col">
-                                <div className="px-2 pt-1.5 pb-1 border-b border-gray-200 dark:border-slate-700/40 flex items-center gap-1 flex-shrink-0">
+                                <div className="px-1 pt-1 pb-0.5 border-b border-gray-200 dark:border-slate-700/40 flex items-center gap-1 flex-shrink-0">
                                   <div className="w-3 h-3 rounded-full bg-gray-200 dark:bg-slate-700/60 flex-shrink-0" />
                                   <div className="flex-1 h-0.5 bg-gray-200 dark:bg-slate-700/60 rounded mx-auto w-3/4" />
                                   <div className="w-3 h-3 rounded-full bg-gray-200 dark:bg-slate-700/60 flex-shrink-0" />
@@ -2596,10 +3037,10 @@ export default function SettingsPage() {
                   // Pattern-specific decoration helpers (reusable across structures)
                   const WreathCorners = () => (
                     <>
-                      <span className="absolute top-0 left-0 w-5 h-5 z-10 pointer-events-none" style={{ background: `radial-gradient(ellipse at top left, ${t.accent}66, transparent 60%)`, transform: "rotate(-15deg)" }} />
-                      <span className="absolute top-0 right-0 w-5 h-5 z-10 pointer-events-none" style={{ background: `radial-gradient(ellipse at top right, ${t.accent}66, transparent 60%)`, transform: "rotate(15deg)" }} />
-                      <span className="absolute bottom-0 left-0 w-5 h-5 z-10 pointer-events-none" style={{ background: `radial-gradient(ellipse at bottom left, ${t.accent}66, transparent 60%)`, transform: "rotate(15deg)" }} />
-                      <span className="absolute bottom-0 right-0 w-5 h-5 z-10 pointer-events-none" style={{ background: `radial-gradient(ellipse at bottom right, ${t.accent}66, transparent 60%)`, transform: "rotate(-15deg)" }} />
+                      <span className="absolute top-0 left-0 w-3 h-3 z-10 pointer-events-none" style={{ background: `radial-gradient(ellipse at top left, ${t.accent}66, transparent 60%)`, transform: "rotate(-15deg)" }} />
+                      <span className="absolute top-0 right-0 w-3 h-3 z-10 pointer-events-none" style={{ background: `radial-gradient(ellipse at top right, ${t.accent}66, transparent 60%)`, transform: "rotate(15deg)" }} />
+                      <span className="absolute bottom-0 left-0 w-3 h-3 z-10 pointer-events-none" style={{ background: `radial-gradient(ellipse at bottom left, ${t.accent}66, transparent 60%)`, transform: "rotate(15deg)" }} />
+                      <span className="absolute bottom-0 right-0 w-3 h-3 z-10 pointer-events-none" style={{ background: `radial-gradient(ellipse at bottom right, ${t.accent}66, transparent 60%)`, transform: "rotate(-15deg)" }} />
                     </>
                   );
                   const ScrollDots = () => (
@@ -2682,13 +3123,13 @@ export default function SettingsPage() {
                           )}
                           {/* Header — 3 column (dual logos + multi-line republic text) */}
                           <div className="px-2.5 pt-2 pb-1.5 border-b border-gray-300 flex items-center gap-2 flex-shrink-0">
-                            <div className="w-6 h-6 rounded-full border border-gray-300 bg-gray-100 flex-shrink-0" />
+                            <div className="w-4 h-4 rounded-full border border-gray-300 bg-gray-100 flex-shrink-0" />
                             <div className="flex-1 space-y-0.5">
                               <div className="h-0.5 bg-gray-400 rounded mx-auto w-3/4" />
                               <div className="h-0.5 bg-gray-400 rounded mx-auto w-1/2" />
                               <div className={cn(titleHeight, "rounded mx-auto w-2/3 mt-0.5")} style={{ background: titleBg }} />
                             </div>
-                            <div className="w-6 h-6 rounded-full border border-gray-300 bg-gray-100 flex-shrink-0" />
+                            <div className="w-4 h-4 rounded-full border border-gray-300 bg-gray-100 flex-shrink-0" />
                           </div>
                           {/* Body — sidebar | content right */}
                           <div className="flex flex-1 min-h-0 relative">
@@ -2711,7 +3152,7 @@ export default function SettingsPage() {
                                 <div className="h-0.5 rounded w-4/5" style={{ background: sidebarTextColor }} />
                               </div>
                               <div className="border-t border-gray-300 p-1.5 flex flex-col items-center gap-0.5" style={{ background: sidebarFooterBg }}>
-                                <div className="w-6 h-6 border bg-white flex items-center justify-center" style={{ borderColor: sidebarInverted ? "rgba(255,255,255,0.6)" : "#6b7280" }}>
+                                <div className="w-4 h-4 border bg-white flex items-center justify-center" style={{ borderColor: sidebarInverted ? "rgba(255,255,255,0.6)" : "#6b7280" }}>
                                   <div className="grid grid-cols-3 gap-px w-3.5 h-3.5">
                                     {Array.from({ length: 9 }).map((_, i) => (
                                       <div key={i} className={(i === 0 || i === 2 || i === 4 || i === 6 || i === 8) ? "bg-gray-700" : "bg-gray-300"} />
@@ -2765,14 +3206,14 @@ export default function SettingsPage() {
                           {isTech && <TechHatch />}
                           <div className="m-1 border border-gray-400 flex flex-col flex-1 min-h-0">
                             {/* Header — 3-column with multi-line text */}
-                            <div className="px-2 pt-1.5 pb-1 border-b border-gray-300 flex items-center gap-1.5 flex-shrink-0">
-                              <div className="w-6 h-6 rounded-full border-2 border-gray-500 bg-gray-50 flex-shrink-0" />
+                            <div className="px-1 pt-1 pb-0.5 border-b border-gray-300 flex items-center gap-1.5 flex-shrink-0">
+                              <div className="w-4 h-4 rounded-full border-2 border-gray-500 bg-gray-50 flex-shrink-0" />
                               <div className="flex-1 space-y-0.5">
                                 <div className="h-0.5 bg-gray-400 rounded mx-auto w-full" />
                                 <div className="h-0.5 bg-gray-400 rounded mx-auto w-2/3" />
                                 <div className={cn(titleHeight, "rounded mx-auto w-4/5")} style={{ background: titleBg }} />
                               </div>
-                              <div className="w-6 h-6 rounded-full border-2 border-gray-500 bg-gray-50 flex-shrink-0" />
+                              <div className="w-4 h-4 rounded-full border-2 border-gray-500 bg-gray-50 flex-shrink-0" />
                             </div>
                             {/* Title bar with thin rules flanking */}
                             <div className="px-2 py-1 flex items-center justify-center gap-1 border-b border-gray-200 flex-shrink-0">
@@ -2793,14 +3234,14 @@ export default function SettingsPage() {
                               </div>
                             </div>
                             {/* 3-column signatures */}
-                            <div className="px-2 pt-1.5 pb-1 grid grid-cols-3 gap-1.5 border-t border-gray-300 flex-shrink-0">
+                            <div className="px-1 pt-1 pb-0.5 grid grid-cols-3 gap-1.5 border-t border-gray-300 flex-shrink-0">
                               <div className="space-y-0.5"><div className="h-px bg-gray-500" /><div className="h-0.5 bg-gray-400 rounded" /><div className="h-0.5 bg-gray-300 rounded w-3/4" /></div>
                               <div className="space-y-0.5"><div className="h-px bg-gray-500" /><div className="h-0.5 bg-gray-400 rounded" /><div className="h-0.5 bg-gray-300 rounded w-3/4" /></div>
                               <div className="space-y-0.5"><div className="h-px bg-gray-500" /><div className="h-0.5 bg-gray-400 rounded" /><div className="h-0.5 bg-gray-300 rounded w-3/4" /></div>
                             </div>
                             {/* Verification strip */}
                             <div className="px-2 py-1 border-t border-gray-300 flex items-center gap-1.5 bg-gray-50 flex-shrink-0">
-                              <div className="w-6 h-6 border border-gray-500 bg-white flex-shrink-0 flex items-center justify-center">
+                              <div className="w-4 h-4 border border-gray-500 bg-white flex-shrink-0 flex items-center justify-center">
                                 <div className="grid grid-cols-3 gap-px w-3.5 h-3.5">
                                   {Array.from({ length: 9 }).map((_, i) => (
                                     <div key={i} className={(i === 0 || i === 2 || i === 4 || i === 6 || i === 8) ? "bg-gray-700" : "bg-gray-300"} />
@@ -2834,10 +3275,10 @@ export default function SettingsPage() {
                           </svg>
                         )}
                         {/* Header — dual logos centered side-by-side + multi-line text below */}
-                        <div className="px-3 pt-2 pb-1.5 border-b border-gray-300 flex flex-col items-center flex-shrink-0">
+                        <div className="px-2 pt-1 pb-1 border-b border-gray-300 flex flex-col items-center flex-shrink-0">
                           <div className="flex items-center justify-center gap-2">
-                            <div className="w-6 h-6 rounded-full border border-dashed border-gray-400 bg-gray-50 flex-shrink-0" />
-                            <div className="w-6 h-6 rounded-full border border-gray-300 bg-gray-100 flex-shrink-0" />
+                            <div className="w-4 h-4 rounded-full border border-dashed border-gray-400 bg-gray-50 flex-shrink-0" />
+                            <div className="w-4 h-4 rounded-full border border-gray-300 bg-gray-100 flex-shrink-0" />
                           </div>
                           <div className="space-y-0.5 w-3/4 mt-1.5">
                             <div className="h-0.5 bg-gray-400 rounded mx-auto w-full" />
@@ -2871,7 +3312,7 @@ export default function SettingsPage() {
                         </div>
                         {/* Verification strip */}
                         <div className="px-3 py-1 border-t border-gray-200 flex items-center gap-1.5 bg-gray-50 flex-shrink-0">
-                          <div className="w-5 h-5 border border-gray-500 bg-white flex-shrink-0 flex items-center justify-center">
+                          <div className="w-3 h-3 border border-gray-500 bg-white flex-shrink-0 flex items-center justify-center">
                             <div className="grid grid-cols-3 gap-px w-3 h-3">
                               {Array.from({ length: 9 }).map((_, i) => (
                                 <div key={i} className={(i === 0 || i === 2 || i === 4 || i === 6 || i === 8) ? "bg-gray-700" : "bg-gray-300"} />
@@ -3202,7 +3643,7 @@ export default function SettingsPage() {
                           className="inline-flex items-center gap-1.5 pl-2.5 pr-1 py-1 rounded-lg glass-subtle text-[12px] text-foreground/80 group">
                           {entry}
                           <button onClick={() => removeDictEntry(activeDict, idx)}
-                            className="w-5 h-5 rounded flex items-center justify-center text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                            className="w-3 h-3 rounded flex items-center justify-center text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
                             title="Remove">
                             <Trash2 className="h-3 w-3" />
                           </button>
