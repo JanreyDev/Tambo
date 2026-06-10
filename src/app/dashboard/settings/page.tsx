@@ -1,5 +1,7 @@
 "use client";
 
+import { DocumentTemplate } from "@/lib/types";
+
 import {  useState, useEffect, useCallback, useRef } from "react";
 import {
   Upload, Phone, Mail, Clock, Building2, Shield, Bell, FileText,
@@ -720,6 +722,25 @@ export default function SettingsPage() {
   const [modalStep, setModalStep] = useState(1);
   const [selectedCertType, setSelectedCertType] = useState<string | null>(null);
   const [themeSource, setThemeSource] = useState<"global" | "custom">("global");
+  const [residentCertificates, setResidentCertificates] = useState<any[]>([]);
+  const [dbTemplates, setDbTemplates] = useState<DocumentTemplate[]>([]);
+
+  useEffect(() => {
+    if (isModalOpen || customizeTab === "resident" || customizeTab === "editor") {
+      api.documentTemplates.list({ constituent_type: "resident", per_page: 50 })
+        .then(res => {
+          const data = res.data || [];
+          const unique = Object.values(data.reduce((acc, curr) => {
+            if (!acc[curr.name] || curr.barangay_id) {
+              acc[curr.name] = curr;
+            }
+            return acc;
+          }, {} as Record<string, DocumentTemplate>));
+          setDbTemplates(unique);
+        })
+        .catch(console.error);
+    }
+  }, [customizeTab, isModalOpen]);
 
 
   // Toast
@@ -2133,7 +2154,7 @@ export default function SettingsPage() {
                                 <ArrowLeft className="w-5 h-5" />
                               </button>
                               <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
-                                Editing Custom Theme <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 text-[10px] uppercase font-bold tracking-wider">{CERTIFICATE_OPTIONS.find(c => c.id === selectedCertType)?.title || "Draft"}</span>
+                                Editing Custom Theme <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 text-[10px] uppercase font-bold tracking-wider">{(dbTemplates || []).find(c => c.id === selectedCertType)?.name || "Draft"}</span>
                               </h3>
                             </div>
                             <p className="text-xs text-muted-foreground mb-5 ml-9">You are customizing the layout specifically for this certificate. Changes here will not affect the global theme.</p>
@@ -2374,7 +2395,19 @@ export default function SettingsPage() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border/20">
-                          {RESIDENT_CERTIFICATES.map(cert => (
+                          {residentCertificates.length === 0 ? (
+                            <tr>
+                              <td colSpan={4} className="py-16 text-center text-slate-400 bg-slate-900/10">
+                                <div className="flex flex-col items-center justify-center">
+                                  <div className="w-16 h-16 rounded-full bg-slate-800/50 flex items-center justify-center mb-4 border border-slate-700">
+                                    <FileText className="w-8 h-8 text-slate-500" />
+                                  </div>
+                                  <p className="text-base font-semibold text-white">No certificates designed yet</p>
+                                  <p className="text-sm text-slate-500 mt-1 max-w-sm">Click the "+ New Certificate Design" button to select a document type and assign it a Global or Custom theme.</p>
+                                </div>
+                              </td>
+                            </tr>
+                          ) : residentCertificates.map(cert => (
                             <tr key={cert.id} className="group hover:bg-background/40 transition-colors">
                               <td className="py-4 px-4 align-top">
                                 <div className="flex gap-4">
@@ -2466,8 +2499,11 @@ export default function SettingsPage() {
                                       <input type="text" placeholder="Search certificate..." className="w-full bg-[#1e293b] border border-slate-700/50 rounded-lg pl-9 pr-3 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors" />
                                     </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mt-2">
-                                      {CERTIFICATE_OPTIONS.map(opt => {
-                                        const Icon = opt.icon;
+                                      {(dbTemplates || []).map(opt => {
+                                        const isBlue = opt.category === "clearance" || opt.category === "id";
+                                        const isGreen = opt.category === "residency" || opt.category === "goodmoral";
+                                        const isRed = opt.category === "indigency";
+                                        const color = isBlue ? "text-blue-500" : isGreen ? "text-green-500" : isRed ? "text-red-500" : "text-slate-400";
                                         return (
                                           <button
                                             key={opt.id}
@@ -2475,13 +2511,14 @@ export default function SettingsPage() {
                                             className="group flex flex-col items-center justify-center p-5 rounded-xl border border-slate-700/50 bg-slate-800/30 hover:border-slate-500 hover:bg-slate-800/50 transition-all text-center gap-3"
                                           >
                                             <div className="w-12 h-12 rounded-2xl bg-slate-900/50 flex items-center justify-center mb-1">
-                                              <Icon className={`w-6 h-6 ${opt.color}`} />
+                                              <FileText className={`w-6 h-6 ${color}`} />
                                             </div>
                                             <div className="flex flex-col items-center gap-1">
-                                              <span className="text-sm font-semibold text-white leading-tight">{opt.title}</span>
-                                              <span className="text-[10px] text-slate-400 leading-snug px-1">{opt.description}</span>
+                                              <span className="text-sm font-semibold text-white leading-tight">{opt.name}</span>
+                                              <span className="text-[10px] text-slate-400 leading-snug px-1">Customize design for {(opt.name || "").toLowerCase()}</span>
                                             </div>
                                             <div className="mt-2 w-4 h-4 rounded-full border border-slate-600 flex items-center justify-center">
+                                              {selectedCertType === opt.id && <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />}
                                             </div>
                                           </button>
                                         )
@@ -2491,17 +2528,12 @@ export default function SettingsPage() {
                                 ) : (
                                   <div className="p-6 rounded-xl border border-slate-700/50 bg-slate-800/30 flex items-center justify-between mt-2">
                                     <div className="flex items-center gap-5">
-                                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${CERTIFICATE_OPTIONS.find(c => c.id === selectedCertType)?.bg}`}>
-                                        {(() => {
-                                          const opt = CERTIFICATE_OPTIONS.find(c => c.id === selectedCertType);
-                                          if (!opt) return null;
-                                          const Icon = opt.icon;
-                                          return <Icon className={`w-7 h-7 ${opt.color}`} />;
-                                        })()}
+                                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-slate-900/50">
+                                        <FileText className="w-7 h-7 text-blue-500" />
                                       </div>
                                       <div className="flex flex-col gap-1">
-                                        <h3 className="text-lg font-bold text-white">{CERTIFICATE_OPTIONS.find(c => c.id === selectedCertType)?.title}</h3>
-                                        <p className="text-sm text-slate-400">{CERTIFICATE_OPTIONS.find(c => c.id === selectedCertType)?.description}</p>
+                                        <h3 className="text-lg font-bold text-white">{dbTemplates.find(c => c.id === selectedCertType)?.name}</h3>
+                                        <p className="text-sm text-slate-400">Customize design for this certificate</p>
                                       </div>
                                     </div>
                                   </div>
@@ -2582,6 +2614,23 @@ export default function SettingsPage() {
                                 <button 
                                   onClick={() => {
                                     setIsModalOpen(false);
+                                    const option = dbTemplates.find(c => c.id === selectedCertType);
+                                    if (option) {
+                                      const newCert = {
+                                        id: option.id,
+                                        iconType: option.category,
+                                        title: option.name,
+                                        isGlobal: themeSource === "global",
+                                        badgeColor: themeSource === "global" ? "green" : "blue",
+                                        description: `Customization for ${(option.name || "").toLowerCase()}`,
+                                        theme: themeSource === "global" ? "Global Default" : "Custom Draft",
+                                        themeColor: themeSource === "global" ? "#22c55e" : "#3b82f6",
+                                        pattern: "Standard Layout",
+                                        modifiedDate: "Just now",
+                                        author: "You"
+                                      };
+                                      setResidentCertificates(prev => [...prev.filter(c => c.id !== option.id), newCert]);
+                                    }
                                     if (themeSource === "custom") {
                                       setCustomizeTab("editor");
                                     } else {
