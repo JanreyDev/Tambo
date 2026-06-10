@@ -31,6 +31,11 @@ interface Props {
   hideChrome?: boolean;
   fitToContainer?: boolean;
   fitScale?: number;
+  contentTitle?: string;
+  contentSalutation?: string | null;
+  contentBodyHtml?: string;
+  contentControlNo?: string;
+  contentIssuedDate?: string;
 }
 
 const ASPECT_RATIO: Record<PaperSize, string> = {
@@ -106,6 +111,7 @@ export function DocumentLivePreview({
   layout, paperSize, font, colorTheme, designPattern,
   barangayName, municipality, province, logoUrl, municipalityLogoUrl,
   signatoryName, signatoryTitle, hideChrome, fitToContainer, fitScale = 1,
+  contentTitle, contentSalutation, contentBodyHtml, contentControlNo, contentIssuedDate
 }: Props) {
   const c = COLORS[colorTheme] ?? COLORS.plain;
   const fontFamily = FONT_FAMILY[font];
@@ -114,6 +120,12 @@ export function DocumentLivePreview({
   const docProvince = (province?.trim()) || "Metro Manila";
   const docSignName = (signatoryName?.trim()) || "Hon. Juan Dela Cruz";
   const docSignTitle = (signatoryTitle?.trim()) || "PUNONG BARANGAY";
+
+  const displayTitle = contentTitle ?? SAMPLE.title;
+  const displaySalutation = contentSalutation !== undefined ? contentSalutation : SAMPLE.salutation;
+  const displayBody = contentBodyHtml ?? SAMPLE.body;
+  const displayControlNo = contentControlNo ?? SAMPLE.controlNo;
+  const displayIssuedDate = contentIssuedDate ?? SAMPLE.issuedDate;
 
   const meta = useMemo(() => ({
     aspect: ASPECT_RATIO[paperSize],
@@ -147,6 +159,11 @@ export function DocumentLivePreview({
             signName={docSignName}
             signTitle={docSignTitle}
             designPattern={designPattern}
+            title={displayTitle}
+            salutation={displaySalutation}
+            bodyHtml={displayBody}
+            controlNo={displayControlNo}
+            issuedDate={displayIssuedDate}
           />
         )}
         {effectiveLayout === "elegante" && (
@@ -160,6 +177,11 @@ export function DocumentLivePreview({
             signName={docSignName}
             signTitle={docSignTitle}
             designPattern={designPattern}
+            title={displayTitle}
+            salutation={displaySalutation}
+            bodyHtml={displayBody}
+            controlNo={displayControlNo}
+            issuedDate={displayIssuedDate}
           />
         )}
         {effectiveLayout === "moderno" && (
@@ -173,6 +195,11 @@ export function DocumentLivePreview({
             signName={docSignName}
             signTitle={docSignTitle}
             designPattern={designPattern}
+            title={displayTitle}
+            salutation={displaySalutation}
+            bodyHtml={displayBody}
+            controlNo={displayControlNo}
+            issuedDate={displayIssuedDate}
           />
         )}
       </div>
@@ -221,6 +248,11 @@ export function DocumentLivePreview({
               signName={docSignName}
               signTitle={docSignTitle}
               designPattern={designPattern}
+              title={displayTitle}
+              salutation={displaySalutation}
+              bodyHtml={displayBody}
+              controlNo={displayControlNo}
+              issuedDate={displayIssuedDate}
             />
           )}
           {effectiveLayout === "elegante" && (
@@ -234,6 +266,11 @@ export function DocumentLivePreview({
               signName={docSignName}
               signTitle={docSignTitle}
               designPattern={designPattern}
+              title={displayTitle}
+              salutation={displaySalutation}
+              bodyHtml={displayBody}
+              controlNo={displayControlNo}
+              issuedDate={displayIssuedDate}
             />
           )}
           {effectiveLayout === "moderno" && (
@@ -247,6 +284,11 @@ export function DocumentLivePreview({
               signName={docSignName}
               signTitle={docSignTitle}
               designPattern={designPattern}
+              title={displayTitle}
+              salutation={displaySalutation}
+              bodyHtml={displayBody}
+              controlNo={displayControlNo}
+              issuedDate={displayIssuedDate}
             />
           )}
         </div>
@@ -275,6 +317,11 @@ export function DocumentLivePreview({
               signName={docSignName}
               signTitle={docSignTitle}
               designPattern={designPattern}
+              title={displayTitle}
+              salutation={displaySalutation}
+              bodyHtml={displayBody}
+              controlNo={displayControlNo}
+              issuedDate={displayIssuedDate}
             />
           )}
           {effectiveLayout === "elegante" && (
@@ -288,6 +335,11 @@ export function DocumentLivePreview({
               signName={docSignName}
               signTitle={docSignTitle}
               designPattern={designPattern}
+              title={displayTitle}
+              salutation={displaySalutation}
+              bodyHtml={displayBody}
+              controlNo={displayControlNo}
+              issuedDate={displayIssuedDate}
             />
           )}
           {effectiveLayout === "moderno" && (
@@ -301,6 +353,11 @@ export function DocumentLivePreview({
               signName={docSignName}
               signTitle={docSignTitle}
               designPattern={designPattern}
+              title={displayTitle}
+              salutation={displaySalutation}
+              bodyHtml={displayBody}
+              controlNo={displayControlNo}
+              issuedDate={displayIssuedDate}
             />
           )}
         </div>
@@ -329,6 +386,11 @@ export function DocumentLivePreview({
               signName={docSignName}
               signTitle={docSignTitle}
               designPattern={designPattern}
+              title={displayTitle}
+              salutation={displaySalutation}
+              bodyHtml={displayBody}
+              controlNo={displayControlNo}
+              issuedDate={displayIssuedDate}
             />
           )}
           {effectiveLayout === "elegante" && (
@@ -342,6 +404,11 @@ export function DocumentLivePreview({
               signName={docSignName}
               signTitle={docSignTitle}
               designPattern={designPattern}
+              title={displayTitle}
+              salutation={displaySalutation}
+              bodyHtml={displayBody}
+              controlNo={displayControlNo}
+              issuedDate={displayIssuedDate}
             />
           )}
           {effectiveLayout === "moderno" && (
@@ -355,6 +422,11 @@ export function DocumentLivePreview({
               signName={docSignName}
               signTitle={docSignTitle}
               designPattern={designPattern}
+              title={displayTitle}
+              salutation={displaySalutation}
+              bodyHtml={displayBody}
+              controlNo={displayControlNo}
+              issuedDate={displayIssuedDate}
             />
           )}
         </div>
@@ -383,6 +455,11 @@ export function DocumentLivePreview({
               signName={docSignName}
               signTitle={docSignTitle}
               designPattern={designPattern}
+              title={displayTitle}
+              salutation={displaySalutation}
+              bodyHtml={displayBody}
+              controlNo={displayControlNo}
+              issuedDate={displayIssuedDate}
             />
           )}
           {effectiveLayout === "elegante" && (
@@ -396,6 +473,11 @@ export function DocumentLivePreview({
               signName={docSignName}
               signTitle={docSignTitle}
               designPattern={designPattern}
+              title={displayTitle}
+              salutation={displaySalutation}
+              bodyHtml={displayBody}
+              controlNo={displayControlNo}
+              issuedDate={displayIssuedDate}
             />
           )}
           {effectiveLayout === "moderno" && (
@@ -409,6 +491,11 @@ export function DocumentLivePreview({
               signName={docSignName}
               signTitle={docSignTitle}
               designPattern={designPattern}
+              title={displayTitle}
+              salutation={displaySalutation}
+              bodyHtml={displayBody}
+              controlNo={displayControlNo}
+              issuedDate={displayIssuedDate}
             />
           )}
         </div>
@@ -446,6 +533,11 @@ export function DocumentLivePreview({
               signName={docSignName}
               signTitle={docSignTitle}
               designPattern={designPattern}
+              title={displayTitle}
+              salutation={displaySalutation}
+              bodyHtml={displayBody}
+              controlNo={displayControlNo}
+              issuedDate={displayIssuedDate}
             />
           )}
           {effectiveLayout === "elegante" && (
@@ -459,6 +551,11 @@ export function DocumentLivePreview({
               signName={docSignName}
               signTitle={docSignTitle}
               designPattern={designPattern}
+              title={displayTitle}
+              salutation={displaySalutation}
+              bodyHtml={displayBody}
+              controlNo={displayControlNo}
+              issuedDate={displayIssuedDate}
             />
           )}
           {effectiveLayout === "moderno" && (
@@ -472,6 +569,11 @@ export function DocumentLivePreview({
               signName={docSignName}
               signTitle={docSignTitle}
               designPattern={designPattern}
+              title={displayTitle}
+              salutation={displaySalutation}
+              bodyHtml={displayBody}
+              controlNo={displayControlNo}
+              issuedDate={displayIssuedDate}
             />
           )}
         </div>
@@ -494,6 +596,11 @@ interface BodyProps {
   municipalityLogoUrl: string | null;
   signName: string;
   signTitle: string;
+  title: string;
+  salutation: string | null;
+  bodyHtml: string;
+  controlNo: string;
+  issuedDate: string;
 }
 
 // ── Reusable building blocks ──────────────────────────────────────
@@ -660,7 +767,7 @@ function PatternDecor({
 // ── KLASIKO — Classic Sidebar ─────────────────────────────────────
 
 function KlasikoBody(props: BodyProps) {
-  const { c, signName, signTitle, designPattern } = props;
+  const { c, signName, signTitle, designPattern, title, salutation, bodyHtml, controlNo, issuedDate } = props;
   return (
     <div className="w-full h-full flex flex-col text-[8px] relative overflow-hidden bg-white">
       <PatternDecor c={c} designPattern={designPattern} />
@@ -696,7 +803,7 @@ function KlasikoBody(props: BodyProps) {
               <div className="space-y-1 mb-2">
                 <div className="flex justify-between items-center text-[6px]">
                   <span className="uppercase tracking-widest italic text-gray-600">ISSUED</span>
-                  <span className="font-bold" style={{ color: c.primary }}>{SAMPLE.issuedDate}</span>
+                  <span className="font-bold" style={{ color: c.primary }}>{issuedDate}</span>
                 </div>
                 <div className="flex justify-between items-center text-[6px]">
                   <span className="uppercase tracking-widest italic text-gray-600">VALID UNTIL</span>
@@ -720,16 +827,14 @@ function KlasikoBody(props: BodyProps) {
           <div className="relative z-10 h-full flex flex-col">
             <div className="text-center mb-6">
               <h2 className="font-bold tracking-[0.2em] text-[13px]" style={{ color: c.primary }}>
-                {SAMPLE.title}
+                {title}
               </h2>
               <div className="h-1.5 rounded-full w-[70%] mx-auto mt-2 opacity-80" style={{ background: c.accent }} />
             </div>
             
-            <p className="text-[7.5px] font-bold uppercase mb-3 tracking-wide" style={{ color: c.primary }}>{SAMPLE.salutation}</p>
+            {salutation && <p className="text-[7.5px] font-bold uppercase mb-3 tracking-wide" style={{ color: c.primary }}>{salutation}</p>}
             
-            <div className="text-[7.5px] text-justify leading-[1.6] text-gray-800 whitespace-pre-line mb-4">
-              {SAMPLE.body}
-            </div>
+            <div className="text-[7.5px] text-justify leading-[1.6] text-gray-800 whitespace-pre-line mb-4" dangerouslySetInnerHTML={{ __html: bodyHtml }} />
             
             <div className="text-[6.5px] mb-8 ml-8">
               <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1">
@@ -743,14 +848,14 @@ function KlasikoBody(props: BodyProps) {
             <div className="mt-auto self-end text-center w-40">
               <p className="text-[8.5px] font-bold uppercase tracking-wider" style={{ color: c.primary }}>{signName}</p>
               <div className="h-px w-full my-1" style={{ background: c.primary + "88" }} />
-              <p className="text-[6.5px] uppercase tracking-widest text-gray-600">{signTitle}</p>
+              <p className="text-[6px] uppercase tracking-widest text-gray-600">{signTitle}</p>
             </div>
           </div>
         </main>
       </div>
 
       <footer className="px-3 py-1.5 flex items-center justify-between z-10 border-t" style={{ borderColor: c.primary + "33", background: c.tint }}>
-        <span className="text-[6px] tracking-wider uppercase text-gray-500">{SAMPLE.controlNo}</span>
+        <span className="text-[6px] tracking-wider uppercase text-gray-500">{controlNo}</span>
         <span className="text-[6px] tracking-wider uppercase text-gray-500 font-semibold">NOT VALID WITHOUT SEAL</span>
       </footer>
     </div>
@@ -760,7 +865,7 @@ function KlasikoBody(props: BodyProps) {
 // ── ELEGANTE — Formal Government (ornate frame) ───────────────────
 
 function EleganteBody(props: BodyProps) {
-  const { c, signName, signTitle, designPattern } = props;
+  const { c, signName, signTitle, designPattern, title, salutation, bodyHtml, controlNo, issuedDate } = props;
   return (
     <div className="w-full h-full p-2.5 relative overflow-hidden" style={{ background: c.tint }}>
       <PatternDecor c={c} designPattern={designPattern} />
@@ -774,14 +879,14 @@ function EleganteBody(props: BodyProps) {
               <div className="flex items-center justify-center gap-2 mb-2">
                 <div className="h-px flex-1" style={{ background: c.primary }} />
                 <h2 className="font-bold tracking-[0.22em] uppercase" style={{ color: c.primary, fontSize: 14 }}>
-                  {SAMPLE.title}
+                  {title}
                 </h2>
                 <div className="h-px flex-1" style={{ background: c.primary }} />
               </div>
-              <p className="text-[9px] font-semibold uppercase text-center mb-3" style={{ color: c.primary, letterSpacing: 1 }}>
-                {SAMPLE.salutation}
-              </p>
-              <div className="text-[8px] text-justify leading-relaxed text-gray-800 whitespace-pre-line">{SAMPLE.body}</div>
+              {salutation && <p className="text-[9px] font-semibold uppercase text-center mb-3" style={{ color: c.primary, letterSpacing: 1 }}>
+                {salutation}
+              </p>}
+              <div className="text-[8px] text-justify leading-relaxed text-gray-800 whitespace-pre-line" dangerouslySetInnerHTML={{ __html: bodyHtml }} />
               <SignatureLine c={c} name={signName} title={signTitle} />
             </div>
           </main>
@@ -802,7 +907,7 @@ function EleganteBody(props: BodyProps) {
           </div>
 
           <footer className="px-4 py-1.5 border-t flex items-center justify-between" style={{ borderColor: c.primary }}>
-            <QrAndControl c={c} controlNo={SAMPLE.controlNo} dateLabel={SAMPLE.issuedDate} />
+            <QrAndControl c={c} controlNo={controlNo} dateLabel={issuedDate} />
             <span className="text-[6px] tracking-wider uppercase text-gray-500 text-right">Republic of the Philippines<br />Not Valid Without Seal</span>
           </footer>
         </div>
@@ -814,7 +919,7 @@ function EleganteBody(props: BodyProps) {
 // ── MODERNO — Centered Modern (clean) ─────────────────────────────
 
 function ModernoBody(props: BodyProps) {
-  const { c, signName, signTitle, designPattern } = props;
+  const { c, signName, signTitle, designPattern, title, salutation, bodyHtml, controlNo, issuedDate } = props;
   return (
     <div className="w-full h-full flex flex-col bg-white text-[8px] relative overflow-hidden">
       <PatternDecor c={c} designPattern={designPattern} />
@@ -834,11 +939,11 @@ function ModernoBody(props: BodyProps) {
         <Watermark c={c} />
         <div className="relative">
           <h2 className="text-center font-bold tracking-wider mb-1" style={{ color: c.primary, fontSize: 13, letterSpacing: 1 }}>
-            {SAMPLE.title}
+            {title}
           </h2>
           <div className="h-0.5 w-12 mx-auto mb-3" style={{ background: c.accent }} />
-          <p className="text-[9px] font-semibold mb-2 uppercase" style={{ color: c.primary }}>{SAMPLE.salutation}</p>
-          <div className="text-[8px] text-justify leading-relaxed text-gray-800 whitespace-pre-line">{SAMPLE.body}</div>
+          {salutation && <p className="text-[9px] font-semibold mb-2 uppercase" style={{ color: c.primary }}>{salutation}</p>}
+          <div className="text-[8px] text-justify leading-relaxed text-gray-800 whitespace-pre-line" dangerouslySetInnerHTML={{ __html: bodyHtml }} />
           <SignatureLine c={c} name={signName} title={signTitle} />
         </div>
       </main>
@@ -857,7 +962,7 @@ function ModernoBody(props: BodyProps) {
               ))}
             </div>
           </div>
-          <QrAndControl c={c} controlNo={SAMPLE.controlNo} dateLabel={SAMPLE.issuedDate} />
+          <QrAndControl c={c} controlNo={controlNo} dateLabel={issuedDate} />
         </div>
       </div>
     </div>

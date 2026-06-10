@@ -7,6 +7,8 @@ import {
   Shield, Loader2, IdCard, QrCode, Edit3, CheckCircle2, AlertTriangle,
   Wand2, Settings,
 } from "lucide-react";
+import { resolvePhotoUrl } from "@/lib/utils";
+import { DocumentLivePreview } from "@/components/settings/DocumentLivePreview";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
 import { api } from "@/lib/api";
@@ -386,7 +388,7 @@ export function GenerateDocumentWizard({
         custom_content: manualContent || undefined,
       };
       if (selectedTemplate.settings?.show_expiry && selectedTemplate.settings?.expiry_months) {
-        const issued = new Date(issuedDate);
+        const issued = new Date(issuedDate || Date.now());
         issued.setMonth(issued.getMonth() + selectedTemplate.settings.expiry_months);
         payload.valid_until = issued.toISOString().split("T")[0];
       }
@@ -987,129 +989,28 @@ export function GenerateDocumentWizard({
                       <div className="flex items-center justify-center gap-1.5 mb-3">
                         <span className="text-[10px] text-slate-400 uppercase tracking-widest font-medium">{paperLabel}</span>
                       </div>
-                    <div className="bg-white rounded-sm shadow-lg border border-slate-200 w-full">
-                      {/* ── Document Letterhead ── */}
-                      <div className="px-8 pt-6 pb-4 border-b border-slate-200">
-                        <div className="text-center space-y-0.5">
-                          <p className="text-[8.5px] uppercase tracking-widest text-slate-400 font-medium">Republic of the Philippines</p>
-                          {barangay?.province && (
-                            <p className="text-[8.5px] text-slate-400">Province of {barangay.province}</p>
-                          )}
-                          {barangay?.city_municipality && (
-                            <p className="text-[8.5px] text-slate-400">City/Municipality of {barangay.city_municipality}</p>
-                          )}
-
-                          {/* Barangay seal */}
-                          <div className="flex justify-center my-3">
-                            {barangay?.seal_url || barangay?.logo_url ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={barangay.seal_url ?? barangay.logo_url ?? ""}
-                                alt="Barangay Seal"
-                                className="w-16 h-16 object-contain"
-                              />
-                            ) : (
-                              <div className="w-16 h-16 rounded-full border-2 border-slate-300 bg-slate-50 flex items-center justify-center">
-                                <div className="text-center">
-                                  <Shield className="w-5 h-5 text-slate-300 mx-auto" />
-                                  <p className="text-[7px] text-slate-300 mt-0.5 leading-tight">BARANGAY<br/>SEAL</p>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          <p className="text-[13px] font-bold text-slate-800 uppercase tracking-wide">
-                            Barangay {barangay?.name ?? "—"}
-                          </p>
-                          <p className="text-[9px] text-slate-500">Office of the Barangay</p>
-                          {barangay?.full_address && (
-                            <p className="text-[8px] text-slate-400">{barangay.full_address}</p>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* ── Document Title ── */}
-                      <div className="px-8 py-4 text-center border-b border-slate-100">
-                        <h2 className="text-[13px] font-bold text-slate-800 uppercase tracking-wider">
-                          {selectedTemplate.name}
-                        </h2>
-                        {selectedTemplate.settings?.show_expiry && selectedTemplate.settings?.expiry_months && (
-                          <p className="text-[9px] text-slate-400 mt-0.5">
-                            Valid for {selectedTemplate.settings.expiry_months} month(s) from date of issue
-                          </p>
-                        )}
-                      </div>
-
-                      {/* ── Document Body ── */}
-                      <div className="px-8 py-5">
-                        {selectedTemplate.content || manualContent ? (
-                          <div
-                            className="text-slate-800 text-[12px] leading-[1.8]"
-                            dangerouslySetInnerHTML={{
-                              __html: renderMergedHtml(manualContent ?? selectedTemplate.content ?? ""),
-                            }}
-                          />
-                        ) : (
-                          <div className="flex flex-col items-center justify-center py-8 text-center">
-                            <Wand2 className="w-8 h-8 mb-2 text-slate-200" />
-                            <p className="text-sm text-slate-400">Tell Mabini what document you need</p>
-                            <p className="text-xs text-slate-300 mt-0.5">The document will appear here</p>
-                          </div>
-                        )}
-
-                        {/* Signature block */}
-                        {(selectedTemplate.approval_config?.left || selectedTemplate.approval_config?.right) && (
-                          <div className="mt-10 pt-2 grid grid-cols-2 gap-8 text-center">
-                            {selectedTemplate.approval_config?.left && (
-                              <div>
-                                <div className="h-8 border-b border-slate-300 mb-1.5" />
-                                <p className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">
-                                  {approvedByLeft || selectedTemplate.approval_config.left.label}
-                                </p>
-                                <p className="text-[10px] text-slate-400">{selectedTemplate.approval_config.left.position}</p>
-                              </div>
-                            )}
-                            {selectedTemplate.approval_config?.right && (
-                              <div>
-                                <div className="h-8 border-b border-slate-300 mb-1.5" />
-                                <p className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">
-                                  {approvedByRight || selectedTemplate.approval_config.right.label}
-                                </p>
-                                <p className="text-[10px] text-slate-400">{selectedTemplate.approval_config.right.position}</p>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* ── Document Footer ── */}
-                      <div className="px-8 pb-5 mt-2 flex items-end justify-between border-t border-slate-100 pt-3">
-                        <div className="space-y-0.5">
-                          <p className="text-[8px] text-slate-400">Document No: (assigned on save)</p>
-                          {issuedDate && (
-                            <p className="text-[8px] text-slate-400">
-                              Date Issued: {new Date(issuedDate + "T00:00:00").toLocaleDateString("en-PH", {
-                                month: "long", day: "numeric", year: "numeric",
-                              })}
-                            </p>
-                          )}
-                          {selectedTemplate.settings?.show_expiry && selectedTemplate.settings?.expiry_months && (
-                            <p className="text-[8px] text-slate-400">
-                              Valid Until: {(() => {
-                                const d = new Date(issuedDate + "T00:00:00");
-                                d.setMonth(d.getMonth() + (selectedTemplate.settings!.expiry_months ?? 0));
-                                return d.toLocaleDateString("en-PH", { month: "long", day: "numeric", year: "numeric" });
-                              })()}
-                            </p>
-                          )}
-                          <p className="text-[7px] text-slate-300 mt-1">
-                            Blockchain verified · kapitan.ph
-                          </p>
-                        </div>
-                        <div className="w-12 h-12 border border-slate-200 flex items-center justify-center rounded">
-                          <QrCode className="w-7 h-7 text-slate-200" />
-                        </div>
-                      </div>
+                    <div className="bg-white rounded-sm shadow-lg border border-slate-200 w-full overflow-hidden">
+                      <DocumentLivePreview
+                        layout={(barangaySettings?.settings?.document_layout as any) || "klasiko"}
+                        paperSize={(selectedTemplate.settings?.paper_size as any) || (barangaySettings?.settings?.document_paper_size as any) || "short_bond"}
+                        font={(barangaySettings?.settings?.document_font as any) || "times"}
+                        colorTheme={(barangaySettings?.settings?.document_color_theme as any) || "plain"}
+                        designPattern={(barangaySettings?.settings?.document_design_pattern as any) || "wave"}
+                        barangayName={barangaySettings?.name}
+                        municipality={barangaySettings?.city_municipality}
+                        province={barangaySettings?.province}
+                        logoUrl={resolvePhotoUrl(barangaySettings?.logo_url)}
+                        municipalityLogoUrl={resolvePhotoUrl(barangaySettings?.municipality_logo_url)}
+                        signatoryName={approvedByRight || selectedTemplate.approval_config?.right?.label || barangaySettings?.settings?.default_signatory_name}
+                        signatoryTitle={selectedTemplate.approval_config?.right?.position || barangaySettings?.settings?.default_signatory_title}
+                        hideChrome={true}
+                        fitToContainer={true}
+                        contentTitle={selectedTemplate.title ?? selectedTemplate.name}
+                        contentSalutation={selectedTemplate.salutation}
+                        contentBodyHtml={renderMergedHtml(manualContent ?? selectedTemplate.content ?? "")}
+                        contentControlNo="(assigned on save)"
+                        contentIssuedDate={issuedDate ? new Date(issuedDate + "T00:00:00").toLocaleDateString("en-PH", { month: "long", day: "numeric", year: "numeric" }) : undefined}
+                      />
                     </div>
                     </>
                   )}

@@ -471,7 +471,7 @@ function QuickEditModal({ template, defaultType, onClose, onSaved, onToast }: Qu
           <Field label="Status">
             <select
               value={form.status}
-              onChange={(e) => setField("status", e.target.value)}
+              onChange={(e) => setField("status", e.target.value as any)}
               className="w-full px-3 py-2 rounded-lg border border-border/50 bg-background/40 text-sm focus:outline-none focus:border-blue-500/60"
             >
               <option value="active">Active</option>
