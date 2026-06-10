@@ -21,13 +21,13 @@
             top: 15px; left: 15px; right: 15px; bottom: 15px;
             border: 3px solid {{ $themePrimary }};
             background-color: transparent;
-            padding: 8px;
         }
 
         .inner-container {
+            margin: 8px;
             border: 2px dashed {{ $themeAccent }};
             background-color: #ffffff;
-            height: 100%;
+            height: 98%;
             position: relative;
         }
 
@@ -39,15 +39,19 @@
             width: 450px;
             height: 450px;
             margin-left: -225px; /* Center horizontally */
-            opacity: 0.05;
+            opacity: 0.08;
             z-index: -1000;
         }
 
         /* ── Header ── */
+        .header-wrapper {
+            border-bottom: 1px solid {{ $themePrimary }};
+            padding: 15px 20px 20px 20px;
+            text-align: center;
+        }
+
         .header-table {
-            width: 100%;
-            border-bottom: 2px double {{ $themePrimary }};
-            padding: 15px 20px;
+            margin: 0 auto;
         }
 
         /* ── Main Content ── */
@@ -55,53 +59,72 @@
             padding: 30px 50px;
         }
 
-        /* ── Title ── */
-        .title-table {
-            width: 100%;
-            margin-bottom: 20px;
+        .title-section {
+            text-align: center;
+            margin-bottom: 25px;
         }
+
         .title-text {
-            font-size: 18pt;
+            font-size: 20pt;
             font-weight: bold;
             color: {{ $themePrimary }};
-            text-transform: uppercase;
             letter-spacing: 3px;
-            text-align: center;
-            padding: 0 15px;
+            text-transform: uppercase;
         }
-        .title-line {
-            height: 1px;
-            background-color: {{ $themePrimary }};
-            width: auto;
+
+        .control-no {
+            font-size: 8pt;
+            color: #666;
+            margin-top: 10px;
+            background-color: #f5f5f5;
+            display: inline-block;
+            padding: 3px 10px;
         }
 
         .salutation {
-            text-align: center;
-            font-size: 11pt;
             font-weight: bold;
             color: {{ $themePrimary }};
+            font-size: 11pt;
+            margin-bottom: 20px;
             text-transform: uppercase;
-            letter-spacing: 1.5px;
-            margin-bottom: 25px;
+            letter-spacing: 1px;
+            text-align: center;
         }
 
         .body-text {
             text-align: justify;
-            line-height: 1.8;
             margin-bottom: 40px;
         }
+        .body-text p {
+            margin-bottom: 15px;
+        }
 
-        /* ── Signatures ── */
         .signature-block {
             text-align: center;
-            margin-top: 50px;
+            margin-top: 60px;
             margin-bottom: 30px;
+        }
+        .signature-name {
+            font-size: 12pt;
+            font-weight: bold;
+            color: {{ $themePrimary }};
+            text-transform: uppercase;
+            display: inline-block;
+            padding: 0 20px 5px 20px;
+            border-bottom: 2px solid {{ $themePrimary }};
+            margin-bottom: 5px;
+        }
+        .signature-title {
+            font-size: 9pt;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
         /* ── Officials Grid (Bottom) ── */
         .officials-section {
             position: absolute;
-            bottom: 70px; /* Leave room for footer */
+            bottom: 80px; /* Matches footer height */
             left: 0;
             right: 0;
             border-top: 1px solid {{ $themePrimary }}33;
@@ -125,20 +148,22 @@
         }
         .official-cell {
             text-align: center;
-            padding: 2px;
+            padding: 8px 6px 12px 6px;
             vertical-align: top;
         }
         .official-name {
-            font-size: 8pt;
+            font-size: 7pt;
             font-weight: bold;
             color: #333;
-            white-space: nowrap;
-            overflow: hidden;
+            line-height: 1.1;
+            margin-bottom: 2px;
         }
         .official-pos {
-            font-size: 7pt;
+            font-size: 6pt;
             color: #666;
             font-style: italic;
+            line-height: 1.1;
+            margin-bottom: 5px;
         }
 
         /* ── Footer ── */
@@ -147,9 +172,9 @@
             bottom: 0;
             left: 0;
             right: 0;
-            height: 70px;
+            height: 80px;
             border-top: 1px solid {{ $themePrimary }}55;
-            padding: 15px 20px;
+            padding: 10px 20px 0 20px;
         }
         .footer-table {
             width: 100%;
@@ -166,51 +191,50 @@
         @endif
 
         {{-- ── HEADER ── --}}
-        <table class="header-table" cellpadding="0" cellspacing="0">
-            <tr>
-                @if(isset($municipalityLogoUrl) && $municipalityLogoUrl)
-                <td width="90" align="left" valign="middle">
-                    <img src="{{ $municipalityLogoUrl }}" width="70" height="70" alt="LGU Logo">
-                </td>
-                @else
-                <td width="90" align="left" valign="middle">
-                    @if($sealDataUri)
-                    <img src="{{ $sealDataUri }}" width="70" height="70" alt="Seal">
+        <div class="header-wrapper">
+            <table class="header-table" cellpadding="0" cellspacing="0">
+                <tr>
+                    @if(isset($municipalityLogoUrl) && $municipalityLogoUrl)
+                    <td align="right" valign="middle">
+                        <img src="{{ $municipalityLogoUrl }}" width="100" height="100" alt="LGU Logo">
+                    </td>
+                    @else
+                    <td align="right" valign="middle">
+                        @if($sealDataUri)
+                        <img src="{{ $sealDataUri }}" width="100" height="100" alt="Seal">
+                        @endif
+                    </td>
                     @endif
-                </td>
-                @endif
 
-                <td align="center" valign="middle">
-                    <div style="font-size: 8pt; color: #666; letter-spacing: 2px; text-transform: uppercase;">REPUBLIC OF THE PHILIPPINES</div>
-                    <div style="font-size: 9pt; color: #333; margin-top: 3px;">Province of <strong>{{ $barangay->province ?? 'Metro Manila' }}</strong></div>
-                    <div style="font-size: 10pt; color: #1a1a1a; font-weight: bold; margin-top: 2px;">{{ $barangay->city_municipality ?? 'City' }}</div>
-                    <div style="font-size: 16pt; font-weight: bold; color: {{ $themePrimary }}; text-transform: uppercase; letter-spacing: 2px; margin-top: 4px;">{{ $barangay->name ?? 'BARANGAY' }}</div>
-                </td>
+                    <td align="center" valign="middle" style="padding: 0 35px;">
+                        <div style="font-size: 8pt; color: #666; letter-spacing: 2px; text-transform: uppercase;">REPUBLIC OF THE PHILIPPINES</div>
+                        <div style="font-size: 9pt; color: #333; margin-top: 3px;">Province of <strong>{{ $barangay->province ?? 'Metro Manila' }}</strong></div>
+                        <div style="font-size: 10pt; color: #1a1a1a; font-weight: bold; margin-top: 2px;">{{ $barangay->city_municipality ?? 'City' }}</div>
+                        <div style="font-size: 16pt; font-weight: bold; color: {{ $themePrimary }}; text-transform: uppercase; letter-spacing: 2px; margin-top: 4px;">{{ $barangay->name ?? 'BARANGAY' }}</div>
+                    </td>
 
-                <td width="90" align="right" valign="middle">
-                    @if($sealDataUri)
-                    <img src="{{ $sealDataUri }}" width="70" height="70" alt="Seal">
-                    @endif
-                </td>
-            </tr>
-        </table>
+                    <td align="left" valign="middle">
+                        @if($sealDataUri)
+                        <img src="{{ $sealDataUri }}" width="100" height="100" alt="Seal">
+                        @endif
+                    </td>
+                </tr>
+            </table>
+        </div>
 
         {{-- ── MAIN CONTENT ── --}}
         <div class="main-content">
 
-            {{-- Title with Side Lines --}}
-            <table class="title-table" cellpadding="0" cellspacing="0">
+            {{-- Title --}}
+            <table cellpadding="0" cellspacing="0" style="margin: 0 auto; margin-bottom: 25px;">
                 <tr>
-                    <td class="title-line" width="20%"></td>
-                    <td class="title-text">{{ $template->title ?? $template->name }}</td>
-                    <td class="title-line" width="20%"></td>
+                    <td valign="middle"><div style="width: 70px; height: 1px; background-color: {{ $themePrimary }};"></div></td>
+                    <td valign="middle" style="padding: 0 15px;">
+                        <div class="title-text">{{ $template->title ?? $template->name }}</div>
+                    </td>
+                    <td valign="middle"><div style="width: 70px; height: 1px; background-color: {{ $themePrimary }};"></div></td>
                 </tr>
             </table>
-
-            {{-- Control No --}}
-            @if($settings['show_doc_no'] ?? false)
-            <div style="text-align: center; font-size: 8pt; color: {{ $themeAccent }}; margin-bottom: 25px;">Control No.: {{ $document->document_number }}</div>
-            @endif
 
             {{-- Salutation --}}
             @if($renderedSalutation)
@@ -222,31 +246,37 @@
                 {!! nl2br(e($renderedContent)) !!}
             </div>
 
-            {{-- Requested By / Purpose --}}
-            <table cellpadding="0" cellspacing="0" style="margin: 0 auto 30px auto; font-size: 10pt;">
-                <tr>
-                    <td style="font-weight: bold; color: {{ $themePrimary }}; padding-right: 15px; padding-bottom: 8px;">Requested By:</td>
-                    <td style="text-transform: uppercase; color: #222; padding-bottom: 8px;">{{ $document->constituent_name }}</td>
-                </tr>
-                @if($document->purpose)
-                <tr>
-                    <td style="font-weight: bold; color: {{ $themePrimary }}; padding-right: 15px; padding-bottom: 8px;">Purpose:</td>
-                    <td style="text-transform: uppercase; color: #222; padding-bottom: 8px;">{{ strtoupper($document->purpose) }}</td>
-                </tr>
-                @endif
-            </table>
+            @php
+                $pbName = '';
+                foreach($officials as $off) {
+                    if (strtolower($off->position) === 'punong barangay') {
+                        $pbName = $off->name;
+                        break;
+                    }
+                }
+                $defaultSigName = $pbName ? 'HON. ' . strtoupper($pbName) : 'HON. ____________________';
+            @endphp
 
             {{-- Signatures (Centered) --}}
             <div class="signature-block">
-                @if(!empty($approvalConfig['right']))
-                    <div style="font-size: 12pt; font-weight: bold; color: {{ $themePrimary }}; text-transform: uppercase;">{{ $document->approved_by_right ?? $approvalConfig['right']['label'] ?? '' }}</div>
-                    <div style="height: 1px; background-color: {{ $themePrimary }}; opacity: 0.6; width: 250px; margin: 4px auto;"></div>
-                    <div style="font-size: 9pt; color: #555; text-transform: uppercase; letter-spacing: 1px;">{{ $approvalConfig['right']['position'] ?? '' }}</div>
-                @else
-                    <div style="font-size: 12pt; font-weight: bold; color: {{ $themePrimary }}; text-transform: uppercase;">{{ $document->approved_by_right ?? 'PUNONG BARANGAY' }}</div>
-                    <div style="height: 1px; background-color: {{ $themePrimary }}; opacity: 0.6; width: 250px; margin: 4px auto;"></div>
-                    <div style="font-size: 9pt; color: #555; text-transform: uppercase; letter-spacing: 1px;">Punong Barangay</div>
-                @endif
+                @php
+                    $sigName = $defaultSigName;
+                    $sigPos = 'Punong Barangay';
+
+                    if (!empty($approvalConfig['right'])) {
+                        $configPos = $approvalConfig['right']['position'] ?? '';
+                        $configLabel = $approvalConfig['right']['label'] ?? '';
+
+                        // If the template configured a custom signer that is NOT the Kapitan, use it
+                        if (strtolower($configPos) !== 'punong barangay' && strtolower($configLabel) !== 'punong barangay') {
+                            $sigName = $document->approved_by_right ?? $configLabel;
+                            $sigPos = $configPos;
+                        }
+                    }
+                @endphp
+                <div style="font-size: 12pt; font-weight: bold; color: {{ $themePrimary }}; text-transform: uppercase;">{{ $sigName }}</div>
+                <div style="height: 1px; background-color: {{ $themePrimary }}; opacity: 0.6; width: 250px; margin: 4px auto;"></div>
+                <div style="font-size: 9pt; color: #555; text-transform: uppercase; letter-spacing: 1px;">{{ $sigPos }}</div>
             </div>
 
         </div>

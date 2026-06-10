@@ -267,22 +267,24 @@ class DocumentPdfService
             ->where('status', 'active')
             ->orderBy('sort_order')
             ->get()
+            ->filter(function ($official) {
+                // Filter out officials without a linked resident to avoid printing "HON. ____"
+                return !empty($official->resident);
+            })
             ->map(function ($official) use ($positionLabels) {
-                $residentName = '';
-                if ($official->resident) {
-                    $parts = array_filter([
-                        $official->resident->first_name ?? '',
-                        $official->resident->middle_name ?? '',
-                        $official->resident->last_name ?? '',
-                        $official->resident->extension_name ?? '',
-                    ]);
-                    $residentName = implode(' ', $parts);
-                }
+                $parts = array_filter([
+                    $official->resident->first_name ?? '',
+                    $official->resident->middle_name ?? '',
+                    $official->resident->last_name ?? '',
+                    $official->resident->extension_name ?? '',
+                ]);
+                $residentName = implode(' ', $parts);
+                
                 return (object) [
-                    'name' => $residentName ?: '____________',
+                    'name' => $residentName,
                     'position' => $positionLabels[$official->position] ?? ucwords(str_replace('_', ' ', $official->position)),
                 ];
-            });
+            })->values();
 
         return [
             'document' => $document,
