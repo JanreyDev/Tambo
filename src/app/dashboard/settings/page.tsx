@@ -1182,6 +1182,22 @@ export default function SettingsPage() {
     }
   };
 
+  const handleRemoveCustomCertificate = async (idToRemove: string) => {
+    if (!window.confirm("Are you sure you want to remove this customized design? The certificate will revert to the global default.")) return;
+    
+    setSaving(true);
+    try {
+      const newCerts = residentCertificates.filter(c => c.id !== idToRemove);
+      setResidentCertificates(newCerts);
+      await api.settings.update({ settings: { customized_resident_certificates: newCerts } });
+      addToast("Custom design removed successfully", "success");
+    } catch (err) {
+      addToast("Failed to remove custom design", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const saveDocuments = () => saveSettings(
     {
       document_header_text: docHeader || null,
@@ -1348,7 +1364,7 @@ export default function SettingsPage() {
   };
 
   // Tabs that use the sticky save bar (self-managed tabs excluded: branding/officials/fees handle their own writes)
-  const SAVE_BAR_TABS = ["info", "contact", "documents", "customize-template", "system", "notifications", "vawc", "gad", "kp", "residents-dict"];
+  const SAVE_BAR_TABS = ["info", "contact", "documents", "system", "notifications", "vawc", "gad", "kp", "residents-dict"];
 
   // Current tab's dirty diff
   const currentTabSnapshot = tabFieldSnapshot[activeSection] || {};
@@ -2490,8 +2506,30 @@ export default function SettingsPage() {
                               <td className="py-4 px-4 align-top">
                                 <div className="flex items-center justify-center gap-3 pt-1">
                                   <button className="text-muted-foreground hover:text-foreground transition-colors"><Eye className="w-4 h-4" /></button>
-                                  <button className="text-muted-foreground hover:text-blue-500 transition-colors"><Edit2 className="w-4 h-4" /></button>
-                                  <button className="text-muted-foreground hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                                  <button 
+                                    className="text-muted-foreground hover:text-blue-500 transition-colors"
+                                    onClick={() => {
+                                      setSelectedCertType(cert.id);
+                                      if (cert.design_settings && cert.design_settings.use_global_design === false) {
+                                        setDocLayout((cert.design_settings.document_layout as any) || "klasiko");
+                                        setDocColorTheme((cert.design_settings.document_color_theme as any) || "plain");
+                                        setDocFont((cert.design_settings.document_font as any) || "times");
+                                        setDocDesignPattern((cert.design_settings.document_design_pattern as any) || "wave");
+                                        setDocPaperSize((cert.design_settings.document_paper_size as any) || "a4");
+                                      }
+                                      setCustomizeTab("editor");
+                                    }}
+                                    title="Edit Design"
+                                  >
+                                    <Edit2 className="w-4 h-4" />
+                                  </button>
+                                  <button 
+                                    className="text-muted-foreground hover:text-red-500 transition-colors"
+                                    onClick={() => handleRemoveCustomCertificate(cert.id)}
+                                    title="Remove"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
                                 </div>
                               </td>
                             </tr>
