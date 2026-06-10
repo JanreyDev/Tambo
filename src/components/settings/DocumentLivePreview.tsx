@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useRef } from "react";
+import { useMemo, useState, useRef, memo } from "react";
 import { QrCode, Plus } from "lucide-react";
 
 type Layout = "klasiko" | "elegante" | "moderno" | "digital";
@@ -238,6 +238,22 @@ const AVAILABLE_TAGS = [
   { tag: "{{purpose}}", desc: "Stated purpose" },
 ];
 
+const EditorArea = memo(({ initialHtml, onInput, onBlur, className, style, innerRef }: any) => {
+  return (
+    <div
+      ref={innerRef}
+      contentEditable
+      suppressContentEditableWarning
+      autoFocus
+      onInput={onInput}
+      onBlur={onBlur}
+      className={className}
+      style={style}
+      dangerouslySetInnerHTML={{ __html: initialHtml }}
+    />
+  );
+}, () => true);
+
 // Editable body wrapper for click-to-edit support
 function EditableBody({ 
   className, bodyHtml, rawContent, onContentChange 
@@ -264,17 +280,15 @@ function EditableBody({
   if (isEditing && onContentChange) {
     return (
       <div className="relative w-full group">
-        <div
-          ref={editorRef}
-          contentEditable
-          suppressContentEditableWarning
-          autoFocus
-          onInput={(e) => {
+        <EditorArea
+          innerRef={editorRef}
+          initialHtml={initialContent.current}
+          onInput={(e: any) => {
             if (onContentChange) {
               onContentChange(e.currentTarget.innerText);
             }
           }}
-          onBlur={(e) => {
+          onBlur={(e: any) => {
             setIsEditing(false);
           }}
           className={`${className} outline-none ring-[1.5px] ring-[var(--accent-primary)] rounded-sm font-inherit text-black shadow-inner whitespace-pre-wrap cursor-text relative z-10`}
@@ -285,7 +299,6 @@ function EditableBody({
             minHeight: Math.max(minHeight || 0, 280) + 'px',
             paddingRight: '28px' // Prevent text from hiding under the button
           }}
-          dangerouslySetInnerHTML={{ __html: initialContent.current }}
         />
         
         {/* Floating Variable Picker */}

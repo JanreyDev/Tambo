@@ -1177,7 +1177,7 @@ export default function SettingsPage() {
         await api.settings.update({ settings: { customized_resident_certificates: newCerts } });
       }
       addToast("Custom template design saved!", "success");
-      setCustomizeTab("global");
+      setCustomizeTab("resident");
     } catch (err) {
       addToast("Failed to save custom design", "error");
     } finally {
