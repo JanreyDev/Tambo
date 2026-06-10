@@ -725,24 +725,29 @@ export default function SettingsPage() {
   const [previewCertId, setPreviewCertId] = useState<string | null>(null);
   const [themeSource, setThemeSource] = useState<"global" | "custom">("global");
   const [residentCertificates, setResidentCertificates] = useState<any[]>([]);
-  const [dbTemplates, setDbTemplates] = useState<DocumentTemplate[]>([]);
+  const [establishmentCertificates, setEstablishmentCertificates] = useState<any[]>([]);
+  const [editingConstituentType, setEditingConstituentType] = useState<"resident" | "establishment">("resident");
+  const [dbTemplates, setDbTemplates] = useState<any[]>([]);
+
 
   useEffect(() => {
-    if (isModalOpen || customizeTab === "resident" || customizeTab === "editor") {
-      api.documentTemplates.list({ constituent_type: "resident", per_page: 50 })
+    if (isModalOpen || customizeTab === "resident" || customizeTab === "establishment" || customizeTab === "editor") {
+      const typeToFetch = (isModalOpen || customizeTab === "editor") ? editingConstituentType : (customizeTab === "establishment" ? "establishment" : "resident");
+      api.documentTemplates.list({ constituent_type: typeToFetch, per_page: 50 })
         .then(res => {
           const data = res.data || [];
-          const unique = Object.values(data.reduce((acc, curr) => {
+          const filteredData = data.filter(c => c.constituent_type === typeToFetch);
+          const unique = Object.values(filteredData.reduce((acc, curr) => {
             if (!acc[curr.name] || curr.barangay_id) {
               acc[curr.name] = curr;
             }
             return acc;
-          }, {} as Record<string, DocumentTemplate>));
-          setDbTemplates(unique);
+          }, {}));
+          setDbTemplates(unique as any[]);
         })
         .catch(console.error);
     }
-  }, [customizeTab, isModalOpen]);
+  }, [customizeTab, isModalOpen, editingConstituentType]);
 
 
   // Toast
@@ -1015,6 +1020,7 @@ export default function SettingsPage() {
         setDocColorTheme(loadedColorTheme);
         setDocDesignPattern(loadedDesignPattern);
         setResidentCertificates(s.customized_resident_certificates || []);
+        setEstablishmentCertificates(s.customized_establishment_certificates || []);
         // If the barangay has previously customized any design field, skip dummy gating.
         const hasAnyCustom = !!(s.document_paper_size || s.document_font || s.document_color_theme || s.document_design_pattern);
         if (hasAnyCustom) setHasGeneratedPatterns(true);
@@ -1172,12 +1178,19 @@ export default function SettingsPage() {
             custom_content: docCustomContent,
           }
         };
-        const newCerts = [...residentCertificates.filter(c => c.id !== option.id), newCert];
-        setResidentCertificates(newCerts);
-        await api.settings.update({ settings: { customized_resident_certificates: newCerts } });
-      }
-      addToast("Custom template design saved!", "success");
-      setCustomizeTab("resident");
+        
+          if (editingConstituentType === "establishment") {
+            const newCerts = [...establishmentCertificates.filter(c => c.id !== option.id), newCert];
+            setEstablishmentCertificates(newCerts);
+            await api.settings.update({ settings: { customized_establishment_certificates: newCerts } });
+          } else {
+            const newCerts = [...residentCertificates.filter(c => c.id !== option.id), newCert];
+            setResidentCertificates(newCerts);
+            await api.settings.update({ settings: { customized_resident_certificates: newCerts } });
+          }
+        }
+        addToast("Custom template design saved!", "success");
+        setCustomizeTab(editingConstituentType);
     } catch (err) {
       addToast("Failed to save custom design", "error");
     } finally {
@@ -1185,7 +1198,7 @@ export default function SettingsPage() {
     }
   };
 
-  const handleRemoveCustomCertificate = async (idToRemove: string) => {
+  const handleRemoveCustomCertificate = async (idToRemove: string, type: "resident" | "establishment" = "resident") => {
     if (!window.confirm("Are you sure you want to remove this customized design? The certificate will revert to the global default.")) return;
     
     setSaving(true);
@@ -1217,9 +1230,10 @@ export default function SettingsPage() {
         document_color_theme: docColorTheme,
         document_design_pattern: docDesignPattern,
         customized_resident_certificates: residentCertificates,
+        customized_establishment_certificates: establishmentCertificates,
       },
     },
-    { docHeader, docFooter, certValidityDays, clearanceFee, indigencyFee, idFee, cedulaFee, docLayout, docPaperSize, docFont, docColorTheme, docDesignPattern, residentCertificates },
+    { docHeader, docFooter, certValidityDays, clearanceFee, indigencyFee, idFee, cedulaFee, docLayout, docPaperSize, docFont, docColorTheme, docDesignPattern, residentCertificates, establishmentCertificates },
   );
 
   const saveNotifications = () => saveSettings(
@@ -2209,7 +2223,7 @@ export default function SettingsPage() {
                         ) : (
                           <>
                             <div className="flex items-center gap-3 mb-1">
-                              <button onClick={() => setCustomizeTab("resident")} className="p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors -ml-2">
+                              <button onClick={() => setCustomizeTab(editingConstituentType)} className="p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors -ml-2">
                                 <ArrowLeft className="w-5 h-5" />
                               </button>
                               <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
@@ -2438,14 +2452,14 @@ export default function SettingsPage() {
                 )}
                 
                 {/* --- RESIDENT CERTIFICATES TAB --- */}
-                {customizeTab === "resident" && (
+                {(customizeTab === "resident" || customizeTab === "establishment") && (
                   <div className="p-6 bg-muted/5 flex flex-col gap-6">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div>
-                        <h3 className="text-base font-semibold text-foreground">Resident Certificates</h3>
-                        <p className="text-xs text-muted-foreground mt-0.5">Manage certificate designs for residents. Each certificate can use the global theme or have its own custom design.</p>
+                        <h3 className="text-base font-semibold text-foreground">{customizeTab === "resident" ? "Resident Certificates" : "Establishment Certificates"}</h3>
+                        <p className="text-xs text-muted-foreground mt-0.5">Manage certificate designs for {customizeTab === "resident" ? "residents." : "establishments."} Each certificate can use the global theme or have its own custom design.</p>
                       </div>
-                      <button onClick={() => { setIsModalOpen(true); setModalStep(1); setSelectedCertType(null); setThemeSource("global"); }} className="px-3 py-1.5 text-xs font-medium rounded-lg text-white transition-colors flex items-center gap-1.5 whitespace-nowrap bg-blue-600 hover:bg-blue-700">
+                      <button onClick={() => { setIsModalOpen(true); setModalStep(1); setSelectedCertType(null); setThemeSource("global"); setEditingConstituentType(customizeTab as any); }} className="px-3 py-1.5 text-xs font-medium rounded-lg text-white transition-colors flex items-center gap-1.5 whitespace-nowrap bg-blue-600 hover:bg-blue-700">
                         <Plus className="w-3.5 h-3.5" /> New Certificate Design
                       </button>
                     </div>
@@ -2476,7 +2490,7 @@ export default function SettingsPage() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border/20">
-                          {residentCertificates.length === 0 ? (
+                          {(customizeTab === "resident" ? residentCertificates : establishmentCertificates).length === 0 ? (
                             <tr>
                               <td colSpan={4} className="py-16 text-center text-slate-400 bg-slate-900/10">
                                 <div className="flex flex-col items-center justify-center">
@@ -2488,7 +2502,7 @@ export default function SettingsPage() {
                                 </div>
                               </td>
                             </tr>
-                          ) : residentCertificates.map(cert => (
+                          ) : (customizeTab === "resident" ? residentCertificates : establishmentCertificates).map(cert => (
                             <tr key={cert.id} className="group hover:bg-background/40 transition-colors">
                               <td className="py-4 px-4 align-top">
                                 <div className="flex gap-4">
@@ -2756,9 +2770,16 @@ export default function SettingsPage() {
                                             modifiedDate: "Just now",
                                             author: "You"
                                           };
-                                          const newCerts = [...residentCertificates.filter(c => c.id !== option.id), newCert];
-                                          setResidentCertificates(newCerts);
-                                          await api.settings.update({ settings: { customized_resident_certificates: newCerts } });
+                                          
+                                          if (editingConstituentType === "establishment") {
+                                            const newCerts = [...establishmentCertificates.filter(c => c.id !== option.id), newCert];
+                                            setEstablishmentCertificates(newCerts);
+                                            await api.settings.update({ settings: { customized_establishment_certificates: newCerts } });
+                                          } else {
+                                            const newCerts = [...residentCertificates.filter(c => c.id !== option.id), newCert];
+                                            setResidentCertificates(newCerts);
+                                            await api.settings.update({ settings: { customized_resident_certificates: newCerts } });
+                                          }
                                         } catch(e) {}
                                       }
                                       addToast("Certificate successfully added with Global Theme!", "success");
