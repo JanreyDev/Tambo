@@ -252,16 +252,35 @@ class DocumentPdfService
         $fontStr = $barangay->settings['document_font'] ?? 'times';
         $fontFamily = $fontMap[$fontStr] ?? $fontMap['times'];
 
+        // Position label map (matches frontend POSITION_OPTIONS)
+        $positionLabels = [
+            'kapitan' => 'Punong Barangay',
+            'kagawad' => 'Kagawad',
+            'sk_chairperson' => 'SK Chairperson',
+            'secretary' => 'Barangay Secretary',
+            'treasurer' => 'Barangay Treasurer',
+        ];
+
         // Fetch officials
         $officials = \App\Models\Tenant\Officials\BarangayOfficial::with('resident')
             ->where('barangay_id', $barangay->id)
             ->where('status', 'active')
             ->orderBy('sort_order')
             ->get()
-            ->map(function ($official) {
+            ->map(function ($official) use ($positionLabels) {
+                $residentName = '';
+                if ($official->resident) {
+                    $parts = array_filter([
+                        $official->resident->first_name ?? '',
+                        $official->resident->middle_name ?? '',
+                        $official->resident->last_name ?? '',
+                        $official->resident->extension_name ?? '',
+                    ]);
+                    $residentName = implode(' ', $parts);
+                }
                 return (object) [
-                    'name' => $official->resident ? trim(($official->resident->first_name ?? '') . ' ' . ($official->resident->last_name ?? '')) : 'Hon. ____________',
-                    'position' => $official->position,
+                    'name' => $residentName ?: '____________',
+                    'position' => $positionLabels[$official->position] ?? ucwords(str_replace('_', ' ', $official->position)),
                 ];
             });
 
@@ -412,24 +431,76 @@ class DocumentPdfService
      */
     private function getSealDataUri(Barangay $barangay): ?string
     {
+        // DomPDF requires the GD extension to process PNG images.
+        // If it's not installed, we must return null to prevent a 500 crash.
+        if (!extension_loaded('gd')) {
+            return null;
+        }
+
         $sealUrl = $barangay->seal_url ?? $barangay->logo_url;
         if (! $sealUrl) {
             return null;
         }
 
-        // If it's a storage path, try to load it
+        // Extract storage path from various URL formats:
+        // "http://localhost:3001/storage/logos/abc.png" → "logos/abc.png"
+        // "/storage/logos/abc.png" → "logos/abc.png"
+        // "logos/abc.png" → "logos/abc.png"
+        $storagePath = $sealUrl;
+        if (preg_match('#/storage/(.+)$#', $sealUrl, $m)) {
+            $storagePath = $m[1];
+        }
+
+        // Try 1: Load from Storage disk (public)
         try {
             $disk = config('app.env') === 'production' ? 'do_spaces' : 'public';
-            if (Storage::disk($disk)->exists($sealUrl)) {
-                $content = Storage::disk($disk)->get($sealUrl);
+            if (Storage::disk($disk)->exists($storagePath)) {
+                $content = Storage::disk($disk)->get($storagePath);
+                $mime = $this->guessMimeType($storagePath);
+                return "data:{$mime};base64," . base64_encode($content);
+            }
+        } catch (\Throwable) {
+            // Fall through
+        }
 
-                return 'data:image/png;base64,'.base64_encode($content);
+        // Try 2: Load directly from public_path/storage (symlinked)
+        try {
+            $localPath = public_path('storage/' . $storagePath);
+            if (file_exists($localPath)) {
+                $content = file_get_contents($localPath);
+                $mime = $this->guessMimeType($storagePath);
+                return "data:{$mime};base64," . base64_encode($content);
+            }
+        } catch (\Throwable) {
+            // Fall through
+        }
+
+        // Try 3: Load from the full URL path on public_path
+        try {
+            $localPath = public_path(ltrim(parse_url($sealUrl, PHP_URL_PATH) ?: '', '/'));
+            if (file_exists($localPath)) {
+                $content = file_get_contents($localPath);
+                $mime = $this->guessMimeType($sealUrl);
+                return "data:{$mime};base64," . base64_encode($content);
             }
         } catch (\Throwable) {
             // Fall through
         }
 
         return null;
+    }
+
+    private function guessMimeType(string $path): string
+    {
+        $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        return match ($ext) {
+            'jpg', 'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'gif' => 'image/gif',
+            'svg' => 'image/svg+xml',
+            'webp' => 'image/webp',
+            default => 'image/png',
+        };
     }
 
     /**
