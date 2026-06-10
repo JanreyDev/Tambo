@@ -129,7 +129,14 @@ export function GenerateDocumentWizard({
     const run = async () => {
       try {
         const res = await api.documentTemplates.list({ is_active: true, per_page: 100 });
-        setTemplates(res.data);
+        const data = res.data || [];
+        const unique = Object.values(data.reduce((acc, curr) => {
+          if (!acc[curr.name] || curr.barangay_id) {
+            acc[curr.name] = curr;
+          }
+          return acc;
+        }, {} as Record<string, any>));
+        setTemplates(unique as any);
         setTemplatesLoaded(true);
       } catch { /* silent */ }
     };
@@ -421,7 +428,9 @@ export function GenerateDocumentWizard({
   };
 
   // ── Filtered templates ──
+  const configuredIds = barangaySettings?.settings?.customized_resident_certificates?.map((c: any) => c.id);
   const wizardFilteredTemplates = templates.filter((t) => {
+    if (configuredIds && configuredIds.length > 0 && !configuredIds.includes(t.id)) return false;
     const matchesSearch = !templateSearch
       || t.name.toLowerCase().includes(templateSearch.toLowerCase())
       || t.category.toLowerCase().includes(templateSearch.toLowerCase());

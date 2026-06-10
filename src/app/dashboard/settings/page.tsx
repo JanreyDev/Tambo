@@ -2,6 +2,7 @@
 
 import { DocumentTemplate } from "@/lib/types";
 
+
 import {  useState, useEffect, useCallback, useRef } from "react";
 import {
   Upload, Phone, Mail, Clock, Building2, Shield, Bell, FileText,
@@ -954,6 +955,7 @@ export default function SettingsPage() {
           kpArbitrationWindowDays: String(k0.arbitration_window_days ?? 15),
           kpSummonsTemplate: (k0.summons_template as string) || "",
           dictionaries: initialDicts0,
+          residentCertificates: (s.customized_resident_certificates as any[]) || [],
         };
 
         setSettings(data);
@@ -1010,6 +1012,7 @@ export default function SettingsPage() {
         const loadedDesignPattern = (s.document_design_pattern as typeof docDesignPattern) || "wave";
         setDocColorTheme(loadedColorTheme);
         setDocDesignPattern(loadedDesignPattern);
+        setResidentCertificates(s.customized_resident_certificates || []);
         // If the barangay has previously customized any design field, skip dummy gating.
         const hasAnyCustom = !!(s.document_paper_size || s.document_font || s.document_color_theme || s.document_design_pattern);
         if (hasAnyCustom) setHasGeneratedPatterns(true);
@@ -1155,9 +1158,10 @@ export default function SettingsPage() {
         document_font: docFont,
         document_color_theme: docColorTheme,
         document_design_pattern: docDesignPattern,
+        customized_resident_certificates: residentCertificates,
       },
     },
-    { docHeader, docFooter, certValidityDays, clearanceFee, indigencyFee, idFee, cedulaFee, docLayout, docPaperSize, docFont, docColorTheme, docDesignPattern },
+    { docHeader, docFooter, certValidityDays, clearanceFee, indigencyFee, idFee, cedulaFee, docLayout, docPaperSize, docFont, docColorTheme, docDesignPattern, residentCertificates },
   );
 
   const saveNotifications = () => saveSettings(
@@ -1253,6 +1257,7 @@ export default function SettingsPage() {
     gad: { gadFocalName, gadFocalTitle, gadBudgetPercent, gadPlanUrl },
     kp: { kpHearingWindowDays, kpMediationExtensionDays, kpArbitrationWindowDays, kpSummonsTemplate },
     "residents-dict": { dictionaries },
+    "customize-template": { docLayout, docPaperSize, docFont, docColorTheme, docDesignPattern, residentCertificates },
   };
 
   const tabFieldSetters: Record<string, Record<string, (v: unknown) => void>> = {
@@ -1292,6 +1297,7 @@ export default function SettingsPage() {
       docFont: (v) => setDocFont(v as "times" | "arial" | "inter" | "poppins" | "merriweather" | "playfair"),
       docColorTheme: (v) => setDocColorTheme(v as typeof docColorTheme),
       docDesignPattern: (v) => setDocDesignPattern(v as typeof docDesignPattern),
+      residentCertificates: (v) => setResidentCertificates(v as any[]),
     },
     system: { smsSenderName: (v) => setSmsSenderName(v as string), signatoryName: (v) => setSignatoryName(v as string), signatoryTitle: (v) => setSignatoryTitle(v as string) },
     notifications: { notifSmsNewResident: (v) => setNotifSmsNewResident(v as boolean), notifSmsCert: (v) => setNotifSmsCert(v as boolean), notifEmail: (v) => setNotifEmail(v as boolean), notifDaily: (v) => setNotifDaily(v as boolean) },
@@ -1299,13 +1305,7 @@ export default function SettingsPage() {
     gad: { gadFocalName: (v) => setGadFocalName(v as string), gadFocalTitle: (v) => setGadFocalTitle(v as string), gadBudgetPercent: (v) => setGadBudgetPercent(v as string), gadPlanUrl: (v) => setGadPlanUrl(v as string) },
     kp: { kpHearingWindowDays: (v) => setKpHearingWindowDays(v as string), kpMediationExtensionDays: (v) => setKpMediationExtensionDays(v as string), kpArbitrationWindowDays: (v) => setKpArbitrationWindowDays(v as string), kpSummonsTemplate: (v) => setKpSummonsTemplate(v as string) },
     "residents-dict": { dictionaries: (v) => setDictionaries(v as Record<DictKey, string[]>) },
-    "customize-template": {
-      docLayout: (v) => setDocLayout(v as "klasiko" | "moderno" | "elegante" | "digital"),
-      docPaperSize: (v) => setDocPaperSize(v as "a4" | "letter" | "legal"),
-      docFont: (v) => setDocFont(v as "times" | "arial" | "inter" | "poppins" | "merriweather" | "playfair"),
-      docColorTheme: (v) => setDocColorTheme(v as typeof docColorTheme),
-      docDesignPattern: (v) => setDocDesignPattern(v as typeof docDesignPattern),
-    },
+
   };
 
   // Tabs that use the sticky save bar (self-managed tabs excluded: branding/officials/fees handle their own writes)
