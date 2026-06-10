@@ -8,214 +8,154 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
         @page {
-            margin: 0 0 20mm 0;
+            margin: 20mm;
         }
 
         body {
-            font-family: sans-serif;
+            font-family: {!! $fontFamily !!};
             font-size: 11pt;
             color: #1a1a1a;
             background: #fff;
             line-height: 1.6;
         }
 
-        /* ── Blue top accent bar ── */
-        .top-bar {
-            background: #1a56db;
-            height: 6px;
-            width: 100%;
-        }
-
-        /* ── Content wrapper — apply page side margins here ── */
-        .content-wrap {
-            padding: 14mm 18mm 0 18mm;
-        }
-
         /* ── Header ── */
-        .header {
-            margin-bottom: 18px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #e5e7eb;
-        }
-
-        .header-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .seal-cell {
-            width: 70px;
-            vertical-align: middle;
+        .header-logos {
+            text-align: center;
+            margin-bottom: 10px;
         }
 
         .seal-img {
-            width: 60px;
-            height: 60px;
+            width: 80px;
+            height: 80px;
+            margin: 0 10px;
+            vertical-align: middle;
         }
 
         .header-text {
-            text-align: left;
-            vertical-align: middle;
-            padding-left: 12px;
+            text-align: center;
+            margin-bottom: 25px;
         }
 
         .republic-text {
-            font-size: 8pt;
-            color: #6b7280;
+            font-size: 9pt;
+            color: #555;
+            letter-spacing: 2px;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
         }
 
         .province-text {
-            font-size: 8pt;
-            color: #6b7280;
+            font-size: 9pt;
+            color: #666;
         }
 
         .municipality-text {
-            font-size: 9pt;
-            color: #374151;
+            font-size: 10pt;
+            color: #333;
             font-weight: 600;
         }
 
         .barangay-name {
             font-size: 14pt;
             font-weight: bold;
-            color: #111827;
-            margin-top: 1px;
+            color: {{ $themePrimary }};
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 5px;
         }
 
-        .office-text {
-            font-size: 8pt;
-            color: #9ca3af;
+        /* ── Document Title ── */
+        .title-wrapper {
+            text-align: center;
+            margin-bottom: 30px;
         }
 
-        /* ── Document Title Row ── */
-        .title-row {
-            margin: 18px 0 6px 0;
-        }
-
-        .title-row-table {
-            width: 100%;
-            border-collapse: collapse;
+        .title-rule {
+            width: 100px;
+            height: 3px;
+            background-color: {{ $themeAccent }};
+            margin: 0 auto 15px auto;
         }
 
         .doc-title {
-            font-size: 14pt;
+            font-size: 20pt;
             font-weight: bold;
-            color: #111827;
-            border-bottom: 2px solid #1a56db;
-            padding-bottom: 4px;
-            display: inline-block;
+            color: {{ $themePrimary }};
+            text-transform: uppercase;
+            letter-spacing: 2px;
         }
 
-        .doc-number-right {
-            text-align: right;
-            vertical-align: bottom;
-            font-size: 8pt;
-            color: #6b7280;
+        .doc-number {
+            font-size: 9pt;
+            color: #888;
+            margin-top: 5px;
         }
 
         /* ── Salutation ── */
         .salutation {
             font-size: 11pt;
             font-weight: bold;
-            margin: 18px 0 12px 0;
+            margin-bottom: 15px;
+            color: {{ $themePrimary }};
         }
 
         /* ── Body Content ── */
-        .body-content {
+        .body-text {
             font-size: 11pt;
-            line-height: 1.75;
-            margin-bottom: 20px;
+            text-align: justify;
+            line-height: 1.8;
+            margin-bottom: 25px;
         }
 
         /* ── Photo + Thumbmark Row ── */
-        .id-row {
-            margin: 18px 0;
-        }
-
         .id-table {
             width: 100%;
             border-collapse: collapse;
+            margin-bottom: 25px;
         }
 
-        .photo-cell {
-            width: 120px;
-            vertical-align: top;
-        }
+        .photo-cell { width: 120px; vertical-align: top; }
+        .thumbmark-cell { width: 120px; vertical-align: top; text-align: right; }
 
         .photo-box {
-            width: 100px;
-            height: 100px;
-            border: 1px solid #d1d5db;
-            text-align: center;
-            overflow: hidden;
+            width: 100px; height: 100px;
+            border: 1px solid {{ $themeAccent }};
+            text-align: center; overflow: hidden;
+            border-radius: 8px; /* modern touch */
         }
-
-        .photo-box img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .photo-label {
-            font-size: 7pt;
-            color: #9ca3af;
-            text-align: center;
-            margin-top: 2px;
-        }
-
-        .thumbmark-cell {
-            width: 120px;
-            vertical-align: top;
-            text-align: right;
-        }
+        .photo-box img { width: 100%; height: 100%; object-fit: cover; }
+        .photo-label { font-size: 8pt; color: #666; text-align: center; margin-top: 2px; }
 
         .thumbmark-box {
-            width: 80px;
-            height: 80px;
-            border: 1px solid #d1d5db;
+            width: 80px; height: 80px;
+            border: 1px solid {{ $themeAccent }};
             margin-left: auto;
+            border-radius: 8px;
         }
+        .thumbmark-label { font-size: 8pt; color: #666; text-align: right; margin-top: 2px; }
 
-        .thumbmark-label {
-            font-size: 7pt;
-            color: #9ca3af;
-            text-align: right;
-            margin-top: 2px;
-        }
-
-        /* ── Details Block ── */
-        .details-block {
-            margin: 20px 0;
-            font-size: 9pt;
-            color: #4b5563;
-        }
-
-        .details-block table {
+        /* ── Details Block (CTC, OR) ── */
+        .details-table {
             border-collapse: collapse;
+            font-size: 9pt;
+            color: #444;
+            margin-bottom: 25px;
+            background-color: {{ $themeTint }};
+            padding: 10px;
+            width: 100%;
         }
-
-        .details-block td {
-            padding: 2px 8px 2px 0;
-            vertical-align: top;
-        }
-
-        .details-label {
-            font-weight: bold;
-            white-space: nowrap;
-        }
+        .details-table td { padding: 5px; vertical-align: top; }
+        .details-label { font-weight: bold; color: {{ $themePrimary }}; }
 
         /* ── Issued Date ── */
         .issued-date {
-            margin: 18px 0;
+            margin: 20px 0;
             font-size: 11pt;
-            color: #374151;
         }
 
         /* ── Signature Block ── */
         .signature-block {
-            margin-top: 48px;
+            margin-top: 60px;
         }
 
         .sig-table {
@@ -229,254 +169,176 @@
             padding: 0 20px;
         }
 
-        .sig-left {
-            text-align: left;
-        }
+        .sig-left { text-align: left; }
+        .sig-right { text-align: right; }
 
-        .sig-right {
-            text-align: right;
-        }
-
+        .sig-attested { font-size: 9pt; color: #666; margin-bottom: 30px; }
         .sig-name {
-            font-size: 11pt;
-            font-weight: bold;
-            text-transform: uppercase;
-            border-bottom: 1px solid #374151;
-            padding-bottom: 3px;
-            display: inline-block;
-            min-width: 200px;
-            text-align: center;
+            font-size: 11pt; font-weight: bold; text-transform: uppercase; color: {{ $themePrimary }};
+            border-bottom: 2px solid {{ $themeAccent }}; display: inline-block; min-width: 200px; text-align: center;
+            padding-bottom: 4px; margin-bottom: 4px;
         }
-
-        .sig-position {
-            font-size: 9pt;
-            color: #6b7280;
-            text-align: center;
-            margin-top: 3px;
-        }
-
-        /* ── Validity ── */
-        .validity-text {
-            font-size: 8pt;
-            color: #9ca3af;
-            margin-top: 12px;
-        }
-
-        .not-valid {
-            font-size: 8pt;
-            font-weight: bold;
-            color: #dc2626;
-            margin-top: 4px;
-        }
+        .sig-position { font-size: 9pt; color: #777; text-align: center; }
 
         /* ── Footer ── */
-        .footer {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            border-top: 1px solid #e5e7eb;
-            padding: 6px 18mm 0 18mm;
-            font-size: 7pt;
-            color: #9ca3af;
-        }
-
         .footer-table {
             width: 100%;
-            border-collapse: collapse;
+            margin-top: 60px;
+            border-top: 1px solid #eaeaea;
+            padding-top: 15px;
+            font-size: 8pt;
+            color: #777;
         }
 
-        .footer-left {
-            text-align: left;
-            vertical-align: middle;
-        }
+        .footer-left { text-align: left; vertical-align: middle; }
+        .footer-center { text-align: center; vertical-align: middle; }
+        .footer-right { text-align: right; vertical-align: middle; }
 
-        .footer-center {
-            text-align: center;
-            vertical-align: middle;
-        }
+        .qr-img { width: 60px; height: 60px; }
+        .not-valid { font-weight: bold; color: #c00; margin-top: 4px; }
 
-        .footer-right {
-            text-align: right;
-            vertical-align: middle;
-        }
-
-        .qr-img {
-            width: 60px;
-            height: 60px;
-        }
     </style>
 </head>
 <body>
 
-    {{-- ── BLUE TOP BAR ── --}}
-    <div class="top-bar"></div>
-
-    <div class="content-wrap">
-
-        {{-- ── HEADER ── --}}
-        <div class="header">
-            <table class="header-table">
-                <tr>
-                    @if($sealDataUri)
-                    <td class="seal-cell">
-                        <img src="{{ $sealDataUri }}" class="seal-img" alt="Barangay Seal">
-                    </td>
-                    @endif
-                    <td class="header-text">
-                        <div class="republic-text">Republic of the Philippines</div>
-                        <div class="province-text">Province of {{ $barangay->province ?? '________________' }}</div>
-                        <div class="municipality-text">{{ $barangay->city_municipality ?? '________________' }}</div>
-                        <div class="barangay-name">Barangay {{ $barangay->name ?? '________________' }}</div>
-                        <div class="office-text">Office of the Punong Barangay</div>
-                    </td>
-                </tr>
-            </table>
-        </div>
-
-        {{-- ── TITLE ROW ── --}}
-        <div class="title-row">
-            <table class="title-row-table">
-                <tr>
-                    <td>
-                        <span class="doc-title">{{ $template->title ?? $template->name }}</span>
-                    </td>
-                    @if($settings['show_doc_no'] ?? false)
-                    <td class="doc-number-right">
-                        Control No.: {{ $document->document_number }}
-                    </td>
-                    @endif
-                </tr>
-            </table>
-        </div>
-
-        {{-- ── SALUTATION ── --}}
-        @if($renderedSalutation)
-        <div class="salutation">{{ $renderedSalutation }}</div>
+    {{-- HEADER --}}
+    <div class="header-logos">
+        @if($sealDataUri)
+        <img src="{{ $sealDataUri }}" class="seal-img" alt="Barangay Seal">
         @endif
+        <!-- Optional City Logo -->
+    </div>
 
-        {{-- ── BODY CONTENT ── --}}
-        <div class="body-content">
-            {!! nl2br(e($renderedContent)) !!}
-        </div>
+    <div class="header-text">
+        <div class="republic-text">Republic of the Philippines</div>
+        <div class="province-text">Province of {{ $barangay->province ?? '________________' }}</div>
+        <div class="municipality-text">{{ $barangay->city_municipality ?? '________________' }}</div>
+        <div class="barangay-name">BARANGAY {{ $barangay->name ?? '________________' }}</div>
+    </div>
 
-        {{-- ── PHOTO + THUMBMARK ── --}}
-        @if(($settings['show_photo'] ?? false) || ($settings['show_thumbmark'] ?? false))
-        <div class="id-row">
-            <table class="id-table">
-                <tr>
-                    @if($settings['show_photo'] ?? false)
-                    <td class="photo-cell">
-                        <div class="photo-box">
-                            @if($photoDataUri)
-                            <img src="{{ $photoDataUri }}" alt="Photo">
-                            @endif
-                        </div>
-                        <div class="photo-label">Photo</div>
-                    </td>
-                    @endif
-                    <td></td>
-                    @if($settings['show_thumbmark'] ?? false)
-                    <td class="thumbmark-cell">
-                        <div class="thumbmark-box"></div>
-                        <div class="thumbmark-label">Right Thumbmark</div>
-                    </td>
-                    @endif
-                </tr>
-            </table>
-        </div>
+    {{-- TITLE & NUMBER --}}
+    <div class="title-wrapper">
+        <div class="title-rule"></div>
+        <div class="doc-title">{{ $template->title ?? $template->name }}</div>
+        @if($settings['show_doc_no'] ?? false)
+        <div class="doc-number">Control No.: {{ $document->document_number }}</div>
         @endif
+    </div>
 
-        {{-- ── CTC / OR DETAILS ── --}}
-        @if(($settings['show_ctc'] ?? false) || ($settings['show_or'] ?? false))
-        <div class="details-block">
-            <table>
-                @if($settings['show_or'] ?? false)
-                    @if($document->or_number)
-                    <tr>
-                        <td class="details-label">O.R. No.:</td>
-                        <td>{{ $document->or_number }}</td>
-                        <td class="details-label" style="padding-left: 20px;">Amount:</td>
-                        <td>&#8369;{{ number_format((float)($document->or_amount ?? 0), 2) }}</td>
-                    </tr>
+    {{-- SALUTATION --}}
+    @if($renderedSalutation)
+    <div class="salutation">{{ $renderedSalutation }}</div>
+    @endif
+
+    {{-- BODY --}}
+    <div class="body-text">
+        {!! nl2br(e($renderedContent)) !!}
+    </div>
+
+    {{-- PHOTO & THUMBMARK --}}
+    @if(($settings['show_photo'] ?? false) || ($settings['show_thumbmark'] ?? false))
+    <table class="id-table">
+        <tr>
+            @if($settings['show_photo'] ?? false)
+            <td class="photo-cell">
+                <div class="photo-box">
+                    @if($photoDataUri)
+                    <img src="{{ $photoDataUri }}" alt="Photo">
                     @endif
-                @endif
-                @if($settings['show_ctc'] ?? false)
-                    @if($document->ctc_number)
-                    <tr>
-                        <td class="details-label">CTC No.:</td>
-                        <td>{{ $document->ctc_number }}</td>
-                        <td class="details-label" style="padding-left: 20px;">Issued at:</td>
-                        <td>{{ $document->ctc_place ?? '' }}</td>
-                    </tr>
-                    <tr>
-                        <td class="details-label">Date Issued:</td>
-                        <td colspan="3">{{ $document->ctc_date?->format('F d, Y') ?? '' }}</td>
-                    </tr>
-                    @endif
-                @endif
-            </table>
-        </div>
+                </div>
+                <div class="photo-label">Photo</div>
+            </td>
+            @endif
+            <td></td>
+            @if($settings['show_thumbmark'] ?? false)
+            <td class="thumbmark-cell">
+                <div class="thumbmark-box"></div>
+                <div class="thumbmark-label">Right Thumbmark</div>
+            </td>
+            @endif
+        </tr>
+    </table>
+    @endif
+
+    {{-- OR & CTC --}}
+    @if(($settings['show_ctc'] ?? false) || ($settings['show_or'] ?? false))
+    <table class="details-table">
+        @if($settings['show_or'] ?? false && $document->or_number)
+        <tr>
+            <td class="details-label">O.R. No.:</td>
+            <td>{{ $document->or_number }}</td>
+            <td class="details-label" style="padding-left: 20px;">Amount:</td>
+            <td>&#8369;{{ number_format((float)($document->or_amount ?? 0), 2) }}</td>
+        </tr>
         @endif
-
-        {{-- ── ISSUED DATE ── --}}
-        <div class="issued-date">
-            <strong>Issued this {{ $document->issued_date?->format('jS') ?? '____' }} day of {{ $document->issued_date?->format('F, Y') ?? '__________, ____' }}</strong>
-            at Barangay {{ $barangay->name }}, {{ $barangay->city_municipality }}, {{ $barangay->province }}.
-        </div>
-
-        {{-- ── SIGNATURE BLOCK ── --}}
-        <div class="signature-block">
-            <table class="sig-table">
-                <tr>
-                    @if(!empty($approvalConfig['left']))
-                    <td class="sig-cell sig-left">
-                        <div class="sig-name">{{ $document->approved_by_left ?? $approvalConfig['left']['label'] ?? '' }}</div>
-                        <div class="sig-position">{{ $approvalConfig['left']['position'] ?? '' }}</div>
-                    </td>
-                    @endif
-                    @if(!empty($approvalConfig['right']))
-                    <td class="sig-cell sig-right">
-                        <div class="sig-name">{{ $document->approved_by_right ?? $approvalConfig['right']['label'] ?? '' }}</div>
-                        <div class="sig-position">{{ $approvalConfig['right']['position'] ?? '' }}</div>
-                    </td>
-                    @endif
-                </tr>
-            </table>
-        </div>
-
-        {{-- ── VALIDITY ── --}}
-        @if(($settings['show_expiry'] ?? false) && $document->valid_until)
-        <div class="validity-text">
-            Valid until: {{ $document->valid_until->format('F d, Y') }}
-        </div>
-        <div class="not-valid">NOT VALID WITHOUT OFFICIAL DRY SEAL</div>
+        @if($settings['show_ctc'] ?? false && $document->ctc_number)
+        <tr>
+            <td class="details-label">CTC No.:</td>
+            <td>{{ $document->ctc_number }}</td>
+            <td class="details-label" style="padding-left: 20px;">Issued at:</td>
+            <td>{{ $document->ctc_place ?? '' }}</td>
+        </tr>
+        <tr>
+            <td class="details-label">Date Issued:</td>
+            <td colspan="3">{{ $document->ctc_date?->format('F d, Y') ?? '' }}</td>
+        </tr>
         @endif
+    </table>
+    @endif
 
-    </div>{{-- end content-wrap --}}
+    {{-- ISSUED DATE --}}
+    <div class="issued-date">
+        This CLEARANCE is being issued upon the request of the above-named person for whatever legal purposes it may serve.<br><br>
+        <strong>Issued this {{ $document->issued_date?->format('jS') ?? '____' }} day of {{ $document->issued_date?->format('F, Y') ?? '__________, ____' }}</strong>
+        at Barangay {{ $barangay->name }}, {{ $barangay->city_municipality }}, {{ $barangay->province }}.
+    </div>
 
-    {{-- ── FOOTER ── --}}
-    <div class="footer">
-        <table class="footer-table">
+    {{-- SIGNATURES --}}
+    <div class="signature-block">
+        <table class="sig-table">
             <tr>
-                <td class="footer-left">
-                    Prepared by: {{ $issuedByName }}<br>
-                    Date: {{ $issuedAt }}
+                @if(!empty($approvalConfig['left']))
+                <td class="sig-cell sig-left">
+                    <div class="sig-attested">Attested by:</div>
+                    <div class="sig-name">{{ $document->approved_by_left ?? $approvalConfig['left']['label'] ?? '' }}</div>
+                    <br><div class="sig-position">{{ $approvalConfig['left']['position'] ?? '' }}</div>
                 </td>
-                <td class="footer-center">
-                    @if($document->blockchain_hash)
-                    <span style="font-size: 6pt;">Hash: {{ substr($document->blockchain_hash, 0, 16) }}...</span>
-                    @endif
+                @endif
+                @if(!empty($approvalConfig['right']))
+                <td class="sig-cell sig-right">
+                    <div class="sig-attested">Approved by:</div>
+                    <div class="sig-name">{{ $document->approved_by_right ?? $approvalConfig['right']['label'] ?? '' }}</div>
+                    <br><div class="sig-position">{{ $approvalConfig['right']['position'] ?? '' }}</div>
                 </td>
-                <td class="footer-right">
-                    @if($qrDataUri)
-                    <img src="{{ $qrDataUri }}" class="qr-img" alt="Verification QR">
-                    <br><span style="font-size: 6pt;">Scan to verify</span>
-                    @endif
-                </td>
+                @endif
             </tr>
         </table>
     </div>
+
+    {{-- FOOTER --}}
+    <table class="footer-table">
+        <tr>
+            <td class="footer-left">
+                Prepared by: {{ $issuedByName }}<br>
+                Date: {{ $issuedAt }}
+                @if(($settings['show_expiry'] ?? false) && $document->valid_until)
+                <br><br>Valid until: {{ $document->valid_until->format('F d, Y') }}
+                <div class="not-valid">NOT VALID WITHOUT OFFICIAL DRY SEAL</div>
+                @endif
+            </td>
+            <td class="footer-center">
+                @if($document->blockchain_hash)
+                <span style="font-size: 7pt; color: #aaa;">Hash: {{ substr($document->blockchain_hash, 0, 16) }}...</span>
+                @endif
+            </td>
+            <td class="footer-right">
+                @if($qrDataUri)
+                <img src="{{ $qrDataUri }}" class="qr-img" alt="Verification QR"><br>
+                <span style="font-size: 6pt;">Scan to verify</span>
+                @endif
+            </td>
+        </tr>
+    </table>
 
 </body>
 </html>

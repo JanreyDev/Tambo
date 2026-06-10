@@ -220,6 +220,51 @@ class DocumentPdfService
             $qrDataUri = $this->generateQrSvgDataUri($document->qr_code_url);
         }
 
+        // Color mapping from frontend themes
+        $themeMap = [
+            'plain' =>            ['primary' => '#1f2937', 'accent' => '#6b7280', 'tint' => '#f3f4f6'],
+            'blue' =>             ['primary' => '#1e40af', 'accent' => '#3b82f6', 'tint' => '#dbeafe'],
+            'red' =>              ['primary' => '#991b1b', 'accent' => '#ef4444', 'tint' => '#fee2e2'],
+            'green' =>            ['primary' => '#15803d', 'accent' => '#22c55e', 'tint' => '#dcfce7'],
+            'yellow' =>           ['primary' => '#a16207', 'accent' => '#eab308', 'tint' => '#fef3c7'],
+            'combo-flag' =>       ['primary' => '#1e40af', 'accent' => '#991b1b', 'tint' => '#fef3c7'],
+            'combo-festive' =>    ['primary' => '#991b1b', 'accent' => '#eab308', 'tint' => '#fef3c7'],
+            'combo-earth' =>      ['primary' => '#15803d', 'accent' => '#1e40af', 'tint' => '#dcfce7'],
+            'combo-gov' =>        ['primary' => '#1e3a8a', 'accent' => '#92400e', 'tint' => '#fef3c7'],
+            'combo-bayanihan' =>  ['primary' => '#991b1b', 'accent' => '#1e40af', 'tint' => '#fee2e2'],
+            'combo-sunrise' =>    ['primary' => '#a16207', 'accent' => '#991b1b', 'tint' => '#fef3c7'],
+            'combo-coastal' =>    ['primary' => '#1e40af', 'accent' => '#15803d', 'tint' => '#dbeafe'],
+            'combo-heritage' =>   ['primary' => '#991b1b', 'accent' => '#15803d', 'tint' => '#fee2e2'],
+        ];
+
+        $colorThemeStr = $barangay->settings['document_color_theme'] ?? 'plain';
+        $themeColors = $themeMap[$colorThemeStr] ?? $themeMap['plain'];
+
+        // Font mapping from frontend themes
+        $fontMap = [
+            'times' => '"Times New Roman", Times, serif',
+            'arial' => 'Arial, Helvetica, sans-serif',
+            'inter' => 'system-ui, sans-serif',
+            'poppins' => 'system-ui, sans-serif',
+            'merriweather' => 'Georgia, serif',
+            'playfair' => 'Georgia, serif',
+        ];
+        $fontStr = $barangay->settings['document_font'] ?? 'times';
+        $fontFamily = $fontMap[$fontStr] ?? $fontMap['times'];
+
+        // Fetch officials
+        $officials = \App\Models\Tenant\Officials\BarangayOfficial::with('resident')
+            ->where('barangay_id', $barangay->id)
+            ->where('status', 'active')
+            ->orderBy('sort_order')
+            ->get()
+            ->map(function ($official) {
+                return (object) [
+                    'name' => $official->resident ? trim(($official->resident->first_name ?? '') . ' ' . ($official->resident->last_name ?? '')) : 'Hon. ____________',
+                    'position' => $official->position,
+                ];
+            });
+
         return [
             'document' => $document,
             'template' => $template,
@@ -235,6 +280,13 @@ class DocumentPdfService
             'issuedAt' => now()->setTimezone('Asia/Manila')->format('F d, Y'),
             'settings' => $template->settings ?? [],
             'approvalConfig' => $template->approval_config ?? [],
+            // Design injection
+            'themePrimary' => $themeColors['primary'],
+            'themeAccent' => $themeColors['accent'],
+            'themeTint' => $themeColors['tint'],
+            'fontFamily' => $fontFamily,
+            'designPattern' => $barangay->settings['document_design_pattern'] ?? 'wave',
+            'officials' => $officials,
         ];
     }
 
@@ -320,7 +372,7 @@ class DocumentPdfService
             'mime_type' => 'application/pdf',
             'size_bytes' => strlen($pdfBinary),
             'storage_path' => $storagePath,
-            'storage_bucket' => $disk === 'do_spaces' ? 'primex' : null,
+            'storage_bucket' => config("filesystems.disks.{$disk}.bucket", 'local'),
             'uploaded_by' => $document->created_by,
             'category' => 'document',
             'is_public' => false,
