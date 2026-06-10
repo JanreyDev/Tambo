@@ -248,6 +248,7 @@ function EditableBody({
   const [minHeight, setMinHeight] = useState<number | undefined>(undefined);
   const [showTags, setShowTags] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
+  const initialContent = useRef(rawContent || "");
 
   const insertTag = (tag: string) => {
     if (editorRef.current) {
@@ -268,9 +269,13 @@ function EditableBody({
           contentEditable
           suppressContentEditableWarning
           autoFocus
+          onInput={(e) => {
+            if (onContentChange) {
+              onContentChange(e.currentTarget.innerText);
+            }
+          }}
           onBlur={(e) => {
             setIsEditing(false);
-            onContentChange(e.currentTarget.innerText);
           }}
           className={`${className} outline-none ring-[1.5px] ring-[var(--accent-primary)] rounded-sm font-inherit text-black shadow-inner whitespace-pre-wrap cursor-text relative z-10`}
           style={{ 
@@ -280,9 +285,8 @@ function EditableBody({
             minHeight: Math.max(minHeight || 0, 280) + 'px',
             paddingRight: '28px' // Prevent text from hiding under the button
           }}
-        >
-          {rawContent || ""}
-        </div>
+          dangerouslySetInnerHTML={{ __html: initialContent.current }}
+        />
         
         {/* Floating Variable Picker */}
         <div className="absolute top-1.5 right-1.5 z-50">
@@ -329,6 +333,7 @@ function EditableBody({
       dangerouslySetInnerHTML={{ __html: bodyHtml || "&nbsp;" }} 
       onClick={(e) => { 
         if (onContentChange) {
+          initialContent.current = rawContent || "";
           setMinHeight(e.currentTarget.clientHeight);
           setIsEditing(true); 
         }
