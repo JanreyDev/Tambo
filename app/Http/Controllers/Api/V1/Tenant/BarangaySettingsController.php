@@ -85,6 +85,7 @@ class BarangaySettingsController extends Controller
             'settings.document_font' => ['nullable', 'in:times,arial,inter,poppins,merriweather,playfair'],
             'settings.document_color_theme' => ['nullable', 'in:plain,blue,red,green,yellow,combo-flag,combo-festive,combo-earth,combo-gov,combo-bayanihan,combo-sunrise,combo-coastal,combo-heritage'],
             'settings.document_design_pattern' => ['nullable', 'in:wave,gradient,bold,photo,minimal,stripe,wreath,sunburst,gothic,scroll,diplomatic,ornate,geometric,bold-stripe,tech'],
+            'settings.customized_resident_certificates' => ['nullable', 'array'],
             // Sub-object namespaces — validated loosely (sub-shape validated by each tab's UI)
             'settings.vawc' => ['nullable', 'array'],
             'settings.gad' => ['nullable', 'array'],
@@ -127,6 +128,7 @@ class BarangaySettingsController extends Controller
                 'contact',
                 // Per-barangay autocomplete dictionaries for the Residents form
                 'residents_dictionaries',
+                'customized_resident_certificates',
             ];
             $validated['settings'] = array_intersect_key(
                 $validated['settings'],
@@ -140,7 +142,9 @@ class BarangaySettingsController extends Controller
             }
             // Merge with existing settings to preserve AI config and other keys
             $existing = Barangay::findOrFail($request->user()->barangay_id)->settings ?? [];
+            Log::info("Settings before merge: ", ['raw' => $request->input('settings'), 'validated' => $validated['settings']]);
             $validated['settings'] = array_merge($existing, $validated['settings']);
+            Log::info("Settings after merge: ", ['merged' => $validated['settings']]);
         }
 
         // Whitelist notification_preferences keys — reject unknown keys
