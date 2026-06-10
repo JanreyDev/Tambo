@@ -242,6 +242,39 @@ export function GenerateDocumentWizard({
     return () => clearTimeout(t);
   }, [residentSearch]);
 
+  // ── Sync inline edits from contenteditable ──
+  useEffect(() => {
+    if (!open) return;
+    const container = document.getElementById("document-preview-container");
+    if (!container) return;
+
+    const handleFocusOut = (e: FocusEvent) => {
+      const target = e.target as HTMLElement;
+      if (target && target.isContentEditable && target.dataset.mergeField) {
+        const key = target.dataset.mergeField;
+        const text = target.innerText.trim();
+        if (key === "purpose") {
+          setPurpose(text);
+        } else if (key === "or_number") {
+          setOrNumber(text);
+        } else if (key === "or_amount") {
+          setOrAmount(text);
+        } else if (key === "ctc_number") {
+          setCtcNumber(text);
+        } else if (key === "ctc_date") {
+          setCtcDate(text);
+        } else if (key === "ctc_place") {
+          setCtcPlace(text);
+        } else {
+          setCustomFields(prev => ({ ...prev, [key]: text }));
+        }
+      }
+    };
+
+    container.addEventListener("focusout", handleFocusOut);
+    return () => container.removeEventListener("focusout", handleFocusOut);
+  }, [open]);
+
   // ── Init Mabini chat ──
   const initMabiniChat = useCallback((tpl: DocumentTemplate, resident: ResidentSummary | null) => {
     const requiredFields = tpl.custom_inputs?.filter((i) => i.required) ?? [];
@@ -359,11 +392,14 @@ export function GenerateDocumentWizard({
 
   const renderMergedHtml = useCallback((text: string): string => {
     const vals = buildPreviewValues();
-    return text.replace(/\{\{(\w+)\}\}/g, (_, key) =>
-      vals[key]
-        ? `<span class="font-semibold text-slate-900">${vals[key]}</span>`
-        : `<span class="text-amber-500 font-mono text-xs">{{${key}}}</span>`
-    );
+    return text.replace(/\{\{(\w+)\}\}/g, (_, key) => {
+      const isEditable = key === "purpose" || key.startsWith("or_") || key.startsWith("ctc_") || key.startsWith("custom_") || !vals[key];
+      const val = vals[key] || "";
+      if (isEditable) {
+        return `<span contenteditable="true" data-merge-field="${key}" class="inline-block min-w-[60px] border-b border-dashed border-amber-500 bg-amber-50/50 hover:bg-amber-100/80 focus:bg-blue-50 focus:border-blue-500 focus:border-solid focus:outline-none transition-colors px-1 text-center font-semibold text-slate-900 cursor-text empty:before:content-[attr(data-placeholder)] empty:before:text-amber-600/70" data-placeholder="[ ${key.replace(/_/g, " ")} ]" title="Click to edit">${val}</span>`;
+      }
+      return `<span class="font-semibold text-slate-900">${val}</span>`;
+    });
   }, [buildPreviewValues]);
 
   // ── Generate document ──
@@ -430,7 +466,7 @@ export function GenerateDocumentWizard({
   };
 
   // ── Filtered templates ──
-  const configuredIds = barangaySettings?.settings?.customized_resident_certificates?.map((c: any) => c.id);
+  const configuredIds = Array.isArray(barangaySettings?.settings?.customized_resident_certificates) ? barangaySettings?.settings?.customized_resident_certificates?.map((c: any) => c.id) : undefined;
   const wizardFilteredTemplates = templates.filter((t) => {
     if (configuredIds && configuredIds.length > 0 && !configuredIds.includes(t.id)) return false;
     const matchesSearch = !templateSearch
@@ -984,12 +1020,11 @@ export function GenerateDocumentWizard({
                       className="w-full h-full min-h-[600px] bg-white dark:bg-slate-800 rounded-lg shadow-md border border-slate-200 dark:border-slate-700 p-8 text-sm text-slate-800 dark:text-slate-200 leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20"
                     />
                   ) : (
-                    <>
+                    <div id="document-preview-container" className="flex flex-col items-center w-full">
                       {/* Paper size indicator */}
                       <div className="flex items-center justify-center gap-1.5 mb-3">
                         <span className="text-[10px] text-slate-400 uppercase tracking-widest font-medium">{paperLabel}</span>
                       </div>
-                    <div className="bg-white rounded-sm shadow-lg border border-slate-200 w-full overflow-hidden">
                       <DocumentLivePreview
                         layout={(barangaySettings?.settings?.document_layout as any) || "klasiko"}
                         paperSize={(selectedTemplate.settings?.paper_size as any) || (barangaySettings?.settings?.document_paper_size as any) || "short_bond"}
@@ -1011,8 +1046,12 @@ export function GenerateDocumentWizard({
                         contentControlNo="(assigned on save)"
                         contentIssuedDate={issuedDate ? new Date(issuedDate + "T00:00:00").toLocaleDateString("en-PH", { month: "long", day: "numeric", year: "numeric" }) : undefined}
                       />
+                      {/* Inline editing hint */}
+                      <p className="mt-2 text-[10px] text-center text-amber-600/80 dark:text-amber-400/70 flex items-center justify-center gap-1">
+                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400" />
+                        <span>Click the <span className="font-semibold underline underline-offset-2 decoration-dashed">underlined fields</span> in the document to type directly</span>
+                      </p>
                     </div>
-                    </>
                   )}
                 </div>
 
