@@ -11,6 +11,7 @@ import {
   BadgeCheck, Calendar, Printer, MessageSquare,
 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
+import { DocumentLivePreview } from "@/components/settings/DocumentLivePreview";
 import { SendSmsModal } from "@/components/residents/SendSmsModal";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge, StatusBadge } from "@/components/ui/badge";
@@ -414,6 +415,7 @@ function ActionMenuPortal({
   activeId: string | null;
   position: { top: number; right: number } | null;
   establishment: Establishment | null;
+  settings?: any;
   onClose: () => void;
   onNew: (e: Establishment) => void;
   onRenewal: (e: Establishment) => void;
@@ -486,11 +488,12 @@ function ActionMenuPortal({
 // Full-screen overlay: live-editable document preview + Mabini AI inline editor + single Issue & Print button
 
 function DocGenModal({
-  open, type, establishment, printOnly, processing, onConfirm, onClose,
+  open, type, establishment, settings, printOnly, processing, onConfirm, onClose,
 }: {
   open: boolean;
   type: "new" | "renewal" | "closure";
   establishment: Establishment | null;
+  settings?: any;
   printOnly?: boolean;
   processing?: boolean;
   onConfirm: () => void;
@@ -641,81 +644,79 @@ If the user only wants to change one field, keep the other field unchanged. Alwa
       <div className="relative z-10 w-full max-w-5xl max-h-[95vh] flex rounded-2xl overflow-hidden shadow-2xl border border-border bg-background">
 
         {/* ── Left: Document Preview ── */}
-        <div className="flex-1 bg-slate-100 dark:bg-slate-800/60 overflow-y-auto p-6">
-          <div
-            ref={docRef}
-            className="bg-white shadow-lg rounded mx-auto max-w-[580px] p-10 text-black"
-            style={{ fontFamily: "'Times New Roman', serif", fontSize: "12pt", lineHeight: 1.6 }}
-          >
-            {/* Header */}
-            <div style={{ textAlign: "center", marginBottom: "24px" }}>
-              <p style={{ fontSize: "9pt", letterSpacing: "2px", textTransform: "uppercase", margin: "0 0 2px 0" }}>
-                Republic of the Philippines
-              </p>
-              <p style={{ fontSize: "9pt", margin: "0 0 16px 0" }}>Barangay Office</p>
-              <div style={{ borderTop: "2.5px solid #000", borderBottom: "2.5px solid #000", padding: "8px 0", margin: "0 0 6px 0" }}>
-                <h1 style={{ fontSize: "14pt", fontWeight: "bold", letterSpacing: "1.5px", textTransform: "uppercase", margin: 0 }}>
-                  {docConfig.title}
-                </h1>
+        <div className="flex-1 bg-slate-100 dark:bg-slate-800/60 overflow-y-auto p-6 flex justify-center items-start custom-scrollbar">
+          {(() => {
+            // Find template configuration
+            const docTitle = docConfig.title;
+            const customCerts = settings?.customized_establishment_certificates || [];
+            // Match custom certificate by title (case insensitive)
+            const customConfig = customCerts.find((c: any) => c.title && c.title.toLowerCase() === docTitle.toLowerCase()) || 
+                                 customCerts.find((c: any) => c.name && c.name.toLowerCase().includes(type));
+            
+            const isGlobal = !customConfig || customConfig.isGlobal;
+            
+            const docFont = settings?.document_font || "times";
+            const fontVal = isGlobal ? docFont : customConfig?.design_settings?.document_font;
+            
+            const docPattern = settings?.document_design_pattern || "wave";
+            const pattern = isGlobal ? docPattern : customConfig?.design_settings?.document_design_pattern;
+            
+            const docColor = settings?.document_color_theme || "plain";
+            const colors = isGlobal ? docColor : customConfig?.design_settings?.document_color_theme;
+            
+            const layout = isGlobal ? (settings?.document_layout || "klasiko") : (customConfig?.design_settings?.document_layout || "klasiko");
+            const paperSize = isGlobal ? (settings?.document_paper_size || "a4") : (customConfig?.design_settings?.document_paper_size || "a4");
+
+            // Build dynamic body content by replacing variables
+            let finalBodyHtml = certBody || "";
+            // If they defined a custom content block, use it! Otherwise fallback to certBody
+            let rawCustom = "";
+            if (!isGlobal && customConfig?.design_settings?.custom_content) {
+              rawCustom = customConfig.design_settings.custom_content;
+              finalBodyHtml = rawCustom;
+            }
+
+            // Replace variables safely without RegExp to avoid SyntaxErrors
+            const vars: Record<string, string> = {
+              "{{business_name}}": establishment.business_name || "",
+              "{{business_type}}": establishment.business_type || "",
+              "{{owner_name}}": establishment.owner_name || "",
+              "{{business_address}}": address || "",
+            };
+            Object.entries(vars).forEach(([k, v]) => {
+              finalBodyHtml = finalBodyHtml.split(k).join(v);
+            });
+
+            // Append footer note if not using custom content
+            if (!rawCustom) {
+               finalBodyHtml += '<br/><br/>' + footerNote;
+            }
+
+            return (
+              <div ref={docRef} className="shrink-0" style={{ width: '800px', transformOrigin: 'top center' }}>
+                <DocumentLivePreview
+                  layout={layout as any}
+                  paperSize={paperSize as any}
+                  font={fontVal as any}
+                  colorTheme={colors as any}
+                  designPattern={pattern as any}
+                  barangayName={settings?.name}
+                  municipality={settings?.city_municipality}
+                  province={settings?.province}
+                  logoUrl={settings?.logo_url ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/public-assets/${settings.logo_url}` : undefined}
+                  municipalityLogoUrl={settings?.municipality_logo_url ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/public-assets/${settings.municipality_logo_url}` : undefined}
+                  signatoryName={settings?.punong_barangay_name || "JUAN DELA CRUZ"}
+                  signatoryTitle="PUNONG BARANGAY"
+                  contentTitle={docTitle}
+                  contentBodyHtml={finalBodyHtml}
+                  contentControlNo={`NO. ${establishment.establishment_number}`}
+                  hideChrome={true}
+                />
               </div>
-              <p style={{ fontSize: "10pt", fontFamily: "monospace", margin: "4px 0 0 0" }}>
-                No. {establishment.establishment_number}
-              </p>
-            </div>
-
-            <p style={{ textAlign: "justify", marginBottom: "20px" }}>
-              <span style={{ fontWeight: "bold" }}>TO WHOM IT MAY CONCERN:</span>
-            </p>
-            <p style={{ textAlign: "justify", marginBottom: "20px" }}>{certBody}</p>
-
-            <table style={{ width: "100%", marginBottom: "20px" }}>
-              <tbody>
-                <tr>
-                  <td className="label" style={{ width: "38%", fontWeight: "bold", paddingBottom: "6px" }}>Business Name:</td>
-                  <td style={{ fontWeight: "bold", textTransform: "uppercase" }}>{establishment.business_name}</td>
-                </tr>
-                <tr>
-                  <td style={{ fontWeight: "bold", paddingBottom: "6px" }}>Business Type:</td>
-                  <td>{establishment.business_type || "—"}</td>
-                </tr>
-                <tr>
-                  <td style={{ fontWeight: "bold", paddingBottom: "6px" }}>Owner / Proprietor:</td>
-                  <td>{establishment.owner_name || "—"}</td>
-                </tr>
-                <tr>
-                  <td style={{ fontWeight: "bold", paddingBottom: "6px" }}>Business Address:</td>
-                  <td>{address}</td>
-                </tr>
-                {establishment.registration_type && (
-                  <tr>
-                    <td style={{ fontWeight: "bold", paddingBottom: "6px" }}>{establishment.registration_type} Number:</td>
-                    <td style={{ fontFamily: "monospace" }}>{establishment.registration_number || "—"}</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-
-            {type !== "closure" && (
-              <p style={{ textAlign: "center", fontWeight: "bold", margin: "0 0 20px 0" }}>
-                Valid for the Year {year}
-              </p>
-            )}
-
-            <p style={{ textAlign: "justify", marginBottom: "32px" }}>{footerNote}</p>
-
-            <p style={{ marginBottom: "40px" }}>
-              Issued this <span style={{ fontWeight: "bold" }}>{dateStr}</span> at the Barangay Office.
-            </p>
-            <div style={{ textAlign: "center" }}>
-              <div className="sig-line" style={{ borderTop: "1px solid #000", paddingTop: "4px", width: "200px", margin: "0 auto" }}>
-                <p style={{ fontWeight: "bold", fontSize: "10pt", margin: "0", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                  Punong Barangay
-                </p>
-              </div>
-            </div>
-          </div>
+            );
+          })()}
         </div>
-
+        
         {/* ── Right: Controls ── */}
         <div className="w-72 flex flex-col border-l border-border shrink-0">
           {/* Header */}
@@ -848,6 +849,11 @@ export default function EstablishmentsPage() {
 
   // Data
   const [establishments, setEstablishments] = useState<Establishment[]>([]);
+  const [settings, setSettings] = useState<any>(null);
+
+  useEffect(() => {
+    api.settings.get().then(setSettings).catch(console.error);
+  }, []);
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [lastPage, setLastPage] = useState(1);
@@ -2061,6 +2067,7 @@ export default function EstablishmentsPage() {
         open={docGenOpen}
         type={docGenType}
         establishment={docGenTarget}
+        settings={settings}
         printOnly={docGenPrintOnly}
         processing={docGenProcessing}
         onConfirm={handleDocGenConfirm}

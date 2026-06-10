@@ -713,8 +713,8 @@ export default function CensusPage() {
   // ── Duplicate check (auto-fires when identity fields change) ──────────
   useEffect(() => {
     if (dupTimer.current) clearTimeout(dupTimer.current);
-    const fn = form.first_name.trim();
-    const ln = form.last_name.trim();
+    const fn = form.first_name?.trim() || "";
+    const ln = form.last_name?.trim() || "";
     const dob = form.date_of_birth;
     if (!fn || !ln || !dob) { setDupResults([]); setDupChecked(false); return; }
     if (!isOnline) { setDupChecked(false); return; }
@@ -723,7 +723,7 @@ export default function CensusPage() {
       try {
         const res = await api.residents.checkDuplicate({
           first_name: fn, last_name: ln,
-          middle_name: form.middle_name.trim() || undefined,
+          middle_name: form.middle_name?.trim() || undefined,
           date_of_birth: dob,
         });
         setDupResults(res.has_duplicates ? res.matches : []);
@@ -744,10 +744,10 @@ export default function CensusPage() {
   const validateStep = (s: number): Record<string, string> => {
     const errors: Record<string, string> = {};
     if (s === 0) { // Identity
-      if (!form.first_name.trim()) errors.first_name = "Required";
-      if (!form.last_name.trim()) errors.last_name = "Required";
+      if (!form.first_name?.trim()) errors.first_name = "Required";
+      if (!form.last_name?.trim()) errors.last_name = "Required";
       if (!form.date_of_birth) errors.date_of_birth = "Required";
-      if (!form.place_of_birth.trim()) errors.place_of_birth = "Required";
+      if (!form.place_of_birth?.trim()) errors.place_of_birth = "Required";
       if (!form.sex) errors.sex = "Required";
       if (!form.civil_status) errors.civil_status = "Required";
     }
@@ -761,7 +761,7 @@ export default function CensusPage() {
   const goNext = () => {
     const errors = validateStep(step);
     if (Object.keys(errors).length > 0) {
-      const currentStepLabel = STEPS[step].label;
+      const currentStepLabel = STEPS[step]?.label || `Step ${step + 1}`;
       const fieldNames = Object.keys(errors).map((key) => FIELD_LABELS[key] || key.replace(/_/g, " "));
       toast("error", `May kulang sa ${currentStepLabel}`, `I-fill up: ${fieldNames.join(", ")}`, 5000);
       return;
@@ -778,16 +778,16 @@ export default function CensusPage() {
   const buildPayload = (): Record<string, unknown> => {
     return {
       // Identity
-      first_name: form.first_name.trim(),
-      last_name: form.last_name.trim(),
-      middle_name: form.middle_name.trim() || null,
+      first_name: form.first_name?.trim(),
+      last_name: form.last_name?.trim(),
+      middle_name: form.middle_name?.trim() || null,
       extension_name: form.extension_name || null,
-      mothers_maiden_name: form.mothers_maiden_name.trim() || null,
+      mothers_maiden_name: form.mothers_maiden_name?.trim() || null,
       date_of_birth: form.date_of_birth,
-      place_of_birth: form.place_of_birth.trim(),
+      place_of_birth: form.place_of_birth?.trim(),
       sex: form.sex,
       civil_status: form.civil_status,
-      citizenship: form.citizenship.trim() || "FILIPINO",
+      citizenship: form.citizenship?.trim() || "FILIPINO",
       resident_type: form.resident_type || "permanent",
       registration_source: "census",
 
@@ -796,15 +796,15 @@ export default function CensusPage() {
       height_cm: form.height_cm ? parseFloat(form.height_cm) : null,
       weight_kg: form.weight_kg ? parseFloat(form.weight_kg) : null,
       complexion: form.complexion || null,
-      religion: form.religion.trim() || null,
-      ethnicity: form.ethnicity.trim() || null,
+      religion: form.religion?.trim() || null,
+      ethnicity: form.ethnicity?.trim() || null,
 
       // Address
       purok: form.purok || null,
-      sitio: form.sitio.trim() || null,
-      street: form.street.trim() || null,
-      house_block_lot: form.house_block_lot.trim() || null,
-      zip_code: form.zip_code.trim() || null,
+      sitio: form.sitio?.trim() || null,
+      street: form.street?.trim() || null,
+      house_block_lot: form.house_block_lot?.trim() || null,
+      zip_code: form.zip_code?.trim() || null,
       latitude: form.latitude ? parseFloat(form.latitude) : null,
       longitude: form.longitude ? parseFloat(form.longitude) : null,
 
@@ -813,24 +813,24 @@ export default function CensusPage() {
       relationship_to_head: form.relationship_to_head || null,
 
       // Contact
-      mobile_number: form.mobile_number.trim() || null,
-      telephone: form.telephone.trim() || null,
-      email: form.email.trim() || null,
+      mobile_number: form.mobile_number?.trim() || null,
+      telephone: form.telephone?.trim() || null,
+      email: form.email?.trim() || null,
 
       // Voter
       is_voter: form.is_voter === "yes",
       is_resident_voter: form.is_resident_voter === "yes",
-      voter_precinct_number: form.voter_precinct_number.trim() || null,
+      voter_precinct_number: form.voter_precinct_number?.trim() || null,
       last_voted_year: form.last_voted_year ? parseInt(form.last_voted_year) : null,
 
       // Sectors & Health
       sectors: sectors.length > 0 ? sectors : null,
-      sector_other: form.sector_other.trim() || null,
-      health_history: form.health_history.trim() || null,
+      sector_other: form.sector_other?.trim() || null,
+      health_history: form.health_history?.trim() || null,
       is_organ_donor: form.is_organ_donor === "yes",
-      skills: form.skills.trim() || null,
-      other_remarks: form.other_remarks.trim() || null,
-      barangay_position: form.barangay_position.trim() || null,
+      skills: form.skills?.trim() || null,
+      other_remarks: form.other_remarks?.trim() || null,
+      barangay_position: form.barangay_position?.trim() || null,
       barangay_role_start: form.barangay_role_start || null,
       barangay_role_end: form.barangay_role_end || null,
 
@@ -842,10 +842,10 @@ export default function CensusPage() {
 
       // Employment
       livelihood_type: form.livelihood_type || null,
-      occupation: form.occupation.trim() || null,
-      employer: form.employer.trim() || null,
+      occupation: form.occupation?.trim() || null,
+      employer: form.employer?.trim() || null,
       monthly_income_range: form.monthly_income_range || null,
-      source_of_income: form.source_of_income.trim() || null,
+      source_of_income: form.source_of_income?.trim() || null,
       work_entries: workEntries.length > 0
         ? workEntries.filter((w) => w.position)
         : null,
@@ -854,22 +854,22 @@ export default function CensusPage() {
         : null,
 
       // Gov IDs
-      philhealth_number: form.philhealth_number.trim() || null,
+      philhealth_number: form.philhealth_number?.trim() || null,
       philhealth_expiry: form.philhealth_expiry || null,
-      sss_gsis_number: form.sss_gsis_number.trim() || null,
+      sss_gsis_number: form.sss_gsis_number?.trim() || null,
       sss_gsis_expiry: form.sss_gsis_expiry || null,
-      pagibig_number: form.pagibig_number.trim() || null,
+      pagibig_number: form.pagibig_number?.trim() || null,
       pagibig_expiry: form.pagibig_expiry || null,
-      tin_number: form.tin_number.trim() || null,
+      tin_number: form.tin_number?.trim() || null,
       tin_expiry: form.tin_expiry || null,
-      pwd_id: form.pwd_id.trim() || null,
+      pwd_id: form.pwd_id?.trim() || null,
       pwd_id_expiry: form.pwd_id_expiry || null,
-      senior_citizen_id: form.senior_citizen_id.trim() || null,
+      senior_citizen_id: form.senior_citizen_id?.trim() || null,
 
       // Emergency
-      emergency_contact_name: form.emergency_contact_name.trim() || null,
-      emergency_contact_phone: form.emergency_contact_phone.trim() || null,
-      emergency_contact_address: form.emergency_contact_address.trim() || null,
+      emergency_contact_name: form.emergency_contact_name?.trim() || null,
+      emergency_contact_phone: form.emergency_contact_phone?.trim() || null,
+      emergency_contact_address: form.emergency_contact_address?.trim() || null,
       emergency_contact_relationship: form.emergency_contact_relationship || null,
 
       // Photo
@@ -1098,7 +1098,7 @@ export default function CensusPage() {
       <div className="sticky top-0 z-40 px-3 pt-2 pb-1 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="flex items-center justify-between mb-1.5">
           <p className="text-xs font-semibold text-foreground">
-            Step {step + 1}/{STEPS.length}: <span style={{ color: "var(--accent-primary)" }}>{currentStep.desc}</span>
+            Step {step + 1}/{STEPS.length}: <span style={{ color: "var(--accent-primary)" }}>{currentStep?.desc}</span>
           </p>
           <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800">
             <UserCheck className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
@@ -1750,7 +1750,7 @@ export default function CensusPage() {
         {/* ── AI Tip (every step) ────────────────────────────────────── */}
         <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-accent-bg/30 border border-accent-primary/15">
           <Sparkles className="h-3.5 w-3.5 mt-0.5 shrink-0" style={{ color: "var(--accent-primary)" }} />
-          <p className="text-[11px] text-muted-foreground leading-relaxed">{AI_TIPS[currentStep.id]}</p>
+          <p className="text-[11px] text-muted-foreground leading-relaxed">{currentStep ? AI_TIPS[currentStep.id] : ""}</p>
         </div>
       </div>
 

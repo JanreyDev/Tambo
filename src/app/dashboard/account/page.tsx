@@ -643,7 +643,7 @@ export default function AccountPage() {
 
   const formatRole = (roles?: string[]) => {
     if (!roles || roles.length === 0) return "Staff";
-    return roles[0].replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
+    return roles[0]!.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
   };
 
   const formatTime = (iso: string) => {

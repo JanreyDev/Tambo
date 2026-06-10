@@ -269,27 +269,35 @@ function OfficialModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Debounced resident search
+  // Load residents immediately so the picker also works as a dropdown.
+  // Subsequent typing filters the same endpoint from the first character.
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (!residentQuery || residentQuery.length < 2) {
-      setResidentResults([]);
-      return;
-    }
+    const query = residentQuery.trim();
+    let cancelled = false;
+
     debounceRef.current = setTimeout(async () => {
       setSearchLoading(true);
       try {
-        const res = await api.residents.list({ search: residentQuery, per_page: 10 });
-        setResidentResults(res.data);
-        setResultsOpen(true);
+        const res = await api.residents.list({
+          ...(query ? { search: query } : {}),
+          per_page: 20,
+          sort_by: "last_name",
+          sort_dir: "asc",
+        });
+        if (!cancelled) setResidentResults(res.data);
       } catch {
-        setResidentResults([]);
+        if (!cancelled) setResidentResults([]);
       } finally {
-        setSearchLoading(false);
+        if (!cancelled) setSearchLoading(false);
       }
-    }, 250);
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+    }, query ? 250 : 0);
+
+    return () => {
+      cancelled = true;
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
   }, [residentQuery]);
 
   const isCustomPos = position === "custom";
@@ -368,7 +376,12 @@ function OfficialModal({
                 <span className="text-sm font-medium text-foreground flex-1 truncate">{selectedResidentName}</span>
                 <button
                   type="button"
-                  onClick={() => { setSelectedResidentId(""); setSelectedResidentName(""); setResidentQuery(""); }}
+                  onClick={() => {
+                    setSelectedResidentId("");
+                    setSelectedResidentName("");
+                    setResidentQuery("");
+                    setResultsOpen(true);
+                  }}
                   className="text-[11px] text-muted-foreground hover:text-foreground"
                 >
                   Change
@@ -381,7 +394,11 @@ function OfficialModal({
                   <input
                     type="text"
                     value={residentQuery}
-                    onChange={(e) => setResidentQuery(e.target.value)}
+                    onChange={(e) => {
+                      setResidentQuery(e.target.value);
+                      setResultsOpen(true);
+                    }}
+                    onFocus={() => setResultsOpen(true)}
                     placeholder="Search residents by name..."
                     className="w-full pl-9 pr-3 py-2.5 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 transition-colors"
                     style={{ "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties}
@@ -414,8 +431,12 @@ function OfficialModal({
                     ))}
                   </div>
                 )}
-                {residentQuery.length >= 2 && !searchLoading && residentResults.length === 0 && (
-                  <p className="text-[11px] text-muted-foreground mt-1.5">No matching residents found. Add them to the Residents page first.</p>
+                {resultsOpen && !searchLoading && residentResults.length === 0 && (
+                  <p className="text-[11px] text-muted-foreground mt-1.5">
+                    {residentQuery.trim()
+                      ? "No matching residents found."
+                      : "No residents found. Add them to the Residents page first."}
+                  </p>
                 )}
               </>
             )}

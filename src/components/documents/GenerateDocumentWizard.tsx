@@ -390,6 +390,12 @@ export function GenerateDocumentWizard({
     return vals;
   }, [selectedResident, customFields, purpose, issuedDate]);
 
+  const customConfigs = (selectedTemplate?.constituent_type === "establishment" ? barangaySettings?.settings?.customized_establishment_certificates : barangaySettings?.settings?.customized_resident_certificates) || [];
+  const customConfig = customConfigs.find((c: any) => c.id === selectedTemplate?.id);
+  const customSettings = customConfig?.design_settings || {};
+  const useGlobalDesign = customConfig ? (customConfig.isGlobal ?? true) : true;
+  const baseContent = (!useGlobalDesign && customSettings.custom_content) ? customSettings.custom_content : selectedTemplate?.content;
+
   const renderMergedHtml = useCallback((text: string): string => {
     const vals = buildPreviewValues();
     return text.replace(/\{\{(\w+)\}\}/g, (_, key) => {
@@ -466,7 +472,10 @@ export function GenerateDocumentWizard({
   };
 
   // ── Filtered templates ──
-  const configuredIds = Array.isArray(barangaySettings?.settings?.customized_resident_certificates) ? barangaySettings?.settings?.customized_resident_certificates?.map((c: any) => c.id) : undefined;
+  const configuredIds = [
+    ...(Array.isArray(barangaySettings?.settings?.customized_resident_certificates) ? barangaySettings.settings.customized_resident_certificates : []),
+    ...(Array.isArray(barangaySettings?.settings?.customized_establishment_certificates) ? barangaySettings.settings.customized_establishment_certificates : [])
+  ].map((c: any) => c.id);
   const wizardFilteredTemplates = templates.filter((t) => {
     if (configuredIds && configuredIds.length > 0 && !configuredIds.includes(t.id)) return false;
     const matchesSearch = !templateSearch
@@ -987,7 +996,7 @@ export function GenerateDocumentWizard({
                     <button
                       onClick={() => {
                         if (previewMode === "preview") {
-                          const currentContent = manualContent ?? selectedTemplate.content ?? "";
+                          const currentContent = manualContent ?? baseContent ?? "";
                           const rendered = renderMergedHtml(currentContent)
                             .replace(/<[^>]*>/g, "")
                             .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
@@ -1026,7 +1035,7 @@ export function GenerateDocumentWizard({
                         <span className="text-[10px] text-slate-400 uppercase tracking-widest font-medium">{paperLabel}</span>
                       </div>
                       {(() => {
-                        const customConfigs = barangaySettings?.settings?.customized_resident_certificates || [];
+                        const customConfigs = (selectedTemplate?.constituent_type === "establishment" ? barangaySettings?.settings?.customized_establishment_certificates : barangaySettings?.settings?.customized_resident_certificates) || [];
                         const customConfig = customConfigs.find((c: any) => c.id === selectedTemplate.id);
                         const customSettings = customConfig?.design_settings || {};
                         const useGlobalDesign = customConfig ? (customConfig.isGlobal ?? true) : true;
@@ -1055,7 +1064,7 @@ export function GenerateDocumentWizard({
                         fitToContainer={true}
                         contentTitle={selectedTemplate.title ?? selectedTemplate.name}
                         contentSalutation={selectedTemplate.salutation}
-                        contentBodyHtml={renderMergedHtml(manualContent ?? selectedTemplate.content ?? "")}
+                        contentBodyHtml={renderMergedHtml(manualContent ?? baseContent ?? "")}
                         contentControlNo="(assigned on save)"
                         contentIssuedDate={issuedDate ? new Date(issuedDate + "T00:00:00").toLocaleDateString("en-PH", { month: "long", day: "numeric", year: "numeric" }) : undefined}
                       />
@@ -1180,3 +1189,5 @@ export function GenerateDocumentWizard({
     </>
   );
 }
+
+
