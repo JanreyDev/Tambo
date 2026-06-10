@@ -304,6 +304,12 @@ class DocumentTemplateController extends Controller
             'settings.show_expiry' => ['nullable', 'boolean'],
             'settings.expiry_months' => ['nullable', 'integer', 'min:1', 'max:120'],
 
+            'settings.use_global_design' => ['nullable', 'boolean'],
+            'settings.document_layout' => ['nullable', 'string', 'max:50'],
+            'settings.document_color_theme' => ['nullable', 'string', 'max:50'],
+            'settings.document_design_pattern' => ['nullable', 'string', 'max:50'],
+            'settings.document_font' => ['nullable', 'string', 'max:50'],
+
             'status' => ['nullable', Rule::in(self::VALID_STATUSES)],
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:9999'],
         ]);

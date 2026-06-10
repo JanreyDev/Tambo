@@ -126,7 +126,15 @@ class DocumentPdfService
                     'isRemoteEnabled' => false,
                 ]);
         } else {
-            $layout = $barangay->settings['document_layout'] ?? 'klasiko';
+            $customConfigs = $barangay->settings['customized_resident_certificates'] ?? [];
+            $customConfig = collect($customConfigs)->firstWhere('id', $template->id);
+            $customSettings = $customConfig['design_settings'] ?? null;
+            $useGlobalDesign = $customConfig ? ($customConfig['isGlobal'] ?? true) : true;
+
+            $layout = $useGlobalDesign
+                ? ($barangay->settings['document_layout'] ?? 'klasiko')
+                : ($customSettings['document_layout'] ?? 'klasiko');
+
             $view = "pdf.certificate-{$layout}";
             if (! view()->exists($view)) {
                 $view = 'pdf.certificate-klasiko';
@@ -237,7 +245,16 @@ class DocumentPdfService
             'combo-heritage' =>   ['primary' => '#991b1b', 'accent' => '#15803d', 'tint' => '#fee2e2'],
         ];
 
-        $colorThemeStr = $barangay->settings['document_color_theme'] ?? 'plain';
+        $customConfigs = $barangay->settings['customized_resident_certificates'] ?? [];
+        $customConfig = collect($customConfigs)->firstWhere('id', $template->id);
+        $customSettings = $customConfig['design_settings'] ?? null;
+
+        $useGlobalDesign = $customConfig ? ($customConfig['isGlobal'] ?? true) : true;
+
+        $colorThemeStr = $useGlobalDesign
+            ? ($barangay->settings['document_color_theme'] ?? 'plain')
+            : ($customSettings['document_color_theme'] ?? 'plain');
+
         $themeColors = $themeMap[$colorThemeStr] ?? $themeMap['plain'];
 
         // Font mapping from frontend themes
@@ -249,8 +266,16 @@ class DocumentPdfService
             'merriweather' => 'Georgia, serif',
             'playfair' => 'Georgia, serif',
         ];
-        $fontStr = $barangay->settings['document_font'] ?? 'times';
+
+        $fontStr = $useGlobalDesign
+            ? ($barangay->settings['document_font'] ?? 'times')
+            : ($customSettings['document_font'] ?? 'times');
+
         $fontFamily = $fontMap[$fontStr] ?? $fontMap['times'];
+
+        $designPattern = $useGlobalDesign
+            ? ($barangay->settings['document_design_pattern'] ?? 'wave')
+            : ($customSettings['document_design_pattern'] ?? 'wave');
 
         // Position label map (matches frontend POSITION_OPTIONS)
         $positionLabels = [
@@ -307,7 +332,7 @@ class DocumentPdfService
             'themeAccent' => $themeColors['accent'],
             'themeTint' => $themeColors['tint'],
             'fontFamily' => $fontFamily,
-            'designPattern' => $barangay->settings['document_design_pattern'] ?? 'wave',
+            'designPattern' => $designPattern,
             'officials' => $officials,
         ];
     }
