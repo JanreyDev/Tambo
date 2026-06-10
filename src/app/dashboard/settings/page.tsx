@@ -963,6 +963,7 @@ export default function SettingsPage() {
           kpSummonsTemplate: (k0.summons_template as string) || "",
           dictionaries: initialDicts0,
           residentCertificates: (s.customized_resident_certificates as any[]) || [],
+          establishmentCertificates: (s.customized_establishment_certificates as any[]) || [],
         };
 
         setSettings(data);
@@ -1182,11 +1183,13 @@ export default function SettingsPage() {
           if (editingConstituentType === "establishment") {
             const newCerts = [...establishmentCertificates.filter(c => c.id !== option.id), newCert];
             setEstablishmentCertificates(newCerts);
-            await api.settings.update({ settings: { customized_establishment_certificates: newCerts } });
+            await api.settings.update({ settings: { customized_establishment_certificates: newCerts } } as any);
+              originalsRef.current.establishmentCertificates = newCerts;
           } else {
             const newCerts = [...residentCertificates.filter(c => c.id !== option.id), newCert];
             setResidentCertificates(newCerts);
-            await api.settings.update({ settings: { customized_resident_certificates: newCerts } });
+            await api.settings.update({ settings: { customized_resident_certificates: newCerts } } as any);
+              originalsRef.current.residentCertificates = newCerts;
           }
         }
         addToast("Custom template design saved!", "success");
@@ -1203,9 +1206,17 @@ export default function SettingsPage() {
     
     setSaving(true);
     try {
-      const newCerts = residentCertificates.filter(c => c.id !== idToRemove);
-      setResidentCertificates(newCerts);
-      await api.settings.update({ settings: { customized_resident_certificates: newCerts } });
+      if (type === "establishment") {
+        const newCerts = establishmentCertificates.filter(c => c.id !== idToRemove);
+        setEstablishmentCertificates(newCerts);
+        await api.settings.update({ settings: { customized_establishment_certificates: newCerts } } as any);
+        originalsRef.current.establishmentCertificates = newCerts;
+      } else {
+        const newCerts = residentCertificates.filter(c => c.id !== idToRemove);
+        setResidentCertificates(newCerts);
+        await api.settings.update({ settings: { customized_resident_certificates: newCerts } } as any);
+        originalsRef.current.residentCertificates = newCerts;
+      }
       addToast("Custom design removed successfully", "success");
     } catch (err) {
       addToast("Failed to remove custom design", "error");
@@ -1213,7 +1224,6 @@ export default function SettingsPage() {
       setSaving(false);
     }
   };
-
   const saveDocuments = () => saveSettings(
     {
       document_header_text: docHeader || null,
@@ -1329,7 +1339,7 @@ export default function SettingsPage() {
     gad: { gadFocalName, gadFocalTitle, gadBudgetPercent, gadPlanUrl },
     kp: { kpHearingWindowDays, kpMediationExtensionDays, kpArbitrationWindowDays, kpSummonsTemplate },
     "residents-dict": { dictionaries },
-    "customize-template": { docLayout, docPaperSize, docFont, docColorTheme, docDesignPattern, residentCertificates, docCustomContent },
+    "customize-template": { docLayout, docPaperSize, docFont, docColorTheme, docDesignPattern, residentCertificates, establishmentCertificates, docCustomContent },
   };
 
   const tabFieldSetters: Record<string, Record<string, (v: unknown) => void>> = {
@@ -1370,6 +1380,7 @@ export default function SettingsPage() {
       docColorTheme: (v) => setDocColorTheme(v as typeof docColorTheme),
       docDesignPattern: (v) => setDocDesignPattern(v as typeof docDesignPattern),
       residentCertificates: (v) => setResidentCertificates(v as any[]),
+        establishmentCertificates: (v) => setEstablishmentCertificates(v as any[]),
       docCustomContent: (v) => setDocCustomContent(v as string),
     },
     system: { smsSenderName: (v) => setSmsSenderName(v as string), signatoryName: (v) => setSignatoryName(v as string), signatoryTitle: (v) => setSignatoryTitle(v as string) },
@@ -2569,7 +2580,7 @@ export default function SettingsPage() {
                                   </button>
                                   <button 
                                     className="text-muted-foreground hover:text-red-500 transition-colors"
-                                    onClick={() => handleRemoveCustomCertificate(cert.id)}
+                                    onClick={() => handleRemoveCustomCertificate(cert.id, customizeTab === "resident" ? "resident" : "establishment")}
                                     title="Remove"
                                   >
                                     <Trash2 className="w-4 h-4" />
@@ -2774,11 +2785,13 @@ export default function SettingsPage() {
                                           if (editingConstituentType === "establishment") {
                                             const newCerts = [...establishmentCertificates.filter(c => c.id !== option.id), newCert];
                                             setEstablishmentCertificates(newCerts);
-                                            await api.settings.update({ settings: { customized_establishment_certificates: newCerts } });
+                                            await api.settings.update({ settings: { customized_establishment_certificates: newCerts } } as any);
+              originalsRef.current.establishmentCertificates = newCerts;
                                           } else {
                                             const newCerts = [...residentCertificates.filter(c => c.id !== option.id), newCert];
                                             setResidentCertificates(newCerts);
-                                            await api.settings.update({ settings: { customized_resident_certificates: newCerts } });
+                                            await api.settings.update({ settings: { customized_resident_certificates: newCerts } } as any);
+              originalsRef.current.residentCertificates = newCerts;
                                           }
                                         } catch(e) {}
                                       }
