@@ -17,13 +17,13 @@
 
         /* ── Design Pattern Header/Footer ── */
         .pattern-top {
-            position: absolute;
+            position: fixed;
             top: 0; left: 0; right: 0;
             height: 40px;
             background-color: {{ $themePrimary }}22;
         }
         .pattern-bottom {
-            position: absolute;
+            position: fixed;
             bottom: 0; left: 0; right: 0;
             height: 40px;
             background-color: {{ $themePrimary }}22;
@@ -31,14 +31,13 @@
 
         /* ── Container ── */
         .page-container {
-            position: absolute;
-            top: 40px; left: 40px; right: 40px; bottom: 40px;
+            margin: 40px 40px 180px 40px; /* Instead of absolute positioning, just use margins on body/container to leave space for the fixed header/footer */
         }
 
         /* ── Watermark ── */
         .watermark {
-            position: absolute;
-            top: 25%;
+            position: fixed;
+            top: 30%;
             left: 50%;
             width: 450px;
             height: 450px;
@@ -159,12 +158,14 @@
 
         /* ── Officials Grid (Bottom) ── */
         .officials-section {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
+            position: fixed;
+            bottom: 40px; /* Starts EXACTLY above the 40px bottom pattern */
+            left: 40px;
+            right: 40px;
+            height: 130px; /* Fixed height so it stays bounded */
             border-top: 1px solid {{ $themePrimary }}33;
-            padding-top: 15px;
+            padding-top: 10px;
+            background-color: #ffffff;
         }
 
         .officials-table {
@@ -194,15 +195,15 @@
             vertical-align: top;
         }
         .official-name {
-            font-size: 7.5pt;
+            font-size: 7pt;
             font-weight: bold;
             color: #333;
-            line-height: 1.2;
+            line-height: 1.1;
         }
         .official-pos {
-            font-size: 6.5pt;
+            font-size: 6pt;
             color: #666;
-            line-height: 1.2;
+            line-height: 1.1;
         }
 
         .footer-qr {
