@@ -296,6 +296,7 @@ class DocumentPdfService
             'mergeValues' => $mergeValues,   // exposed for id-card.blade.php direct access
             'photoDataUri' => $photoDataUri,
             'sealDataUri' => $sealDataUri,
+            'municipalityLogoUrl' => $this->getImageDataUri($barangay->municipality_logo_url),
             'qrDataUri' => $qrDataUri,
             'issuedByName' => $issuedByName,
             'issuedAt' => now()->setTimezone('Asia/Manila')->format('F d, Y'),
@@ -433,14 +434,22 @@ class DocumentPdfService
      */
     private function getSealDataUri(Barangay $barangay): ?string
     {
+        $sealUrl = $barangay->seal_url ?? $barangay->logo_url;
+        return $this->getImageDataUri($sealUrl);
+    }
+
+    /**
+     * Convert any image URL to a base64 data URI for DomPDF.
+     */
+    private function getImageDataUri(?string $imageUrl): ?string
+    {
         // DomPDF requires the GD extension to process PNG images.
         // If it's not installed, we must return null to prevent a 500 crash.
         if (!extension_loaded('gd')) {
             return null;
         }
 
-        $sealUrl = $barangay->seal_url ?? $barangay->logo_url;
-        if (! $sealUrl) {
+        if (! $imageUrl) {
             return null;
         }
 
@@ -448,8 +457,8 @@ class DocumentPdfService
         // "http://localhost:3001/storage/logos/abc.png" → "logos/abc.png"
         // "/storage/logos/abc.png" → "logos/abc.png"
         // "logos/abc.png" → "logos/abc.png"
-        $storagePath = $sealUrl;
-        if (preg_match('#/storage/(.+)$#', $sealUrl, $m)) {
+        $storagePath = $imageUrl;
+        if (preg_match('#/storage/(.+)$#', $imageUrl, $m)) {
             $storagePath = $m[1];
         }
 
@@ -479,10 +488,10 @@ class DocumentPdfService
 
         // Try 3: Load from the full URL path on public_path
         try {
-            $localPath = public_path(ltrim(parse_url($sealUrl, PHP_URL_PATH) ?: '', '/'));
+            $localPath = public_path(ltrim(parse_url($imageUrl, PHP_URL_PATH) ?: '', '/'));
             if (file_exists($localPath)) {
                 $content = file_get_contents($localPath);
-                $mime = $this->guessMimeType($sealUrl);
+                $mime = $this->guessMimeType($imageUrl);
                 return "data:{$mime};base64," . base64_encode($content);
             }
         } catch (\Throwable) {
