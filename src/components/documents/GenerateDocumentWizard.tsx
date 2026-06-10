@@ -1025,13 +1025,26 @@ export function GenerateDocumentWizard({
                       <div className="flex items-center justify-center gap-1.5 mb-3">
                         <span className="text-[10px] text-slate-400 uppercase tracking-widest font-medium">{paperLabel}</span>
                       </div>
-                      <DocumentLivePreview
-                        layout={(barangaySettings?.settings?.document_layout as any) || "klasiko"}
-                        paperSize={(selectedTemplate.settings?.paper_size as any) || (barangaySettings?.settings?.document_paper_size as any) || "short_bond"}
-                        font={(barangaySettings?.settings?.document_font as any) || "times"}
-                        colorTheme={(barangaySettings?.settings?.document_color_theme as any) || "plain"}
-                        designPattern={(barangaySettings?.settings?.document_design_pattern as any) || "wave"}
-                        barangayName={barangaySettings?.name}
+                      {(() => {
+                        const customConfigs = barangaySettings?.settings?.customized_resident_certificates || [];
+                        const customConfig = customConfigs.find((c: any) => c.id === selectedTemplate.id);
+                        const customSettings = customConfig?.design_settings || {};
+                        const useGlobalDesign = customConfig ? (customConfig.isGlobal ?? true) : true;
+
+                        const layoutToUse = useGlobalDesign ? barangaySettings?.settings?.document_layout : customSettings.document_layout;
+                        const paperSizeToUse = selectedTemplate.settings?.paper_size || (useGlobalDesign ? barangaySettings?.settings?.document_paper_size : customSettings.document_paper_size);
+                        const fontToUse = useGlobalDesign ? barangaySettings?.settings?.document_font : customSettings.document_font;
+                        const colorThemeToUse = useGlobalDesign ? barangaySettings?.settings?.document_color_theme : customSettings.document_color_theme;
+                        const designPatternToUse = useGlobalDesign ? barangaySettings?.settings?.document_design_pattern : customSettings.document_design_pattern;
+
+                        return (
+                          <DocumentLivePreview
+                            layout={(layoutToUse as any) || "klasiko"}
+                            paperSize={(paperSizeToUse as any) || "short_bond"}
+                            font={(fontToUse as any) || "times"}
+                            colorTheme={(colorThemeToUse as any) || "plain"}
+                            designPattern={(designPatternToUse as any) || "wave"}
+                            barangayName={barangaySettings?.name}
                         municipality={barangaySettings?.city_municipality}
                         province={barangaySettings?.province}
                         logoUrl={resolvePhotoUrl(barangaySettings?.logo_url)}
@@ -1046,6 +1059,8 @@ export function GenerateDocumentWizard({
                         contentControlNo="(assigned on save)"
                         contentIssuedDate={issuedDate ? new Date(issuedDate + "T00:00:00").toLocaleDateString("en-PH", { month: "long", day: "numeric", year: "numeric" }) : undefined}
                       />
+                        );
+                      })()}
                       {/* Inline editing hint */}
                       <p className="mt-2 text-[10px] text-center text-amber-600/80 dark:text-amber-400/70 flex items-center justify-center gap-1">
                         <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400" />

@@ -1143,6 +1143,45 @@ export default function SettingsPage() {
     { smsSenderName, signatoryName, signatoryTitle },
   );
 
+  const saveCustomTemplateDesign = async () => {
+    if (!selectedCertType) return;
+    setSaving(true);
+    try {
+      const option = dbTemplates.find(c => c.id === selectedCertType);
+      if (option) {
+        const newCert = {
+          id: option.id,
+          name: option.name,
+          isGlobal: false,
+          badgeColor: "blue",
+          description: `Customization for ${(option.name || "").toLowerCase()}`,
+          theme: "Custom Draft",
+          themeColor: "#3b82f6",
+          pattern: "Custom Layout",
+          modifiedDate: "Just now",
+          author: "You",
+          design_settings: {
+            use_global_design: false,
+            document_layout: docLayout,
+            document_color_theme: docColorTheme,
+            document_font: docFont,
+            document_design_pattern: docDesignPattern,
+            document_paper_size: docPaperSize,
+          }
+        };
+        const newCerts = [...residentCertificates.filter(c => c.id !== option.id), newCert];
+        setResidentCertificates(newCerts);
+        await api.settings.update({ settings: { customized_resident_certificates: newCerts } });
+      }
+      addToast("Custom template design saved!", "success");
+      setCustomizeTab("global");
+    } catch (err) {
+      addToast("Failed to save custom design", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const saveDocuments = () => saveSettings(
     {
       document_header_text: docHeader || null,
@@ -1494,7 +1533,7 @@ export default function SettingsPage() {
     fees: () => {},
     system: saveSystem,
     documents: saveDocuments,
-    "customize-template": saveDocuments,
+    "customize-template": saveCustomTemplateDesign,
     notifications: saveNotifications,
     vawc: saveVawc,
     gad: saveGad,
@@ -2323,6 +2362,11 @@ export default function SettingsPage() {
                               Updates in real-time as you change settings.
                             </p>
                           </div>
+                          {customizeTab === "editor" && (
+                            <button onClick={saveCustomTemplateDesign} className="px-3 py-1.5 text-xs font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}>
+                              Save Custom Design
+                            </button>
+                          )}
                         </div>
                         <div className="rounded-xl border border-border bg-background p-2 shadow-sm overflow-hidden flex justify-center">
                           <DocumentLivePreview
@@ -2612,29 +2656,42 @@ export default function SettingsPage() {
                               <>
                                 <button onClick={() => setModalStep(1)} className="px-4 py-2 text-sm font-medium text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800 transition-colors">Back</button>
                                 <button 
-                                  onClick={() => {
-                                    setIsModalOpen(false);
+                                  onClick={async () => {
                                     const option = dbTemplates.find(c => c.id === selectedCertType);
-                                    if (option) {
-                                      const newCert = {
-                                        id: option.id,
-                                        iconType: option.category,
-                                        title: option.name,
-                                        isGlobal: themeSource === "global",
-                                        badgeColor: themeSource === "global" ? "green" : "blue",
-                                        description: `Customization for ${(option.name || "").toLowerCase()}`,
-                                        theme: themeSource === "global" ? "Global Default" : "Custom Draft",
-                                        themeColor: themeSource === "global" ? "#22c55e" : "#3b82f6",
-                                        pattern: "Standard Layout",
-                                        modifiedDate: "Just now",
-                                        author: "You"
-                                      };
-                                      setResidentCertificates(prev => [...prev.filter(c => c.id !== option.id), newCert]);
-                                    }
+                                    
                                     if (themeSource === "custom") {
+                                      const existing = residentCertificates.find(c => c.id === selectedCertType);
+                                      if (existing && existing.design_settings && existing.design_settings.use_global_design === false) {
+                                        setDocLayout((existing.design_settings.document_layout as any) || "klasiko");
+                                        setDocColorTheme((existing.design_settings.document_color_theme as any) || "plain");
+                                        setDocFont((existing.design_settings.document_font as any) || "times");
+                                        setDocDesignPattern((existing.design_settings.document_design_pattern as any) || "wave");
+                                        setDocPaperSize((existing.design_settings.document_paper_size as any) || "a4");
+                                      }
                                       setCustomizeTab("editor");
+                                      setIsModalOpen(false);
                                     } else {
+                                      if (option) {
+                                        try {
+                                          const newCert = {
+                                            id: option.id,
+                                            name: option.name,
+                                            isGlobal: true,
+                                            badgeColor: "green",
+                                            description: `Customization for ${(option.name || "").toLowerCase()}`,
+                                            theme: "Global Default",
+                                            themeColor: "#22c55e",
+                                            pattern: "Standard Layout",
+                                            modifiedDate: "Just now",
+                                            author: "You"
+                                          };
+                                          const newCerts = [...residentCertificates.filter(c => c.id !== option.id), newCert];
+                                          setResidentCertificates(newCerts);
+                                          await api.settings.update({ settings: { customized_resident_certificates: newCerts } });
+                                        } catch(e) {}
+                                      }
                                       addToast("Certificate successfully added with Global Theme!", "success");
+                                      setIsModalOpen(false);
                                     }
                                   }}
                                   className="px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
