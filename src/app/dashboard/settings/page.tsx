@@ -722,6 +722,7 @@ export default function SettingsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalStep, setModalStep] = useState(1);
   const [selectedCertType, setSelectedCertType] = useState<string | null>(null);
+  const [previewCertId, setPreviewCertId] = useState<string | null>(null);
   const [themeSource, setThemeSource] = useState<"global" | "custom">("global");
   const [residentCertificates, setResidentCertificates] = useState<any[]>([]);
   const [dbTemplates, setDbTemplates] = useState<DocumentTemplate[]>([]);
@@ -2505,7 +2506,13 @@ export default function SettingsPage() {
                               </td>
                               <td className="py-4 px-4 align-top">
                                 <div className="flex items-center justify-center gap-3 pt-1">
-                                  <button className="text-muted-foreground hover:text-foreground transition-colors"><Eye className="w-4 h-4" /></button>
+                                  <button 
+                                    className="text-muted-foreground hover:text-foreground transition-colors"
+                                    onClick={() => setPreviewCertId(cert.id)}
+                                    title="Preview Design"
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                  </button>
                                   <button 
                                     className="text-muted-foreground hover:text-blue-500 transition-colors"
                                     onClick={() => {
@@ -4180,6 +4187,67 @@ export default function SettingsPage() {
 
       {/* Pad bottom so the sticky bar doesn't cover content */}
       {shouldShowSaveBar && <div className="h-20" />}
+
+      {/* View Design Preview Modal */}
+      {previewCertId && (
+        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-background rounded-2xl border border-border shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <div>
+                <h2 className="text-lg font-bold text-foreground">Certificate Design Preview</h2>
+                <p className="text-sm text-muted-foreground">Previewing current design settings</p>
+              </div>
+              <button onClick={() => setPreviewCertId(null)} className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-full transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto flex-1 bg-slate-900/50 flex justify-center min-h-[600px]">
+              {(() => {
+                const cert = residentCertificates.find(c => c.id === previewCertId);
+                const isGlobal = !cert || cert.isGlobal !== false;
+                
+                const layout = isGlobal ? docLayout : cert.design_settings?.document_layout;
+                const paper = isGlobal ? docPaperSize : cert.design_settings?.document_paper_size;
+                const fontVal = isGlobal ? docFont : cert.design_settings?.document_font;
+                const pattern = isGlobal ? docDesignPattern : cert.design_settings?.document_design_pattern;
+                const colors = isGlobal ? docColorTheme : cert.design_settings?.document_color_theme;
+                const dbTemp = dbTemplates.find(t => t.id === previewCertId);
+
+                return (
+                  <DocumentLivePreview
+                    layout={layout || "klasiko"}
+                    paperSize={paper || "a4"}
+                    font={fontVal || "times"}
+                    colorTheme={colors || "plain"}
+                    designPattern={pattern || "wave"}
+                    barangayName={settings?.name || "Barangay Tambo"}
+                    municipality={settings?.city_municipality || "Paranaque City"}
+                    province={settings?.province || "Metro Manila"}
+                    logoUrl={resolvePhotoUrl(settings?.logo_url)}
+                    municipalityLogoUrl={resolvePhotoUrl(settings?.municipality_logo_url)}
+                    signatoryName={previewSignatoryName}
+                    signatoryTitle={previewSignatoryTitle}
+                    contentTitle={dbTemp?.title || dbTemp?.name || "CERTIFICATE PREVIEW"}
+                    contentSalutation={dbTemp?.salutation || "TO WHOM IT MAY CONCERN:"}
+                    contentBodyHtml={dbTemp?.content || "This is a live preview of the design for this certificate."}
+                    contentControlNo="PREVIEW-12345"
+                    contentIssuedDate={previewIssueDate.toLocaleDateString("en-PH", { month: "long", day: "numeric", year: "numeric" })}
+                    fitToContainer={true}
+                  />
+                );
+              })()}
+            </div>
+            <div className="px-6 py-4 border-t border-border flex justify-end bg-background rounded-b-2xl">
+              <button 
+                onClick={() => setPreviewCertId(null)} 
+                className="px-6 py-2 text-sm font-medium text-white bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors"
+              >
+                Close Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
