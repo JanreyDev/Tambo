@@ -800,6 +800,7 @@ export default function SettingsPage() {
   const [signatoryName, setSignatoryName] = useState("");
   const [signatoryTitle, setSignatoryTitle] = useState("PUNONG BARANGAY");
   const [docLayout, setDocLayout] = useState<"klasiko" | "moderno" | "elegante" | "digital">("klasiko");
+  const [docCustomContent, setDocCustomContent] = useState<string>("");
   const [docColorTheme, setDocColorTheme] = useState<
     | "plain" | "blue" | "red" | "green" | "yellow"
     | "combo-flag" | "combo-festive" | "combo-earth" | "combo-gov"
@@ -1168,6 +1169,7 @@ export default function SettingsPage() {
             document_font: docFont,
             document_design_pattern: docDesignPattern,
             document_paper_size: docPaperSize,
+            custom_content: docCustomContent,
           }
         };
         const newCerts = [...residentCertificates.filter(c => c.id !== option.id), newCert];
@@ -1313,7 +1315,7 @@ export default function SettingsPage() {
     gad: { gadFocalName, gadFocalTitle, gadBudgetPercent, gadPlanUrl },
     kp: { kpHearingWindowDays, kpMediationExtensionDays, kpArbitrationWindowDays, kpSummonsTemplate },
     "residents-dict": { dictionaries },
-    "customize-template": { docLayout, docPaperSize, docFont, docColorTheme, docDesignPattern, residentCertificates },
+    "customize-template": { docLayout, docPaperSize, docFont, docColorTheme, docDesignPattern, residentCertificates, docCustomContent },
   };
 
   const tabFieldSetters: Record<string, Record<string, (v: unknown) => void>> = {
@@ -1354,6 +1356,7 @@ export default function SettingsPage() {
       docColorTheme: (v) => setDocColorTheme(v as typeof docColorTheme),
       docDesignPattern: (v) => setDocDesignPattern(v as typeof docDesignPattern),
       residentCertificates: (v) => setResidentCertificates(v as any[]),
+      docCustomContent: (v) => setDocCustomContent(v as string),
     },
     system: { smsSenderName: (v) => setSmsSenderName(v as string), signatoryName: (v) => setSignatoryName(v as string), signatoryTitle: (v) => setSignatoryTitle(v as string) },
     notifications: { notifSmsNewResident: (v) => setNotifSmsNewResident(v as boolean), notifSmsCert: (v) => setNotifSmsCert(v as boolean), notifEmail: (v) => setNotifEmail(v as boolean), notifDaily: (v) => setNotifDaily(v as boolean) },
@@ -2365,6 +2368,17 @@ export default function SettingsPage() {
                             })}
                           </div>
                         </div>
+
+                        {customizeTab === "editor" && (
+                          <div className="bg-background/40 rounded-xl p-4 border border-border/60 shadow-sm">
+                            <SettingsTextarea
+                              label="Custom Certificate Body"
+                              value={docCustomContent}
+                              onChange={setDocCustomContent}
+                              placeholder="Enter custom text content for this certificate..."
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -2385,7 +2399,7 @@ export default function SettingsPage() {
                             </button>
                           )}
                         </div>
-                        <div className="rounded-xl border border-border bg-background p-2 shadow-sm overflow-hidden flex justify-center">
+                        <div className="w-full rounded-xl border border-border bg-background p-2 shadow-sm overflow-hidden flex justify-center">
                           <DocumentLivePreview
                             layout={docLayout}
                             paperSize={docPaperSize}
@@ -2397,8 +2411,14 @@ export default function SettingsPage() {
                             province={settings?.province ?? null}
                             logoUrl={resolvePhotoUrl(logoUrl)}
                             municipalityLogoUrl={resolvePhotoUrl(municipalityLogoUrl)}
-                            signatoryName={signatoryName}
-                            signatoryTitle={signatoryTitle}
+                            signatoryName={previewSignatoryName}
+                            signatoryTitle={previewSignatoryTitle}
+                            contentTitle={customizeTab === "editor" ? ((dbTemplates || []).find(c => c.id === selectedCertType)?.title || "PREVIEW") : undefined}
+                            contentSalutation={customizeTab === "editor" ? ((dbTemplates || []).find(c => c.id === selectedCertType)?.salutation) : undefined}
+                            contentBodyHtml={customizeTab === "editor" ? (docCustomContent || (dbTemplates || []).find(c => c.id === selectedCertType)?.content) : undefined}
+                            rawContent={customizeTab === "editor" ? (docCustomContent || (dbTemplates || []).find(c => c.id === selectedCertType)?.content) : undefined}
+                            onContentChange={customizeTab === "editor" ? setDocCustomContent : undefined}
+                            fitToContainer={true}
                           />
                         </div>
                         <div className="mt-4 p-3 rounded-xl border border-border bg-background shadow-sm">
@@ -2523,6 +2543,9 @@ export default function SettingsPage() {
                                         setDocFont((cert.design_settings.document_font as any) || "times");
                                         setDocDesignPattern((cert.design_settings.document_design_pattern as any) || "wave");
                                         setDocPaperSize((cert.design_settings.document_paper_size as any) || "a4");
+                                        setDocCustomContent(cert.design_settings.custom_content || "");
+                                      } else {
+                                        setDocCustomContent("");
                                       }
                                       setCustomizeTab("editor");
                                     }}
@@ -2712,6 +2735,9 @@ export default function SettingsPage() {
                                         setDocFont((existing.design_settings.document_font as any) || "times");
                                         setDocDesignPattern((existing.design_settings.document_design_pattern as any) || "wave");
                                         setDocPaperSize((existing.design_settings.document_paper_size as any) || "a4");
+                                        setDocCustomContent(existing.design_settings.custom_content || "");
+                                      } else {
+                                        setDocCustomContent("");
                                       }
                                       setCustomizeTab("editor");
                                       setIsModalOpen(false);

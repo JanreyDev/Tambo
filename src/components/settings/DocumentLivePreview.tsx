@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
-import { QrCode } from "lucide-react";
+import { useMemo, useState, useRef } from "react";
+import { QrCode, Plus } from "lucide-react";
 
 type Layout = "klasiko" | "elegante" | "moderno" | "digital";
 type PaperSize = "a4" | "letter" | "legal";
@@ -34,6 +34,8 @@ interface Props {
   contentTitle?: string;
   contentSalutation?: string | null;
   contentBodyHtml?: string;
+  rawContent?: string;
+  onContentChange?: (val: string) => void;
   contentControlNo?: string;
   contentIssuedDate?: string;
 }
@@ -111,21 +113,35 @@ export function DocumentLivePreview({
   layout, paperSize, font, colorTheme, designPattern,
   barangayName, municipality, province, logoUrl, municipalityLogoUrl,
   signatoryName, signatoryTitle, hideChrome, fitToContainer, fitScale = 1,
-  contentTitle, contentSalutation, contentBodyHtml, contentControlNo, contentIssuedDate
+  contentTitle, contentSalutation, contentBodyHtml, rawContent, onContentChange, contentControlNo, contentIssuedDate
 }: Props) {
   const c = COLORS[colorTheme] ?? COLORS.plain;
   const fontFamily = FONT_FAMILY[font];
-  const docBarangay = (barangayName?.trim()) || "Barangay San Roque";
-  const docMunicipality = (municipality?.trim()) || "City of Caloocan";
-  const docProvince = (province?.trim()) || "Metro Manila";
-  const docSignName = (signatoryName?.trim()) || "Hon. Juan Dela Cruz";
-  const docSignTitle = (signatoryTitle?.trim()) || "PUNONG BARANGAY";
 
   const displayTitle = contentTitle ?? SAMPLE.title;
   const displaySalutation = contentSalutation !== undefined ? contentSalutation : SAMPLE.salutation;
   const displayBody = contentBodyHtml ?? SAMPLE.body;
+  const displayRawContent = rawContent ?? SAMPLE.body;
   const displayControlNo = contentControlNo ?? SAMPLE.controlNo;
   const displayIssuedDate = contentIssuedDate ?? SAMPLE.issuedDate;
+
+  const sharedProps: BodyProps = {
+    c, designPattern,
+    barangay: barangayName || SAMPLE.barangay,
+    municipality: municipality || SAMPLE.municipality,
+    province: province || SAMPLE.province,
+    logoUrl: logoUrl || null,
+    municipalityLogoUrl: municipalityLogoUrl || null,
+    signName: signatoryName || SAMPLE.signName,
+    signTitle: signatoryTitle || SAMPLE.signTitle,
+    title: displayTitle,
+    salutation: displaySalutation,
+    bodyHtml: displayBody,
+    rawContent: displayRawContent,
+    onContentChange,
+    controlNo: displayControlNo,
+    issuedDate: displayIssuedDate,
+  };
 
   const meta = useMemo(() => ({
     aspect: ASPECT_RATIO[paperSize],
@@ -136,8 +152,7 @@ export function DocumentLivePreview({
   // Klasiko & digital both use the sidebar layout
   const effectiveLayout = layout === "digital" ? "klasiko" : layout;
 
-  if (hideChrome) {
-    const previewDocument = (
+  const previewDocument = (
       <div
         className="bg-white text-[#1a1a1a] shadow-xl border border-gray-200 overflow-hidden"
         style={{
@@ -146,65 +161,16 @@ export function DocumentLivePreview({
           aspectRatio: meta.aspect,
           fontFamily,
           color: "#1a1a1a",
-        }}
+          "--accent-primary": c.primary
+        } as React.CSSProperties}
       >
-        {effectiveLayout === "klasiko" && (
-          <KlasikoBody
-            c={c}
-            barangay={docBarangay}
-            municipality={docMunicipality}
-            province={docProvince}
-            logoUrl={logoUrl ?? null}
-            municipalityLogoUrl={municipalityLogoUrl ?? null}
-            signName={docSignName}
-            signTitle={docSignTitle}
-            designPattern={designPattern}
-            title={displayTitle}
-            salutation={displaySalutation}
-            bodyHtml={displayBody}
-            controlNo={displayControlNo}
-            issuedDate={displayIssuedDate}
-          />
-        )}
-        {effectiveLayout === "elegante" && (
-          <EleganteBody
-            c={c}
-            barangay={docBarangay}
-            municipality={docMunicipality}
-            province={docProvince}
-            logoUrl={logoUrl ?? null}
-            municipalityLogoUrl={municipalityLogoUrl ?? null}
-            signName={docSignName}
-            signTitle={docSignTitle}
-            designPattern={designPattern}
-            title={displayTitle}
-            salutation={displaySalutation}
-            bodyHtml={displayBody}
-            controlNo={displayControlNo}
-            issuedDate={displayIssuedDate}
-          />
-        )}
-        {effectiveLayout === "moderno" && (
-          <ModernoBody
-            c={c}
-            barangay={docBarangay}
-            municipality={docMunicipality}
-            province={docProvince}
-            logoUrl={logoUrl ?? null}
-            municipalityLogoUrl={municipalityLogoUrl ?? null}
-            signName={docSignName}
-            signTitle={docSignTitle}
-            designPattern={designPattern}
-            title={displayTitle}
-            salutation={displaySalutation}
-            bodyHtml={displayBody}
-            controlNo={displayControlNo}
-            issuedDate={displayIssuedDate}
-          />
-        )}
+        {effectiveLayout === "klasiko" && <KlasikoBody {...sharedProps} />}
+        {effectiveLayout === "elegante" && <EleganteBody {...sharedProps} />}
+        {effectiveLayout === "moderno" && <ModernoBody {...sharedProps} />}
       </div>
     );
 
+  if (hideChrome) {
     if (fitToContainer && fitScale !== 1) {
       return (
         <div className="relative w-full overflow-hidden" style={{ aspectRatio: meta.aspect }}>
@@ -220,286 +186,7 @@ export function DocumentLivePreview({
         </div>
       );
     }
-
-    return (
-      previewDocument
-    );
-  }
-
-  if (hideChrome) {
-    return (
-        <div
-          className="bg-white text-[#1a1a1a] shadow-xl border border-gray-200 overflow-hidden"
-          style={{
-            width: "min(100%, 560px)",
-            aspectRatio: meta.aspect,
-            fontFamily,
-            color: "#1a1a1a",
-          }}
-        >
-          {effectiveLayout === "klasiko" && (
-            <KlasikoBody
-              c={c}
-              barangay={docBarangay}
-              municipality={docMunicipality}
-              province={docProvince}
-              logoUrl={logoUrl ?? null}
-              municipalityLogoUrl={municipalityLogoUrl ?? null}
-              signName={docSignName}
-              signTitle={docSignTitle}
-              designPattern={designPattern}
-              title={displayTitle}
-              salutation={displaySalutation}
-              bodyHtml={displayBody}
-              controlNo={displayControlNo}
-              issuedDate={displayIssuedDate}
-            />
-          )}
-          {effectiveLayout === "elegante" && (
-            <EleganteBody
-              c={c}
-              barangay={docBarangay}
-              municipality={docMunicipality}
-              province={docProvince}
-              logoUrl={logoUrl ?? null}
-              municipalityLogoUrl={municipalityLogoUrl ?? null}
-              signName={docSignName}
-              signTitle={docSignTitle}
-              designPattern={designPattern}
-              title={displayTitle}
-              salutation={displaySalutation}
-              bodyHtml={displayBody}
-              controlNo={displayControlNo}
-              issuedDate={displayIssuedDate}
-            />
-          )}
-          {effectiveLayout === "moderno" && (
-            <ModernoBody
-              c={c}
-              barangay={docBarangay}
-              municipality={docMunicipality}
-              province={docProvince}
-              logoUrl={logoUrl ?? null}
-              municipalityLogoUrl={municipalityLogoUrl ?? null}
-              signName={docSignName}
-              signTitle={docSignTitle}
-              designPattern={designPattern}
-              title={displayTitle}
-              salutation={displaySalutation}
-              bodyHtml={displayBody}
-              controlNo={displayControlNo}
-              issuedDate={displayIssuedDate}
-            />
-          )}
-        </div>
-    );
-  }
-
-  if (hideChrome) {
-    return (
-        <div
-          className="bg-white text-[#1a1a1a] shadow-xl border border-gray-200 overflow-hidden"
-          style={{
-            width: "min(100%, 560px)",
-            aspectRatio: meta.aspect,
-            fontFamily,
-            color: "#1a1a1a",
-          }}
-        >
-          {effectiveLayout === "klasiko" && (
-            <KlasikoBody
-              c={c}
-              barangay={docBarangay}
-              municipality={docMunicipality}
-              province={docProvince}
-              logoUrl={logoUrl ?? null}
-              municipalityLogoUrl={municipalityLogoUrl ?? null}
-              signName={docSignName}
-              signTitle={docSignTitle}
-              designPattern={designPattern}
-              title={displayTitle}
-              salutation={displaySalutation}
-              bodyHtml={displayBody}
-              controlNo={displayControlNo}
-              issuedDate={displayIssuedDate}
-            />
-          )}
-          {effectiveLayout === "elegante" && (
-            <EleganteBody
-              c={c}
-              barangay={docBarangay}
-              municipality={docMunicipality}
-              province={docProvince}
-              logoUrl={logoUrl ?? null}
-              municipalityLogoUrl={municipalityLogoUrl ?? null}
-              signName={docSignName}
-              signTitle={docSignTitle}
-              designPattern={designPattern}
-              title={displayTitle}
-              salutation={displaySalutation}
-              bodyHtml={displayBody}
-              controlNo={displayControlNo}
-              issuedDate={displayIssuedDate}
-            />
-          )}
-          {effectiveLayout === "moderno" && (
-            <ModernoBody
-              c={c}
-              barangay={docBarangay}
-              municipality={docMunicipality}
-              province={docProvince}
-              logoUrl={logoUrl ?? null}
-              municipalityLogoUrl={municipalityLogoUrl ?? null}
-              signName={docSignName}
-              signTitle={docSignTitle}
-              designPattern={designPattern}
-              title={displayTitle}
-              salutation={displaySalutation}
-              bodyHtml={displayBody}
-              controlNo={displayControlNo}
-              issuedDate={displayIssuedDate}
-            />
-          )}
-        </div>
-    );
-  }
-
-  if (hideChrome) {
-    return (
-        <div
-          className="bg-white text-[#1a1a1a] shadow-xl border border-gray-200 overflow-hidden"
-          style={{
-            width: "min(100%, 560px)",
-            aspectRatio: meta.aspect,
-            fontFamily,
-            color: "#1a1a1a",
-          }}
-        >
-          {effectiveLayout === "klasiko" && (
-            <KlasikoBody
-              c={c}
-              barangay={docBarangay}
-              municipality={docMunicipality}
-              province={docProvince}
-              logoUrl={logoUrl ?? null}
-              municipalityLogoUrl={municipalityLogoUrl ?? null}
-              signName={docSignName}
-              signTitle={docSignTitle}
-              designPattern={designPattern}
-              title={displayTitle}
-              salutation={displaySalutation}
-              bodyHtml={displayBody}
-              controlNo={displayControlNo}
-              issuedDate={displayIssuedDate}
-            />
-          )}
-          {effectiveLayout === "elegante" && (
-            <EleganteBody
-              c={c}
-              barangay={docBarangay}
-              municipality={docMunicipality}
-              province={docProvince}
-              logoUrl={logoUrl ?? null}
-              municipalityLogoUrl={municipalityLogoUrl ?? null}
-              signName={docSignName}
-              signTitle={docSignTitle}
-              designPattern={designPattern}
-              title={displayTitle}
-              salutation={displaySalutation}
-              bodyHtml={displayBody}
-              controlNo={displayControlNo}
-              issuedDate={displayIssuedDate}
-            />
-          )}
-          {effectiveLayout === "moderno" && (
-            <ModernoBody
-              c={c}
-              barangay={docBarangay}
-              municipality={docMunicipality}
-              province={docProvince}
-              logoUrl={logoUrl ?? null}
-              municipalityLogoUrl={municipalityLogoUrl ?? null}
-              signName={docSignName}
-              signTitle={docSignTitle}
-              designPattern={designPattern}
-              title={displayTitle}
-              salutation={displaySalutation}
-              bodyHtml={displayBody}
-              controlNo={displayControlNo}
-              issuedDate={displayIssuedDate}
-            />
-          )}
-        </div>
-    );
-  }
-
-  if (hideChrome) {
-    return (
-        <div
-          className="bg-white text-[#1a1a1a] shadow-xl border border-gray-200 overflow-hidden"
-          style={{
-            width: "min(100%, 560px)",
-            aspectRatio: meta.aspect,
-            fontFamily,
-            color: "#1a1a1a",
-          }}
-        >
-          {effectiveLayout === "klasiko" && (
-            <KlasikoBody
-              c={c}
-              barangay={docBarangay}
-              municipality={docMunicipality}
-              province={docProvince}
-              logoUrl={logoUrl ?? null}
-              municipalityLogoUrl={municipalityLogoUrl ?? null}
-              signName={docSignName}
-              signTitle={docSignTitle}
-              designPattern={designPattern}
-              title={displayTitle}
-              salutation={displaySalutation}
-              bodyHtml={displayBody}
-              controlNo={displayControlNo}
-              issuedDate={displayIssuedDate}
-            />
-          )}
-          {effectiveLayout === "elegante" && (
-            <EleganteBody
-              c={c}
-              barangay={docBarangay}
-              municipality={docMunicipality}
-              province={docProvince}
-              logoUrl={logoUrl ?? null}
-              municipalityLogoUrl={municipalityLogoUrl ?? null}
-              signName={docSignName}
-              signTitle={docSignTitle}
-              designPattern={designPattern}
-              title={displayTitle}
-              salutation={displaySalutation}
-              bodyHtml={displayBody}
-              controlNo={displayControlNo}
-              issuedDate={displayIssuedDate}
-            />
-          )}
-          {effectiveLayout === "moderno" && (
-            <ModernoBody
-              c={c}
-              barangay={docBarangay}
-              municipality={docMunicipality}
-              province={docProvince}
-              logoUrl={logoUrl ?? null}
-              municipalityLogoUrl={municipalityLogoUrl ?? null}
-              signName={docSignName}
-              signTitle={docSignTitle}
-              designPattern={designPattern}
-              title={displayTitle}
-              salutation={displaySalutation}
-              bodyHtml={displayBody}
-              controlNo={displayControlNo}
-              issuedDate={displayIssuedDate}
-            />
-          )}
-        </div>
-    );
+    return previewDocument;
   }
 
   return (
@@ -513,70 +200,7 @@ export function DocumentLivePreview({
       </div>
 
       <div className="flex justify-center">
-        <div
-          className="bg-white text-[#1a1a1a] shadow-xl border border-gray-200 overflow-hidden w-full"
-          style={{
-            maxWidth: "560px",
-            aspectRatio: meta.aspect,
-            fontFamily,
-            color: "#1a1a1a",
-          }}
-        >
-          {effectiveLayout === "klasiko" && (
-            <KlasikoBody
-              c={c}
-              barangay={docBarangay}
-              municipality={docMunicipality}
-              province={docProvince}
-              logoUrl={logoUrl ?? null}
-              municipalityLogoUrl={municipalityLogoUrl ?? null}
-              signName={docSignName}
-              signTitle={docSignTitle}
-              designPattern={designPattern}
-              title={displayTitle}
-              salutation={displaySalutation}
-              bodyHtml={displayBody}
-              controlNo={displayControlNo}
-              issuedDate={displayIssuedDate}
-            />
-          )}
-          {effectiveLayout === "elegante" && (
-            <EleganteBody
-              c={c}
-              barangay={docBarangay}
-              municipality={docMunicipality}
-              province={docProvince}
-              logoUrl={logoUrl ?? null}
-              municipalityLogoUrl={municipalityLogoUrl ?? null}
-              signName={docSignName}
-              signTitle={docSignTitle}
-              designPattern={designPattern}
-              title={displayTitle}
-              salutation={displaySalutation}
-              bodyHtml={displayBody}
-              controlNo={displayControlNo}
-              issuedDate={displayIssuedDate}
-            />
-          )}
-          {effectiveLayout === "moderno" && (
-            <ModernoBody
-              c={c}
-              barangay={docBarangay}
-              municipality={docMunicipality}
-              province={docProvince}
-              logoUrl={logoUrl ?? null}
-              municipalityLogoUrl={municipalityLogoUrl ?? null}
-              signName={docSignName}
-              signTitle={docSignTitle}
-              designPattern={designPattern}
-              title={displayTitle}
-              salutation={displaySalutation}
-              bodyHtml={displayBody}
-              controlNo={displayControlNo}
-              issuedDate={displayIssuedDate}
-            />
-          )}
-        </div>
+        {previewDocument}
       </div>
 
       <p className="text-[11px] text-muted-foreground text-center mt-3">
@@ -599,8 +223,120 @@ interface BodyProps {
   title: string;
   salutation: string | null;
   bodyHtml: string;
+  rawContent?: string;
+  onContentChange?: (val: string) => void;
   controlNo: string;
   issuedDate: string;
+}
+
+const AVAILABLE_TAGS = [
+  { tag: "{{full_name}}", desc: "Resident's full name" },
+  { tag: "{{age}}", desc: "Current age" },
+  { tag: "{{civil_status}}", desc: "Single, Married, etc." },
+  { tag: "{{sex}}", desc: "Male or Female" },
+  { tag: "{{address}}", desc: "Complete address" },
+  { tag: "{{purpose}}", desc: "Stated purpose" },
+];
+
+// Editable body wrapper for click-to-edit support
+function EditableBody({ 
+  className, bodyHtml, rawContent, onContentChange 
+}: { 
+  className: string; bodyHtml: string; rawContent?: string; onContentChange?: (v: string) => void 
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [minHeight, setMinHeight] = useState<number | undefined>(undefined);
+  const [showTags, setShowTags] = useState(false);
+  const editorRef = useRef<HTMLDivElement>(null);
+
+  const insertTag = (tag: string) => {
+    if (editorRef.current) {
+      editorRef.current.focus();
+      document.execCommand('insertText', false, tag);
+      setShowTags(false);
+      if (onContentChange) {
+        onContentChange(editorRef.current.innerText);
+      }
+    }
+  };
+
+  if (isEditing && onContentChange) {
+    return (
+      <div className="relative w-full group">
+        <div
+          ref={editorRef}
+          contentEditable
+          suppressContentEditableWarning
+          autoFocus
+          onBlur={(e) => {
+            setIsEditing(false);
+            onContentChange(e.currentTarget.innerText);
+          }}
+          className={`${className} outline-none ring-[1.5px] ring-[var(--accent-primary)] rounded-sm font-inherit text-black shadow-inner whitespace-pre-wrap cursor-text relative z-10`}
+          style={{ 
+            display: 'block', 
+            width: '100%', 
+            minWidth: '100%', 
+            minHeight: Math.max(minHeight || 0, 280) + 'px',
+            paddingRight: '28px' // Prevent text from hiding under the button
+          }}
+        >
+          {rawContent || ""}
+        </div>
+        
+        {/* Floating Variable Picker */}
+        <div className="absolute top-1.5 right-1.5 z-50">
+          <button
+            onMouseDown={(e) => { e.preventDefault(); setShowTags(!showTags); }}
+            className="p-1 rounded bg-white/90 border border-gray-200 shadow-sm text-gray-500 hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)] transition-colors backdrop-blur-sm cursor-pointer"
+            title="Insert Variable"
+          >
+            <Plus className="w-[14px] h-[14px]" />
+          </button>
+          
+          {showTags && (
+            <div 
+              className="absolute top-full right-0 mt-1 w-[160px] bg-white rounded shadow-xl border border-gray-200 overflow-hidden"
+              onMouseDown={(e) => e.preventDefault()}
+            >
+              <div className="bg-gray-50 px-2 py-1.5 border-b border-gray-100 text-[7px] font-semibold text-gray-600 uppercase tracking-wider text-left">
+                Insert Variable
+              </div>
+              <ul className="max-h-48 overflow-y-auto">
+                {AVAILABLE_TAGS.map(t => (
+                  <li key={t.tag}>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => { e.preventDefault(); insertTag(t.tag); }}
+                      className="w-full text-left px-2 py-1.5 hover:bg-blue-50/50 transition-colors flex flex-col gap-0.5 border-b border-gray-100 last:border-0 cursor-pointer"
+                    >
+                      <span className="text-[8.5px] font-mono font-bold text-blue-700">{t.tag}</span>
+                      <span className="text-[7px] text-gray-500">{t.desc}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div 
+      className={`${className} block min-w-full ${onContentChange ? 'hover:bg-blue-50/50 hover:ring-[1.5px] hover:ring-[var(--accent-primary)] cursor-pointer rounded-sm transition-all' : ''}`}
+      dangerouslySetInnerHTML={{ __html: bodyHtml || "&nbsp;" }} 
+      onClick={(e) => { 
+        if (onContentChange) {
+          setMinHeight(e.currentTarget.clientHeight);
+          setIsEditing(true); 
+        }
+      }}
+      title={onContentChange ? "Click to edit template content" : undefined}
+      style={{ minHeight: '280px' }}
+    />
+  );
 }
 
 // ── Reusable building blocks ──────────────────────────────────────
@@ -834,7 +570,10 @@ function KlasikoBody(props: BodyProps) {
             
             {salutation && <p className="text-[7.5px] font-bold uppercase mb-3 tracking-wide" style={{ color: c.primary }}>{salutation}</p>}
             
-            <div className="text-[7.5px] text-justify leading-[1.6] text-gray-800 whitespace-pre-line mb-4" dangerouslySetInnerHTML={{ __html: bodyHtml }} />
+            <EditableBody 
+              className="text-[7.5px] text-justify leading-[1.6] text-gray-800 whitespace-pre-line mb-4" 
+              bodyHtml={props.bodyHtml} rawContent={props.rawContent} onContentChange={props.onContentChange} 
+            />
             
             <div className="text-[6.5px] mb-8 ml-8">
               <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1">
@@ -886,7 +625,10 @@ function EleganteBody(props: BodyProps) {
               {salutation && <p className="text-[9px] font-semibold uppercase text-center mb-3" style={{ color: c.primary, letterSpacing: 1 }}>
                 {salutation}
               </p>}
-              <div className="text-[8px] text-justify leading-relaxed text-gray-800 whitespace-pre-line" dangerouslySetInnerHTML={{ __html: bodyHtml }} />
+              <EditableBody 
+                className="text-[8px] text-justify leading-relaxed text-gray-800 whitespace-pre-line" 
+                bodyHtml={props.bodyHtml} rawContent={props.rawContent} onContentChange={props.onContentChange} 
+              />
               <SignatureLine c={c} name={signName} title={signTitle} />
             </div>
           </main>
@@ -943,7 +685,10 @@ function ModernoBody(props: BodyProps) {
           </h2>
           <div className="h-0.5 w-12 mx-auto mb-3" style={{ background: c.accent }} />
           {salutation && <p className="text-[9px] font-semibold mb-2 uppercase" style={{ color: c.primary }}>{salutation}</p>}
-          <div className="text-[8px] text-justify leading-relaxed text-gray-800 whitespace-pre-line" dangerouslySetInnerHTML={{ __html: bodyHtml }} />
+          <EditableBody 
+            className="text-[8px] text-justify leading-relaxed text-gray-800 whitespace-pre-line" 
+            bodyHtml={props.bodyHtml} rawContent={props.rawContent} onContentChange={props.onContentChange} 
+          />
           <SignatureLine c={c} name={signName} title={signTitle} />
         </div>
       </main>
