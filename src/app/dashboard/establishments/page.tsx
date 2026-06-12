@@ -564,16 +564,49 @@ function DocGenModal({
 
   const [certBody, setCertBody] = useState(defaultCertBody);
   const [footerNote, setFooterNote] = useState(defaultFooterNote);
+  const [issuanceContent, setIssuanceContent] = useState("");
+
+  const issuanceAddress = establishment
+    ? [establishment.purok, establishment.street].filter(Boolean).join(", ") || establishment.exact_address || "—"
+    : "";
+  const issuanceFields: Record<string, string> = {
+    business_name: establishment?.business_name || "",
+    business_type: establishment?.business_type || "",
+    nature_of_business: establishment?.business_type || "",
+    owner_name: establishment?.owner_name || "",
+    business_address: issuanceAddress,
+    prev_permit_no: establishment?.permit_number || "",
+    closure_date: dateStr,
+    closure_reason: "Business closure",
+    full_name: establishment?.business_name || "",
+    address: issuanceAddress,
+    age: "",
+    civil_status: "",
+    sex: "",
+    purpose: type === "new" ? "New Registration" : type === "renewal" ? "Permit Renewal" : "Business Closure",
+  };
+
+  const mergeIssuanceFields = (content: string) => {
+    let mergedContent = content;
+    Object.entries(issuanceFields).forEach(([key, value]) => {
+      mergedContent = mergedContent.split(`{{${key}}}`).join(value);
+    });
+    return mergedContent.replace(/\{\{[^{}]+\}\}/g, "");
+  };
 
   // Reset editable fields when modal opens for a new type/establishment
   useEffect(() => {
+    const storedContent = !useGlobalDesign && customDesignSettings.custom_content
+      ? customDesignSettings.custom_content
+      : `${selectedTemplate?.content || defaultCertBody}\n\n${defaultFooterNote}`;
     setCertBody(selectedTemplate?.content || defaultCertBody);
     setFooterNote(defaultFooterNote);
+    setIssuanceContent(mergeIssuanceFields(storedContent));
     setMabiniInput("");
     setMabiniReply("");
     setMabiniConvId(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, type, establishment?.id, selectedTemplate?.id]);
+  }, [open, type, establishment?.id, selectedTemplate?.id, customConfig?.id]);
 
   // ── Mabini inline editor ──
   const [mabiniInput, setMabiniInput] = useState("");
@@ -596,8 +629,7 @@ TYPE: ${establishment.business_type || "—"}
 OWNER: ${establishment.owner_name || "—"}
 
 CURRENT DOCUMENT CONTENT:
-- Certification paragraph: "${certBody}"
-- Footer note: "${footerNote}"
+${issuanceContent}
 
 The user wants to modify this document. Respond with a JSON object only — no explanation, no markdown, just raw JSON:
 {"cert_body": "new certification text here", "footer_note": "new footer note here"}
@@ -629,8 +661,11 @@ If the user only wants to change one field, keep the other field unchanged. Alwa
         const jsonMatch = fullText.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           const parsed = JSON.parse(jsonMatch[0]) as { cert_body?: string; footer_note?: string };
-          if (parsed.cert_body) setCertBody(parsed.cert_body);
-          if (parsed.footer_note) setFooterNote(parsed.footer_note);
+          const nextCertBody = parsed.cert_body || certBody;
+          const nextFooterNote = parsed.footer_note || footerNote;
+          setCertBody(nextCertBody);
+          setFooterNote(nextFooterNote);
+          setIssuanceContent(`${nextCertBody}\n\n${nextFooterNote}`);
           setMabiniReply("Applied to document.");
         }
       } catch {
@@ -657,24 +692,20 @@ If the user only wants to change one field, keep the other field unchanged. Alwa
   const handleIssuePrint = async () => {
     if (!selectedTemplate || processing) return;
 
-    const customContent = !useGlobalDesign && customDesignSettings.custom_content
-      ? customDesignSettings.custom_content
-      : `${certBody}${footerNote ? `\n\n${footerNote}` : ""}`;
-
     await onConfirm({
       template: selectedTemplate,
-      customContent,
+      customContent: issuanceContent,
       customFieldValues: {
         business_name: establishment.business_name || "",
         business_type: establishment.business_type || "",
         nature_of_business: establishment.business_type || "",
         owner_name: establishment.owner_name || "",
-        business_address: address,
+        business_address: issuanceAddress,
         prev_permit_no: establishment.permit_number || "",
-        closure_date: today.toISOString().split("T")[0],
+        closure_date: today.toISOString().slice(0, 10),
         closure_reason: "Business closure",
         full_name: establishment.business_name || "",
-        address,
+        address: issuanceAddress,
         age: "",
         civil_status: "",
         sex: "",
@@ -682,8 +713,6 @@ If the user only wants to change one field, keep the other field unchanged. Alwa
       },
     });
   };
-
-  const address = [establishment.purok, establishment.street].filter(Boolean).join(", ") || establishment.exact_address || "—";
 
   return createPortal(
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
@@ -694,7 +723,7 @@ If the user only wants to change one field, keep the other field unchanged. Alwa
       <div className="relative z-10 w-full max-w-5xl max-h-[95vh] flex rounded-2xl overflow-hidden shadow-2xl border border-border bg-background">
 
         {/* ── Left: Document Preview ── */}
-        <div className="flex-1 bg-slate-100 dark:bg-slate-800/60 overflow-y-auto p-6 flex justify-center items-start custom-scrollbar">
+        <div className="flex-1 bg-slate-100 dark:bg-slate-800/60 overflow-y-auto p-6 flex flex-col items-center custom-scrollbar">
           {(() => {
             const docTitle = selectedTemplate?.title || docConfig.title;
             const fontVal = useGlobalDesign
@@ -713,44 +742,10 @@ If the user only wants to change one field, keep the other field unchanged. Alwa
               ? (barangayDocumentSettings.document_paper_size || "a4")
               : (customDesignSettings.document_paper_size || "a4");
 
-            // Build dynamic body content by replacing variables
-            let finalBodyHtml = certBody || "";
-            // If they defined a custom content block, use it! Otherwise fallback to certBody
-            let rawCustom = "";
-            if (!useGlobalDesign && customDesignSettings.custom_content) {
-              rawCustom = customDesignSettings.custom_content;
-              finalBodyHtml = rawCustom;
-            }
-
-            // Replace variables safely without RegExp to avoid SyntaxErrors
-            const vars: Record<string, string> = {
-              "{{business_name}}": establishment.business_name || "",
-              "{{business_type}}": establishment.business_type || "",
-              "{{nature_of_business}}": establishment.business_type || "",
-              "{{owner_name}}": establishment.owner_name || "",
-              "{{business_address}}": address || "",
-              "{{prev_permit_no}}": establishment.permit_number || "",
-              "{{closure_date}}": dateStr,
-              "{{closure_reason}}": "Business closure",
-              "{{full_name}}": establishment.business_name || "",
-              "{{address}}": address || "",
-              "{{age}}": "",
-              "{{civil_status}}": "",
-              "{{sex}}": "",
-              "{{purpose}}": docConfig.subtitle,
-            };
-            Object.entries(vars).forEach(([k, v]) => {
-              finalBodyHtml = finalBodyHtml.split(k).join(v);
-            });
-
-            // Append footer note if not using custom content
-            if (!rawCustom) {
-               finalBodyHtml += '<br/><br/>' + footerNote;
-            }
-
             return (
               <div ref={docRef} className="flex w-full justify-center shrink-0">
                 <DocumentLivePreview
+                  key={`${establishment.id}-${type}-${selectedTemplate?.id || "default"}`}
                   layout={layout as any}
                   paperSize={paperSize as any}
                   font={fontVal as any}
@@ -765,7 +760,9 @@ If the user only wants to change one field, keep the other field unchanged. Alwa
                   signatoryTitle={barangayDocumentSettings.default_signatory_title || "PUNONG BARANGAY"}
                   contentTitle={docTitle}
                   contentSalutation={selectedTemplate?.salutation}
-                  contentBodyHtml={finalBodyHtml}
+                  contentBodyHtml={issuanceContent}
+                  rawContent={issuanceContent}
+                  onContentChange={setIssuanceContent}
                   contentControlNo={`NO. ${establishment.establishment_number}`}
                   contentIssuedDate={dateStr}
                   contentValidUntil={validUntilStr}
@@ -776,6 +773,9 @@ If the user only wants to change one field, keep the other field unchanged. Alwa
               </div>
             );
           })()}
+          <p className="mt-2 text-center text-[11px] text-muted-foreground">
+            Click the certificate body to edit this issuance only. The saved template will not be changed.
+          </p>
         </div>
         
         {/* ── Right: Controls ── */}
