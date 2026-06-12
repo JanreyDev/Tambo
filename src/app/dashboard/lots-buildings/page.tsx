@@ -558,6 +558,25 @@ function ClearanceGenModal({
   const [certBody, setCertBody] = useState(defaultCertBody);
   const [footerNote, setFooterNote] = useState(defaultFooterNote);
   const [notes, setNotes] = useState("");
+  const [issuanceContent, setIssuanceContent] = useState("");
+
+  const address = record ? formatAddress(record) : "";
+  const previewFields: Record<string, string> = {
+    owner_name: record?.owner_name || "", owner_address: record?.owner_address || "",
+    lot_address: address, property_address: address, construction_address: address,
+    site_address: address, lot_area: record?.size || "", floor_area: record?.size || "",
+    tax_dec_no: record?.tax_declaration_number || "", structure_type: record?.classification || "",
+    applicant_name: record?.owner_name || "", purpose: cfg.label,
+    full_name: record?.owner_name || "", address, age: "", civil_status: "", sex: "",
+  };
+
+  const mergeIssuanceFields = (content: string) => {
+    let mergedContent = content;
+    Object.entries(previewFields).forEach(([key, value]) => {
+      mergedContent = mergedContent.split(`{{${key}}}`).join(value);
+    });
+    return mergedContent.replace(/\{\{[^{}]+\}\}/g, "");
+  };
 
   // Reset on open/type change
   useEffect(() => {
@@ -567,8 +586,12 @@ function ClearanceGenModal({
     setMabiniInput("");
     setMabiniReply("");
     setMabiniConvId(null);
+    const storedContent = !useGlobal && typeof design.custom_content === "string"
+      ? design.custom_content
+      : template?.content || `${defaultCertBody}\n\n${defaultFooterNote}`;
+    setIssuanceContent(mergeIssuanceFields(storedContent));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, clearanceType, record?.id]);
+  }, [open, clearanceType, record?.id, template?.id, customDesign?.id]);
 
   // Mabini inline editor
   const [mabiniInput, setMabiniInput] = useState("");
@@ -593,8 +616,7 @@ LOCATION: ${address}
 OWNER: ${record.owner_name || "—"}
 
 CURRENT DOCUMENT CONTENT:
-- Certification paragraph: "${certBody}"
-- Footer note: "${footerNote}"
+${issuanceContent}
 
 The user wants to modify this document. Respond with a JSON object only — no explanation, no markdown, just raw JSON:
 {"cert_body": "new certification text here", "footer_note": "new footer note here"}
@@ -627,8 +649,11 @@ If the user only wants to change one field, keep the other field unchanged. Alwa
         const jsonMatch = fullText.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           const parsed = JSON.parse(jsonMatch[0]) as { cert_body?: string; footer_note?: string };
-          if (parsed.cert_body) setCertBody(parsed.cert_body);
-          if (parsed.footer_note) setFooterNote(parsed.footer_note);
+          const nextCertBody = parsed.cert_body || certBody;
+          const nextFooterNote = parsed.footer_note || footerNote;
+          setCertBody(nextCertBody);
+          setFooterNote(nextFooterNote);
+          setIssuanceContent(`${nextCertBody}\n\n${nextFooterNote}`);
           setMabiniReply("Applied to document.");
         }
       } catch {
@@ -668,9 +693,7 @@ If the user only wants to change one field, keep the other field unchanged. Alwa
     await onConfirm({
       template,
       notes,
-      customContent: !useGlobal && typeof design.custom_content === "string"
-        ? design.custom_content
-        : `${certBody}\n\n${footerNote}`,
+      customContent: issuanceContent,
       fields: {
         owner_name: record.owner_name || "",
         owner_address: record.owner_address || "",
@@ -696,23 +719,7 @@ If the user only wants to change one field, keep the other field unchanged. Alwa
   if (!open || !record) return null;
   if (typeof document === "undefined") return null;
 
-  const address = formatAddress(record);
   const Icon = cfg.icon;
-  const previewFields: Record<string, string> = {
-    owner_name: record.owner_name || "", owner_address: record.owner_address || "",
-    lot_address: address, property_address: address, construction_address: address,
-    site_address: address, lot_area: record.size || "", floor_area: record.size || "",
-    tax_dec_no: record.tax_declaration_number || "", structure_type: record.classification || "",
-    applicant_name: record.owner_name || "", purpose: cfg.label,
-    full_name: record.owner_name || "", address, age: "", civil_status: "", sex: "",
-  };
-  let previewContent = !useGlobal && typeof design.custom_content === "string"
-    ? design.custom_content
-    : template?.content || `${certBody}\n\n${footerNote}`;
-  Object.entries(previewFields).forEach(([key, value]) => {
-    previewContent = previewContent.split(`{{${key}}}`).join(value);
-  });
-  previewContent = previewContent.replace(/\{\{[^{}]+\}\}/g, "");
   const previewLayout = ((useGlobal ? documentSettings.document_layout : design.document_layout) || "klasiko") as "klasiko" | "elegante" | "moderno" | "digital";
   const previewPaperSize = ((useGlobal ? documentSettings.document_paper_size : design.document_paper_size) || "a4") as "a4" | "letter" | "legal";
   const previewFont = ((useGlobal ? documentSettings.document_font : design.document_font) || "times") as "times" | "arial" | "inter" | "poppins" | "merriweather" | "playfair";
@@ -730,6 +737,7 @@ If the user only wants to change one field, keep the other field unchanged. Alwa
         {/* ── Left: Document Preview ── */}
         <div className="flex-1 bg-slate-100 dark:bg-slate-800/60 overflow-y-auto p-6">
           <DocumentLivePreview
+            key={`${record.id}-${clearanceType}-${template?.id || "default"}`}
             layout={previewLayout}
             paperSize={previewPaperSize}
             font={previewFont}
@@ -744,7 +752,9 @@ If the user only wants to change one field, keep the other field unchanged. Alwa
             signatoryTitle={(documentSettings.default_signatory_title as string) || "PUNONG BARANGAY"}
             contentTitle={template?.title || cfg.title}
             contentSalutation={template?.salutation}
-            contentBodyHtml={previewContent}
+            contentBodyHtml={issuanceContent}
+            rawContent={issuanceContent}
+            onContentChange={setIssuanceContent}
             contentControlNo={record.lot_building_number}
             contentIssuedDate={dateStr}
             contentRequestedBy={record.owner_name || ""}
@@ -753,6 +763,9 @@ If the user only wants to change one field, keep the other field unchanged. Alwa
             hideChrome
             fitToContainer
           />
+          <p className="mt-2 text-center text-[11px] text-muted-foreground">
+            Click the certificate body to edit this issuance only. The saved template will not be changed.
+          </p>
           <div
             ref={docRef}
             className="hidden"
