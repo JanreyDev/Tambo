@@ -152,8 +152,8 @@ export function DocumentLivePreview({
     controlNo: displayControlNo,
     issuedDate: displayIssuedDate,
     validUntil: contentValidUntil || "Nov 16, 2026",
-    requestedBy: contentRequestedBy || "JUAN MIGUEL SANTOS",
-    purpose: contentPurpose || "LOCAL EMPLOYMENT",
+    requestedBy: contentRequestedBy ?? "JUAN MIGUEL SANTOS",
+    purpose: contentPurpose ?? "LOCAL EMPLOYMENT",
     officials: officials !== undefined ? officials : SAMPLE_OFFICIALS,
   };
 

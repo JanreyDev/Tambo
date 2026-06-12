@@ -21,12 +21,29 @@ import type {
 const residentFullName = (r: ResidentSummary) =>
   [r.first_name, r.middle_name, r.last_name, r.extension_name].filter(Boolean).join(" ");
 
+const residentAge = (dateOfBirth: string) => {
+  const birthDate = new Date(dateOfBirth.includes("T") ? dateOfBirth : `${dateOfBirth}T00:00:00`);
+  if (Number.isNaN(birthDate.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDifference = today.getMonth() - birthDate.getMonth();
+  if (monthDifference < 0 || (monthDifference === 0 && today.getDate() < birthDate.getDate())) age--;
+  return age;
+};
+
+const residentAddress = (resident: ResidentSummary) =>
+  [
+    resident.house_block_lot,
+    resident.purok ? `Purok ${resident.purok}` : null,
+    resident.street,
+  ].filter(Boolean).join(", ") || "Address not available";
+
 // ── Category groups ──
 const CATEGORY_GROUPS = [
   {
     label: "Resident Certificates",
     icon: User,
-    color: "text-blue-600",
+    color: "text-blue-600 dark:text-blue-300",
     types: [
       "clearance", "residency", "indigency", "indigency_relative", "good_moral",
       "cedula", "late_registration", "live_in", "solo_parent", "low_income",
@@ -37,13 +54,13 @@ const CATEGORY_GROUPS = [
   {
     label: "Business / Establishment",
     icon: Building2,
-    color: "text-emerald-600",
+    color: "text-emerald-600 dark:text-emerald-300",
     types: ["business_clearance_new", "business_clearance_renewal", "business_closure"],
   },
   {
     label: "Lot / Building",
     icon: MapPin,
-    color: "text-amber-600",
+    color: "text-amber-600 dark:text-amber-300",
     types: ["lot_clearance", "building_clearance", "fencing_clearance", "excavation_clearance"],
   },
   {
@@ -109,6 +126,11 @@ export function GenerateDocumentWizard({
   // ── Preview edit mode ──
   const [previewMode, setPreviewMode] = useState<"preview" | "edit">("preview");
   const [manualContent, setManualContent] = useState<string | null>(null);
+  const manualContentRef = useRef<string | null>(null);
+  const updateManualContent = useCallback((content: string | null) => {
+    manualContentRef.current = content;
+    setManualContent(content);
+  }, []);
 
   // ── Barangay settings (signatory, layout) ──
   const [barangaySettings, setBarangaySettings] = useState<BarangaySettings | null>(null);
@@ -220,7 +242,7 @@ export function GenerateDocumentWizard({
     setMabiniMessages([]);
     setMabiniInput("");
     setPreviewMode("preview");
-    setManualContent(null);
+    updateManualContent(null);
     setSaving(false);
   };
 
@@ -287,9 +309,9 @@ export function GenerateDocumentWizard({
       text: `Hi! Mabini AI here. Tutulong ako sa pag-fill ng **${tpl.name}** ${residentLine}.\n\n${fieldHints}\n\nSabihin mo lang ang details — Filipino, English, o Taglish, okay lahat!`,
     }]);
     setMabiniInput("");
-    setManualContent(null);
+    updateManualContent(null);
     setPreviewMode("preview");
-  }, []);
+  }, [updateManualContent]);
 
   // ── Select template ──
   const handleSelectTemplate = (tpl: DocumentTemplate) => {
@@ -340,7 +362,7 @@ export function GenerateDocumentWizard({
         if (res.fields.approved_by_right !== undefined) setApprovedByRight(res.fields.approved_by_right);
         // For custom docs, Mabini may return full_content
         if (res.fields.full_content !== undefined) {
-          setManualContent(res.fields.full_content);
+          updateManualContent(res.fields.full_content);
           setPreviewMode("preview");
         }
       }
@@ -407,6 +429,15 @@ export function GenerateDocumentWizard({
       return `<span class="font-semibold text-slate-900">${val}</span>`;
     });
   }, [buildPreviewValues]);
+  const issuanceSourceContent = manualContent ?? baseContent ?? "";
+  const renderedIssuanceContent = renderMergedHtml(issuanceSourceContent);
+  const editableIssuanceContent = renderedIssuanceContent
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
 
   // ── Generate document ──
   const handleGenerate = async () => {
@@ -427,7 +458,7 @@ export function GenerateDocumentWizard({
         approved_by_right: approvedByRight || undefined,
         issued_date: issuedDate || undefined,
         custom_field_values: Object.keys(customFields).length > 0 ? customFields : undefined,
-        custom_content: manualContent || undefined,
+        custom_content: manualContentRef.current ?? manualContent ?? editableIssuanceContent,
       };
       if (selectedTemplate.settings?.show_expiry && selectedTemplate.settings?.expiry_months) {
         const issued = new Date(issuedDate || Date.now());
@@ -522,10 +553,15 @@ export function GenerateDocumentWizard({
       )}
 
       {/* Full-screen overlay */}
-      <div className="fixed inset-0 z-[9999] bg-background flex flex-col overflow-hidden">
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5">
+        <div
+          className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+          onClick={saving ? undefined : onClose}
+        />
+        <div className="relative w-full max-w-6xl h-[94vh] max-h-[920px] bg-background dark:bg-slate-950 border border-border dark:border-slate-700 rounded-2xl shadow-2xl flex flex-col overflow-hidden text-foreground">
 
         {/* ── Top Bar ── */}
-        <div className="flex items-center justify-between px-5 h-14 border-b border-border shrink-0 bg-background">
+        <div className="flex items-center justify-between px-4 sm:px-5 h-14 border-b border-border shrink-0 bg-background">
           <button
             onClick={handleBack}
             className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
@@ -554,8 +590,8 @@ export function GenerateDocumentWizard({
         </div>
 
         {/* ── Step progress bar ── */}
-        <div className="px-5 py-2.5 border-b border-border/50 shrink-0 bg-muted/10">
-          <div className="flex items-center gap-2 max-w-xs mx-auto">
+        <div className="px-4 sm:px-5 py-2.5 border-b border-border/50 dark:border-slate-700 shrink-0 bg-muted/20 dark:bg-slate-900/80 overflow-x-auto">
+          <div className="flex items-center gap-2 max-w-sm min-w-[330px] mx-auto">
             {STEPS.map((s, i) => (
               <React.Fragment key={s.key}>
                 <div className="flex items-center gap-1.5">
@@ -563,13 +599,13 @@ export function GenerateDocumentWizard({
                     "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 transition-all",
                     i < stepIndex && "bg-[var(--accent-primary)] text-white",
                     i === stepIndex && "bg-[var(--accent-primary)] text-white ring-2 ring-[var(--accent-primary)]/30",
-                    i > stepIndex && "bg-muted text-muted-foreground",
+                    i > stepIndex && "bg-muted dark:bg-slate-700 text-muted-foreground dark:text-slate-200",
                   )}>
                     {i < stepIndex ? "✓" : i + 1}
                   </div>
                   <span className={cn(
                     "text-[11px] font-medium whitespace-nowrap",
-                    i <= stepIndex ? "text-foreground" : "text-muted-foreground/60",
+                    i <= stepIndex ? "text-foreground" : "text-muted-foreground dark:text-slate-400",
                   )}>{s.label}</span>
                 </div>
                 {i < STEPS.length - 1 && (
@@ -592,15 +628,35 @@ export function GenerateDocumentWizard({
               <div className="max-w-3xl mx-auto px-5 py-5 space-y-4">
                 {/* Resident context banner */}
                 {residentPreloaded && selectedResident && (
-                  <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[var(--accent-bg)] border border-[var(--accent-primary)]/30">
-                    <div className="w-7 h-7 rounded-lg bg-[var(--accent-primary)] flex items-center justify-center shrink-0">
-                      <User className="w-4 h-4 text-white" />
+                  <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[var(--accent-bg)] dark:bg-blue-950/40 border border-[var(--accent-primary)]/30 dark:border-blue-700/60">
+                    <div className="w-11 h-11 rounded-xl bg-[var(--accent-primary)]/15 dark:bg-slate-800 border border-[var(--accent-primary)]/20 dark:border-slate-600 flex items-center justify-center shrink-0 overflow-hidden">
+                      {resolvePhotoUrl(selectedResident.photo_url) ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={resolvePhotoUrl(selectedResident.photo_url) || ""}
+                          alt={residentFullName(selectedResident)}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <User className="w-5 h-5 text-[var(--accent-primary)] dark:text-blue-300" />
+                      )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-semibold text-foreground truncate">{residentFullName(selectedResident)}</p>
-                      <p className="text-[11px] text-muted-foreground">{selectedResident.resident_number}</p>
+                      <p className="text-sm font-semibold text-foreground dark:text-white truncate">{residentFullName(selectedResident)}</p>
+                      <div className="flex items-center gap-x-2 gap-y-0.5 flex-wrap text-[11px] text-muted-foreground dark:text-slate-300">
+                        <span className="font-mono">{selectedResident.resident_number}</span>
+                        <span>•</span>
+                        <span>{residentAge(selectedResident.date_of_birth) ?? "—"} years old</span>
+                        <span>•</span>
+                        <span className="capitalize">{selectedResident.sex}</span>
+                        {selectedResident.civil_status && <><span>•</span><span className="capitalize">{selectedResident.civil_status.replace(/_/g, " ")}</span></>}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground dark:text-slate-400 truncate mt-0.5">
+                        {residentAddress(selectedResident)}
+                        {selectedResident.mobile_number ? ` • ${selectedResident.mobile_number}` : ""}
+                      </p>
                     </div>
-                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[var(--accent-primary)] text-white shrink-0">
+                    <span className="hidden sm:inline-flex text-[10px] font-medium px-2 py-1 rounded-full bg-[var(--accent-primary)] text-white shrink-0">
                       {wizardTemplateMode === "id_cards" ? "ID Generation" : "Generating for resident"}
                     </span>
                   </div>
@@ -614,7 +670,7 @@ export function GenerateDocumentWizard({
                     placeholder="Search document types..."
                     value={templateSearch}
                     onChange={(e) => setTemplateSearch(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20 focus:border-[var(--accent-primary)]"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border dark:border-slate-600 bg-background dark:bg-slate-900 text-foreground text-sm placeholder:text-muted-foreground dark:placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/30 focus:border-[var(--accent-primary)]"
                     autoFocus
                   />
                 </div>
@@ -634,7 +690,7 @@ export function GenerateDocumentWizard({
                           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                             {group.label}
                           </h3>
-                          <span className="text-[10px] text-muted-foreground/60 bg-muted px-1.5 py-0.5 rounded">
+                          <span className="text-[10px] text-muted-foreground dark:text-slate-300 bg-muted dark:bg-slate-800 px-1.5 py-0.5 rounded">
                             {groupTemplates.length}
                           </span>
                         </div>
@@ -646,8 +702,8 @@ export function GenerateDocumentWizard({
                               className={cn(
                                 "text-left px-3.5 py-3 rounded-xl border transition-all hover:border-[var(--accent-primary)] hover:shadow-sm group",
                                 selectedTemplate?.id === tpl.id
-                                  ? "border-[var(--accent-primary)] bg-[var(--accent-bg)]"
-                                  : "border-border bg-background hover:bg-muted/20"
+                                  ? "border-[var(--accent-primary)] bg-[var(--accent-bg)] dark:bg-blue-950/40"
+                                  : "border-border dark:border-slate-700 bg-background dark:bg-slate-900 hover:bg-muted/20 dark:hover:bg-slate-800"
                               )}
                             >
                               <div className="flex items-start gap-2.5">
@@ -656,18 +712,18 @@ export function GenerateDocumentWizard({
                                   <p className="text-sm font-medium text-foreground truncate">{tpl.name}</p>
                                   <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                                     {tpl.settings?.show_expiry && tpl.settings?.expiry_months && (
-                                      <span className="text-[10px] text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded">
+                                      <span className="text-[10px] text-muted-foreground dark:text-slate-200 bg-muted/60 dark:bg-slate-800 px-1.5 py-0.5 rounded">
                                         {tpl.settings.expiry_months}mo validity
                                       </span>
                                     )}
                                     {tpl.settings?.show_photo && (
-                                      <span className="text-[10px] text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded">Photo</span>
+                                      <span className="text-[10px] text-muted-foreground dark:text-slate-200 bg-muted/60 dark:bg-slate-800 px-1.5 py-0.5 rounded">Photo</span>
                                     )}
                                     {tpl.settings?.show_or && (
-                                      <span className="text-[10px] text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded">OR</span>
+                                      <span className="text-[10px] text-muted-foreground dark:text-slate-200 bg-muted/60 dark:bg-slate-800 px-1.5 py-0.5 rounded">OR</span>
                                     )}
                                     {(tpl.custom_inputs?.length ?? 0) > 0 && (
-                                      <span className="text-[10px] text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded">
+                                      <span className="text-[10px] text-muted-foreground dark:text-slate-200 bg-muted/60 dark:bg-slate-800 px-1.5 py-0.5 rounded">
                                         +{tpl.custom_inputs!.length} fields
                                       </span>
                                     )}
@@ -691,9 +747,9 @@ export function GenerateDocumentWizard({
                     return (
                       <div>
                         <div className="flex items-center gap-2 mb-2.5">
-                          <FileText className="w-4 h-4 text-slate-500" />
+                          <FileText className="w-4 h-4 text-slate-500 dark:text-slate-300" />
                           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Other</h3>
-                          <span className="text-[10px] text-muted-foreground/60 bg-muted px-1.5 py-0.5 rounded">
+                          <span className="text-[10px] text-muted-foreground dark:text-slate-300 bg-muted dark:bg-slate-800 px-1.5 py-0.5 rounded">
                             {uncategorized.length}
                           </span>
                         </div>
@@ -702,7 +758,7 @@ export function GenerateDocumentWizard({
                             <button
                               key={tpl.id}
                               onClick={() => handleSelectTemplate(tpl)}
-                              className="text-left px-3.5 py-3 rounded-xl border border-border bg-background hover:border-[var(--accent-primary)] hover:bg-muted/20 transition-all"
+                              className="text-left px-3.5 py-3 rounded-xl border border-border dark:border-slate-700 bg-background dark:bg-slate-900 hover:border-[var(--accent-primary)] hover:bg-muted/20 dark:hover:bg-slate-800 transition-all"
                             >
                               <div className="flex items-start gap-2.5">
                                 <FileText className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
@@ -719,7 +775,7 @@ export function GenerateDocumentWizard({
                   {(wizardTemplateMode === "all" || wizardTemplateMode === "resident_certs") && (
                     <div>
                       <div className="flex items-center gap-2 mb-2.5">
-                        <Wand2 className="w-4 h-4 text-fuchsia-600" />
+                        <Wand2 className="w-4 h-4 text-fuchsia-600 dark:text-fuchsia-300" />
                         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Custom</h3>
                       </div>
                       <button
@@ -750,14 +806,14 @@ export function GenerateDocumentWizard({
                             role: "mabini",
                             text: "Hi! Para sa Custom Document — sabihin mo lang kung anong klaseng dokumento ang kailangan mo. Hal: \"Gusto ko ng sertipiko ng pagiging miyembro ng barangay health team para kay Juan dela Cruz\" o kahit anong ibang dokumento. Gagawin ko ang buong content para sa iyo!",
                           }]);
-                          setManualContent("");
+                          updateManualContent("");
                           setPreviewMode("edit");
                           setWizardStep("fill-details");
                         }}
-                        className="w-full sm:w-auto text-left px-3.5 py-3 rounded-xl border border-dashed border-fuchsia-300 dark:border-fuchsia-800 bg-fuchsia-50/50 dark:bg-fuchsia-900/10 hover:border-fuchsia-500 transition-all group"
+                        className="w-full sm:w-auto text-left px-3.5 py-3 rounded-xl border border-dashed border-fuchsia-300 dark:border-fuchsia-600 bg-fuchsia-50/50 dark:bg-fuchsia-950/40 hover:border-fuchsia-500 transition-all group"
                       >
                         <div className="flex items-center gap-2.5">
-                          <Wand2 className="w-4 h-4 text-fuchsia-600 shrink-0" />
+                          <Wand2 className="w-4 h-4 text-fuchsia-600 dark:text-fuchsia-300 shrink-0" />
                           <div>
                             <p className="text-sm font-medium text-fuchsia-700 dark:text-fuchsia-400">Custom Document</p>
                             <p className="text-[10px] text-muted-foreground mt-0.5">Describe the document and Mabini AI generates it</p>
@@ -790,7 +846,7 @@ export function GenerateDocumentWizard({
           {wizardStep === "select-resident" && (
             <div className="h-full overflow-y-auto">
               <div className="max-w-2xl mx-auto px-5 py-5 space-y-4">
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/30 border border-border">
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/30 dark:bg-slate-900 border border-border dark:border-slate-700">
                   <FileText className="w-4 h-4 text-[var(--accent-primary)]" />
                   <span className="text-sm font-medium">{selectedTemplate?.name}</span>
                 </div>
@@ -802,7 +858,7 @@ export function GenerateDocumentWizard({
                     placeholder="Search resident by name, resident number..."
                     value={residentSearch}
                     onChange={(e) => setResidentSearch(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20 focus:border-[var(--accent-primary)]"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border dark:border-slate-600 bg-background dark:bg-slate-900 text-foreground text-sm placeholder:text-muted-foreground dark:placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/30 focus:border-[var(--accent-primary)]"
                     autoFocus
                   />
                 </div>
@@ -828,20 +884,37 @@ export function GenerateDocumentWizard({
                       className={cn(
                         "w-full text-left px-4 py-3 rounded-xl border transition-all hover:border-[var(--accent-primary)] hover:bg-muted/20",
                         selectedResident?.id === r.id
-                          ? "border-[var(--accent-primary)] bg-[var(--accent-bg)]"
-                          : "border-border"
+                          ? "border-[var(--accent-primary)] bg-[var(--accent-bg)] dark:bg-blue-950/40"
+                          : "border-border dark:border-slate-700 bg-background dark:bg-slate-900"
                       )}
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
-                          <User className="w-4 h-4 text-muted-foreground" />
+                        <div className="w-11 h-11 rounded-xl bg-muted dark:bg-slate-800 border border-transparent dark:border-slate-700 flex items-center justify-center shrink-0 overflow-hidden">
+                          {resolvePhotoUrl(r.photo_url) ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={resolvePhotoUrl(r.photo_url) || ""} alt={residentFullName(r)} className="w-full h-full object-cover" />
+                          ) : (
+                            <User className="w-5 h-5 text-muted-foreground dark:text-slate-300" />
+                          )}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-foreground">{residentFullName(r)}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {r.resident_number} · {r.purok || "No purok"} · {r.sex}
+                          <p className="text-sm font-medium text-foreground dark:text-white">{residentFullName(r)}</p>
+                          <p className="text-xs text-muted-foreground dark:text-slate-300">
+                            {r.resident_number} • {residentAge(r.date_of_birth) ?? "—"} yrs • <span className="capitalize">{r.sex}</span>
+                          </p>
+                          <p className="text-[11px] text-muted-foreground dark:text-slate-400 truncate mt-0.5">
+                            {residentAddress(r)}
+                            {r.mobile_number ? ` • ${r.mobile_number}` : ""}
                           </p>
                         </div>
+                        <span className={cn(
+                          "text-[10px] font-medium px-2 py-1 rounded-full shrink-0 capitalize",
+                          r.status === "active"
+                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-200"
+                            : "bg-muted text-muted-foreground dark:bg-slate-800 dark:text-slate-300"
+                        )}>
+                          {r.status}
+                        </span>
                       </div>
                     </button>
                   ))}
@@ -859,12 +932,12 @@ export function GenerateDocumentWizard({
 
           {/* ── Step 3: Fill Details — Mabini AI + Live Preview ── */}
           {wizardStep === "fill-details" && selectedTemplate && (
-            <div className="flex h-full min-h-0">
+            <div className="flex flex-col lg:flex-row h-full min-h-0 overflow-y-auto lg:overflow-hidden">
 
               {/* ── Left: Mabini AI Chat ── */}
-              <div className="flex flex-col w-[38%] min-w-[300px] border-r border-border min-h-0">
+              <div className="flex flex-col w-full lg:w-[38%] lg:min-w-[300px] h-[360px] lg:h-auto border-b lg:border-b-0 lg:border-r border-border min-h-0 shrink-0">
                 {/* Chat header */}
-                <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border bg-muted/20 shrink-0">
+                <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border dark:border-slate-700 bg-muted/30 dark:bg-slate-900 shrink-0">
                   <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--accent-primary)] to-amber-500 flex items-center justify-center shrink-0">
                     <Sparkles className="w-4 h-4 text-white" />
                   </div>
@@ -895,7 +968,7 @@ export function GenerateDocumentWizard({
                         "max-w-[84%] px-3 py-2 text-xs leading-relaxed",
                         msg.role === "user"
                           ? "bg-[var(--accent-primary)] text-white rounded-2xl rounded-br-sm"
-                          : "bg-muted/70 text-foreground rounded-2xl rounded-bl-sm"
+                          : "bg-muted dark:bg-slate-800 text-foreground dark:text-slate-100 border border-transparent dark:border-slate-700 rounded-2xl rounded-bl-sm"
                       )}>
                         {msg.text.split(/(\*\*[^*]+\*\*)/).map((part, j) =>
                           part.startsWith("**") && part.endsWith("**")
@@ -910,7 +983,7 @@ export function GenerateDocumentWizard({
                       <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[var(--accent-primary)] to-amber-500 flex items-center justify-center shrink-0 mb-0.5">
                         <Sparkles className="w-3 h-3 text-white" />
                       </div>
-                      <div className="bg-muted/70 px-3 py-2.5 rounded-2xl rounded-bl-sm">
+                      <div className="bg-muted dark:bg-slate-800 px-3 py-2.5 rounded-2xl rounded-bl-sm border border-transparent dark:border-slate-700">
                         <div className="flex gap-1 items-center">
                           <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)] animate-bounce" style={{ animationDelay: "0ms" }} />
                           <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)] animate-bounce" style={{ animationDelay: "150ms" }} />
@@ -924,15 +997,15 @@ export function GenerateDocumentWizard({
 
                 {/* Hint: required fields reminder */}
                 {selectedTemplate.custom_inputs && selectedTemplate.custom_inputs.some((i) => i.required) && !manualContent && (
-                  <div className="px-4 py-1.5 border-t border-border/50 bg-amber-50 dark:bg-amber-900/10 shrink-0">
-                    <p className="text-[10px] text-amber-700 dark:text-amber-400">
+                  <div className="px-4 py-1.5 border-t border-border/50 bg-amber-50 dark:bg-amber-950/50 shrink-0">
+                    <p className="text-[10px] text-amber-700 dark:text-amber-200">
                       Required: {selectedTemplate.custom_inputs.filter((i) => i.required).map((i) => i.label).join(", ")} — tell Mabini above, or click <strong>Edit</strong> on the preview.
                     </p>
                   </div>
                 )}
 
                 {/* Input box */}
-                <div className="px-4 py-3 border-t border-border shrink-0 bg-background">
+                <div className="px-4 py-3 border-t border-border dark:border-slate-700 shrink-0 bg-background dark:bg-slate-950">
                   <div className="flex gap-2">
                     <textarea
                       value={mabiniInput}
@@ -944,7 +1017,7 @@ export function GenerateDocumentWizard({
                         ? "Describe the document you need..."
                         : "Sabihin mo ang detalye... (Enter to send)"}
                       rows={2}
-                      className="flex-1 px-3 py-2 rounded-xl border border-border bg-muted/30 text-xs resize-none focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20 placeholder:text-muted-foreground"
+                      className="flex-1 px-3 py-2 rounded-xl border border-border dark:border-slate-600 bg-muted/30 dark:bg-slate-900 text-foreground text-xs resize-none focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/30 placeholder:text-muted-foreground dark:placeholder:text-slate-400"
                     />
                     <button
                       onClick={sendMabiniMessage}
@@ -960,9 +1033,9 @@ export function GenerateDocumentWizard({
               </div>
 
               {/* ── Right: Document Preview ── */}
-              <div className="flex flex-col flex-1 min-h-0">
+              <div className="flex flex-col flex-1 min-h-[620px] lg:min-h-0">
                 {/* Preview header */}
-                <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/20 shrink-0">
+                <div className="flex items-center justify-between px-4 py-2.5 border-b border-border dark:border-slate-700 bg-muted/30 dark:bg-slate-900 shrink-0">
                   <div className="flex items-center gap-2">
                     {previewMode === "preview" ? (
                       <Eye className="w-4 h-4 text-[var(--accent-primary)]" />
@@ -973,23 +1046,23 @@ export function GenerateDocumentWizard({
                       {previewMode === "preview" ? "Live Preview" : "Edit Content"}
                     </span>
                     {previewMode === "edit" && (
-                      <span className="text-[10px] text-amber-600 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded">
+                      <span className="text-[10px] text-amber-700 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded">
                         Manual Override
                       </span>
                     )}
                   </div>
                   <div className="flex items-center gap-1.5">
                     {selectedTemplate.settings?.show_qr && (
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 text-[10px] font-medium">
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-200 text-[10px] font-medium">
                         <QrCode className="w-3 h-3" /> QR
                       </span>
                     )}
                     {selectedTemplate.settings?.show_doc_no && (
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 text-[10px] font-medium">
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-200 text-[10px] font-medium">
                         <Hash className="w-3 h-3" /> Doc No.
                       </span>
                     )}
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-[10px] font-medium">
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-200 text-[10px] font-medium">
                       <Shield className="w-3 h-3" /> Blockchain
                     </span>
                     {/* Edit toggle */}
@@ -1000,7 +1073,7 @@ export function GenerateDocumentWizard({
                           const rendered = renderMergedHtml(currentContent)
                             .replace(/<[^>]*>/g, "")
                             .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
-                          setManualContent(rendered);
+                          updateManualContent(rendered);
                           setPreviewMode("edit");
                         } else {
                           setPreviewMode("preview");
@@ -1009,8 +1082,8 @@ export function GenerateDocumentWizard({
                       className={cn(
                         "inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-colors",
                         previewMode === "edit"
-                          ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"
-                          : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
+                          ? "bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-200"
+                          : "bg-muted dark:bg-slate-800 hover:bg-muted/80 dark:hover:bg-slate-700 text-muted-foreground dark:text-slate-200 hover:text-foreground"
                       )}
                     >
                       {previewMode === "edit" ? <Eye className="w-3 h-3" /> : <Edit3 className="w-3 h-3" />}
@@ -1024,7 +1097,7 @@ export function GenerateDocumentWizard({
                   {previewMode === "edit" ? (
                     <textarea
                       value={manualContent ?? ""}
-                      onChange={(e) => setManualContent(e.target.value)}
+                      onChange={(e) => updateManualContent(e.target.value)}
                       placeholder="Type or paste the document content here. You can use merge fields like {{full_name}}, {{address}}, {{purpose}}, etc."
                       className="w-full h-full min-h-[600px] bg-white dark:bg-slate-800 rounded-lg shadow-md border border-slate-200 dark:border-slate-700 p-8 text-sm text-slate-800 dark:text-slate-200 leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20"
                     />
@@ -1032,7 +1105,7 @@ export function GenerateDocumentWizard({
                     <div id="document-preview-container" className="flex flex-col items-center w-full">
                       {/* Paper size indicator */}
                       <div className="flex items-center justify-center gap-1.5 mb-3">
-                        <span className="text-[10px] text-slate-400 uppercase tracking-widest font-medium">{paperLabel}</span>
+                        <span className="text-[10px] text-slate-500 dark:text-slate-300 uppercase tracking-widest font-medium">{paperLabel}</span>
                       </div>
                       {(() => {
                         const customConfigs = (selectedTemplate?.constituent_type === "establishment" ? barangaySettings?.settings?.customized_establishment_certificates : barangaySettings?.settings?.customized_resident_certificates) || [];
@@ -1064,23 +1137,27 @@ export function GenerateDocumentWizard({
                         fitToContainer={true}
                         contentTitle={selectedTemplate.title ?? selectedTemplate.name}
                         contentSalutation={selectedTemplate.salutation}
-                        contentBodyHtml={renderMergedHtml(manualContent ?? baseContent ?? "")}
+                        contentBodyHtml={renderedIssuanceContent}
+                        rawContent={editableIssuanceContent}
+                        onContentChange={updateManualContent}
+                        contentRequestedBy={selectedResident ? residentFullName(selectedResident) : ""}
+                        contentPurpose={purpose}
                         contentControlNo="(assigned on save)"
                         contentIssuedDate={issuedDate ? new Date(issuedDate + "T00:00:00").toLocaleDateString("en-PH", { month: "long", day: "numeric", year: "numeric" }) : undefined}
                       />
                         );
                       })()}
                       {/* Inline editing hint */}
-                      <p className="mt-2 text-[10px] text-center text-amber-600/80 dark:text-amber-400/70 flex items-center justify-center gap-1">
+                      <p className="mt-2 text-[10px] text-center text-amber-700 dark:text-amber-200 flex items-center justify-center gap-1">
                         <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400" />
-                        <span>Click the <span className="font-semibold underline underline-offset-2 decoration-dashed">underlined fields</span> in the document to type directly</span>
+                        <span>Click the certificate body to edit this issuance only. The saved template will not be changed.</span>
                       </p>
                     </div>
                   )}
                 </div>
 
                 {/* Quick fields bar */}
-                <div className="px-4 py-2.5 border-t border-border shrink-0 bg-background space-y-2">
+                <div className="px-4 py-2.5 border-t border-border dark:border-slate-700 shrink-0 bg-background dark:bg-slate-950 space-y-2">
                   {/* Settings warning — shown if signatory not configured */}
                   {barangaySettings && !barangaySettings.settings?.default_signatory_name && (
                     <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40">
@@ -1106,32 +1183,35 @@ export function GenerateDocumentWizard({
                         type="date"
                         value={issuedDate}
                         onChange={(e) => setIssuedDate(e.target.value)}
-                        className="px-2 py-1 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2 flex-1 min-w-[140px]">
-                      <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                      <label className="text-[11px] font-medium text-muted-foreground whitespace-nowrap">Purpose</label>
-                      <input
-                        type="text"
-                        value={purpose}
-                        onChange={(e) => setPurpose(e.target.value)}
-                        placeholder="e.g. Employment"
-                        className="flex-1 px-2 py-1 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20"
+                        className="px-2 py-1 rounded-lg border border-border dark:border-slate-600 bg-background dark:bg-slate-900 text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/30"
                       />
                     </div>
                     {selectedTemplate.settings?.show_or && (
-                      <div className="flex items-center gap-2">
-                        <Hash className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                        <label className="text-[11px] font-medium text-muted-foreground whitespace-nowrap">OR #</label>
-                        <input
-                          type="text"
-                          value={orNumber}
-                          onChange={(e) => setOrNumber(e.target.value)}
-                          placeholder="Optional"
-                          className="w-28 px-2 py-1 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20"
-                        />
-                      </div>
+                      <>
+                        <div className="flex items-center gap-2">
+                          <Hash className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                          <label className="text-[11px] font-medium text-muted-foreground whitespace-nowrap">OR #</label>
+                          <input
+                            type="text"
+                            value={orNumber}
+                            onChange={(e) => setOrNumber(e.target.value)}
+                            placeholder="Optional"
+                            className="w-28 px-2 py-1 rounded-lg border border-border dark:border-slate-600 bg-background dark:bg-slate-900 text-foreground text-xs placeholder:text-muted-foreground dark:placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/30"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <label className="text-[11px] font-medium text-muted-foreground whitespace-nowrap">Amount ₱</label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={orAmount}
+                            onChange={(e) => setOrAmount(e.target.value)}
+                            placeholder="0.00"
+                            className="w-24 px-2 py-1 rounded-lg border border-border dark:border-slate-600 bg-background dark:bg-slate-900 text-foreground text-xs placeholder:text-muted-foreground dark:placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/30"
+                          />
+                        </div>
+                      </>
                     )}
                     {selectedTemplate.settings?.show_ctc && (
                       <div className="flex items-center gap-2">
@@ -1142,7 +1222,7 @@ export function GenerateDocumentWizard({
                           value={ctcNumber}
                           onChange={(e) => setCtcNumber(e.target.value)}
                           placeholder="Optional"
-                          className="w-28 px-2 py-1 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/20"
+                          className="w-28 px-2 py-1 rounded-lg border border-border dark:border-slate-600 bg-background dark:bg-slate-900 text-foreground text-xs placeholder:text-muted-foreground dark:placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/30"
                         />
                       </div>
                     )}
@@ -1154,7 +1234,7 @@ export function GenerateDocumentWizard({
         </div>
 
         {/* ── Bottom Action Bar ── */}
-        <div className="flex items-center justify-between px-5 h-16 border-t border-border shrink-0 bg-muted/10">
+        <div className="flex items-center justify-between gap-3 px-4 sm:px-5 min-h-16 py-2.5 border-t border-border dark:border-slate-700 shrink-0 bg-muted/20 dark:bg-slate-900/80">
           <button
             onClick={handleBack}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted/50 transition-colors"
@@ -1164,7 +1244,7 @@ export function GenerateDocumentWizard({
           </button>
 
           {wizardStep === "fill-details" && selectedTemplate && (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center justify-end gap-3">
               {selectedTemplate.settings?.show_expiry && selectedTemplate.settings?.expiry_months && (
                 <span className="text-[11px] text-muted-foreground">
                   Expires in {selectedTemplate.settings.expiry_months} month(s)
@@ -1184,6 +1264,7 @@ export function GenerateDocumentWizard({
               </button>
             </div>
           )}
+        </div>
         </div>
       </div>
     </>
