@@ -558,7 +558,7 @@ function ColorThemeDropdown({ value, onChange }: { value: string, onChange: (val
 
 const PATTERN_LABELS: Record<string, string> = {
   wave: "Wave", gradient: "Gradient", bold: "Bold", photo: "Photo", minimal: "Minimal", stripe: "Stripe",
-  wreath: "Wreath", sunburst: "Sunburst", gothic: "Gothic", scroll: "Scroll", diplomatic: "Diplomatic", ornate: "Ornate",
+  plain: "Plain", wreath: "Wreath", sunburst: "Sunburst", gothic: "Gothic", scroll: "Scroll", diplomatic: "Diplomatic", ornate: "Ornate",
   geometric: "Geometric", "bold-stripe": "Bold Stripe", tech: "Tech",
 };
 
@@ -819,7 +819,7 @@ export default function SettingsPage() {
     // Classic Sidebar set
     | "wave" | "gradient" | "bold" | "photo" | "minimal" | "stripe"
     // Formal Government set
-    | "wreath" | "sunburst" | "gothic" | "scroll" | "diplomatic" | "ornate"
+    | "plain" | "wreath" | "sunburst" | "gothic" | "scroll" | "diplomatic" | "ornate"
     // Centered Modern set
     | "geometric" | "bold-stripe" | "tech"
   >("wave");
@@ -841,10 +841,10 @@ export default function SettingsPage() {
 
   // Structure → 6 compatible design patterns (no cross-structure clashes)
   const STRUCTURE_PATTERNS = {
-    klasiko:  ["wave", "gradient", "bold", "photo", "minimal", "stripe"] as const,
-    elegante: ["wreath", "sunburst", "gothic", "scroll", "diplomatic", "ornate"] as const,
-    moderno:  ["wave", "gradient", "minimal", "geometric", "bold-stripe", "tech"] as const,
-    digital:  ["wave", "gradient", "minimal", "geometric", "bold-stripe", "tech"] as const,
+    klasiko:  ["plain", "wave", "gradient", "bold", "photo", "minimal", "stripe"] as const,
+    elegante: ["plain", "wreath", "sunburst", "gothic", "scroll", "diplomatic", "ornate"] as const,
+    moderno:  ["plain", "wave", "gradient", "minimal", "geometric", "bold-stripe", "tech"] as const,
+    digital:  ["plain", "wave", "gradient", "minimal", "geometric", "bold-stripe", "tech"] as const,
   };
 
   // Reset the design pattern when the structure changes if the current pattern
@@ -1568,8 +1568,8 @@ export default function SettingsPage() {
     {
       title: t.settings.groups.docsServices,
       items: [
-        { id: "documents", label: t.settings.tabs.documents, icon: FileText },
-        { id: "customize-template", label: "Customize Template", icon: ImageIcon },
+        // { id: "documents", label: t.settings.tabs.documents, icon: FileText },
+        { id: "customize-template", label: "Documents Template", icon: ImageIcon },
         { id: "system", label: t.settings.tabs.systemPrefs, icon: Shield },
       ],
     },
@@ -3944,7 +3944,7 @@ export default function SettingsPage() {
                   // Filter to the 6 patterns curated for the selected structure
                   const PATTERN_LABELS: Record<string, string> = {
                     wave: "Wave", gradient: "Gradient", bold: "Bold", photo: "Photo", minimal: "Minimal", stripe: "Stripe",
-                    wreath: "Wreath", sunburst: "Sunburst", gothic: "Gothic", scroll: "Scroll", diplomatic: "Diplomatic", ornate: "Ornate",
+                    plain: "Plain", wreath: "Wreath", sunburst: "Sunburst", gothic: "Gothic", scroll: "Scroll", diplomatic: "Diplomatic", ornate: "Ornate",
                     geometric: "Geometric", "bold-stripe": "Bold Stripe", tech: "Tech",
                   };
                   const patternIds = (STRUCTURE_PATTERNS[docLayout] as readonly string[]) ?? STRUCTURE_PATTERNS.klasiko;
@@ -4025,7 +4025,7 @@ export default function SettingsPage() {
                 designPatternLabel={(() => {
                   const m: Record<string, string> = {
                     wave: "Wave", gradient: "Gradient", bold: "Bold", photo: "Photo", minimal: "Minimal", stripe: "Stripe",
-                    wreath: "Wreath", sunburst: "Sunburst", gothic: "Gothic", scroll: "Scroll", diplomatic: "Diplomatic", ornate: "Ornate",
+                    plain: "Plain", wreath: "Wreath", sunburst: "Sunburst", gothic: "Gothic", scroll: "Scroll", diplomatic: "Diplomatic", ornate: "Ornate",
                     geometric: "Geometric", "bold-stripe": "Bold Stripe", tech: "Tech",
                   };
                   return m[docDesignPattern] || "Wave";

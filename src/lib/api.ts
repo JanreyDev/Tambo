@@ -80,6 +80,7 @@ async function request<T>(
     method,
     headers,
     credentials: "include",
+      cache: "no-store",
     body: isFormData ? body : (body ? JSON.stringify(body) : undefined),
   });
 
