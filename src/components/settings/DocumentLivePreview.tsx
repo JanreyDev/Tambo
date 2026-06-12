@@ -38,6 +38,9 @@ interface Props {
   onContentChange?: (val: string) => void;
   contentControlNo?: string;
   contentIssuedDate?: string;
+  contentValidUntil?: string;
+  contentRequestedBy?: string;
+  contentPurpose?: string;
 }
 
 const ASPECT_RATIO: Record<PaperSize, string> = {
@@ -113,7 +116,8 @@ export function DocumentLivePreview({
   layout, paperSize, font, colorTheme, designPattern,
   barangayName, municipality, province, logoUrl, municipalityLogoUrl,
   signatoryName, signatoryTitle, hideChrome, fitToContainer, fitScale = 1,
-  contentTitle, contentSalutation, contentBodyHtml, rawContent, onContentChange, contentControlNo, contentIssuedDate
+  contentTitle, contentSalutation, contentBodyHtml, rawContent, onContentChange, contentControlNo, contentIssuedDate,
+  contentValidUntil, contentRequestedBy, contentPurpose
 }: Props) {
   const c = COLORS[colorTheme] ?? COLORS.plain;
   const fontFamily = FONT_FAMILY[font];
@@ -141,6 +145,9 @@ export function DocumentLivePreview({
     onContentChange,
     controlNo: displayControlNo,
     issuedDate: displayIssuedDate,
+    validUntil: contentValidUntil || "Nov 16, 2026",
+    requestedBy: contentRequestedBy || "JUAN MIGUEL SANTOS",
+    purpose: contentPurpose || "LOCAL EMPLOYMENT",
   };
 
   const meta = useMemo(() => ({
@@ -227,6 +234,9 @@ interface BodyProps {
   onContentChange?: (val: string) => void;
   controlNo: string;
   issuedDate: string;
+  validUntil: string;
+  requestedBy: string;
+  purpose: string;
 }
 
 const AVAILABLE_TAGS = [
@@ -521,7 +531,10 @@ function PatternDecor({
 // ── KLASIKO — Classic Sidebar ─────────────────────────────────────
 
 function KlasikoBody(props: BodyProps) {
-  const { c, signName, signTitle, designPattern, title, salutation, bodyHtml, controlNo, issuedDate } = props;
+  const {
+    c, signName, signTitle, designPattern, title, salutation, bodyHtml,
+    controlNo, issuedDate, validUntil, requestedBy, purpose,
+  } = props;
   return (
     <div className="w-full h-full flex flex-col text-[8px] relative overflow-hidden bg-white">
       <PatternDecor c={c} designPattern={designPattern} />
@@ -561,7 +574,7 @@ function KlasikoBody(props: BodyProps) {
                 </div>
                 <div className="flex justify-between items-center text-[6px]">
                   <span className="uppercase tracking-widest italic text-gray-600">VALID UNTIL</span>
-                  <span className="font-bold" style={{ color: c.primary }}>Nov 16, 2026</span>
+                  <span className="font-bold" style={{ color: c.primary }}>{validUntil}</span>
                 </div>
               </div>
             </div>
@@ -596,9 +609,9 @@ function KlasikoBody(props: BodyProps) {
             <div className="text-[6.5px] mb-8 ml-8">
               <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1">
                 <span className="font-bold" style={{ color: c.primary }}>Requested By:</span>
-                <span className="uppercase text-gray-800">JUAN MIGUEL SANTOS</span>
+                <span className="uppercase text-gray-800">{requestedBy}</span>
                 <span className="font-bold" style={{ color: c.primary }}>Purpose:</span>
-                <span className="uppercase text-gray-800">LOCAL EMPLOYMENT</span>
+                <span className="uppercase text-gray-800">{purpose}</span>
               </div>
             </div>
             

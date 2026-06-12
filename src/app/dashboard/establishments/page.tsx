@@ -523,6 +523,7 @@ function DocGenModal({
   const today = new Date();
   const year = today.getFullYear();
   const dateStr = today.toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" });
+  const validUntilDate = new Date(today);
   const templateCategory = {
     new: "business_clearance_new",
     renewal: "business_clearance_renewal",
@@ -540,6 +541,12 @@ function DocGenModal({
     ?? categoryTemplates.find((template) => template.barangay_id !== null)
     ?? categoryTemplates[0]
     ?? null;
+  if (selectedTemplate?.settings?.show_expiry && selectedTemplate.settings.expiry_months) {
+    validUntilDate.setMonth(validUntilDate.getMonth() + selectedTemplate.settings.expiry_months);
+  }
+  const validUntilStr = selectedTemplate?.settings?.show_expiry
+    ? validUntilDate.toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" })
+    : "No Expiry";
   const customConfig = customCertificates.find((certificate) => certificate.id === selectedTemplate?.id);
   const customDesignSettings = customConfig?.design_settings ?? {};
   const useGlobalDesign = customConfig
@@ -666,6 +673,12 @@ If the user only wants to change one field, keep the other field unchanged. Alwa
         prev_permit_no: establishment.permit_number || "",
         closure_date: today.toISOString().split("T")[0],
         closure_reason: "Business closure",
+        full_name: establishment.business_name || "",
+        address,
+        age: "",
+        civil_status: "",
+        sex: "",
+        purpose: docConfig.subtitle,
       },
     });
   };
@@ -719,6 +732,12 @@ If the user only wants to change one field, keep the other field unchanged. Alwa
               "{{prev_permit_no}}": establishment.permit_number || "",
               "{{closure_date}}": dateStr,
               "{{closure_reason}}": "Business closure",
+              "{{full_name}}": establishment.business_name || "",
+              "{{address}}": address || "",
+              "{{age}}": "",
+              "{{civil_status}}": "",
+              "{{sex}}": "",
+              "{{purpose}}": docConfig.subtitle,
             };
             Object.entries(vars).forEach(([k, v]) => {
               finalBodyHtml = finalBodyHtml.split(k).join(v);
@@ -748,6 +767,10 @@ If the user only wants to change one field, keep the other field unchanged. Alwa
                   contentSalutation={selectedTemplate?.salutation}
                   contentBodyHtml={finalBodyHtml}
                   contentControlNo={`NO. ${establishment.establishment_number}`}
+                  contentIssuedDate={dateStr}
+                  contentValidUntil={validUntilStr}
+                  contentRequestedBy={establishment.owner_name || establishment.business_name}
+                  contentPurpose={docConfig.subtitle}
                   hideChrome={true}
                 />
               </div>
