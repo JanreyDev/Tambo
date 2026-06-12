@@ -41,6 +41,7 @@ interface Props {
   contentValidUntil?: string;
   contentRequestedBy?: string;
   contentPurpose?: string;
+  officials?: Array<{ name: string; position: string }>;
 }
 
 const ASPECT_RATIO: Record<PaperSize, string> = {
@@ -87,6 +88,11 @@ const COLORS: Record<ColorTheme, { primary: string; accent: string; tint: string
 
 // Sample Barangay Clearance content — placeholders filled with realistic values.
 const SAMPLE = {
+  barangay: "TAMBO",
+  municipality: "Paranaque City",
+  province: "Metro Manila",
+  signName: "HON. JUAN DELA CRUZ",
+  signTitle: "PUNONG BARANGAY",
   title: "BARANGAY CLEARANCE",
   salutation: "TO WHOM IT MAY CONCERN:",
   body: `This is to certify that PEDRO M. PENDUKO, 35 years old, single, Filipino, and a resident of Purok 5, is personally known to be a person of good moral character, trustworthy, diligent, and a law-abiding citizen.
@@ -117,7 +123,7 @@ export function DocumentLivePreview({
   barangayName, municipality, province, logoUrl, municipalityLogoUrl,
   signatoryName, signatoryTitle, hideChrome, fitToContainer, fitScale = 1,
   contentTitle, contentSalutation, contentBodyHtml, rawContent, onContentChange, contentControlNo, contentIssuedDate,
-  contentValidUntil, contentRequestedBy, contentPurpose
+  contentValidUntil, contentRequestedBy, contentPurpose, officials
 }: Props) {
   const c = COLORS[colorTheme] ?? COLORS.plain;
   const fontFamily = FONT_FAMILY[font];
@@ -148,6 +154,7 @@ export function DocumentLivePreview({
     validUntil: contentValidUntil || "Nov 16, 2026",
     requestedBy: contentRequestedBy || "JUAN MIGUEL SANTOS",
     purpose: contentPurpose || "LOCAL EMPLOYMENT",
+    officials: officials !== undefined ? officials : SAMPLE_OFFICIALS,
   };
 
   const meta = useMemo(() => ({
@@ -237,6 +244,7 @@ interface BodyProps {
   validUntil: string;
   requestedBy: string;
   purpose: string;
+  officials: Array<{ name: string; position: string }>;
 }
 
 const AVAILABLE_TAGS = [
@@ -552,7 +560,7 @@ function KlasikoBody(props: BodyProps) {
             <div className="h-px w-full mb-3" style={{ background: c.primary + "55" }} />
             
             <ul className="space-y-3 text-center flex-1 overflow-hidden">
-              {SAMPLE_OFFICIALS.slice(0, 7).map((o) => (
+              {props.officials.slice(0, 7).map((o) => (
                 <li key={o.name}>
                   <p className="font-bold text-[7px] uppercase tracking-wide" style={{ color: c.primary }}>{o.name}</p>
                   <p className="text-[6px] italic text-gray-700">{o.position}</p>
@@ -670,7 +678,7 @@ function EleganteBody(props: BodyProps) {
               Sangguniang Barangay {props.barangay}
             </p>
             <div className="grid grid-cols-4 gap-1 text-[6px] leading-tight">
-              {SAMPLE_OFFICIALS.slice(0, 8).map((o) => (
+              {props.officials.slice(0, 8).map((o) => (
                 <div key={o.name} className="text-center">
                   <p className="font-semibold text-gray-800 truncate">{o.name}</p>
                   <p className="text-gray-500 truncate">{o.position}</p>
@@ -730,7 +738,7 @@ function ModernoBody(props: BodyProps) {
           <div>
             <p className="text-[7px] font-bold uppercase tracking-wider mb-1" style={{ color: c.primary }}>Sangguniang Barangay</p>
             <div className="grid grid-cols-3 gap-x-3 gap-y-0.5 text-[6px] leading-tight">
-              {SAMPLE_OFFICIALS.slice(0, 9).map((o) => (
+              {props.officials.slice(0, 9).map((o) => (
                 <div key={o.name}>
                   <p className="font-semibold text-gray-800 truncate">{o.name}</p>
                   <p className="text-gray-500 truncate">{o.position}</p>

@@ -15,10 +15,11 @@ import { Badge, StatusBadge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/stat-card";
 import { Modal, ModalButton } from "@/components/ui/modal";
 import { SortableHeader } from "@/components/ui/sortable-header";
-import { cn } from "@/lib/utils";
+import { DocumentLivePreview } from "@/components/settings/DocumentLivePreview";
+import { cn, resolvePhotoUrl } from "@/lib/utils";
 import { MabiniButton } from "@/components/ui/mabini-button";
 import { api } from "@/lib/api";
-import type { LotBuilding, AiStreamEvent } from "@/lib/types";
+import type { LotBuilding, AiStreamEvent, BarangayOfficial, BarangaySettings, DocumentTemplate, IssueDocumentPayload } from "@/lib/types";
 
 // ── Toast ──────────────────────────────────────────────────────────────────
 
@@ -518,6 +519,9 @@ function ClearanceGenModal({
   open,
   clearanceType,
   record,
+  settings,
+  templates,
+  officials,
   processing,
   onConfirm,
   onClose,
@@ -526,11 +530,22 @@ function ClearanceGenModal({
   clearanceType: ClearanceValue;
   record: LotBuilding | null;
   processing: boolean;
-  onConfirm: (notes: string) => void;
+  settings: BarangaySettings | null;
+  templates: DocumentTemplate[];
+  officials: Array<{ name: string; position: string }>;
+  onConfirm: (data: { template: DocumentTemplate; notes: string; customContent: string; fields: Record<string, string> }) => Promise<void>;
   onClose: () => void;
 }) {
   const docRef = useRef<HTMLDivElement>(null);
   const cfg = getClearanceConfig(clearanceType);
+  const template = templates.find((item) => item.category === clearanceType) ?? null;
+  const documentSettings = settings?.settings ?? {};
+  const customDesigns = Array.isArray(documentSettings.customized_lot_building_certificates)
+    ? documentSettings.customized_lot_building_certificates as Array<{ id: string; isGlobal?: boolean; design_settings?: Record<string, string | boolean> }>
+    : [];
+  const customDesign = customDesigns.find((item) => item.id === template?.id);
+  const design = customDesign?.design_settings ?? {};
+  const useGlobal = customDesign ? (customDesign.isGlobal ?? design.use_global_design ?? true) : true;
 
   const today = new Date();
   const dateStr = today.toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" });
@@ -648,9 +663,34 @@ If the user only wants to change one field, keep the other field unchanged. Alwa
     setTimeout(() => { win.print(); }, 300);
   };
 
-  const handleIssuePrint = () => {
-    handlePrint();
-    onConfirm(notes);
+  const handleIssuePrint = async () => {
+    if (!record || !template || processing) return;
+    await onConfirm({
+      template,
+      notes,
+      customContent: !useGlobal && typeof design.custom_content === "string"
+        ? design.custom_content
+        : `${certBody}\n\n${footerNote}`,
+      fields: {
+        owner_name: record.owner_name || "",
+        owner_address: record.owner_address || "",
+        full_name: record.owner_name || "",
+        address,
+        age: "",
+        civil_status: "",
+        sex: "",
+        lot_address: address,
+        property_address: address,
+        construction_address: address,
+        site_address: address,
+        lot_area: record.size || "",
+        floor_area: record.size || "",
+        tax_dec_no: record.tax_declaration_number || "",
+        structure_type: record.classification || "",
+        applicant_name: record.owner_name || "",
+        purpose: cfg.label,
+      },
+    });
   };
 
   if (!open || !record) return null;
@@ -658,6 +698,26 @@ If the user only wants to change one field, keep the other field unchanged. Alwa
 
   const address = formatAddress(record);
   const Icon = cfg.icon;
+  const previewFields: Record<string, string> = {
+    owner_name: record.owner_name || "", owner_address: record.owner_address || "",
+    lot_address: address, property_address: address, construction_address: address,
+    site_address: address, lot_area: record.size || "", floor_area: record.size || "",
+    tax_dec_no: record.tax_declaration_number || "", structure_type: record.classification || "",
+    applicant_name: record.owner_name || "", purpose: cfg.label,
+    full_name: record.owner_name || "", address, age: "", civil_status: "", sex: "",
+  };
+  let previewContent = !useGlobal && typeof design.custom_content === "string"
+    ? design.custom_content
+    : template?.content || `${certBody}\n\n${footerNote}`;
+  Object.entries(previewFields).forEach(([key, value]) => {
+    previewContent = previewContent.split(`{{${key}}}`).join(value);
+  });
+  previewContent = previewContent.replace(/\{\{[^{}]+\}\}/g, "");
+  const previewLayout = ((useGlobal ? documentSettings.document_layout : design.document_layout) || "klasiko") as "klasiko" | "elegante" | "moderno" | "digital";
+  const previewPaperSize = ((useGlobal ? documentSettings.document_paper_size : design.document_paper_size) || "a4") as "a4" | "letter" | "legal";
+  const previewFont = ((useGlobal ? documentSettings.document_font : design.document_font) || "times") as "times" | "arial" | "inter" | "poppins" | "merriweather" | "playfair";
+  const previewColorTheme = ((useGlobal ? documentSettings.document_color_theme : design.document_color_theme) || "plain") as "plain" | "blue" | "red" | "green" | "yellow" | "combo-flag" | "combo-festive" | "combo-earth" | "combo-gov" | "combo-bayanihan" | "combo-sunrise" | "combo-coastal" | "combo-heritage";
+  const previewDesignPattern = ((useGlobal ? documentSettings.document_design_pattern : design.document_design_pattern) || "wave") as "wave" | "gradient" | "bold" | "photo" | "minimal" | "stripe" | "wreath" | "sunburst" | "gothic" | "scroll" | "diplomatic" | "ornate" | "geometric" | "bold-stripe" | "tech";
 
   return createPortal(
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
@@ -669,9 +729,33 @@ If the user only wants to change one field, keep the other field unchanged. Alwa
 
         {/* ── Left: Document Preview ── */}
         <div className="flex-1 bg-slate-100 dark:bg-slate-800/60 overflow-y-auto p-6">
+          <DocumentLivePreview
+            layout={previewLayout}
+            paperSize={previewPaperSize}
+            font={previewFont}
+            colorTheme={previewColorTheme}
+            designPattern={previewDesignPattern}
+            barangayName={settings?.name}
+            municipality={settings?.city_municipality}
+            province={settings?.province}
+            logoUrl={resolvePhotoUrl(settings?.logo_url)}
+            municipalityLogoUrl={resolvePhotoUrl(settings?.municipality_logo_url)}
+            signatoryName={(documentSettings.default_signatory_name as string) || settings?.captain_name}
+            signatoryTitle={(documentSettings.default_signatory_title as string) || "PUNONG BARANGAY"}
+            contentTitle={template?.title || cfg.title}
+            contentSalutation={template?.salutation}
+            contentBodyHtml={previewContent}
+            contentControlNo={record.lot_building_number}
+            contentIssuedDate={dateStr}
+            contentRequestedBy={record.owner_name || ""}
+            contentPurpose={cfg.label}
+            officials={officials}
+            hideChrome
+            fitToContainer
+          />
           <div
             ref={docRef}
-            className="bg-white shadow-lg rounded mx-auto max-w-[580px] p-10 text-black"
+            className="hidden"
             style={{ fontFamily: "'Times New Roman', serif", fontSize: "12pt", lineHeight: 1.6 }}
           >
             {/* Header */}
@@ -1021,6 +1105,9 @@ type DupResult = {
 export default function LotsBuildingsPage() {
   // ── Data ──
   const [records, setRecords] = useState<LotBuilding[]>([]);
+  const [settings, setSettings] = useState<BarangaySettings | null>(null);
+  const [documentTemplates, setDocumentTemplates] = useState<DocumentTemplate[]>([]);
+  const [officials, setOfficials] = useState<Array<{ name: string; position: string }>>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<{
@@ -1160,6 +1247,23 @@ export default function LotsBuildingsPage() {
 
   useEffect(() => { fetchList(); }, [fetchList]);
   useEffect(() => { fetchStats(); }, [fetchStats]);
+  useEffect(() => {
+    api.settings.get().then(setSettings).catch(() => {});
+    api.documentTemplates.list({ constituent_type: "lot_building", is_active: true, per_page: 100 })
+      .then((response) => setDocumentTemplates(response.data))
+      .catch(() => {});
+    api.officials.list({ is_active: true, per_page: 50, sort_by: "sort_order", sort_dir: "asc" })
+      .then((response) => setOfficials(response.data.map((official: BarangayOfficial) => ({
+        name: [
+          official.resident?.first_name,
+          official.resident?.middle_name,
+          official.resident?.last_name,
+          official.resident?.extension_name,
+        ].filter(Boolean).join(" ") || official.position,
+        position: official.position.replace(/_/g, " "),
+      }))))
+      .catch(() => {});
+  }, []);
 
   // Load purok/street entries from existing records for comboboxes
   useEffect(() => {
@@ -1388,15 +1492,34 @@ export default function LotsBuildingsPage() {
     setClearanceOpen(true);
   };
 
-  const handleClearanceConfirm = async (notes: string) => {
+  const handleClearanceConfirm = async ({
+    template,
+    notes,
+    customContent,
+    fields,
+  }: {
+    template: DocumentTemplate;
+    notes: string;
+    customContent: string;
+    fields: Record<string, string>;
+  }) => {
     if (!clearanceTarget || clearanceProcessing) return;
     setClearanceProcessing(true);
     try {
+      const payload: IssueDocumentPayload = {
+        template_id: template.id,
+        constituent_type: "lot_building",
+        constituent_id: clearanceTarget.id,
+        custom_field_values: fields,
+        custom_content: customContent,
+      };
+      const result = await api.issuedDocuments.create(payload);
       await api.lotsBuildings.clearance(clearanceTarget.id, clearanceType, notes || undefined);
       const cfg = getClearanceConfig(clearanceType);
       addToast({ type: "success", title: `${cfg.label} Issued`, message: `Clearance for ${clearanceTarget.lot_building_number} has been recorded.` });
       setClearanceOpen(false);
       setClearanceTarget(null);
+      window.open(`/api/v1/issued-documents/${result.issued_document.id}/pdf`, "_blank");
       fetchList();
       fetchStats();
       if (viewRecord?.id === clearanceTarget.id) {
@@ -2236,6 +2359,9 @@ export default function LotsBuildingsPage() {
         open={clearanceOpen}
         clearanceType={clearanceType}
         record={clearanceTarget}
+        settings={settings}
+        templates={documentTemplates}
+        officials={officials}
         processing={clearanceProcessing}
         onConfirm={handleClearanceConfirm}
         onClose={() => { setClearanceOpen(false); setClearanceTarget(null); }}

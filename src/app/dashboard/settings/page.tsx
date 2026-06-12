@@ -723,17 +723,20 @@ export default function SettingsPage() {
   const [modalStep, setModalStep] = useState(1);
   const [selectedCertType, setSelectedCertType] = useState<string | null>(null);
   const [previewCertId, setPreviewCertId] = useState<string | null>(null);
-  const [previewConstituentType, setPreviewConstituentType] = useState<"resident" | "establishment">("resident");
+  const [previewConstituentType, setPreviewConstituentType] = useState<"resident" | "establishment" | "lot_building">("resident");
   const [themeSource, setThemeSource] = useState<"global" | "custom">("global");
   const [residentCertificates, setResidentCertificates] = useState<any[]>([]);
   const [establishmentCertificates, setEstablishmentCertificates] = useState<any[]>([]);
-  const [editingConstituentType, setEditingConstituentType] = useState<"resident" | "establishment">("resident");
+  const [lotBuildingCertificates, setLotBuildingCertificates] = useState<any[]>([]);
+  const [editingConstituentType, setEditingConstituentType] = useState<"resident" | "establishment" | "lot_building">("resident");
   const [dbTemplates, setDbTemplates] = useState<any[]>([]);
 
 
   useEffect(() => {
     if (isModalOpen || customizeTab === "resident" || customizeTab === "establishment" || customizeTab === "editor") {
-      const typeToFetch = (isModalOpen || customizeTab === "editor") ? editingConstituentType : (customizeTab === "establishment" ? "establishment" : "resident");
+      const typeToFetch = (isModalOpen || customizeTab === "editor")
+        ? editingConstituentType
+        : customizeTab === "establishment" ? "establishment" : customizeTab === "lot" ? "lot_building" : "resident";
       api.documentTemplates.list({ constituent_type: typeToFetch, per_page: 50 })
         .then(res => {
           const data = res.data || [];
@@ -974,6 +977,7 @@ export default function SettingsPage() {
           dictionaries: initialDicts0,
           residentCertificates: (s.customized_resident_certificates as any[]) || [],
           establishmentCertificates: (s.customized_establishment_certificates as any[]) || [],
+          lotBuildingCertificates: (s.customized_lot_building_certificates as any[]) || [],
         };
 
         setSettings(data);
@@ -1032,6 +1036,7 @@ export default function SettingsPage() {
         setDocDesignPattern(loadedDesignPattern);
         setResidentCertificates(s.customized_resident_certificates || []);
         setEstablishmentCertificates(s.customized_establishment_certificates || []);
+        setLotBuildingCertificates(s.customized_lot_building_certificates || []);
         // If the barangay has previously customized any design field, skip dummy gating.
         const hasAnyCustom = !!(s.document_paper_size || s.document_font || s.document_color_theme || s.document_design_pattern);
         if (hasAnyCustom) setHasGeneratedPatterns(true);
@@ -1192,7 +1197,11 @@ export default function SettingsPage() {
           }
         };
         
-          if (editingConstituentType === "establishment") {
+          if (editingConstituentType === "lot_building") {
+            const newCerts = [...lotBuildingCertificates.filter(c => c.id !== option.id), newCert];
+            setLotBuildingCertificates(newCerts);
+            await api.settings.update({ settings: { customized_lot_building_certificates: newCerts } } as any);
+          } else if (editingConstituentType === "establishment") {
             const newCerts = [...establishmentCertificates.filter(c => c.id !== option.id), newCert];
             setEstablishmentCertificates(newCerts);
             await api.settings.update({ settings: { customized_establishment_certificates: newCerts } } as any);
@@ -1206,7 +1215,7 @@ export default function SettingsPage() {
         }
         addToast("Custom template design saved!", "success");
         loadGlobalDocumentDesign();
-        setCustomizeTab(editingConstituentType);
+        setCustomizeTab(editingConstituentType === "lot_building" ? "lot" : editingConstituentType);
     } catch (err) {
       addToast("Failed to save custom design", "error");
     } finally {
@@ -1214,12 +1223,16 @@ export default function SettingsPage() {
     }
   };
 
-  const handleRemoveCustomCertificate = async (idToRemove: string, type: "resident" | "establishment" = "resident") => {
+  const handleRemoveCustomCertificate = async (idToRemove: string, type: "resident" | "establishment" | "lot_building" = "resident") => {
     if (!window.confirm("Are you sure you want to remove this customized design? The certificate will revert to the global default.")) return;
     
     setSaving(true);
     try {
-      if (type === "establishment") {
+      if (type === "lot_building") {
+        const newCerts = lotBuildingCertificates.filter(c => c.id !== idToRemove);
+        setLotBuildingCertificates(newCerts);
+        await api.settings.update({ settings: { customized_lot_building_certificates: newCerts } } as any);
+      } else if (type === "establishment") {
         const newCerts = establishmentCertificates.filter(c => c.id !== idToRemove);
         setEstablishmentCertificates(newCerts);
         await api.settings.update({ settings: { customized_establishment_certificates: newCerts } } as any);
@@ -2250,7 +2263,7 @@ export default function SettingsPage() {
                               <button
                                 onClick={() => {
                                   loadGlobalDocumentDesign();
-                                  setCustomizeTab(editingConstituentType);
+                                  setCustomizeTab(editingConstituentType === "lot_building" ? "lot" : editingConstituentType);
                                 }}
                                 className="p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors -ml-2"
                               >
@@ -2482,14 +2495,14 @@ export default function SettingsPage() {
                 )}
                 
                 {/* --- RESIDENT CERTIFICATES TAB --- */}
-                {(customizeTab === "resident" || customizeTab === "establishment") && (
+                {(customizeTab === "resident" || customizeTab === "establishment" || customizeTab === "lot") && (
                   <div className="p-6 bg-muted/5 flex flex-col gap-6">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div>
-                        <h3 className="text-base font-semibold text-foreground">{customizeTab === "resident" ? "Resident Certificates" : "Establishment Certificates"}</h3>
-                        <p className="text-xs text-muted-foreground mt-0.5">Manage certificate designs for {customizeTab === "resident" ? "residents." : "establishments."} Each certificate can use the global theme or have its own custom design.</p>
+                        <h3 className="text-base font-semibold text-foreground">{customizeTab === "resident" ? "Resident Certificates" : customizeTab === "establishment" ? "Establishment Certificates" : "Lot & Building Certificates"}</h3>
+                        <p className="text-xs text-muted-foreground mt-0.5">Each certificate can use the global theme or have its own custom design.</p>
                       </div>
-                      <button onClick={() => { setIsModalOpen(true); setModalStep(1); setSelectedCertType(null); setThemeSource("global"); setEditingConstituentType(customizeTab as any); }} className="px-3 py-1.5 text-xs font-medium rounded-lg text-white transition-colors flex items-center gap-1.5 whitespace-nowrap bg-blue-600 hover:bg-blue-700">
+                      <button onClick={() => { setIsModalOpen(true); setModalStep(1); setSelectedCertType(null); setThemeSource("global"); setEditingConstituentType(customizeTab === "lot" ? "lot_building" : customizeTab as "resident" | "establishment"); }} className="px-3 py-1.5 text-xs font-medium rounded-lg text-white transition-colors flex items-center gap-1.5 whitespace-nowrap bg-blue-600 hover:bg-blue-700">
                         <Plus className="w-3.5 h-3.5" /> New Certificate Design
                       </button>
                     </div>
@@ -2520,7 +2533,7 @@ export default function SettingsPage() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border/20">
-                          {(customizeTab === "resident" ? residentCertificates : establishmentCertificates).length === 0 ? (
+                          {(customizeTab === "resident" ? residentCertificates : customizeTab === "establishment" ? establishmentCertificates : lotBuildingCertificates).length === 0 ? (
                             <tr>
                               <td colSpan={4} className="py-16 text-center text-slate-400 bg-slate-900/10">
                                 <div className="flex flex-col items-center justify-center">
@@ -2532,7 +2545,7 @@ export default function SettingsPage() {
                                 </div>
                               </td>
                             </tr>
-                          ) : (customizeTab === "resident" ? residentCertificates : establishmentCertificates).map(cert => (
+                          ) : (customizeTab === "resident" ? residentCertificates : customizeTab === "establishment" ? establishmentCertificates : lotBuildingCertificates).map(cert => (
                             <tr key={cert.id} className="group hover:bg-background/40 transition-colors">
                               <td className="py-4 px-4 align-top">
                                 <div className="flex gap-4">
@@ -2573,7 +2586,7 @@ export default function SettingsPage() {
                                   <button 
                                     className="text-muted-foreground hover:text-foreground transition-colors"
                                     onClick={() => {
-                                      setPreviewConstituentType(customizeTab === "establishment" ? "establishment" : "resident");
+                                      setPreviewConstituentType(customizeTab === "lot" ? "lot_building" : customizeTab === "establishment" ? "establishment" : "resident");
                                       setPreviewCertId(cert.id);
                                     }}
                                     title="Preview Design"
@@ -2583,7 +2596,7 @@ export default function SettingsPage() {
                                   <button 
                                     className="text-muted-foreground hover:text-blue-500 transition-colors"
                                     onClick={() => {
-                                      setEditingConstituentType(customizeTab === "establishment" ? "establishment" : "resident");
+                                      setEditingConstituentType(customizeTab === "lot" ? "lot_building" : customizeTab === "establishment" ? "establishment" : "resident");
                                       setSelectedCertType(cert.id);
                                       if (cert.design_settings && cert.design_settings.use_global_design === false) {
                                         setDocLayout((cert.design_settings.document_layout as any) || "klasiko");
@@ -2603,7 +2616,7 @@ export default function SettingsPage() {
                                   </button>
                                   <button 
                                     className="text-muted-foreground hover:text-red-500 transition-colors"
-                                    onClick={() => handleRemoveCustomCertificate(cert.id, customizeTab === "resident" ? "resident" : "establishment")}
+                                    onClick={() => handleRemoveCustomCertificate(cert.id, customizeTab === "lot" ? "lot_building" : customizeTab === "resident" ? "resident" : "establishment")}
                                     title="Remove"
                                   >
                                     <Trash2 className="w-4 h-4" />
@@ -2776,9 +2789,9 @@ export default function SettingsPage() {
                                     const option = dbTemplates.find(c => c.id === selectedCertType);
                                     
                                     if (themeSource === "custom") {
-                                      const existingCertificates = editingConstituentType === "establishment"
-                                        ? establishmentCertificates
-                                        : residentCertificates;
+                                      const existingCertificates = editingConstituentType === "lot_building"
+                                        ? lotBuildingCertificates
+                                        : editingConstituentType === "establishment" ? establishmentCertificates : residentCertificates;
                                       const existing = existingCertificates.find(c => c.id === selectedCertType);
                                       if (existing && existing.design_settings && existing.design_settings.use_global_design === false) {
                                         setDocLayout((existing.design_settings.document_layout as any) || "klasiko");
@@ -2810,7 +2823,11 @@ export default function SettingsPage() {
                                             author: "You"
                                           };
                                           
-                                          if (editingConstituentType === "establishment") {
+                                          if (editingConstituentType === "lot_building") {
+                                            const newCerts = [...lotBuildingCertificates.filter(c => c.id !== option.id), newCert];
+                                            setLotBuildingCertificates(newCerts);
+                                            await api.settings.update({ settings: { customized_lot_building_certificates: newCerts } } as any);
+                                          } else if (editingConstituentType === "establishment") {
                                             const newCerts = [...establishmentCertificates.filter(c => c.id !== option.id), newCert];
                                             setEstablishmentCertificates(newCerts);
                                             await api.settings.update({ settings: { customized_establishment_certificates: newCerts } } as any);
@@ -4291,9 +4308,11 @@ export default function SettingsPage() {
             </div>
             <div className="p-6 overflow-y-auto flex-1 bg-slate-900/50 flex justify-center min-h-[600px]">
               {(() => {
-                const certificateDesigns = previewConstituentType === "establishment"
-                  ? establishmentCertificates
-                  : residentCertificates;
+                const certificateDesigns = previewConstituentType === "lot_building"
+                  ? lotBuildingCertificates
+                  : previewConstituentType === "establishment"
+                    ? establishmentCertificates
+                    : residentCertificates;
                 const cert = certificateDesigns.find(c => c.id === previewCertId);
                 const isGlobal = !cert || cert.isGlobal !== false;
                 const globalDesign = settings?.settings ?? {};
