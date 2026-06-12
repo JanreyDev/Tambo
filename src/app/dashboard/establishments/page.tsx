@@ -21,7 +21,7 @@ import { SortableHeader } from "@/components/ui/sortable-header";
 import { cn, resolvePhotoUrl } from "@/lib/utils";
 import { MabiniButton } from "@/components/ui/mabini-button";
 import { api } from "@/lib/api";
-import type { AiStreamEvent, Establishment, ApiError, BarangaySettings, DocumentTemplate } from "@/lib/types";
+import type { AiStreamEvent, Establishment, ApiError, BarangaySettings, DocumentTemplate, IssueDocumentPayload } from "@/lib/types";
 
 interface SavedCertificateDesign {
   id: string;
@@ -511,7 +511,11 @@ function DocGenModal({
   templates: DocumentTemplate[];
   printOnly?: boolean;
   processing?: boolean;
-  onConfirm: () => void;
+  onConfirm: (data: {
+    template: DocumentTemplate;
+    customContent: string;
+    customFieldValues: Record<string, string>;
+  }) => Promise<void>;
   onClose: () => void;
 }) {
   const docRef = useRef<HTMLDivElement>(null);
@@ -643,31 +647,27 @@ If the user only wants to change one field, keep the other field unchanged. Alwa
     closure: { title: "NOTICE OF BUSINESS CLOSURE",   subtitle: "Business Closure",  badge: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400", confirmBg: "#d97706", confirmLabel: "Confirm & Print", icon: <XCircle className="h-4 w-4" /> },
   }[type];
 
-  const handlePrint = () => {
-    if (!docRef.current) return;
-    const html = docRef.current.innerHTML;
-    const win = window.open("", "_blank", "width=860,height=1100");
-    if (!win) return;
-    win.document.write(`<!DOCTYPE html><html><head><title>${docConfig.title}</title>
-<style>
-  * { box-sizing: border-box; }
-  body { font-family: "Times New Roman", serif; margin: 0; padding: 48px 56px; font-size: 12pt; color: #000; background: #fff; }
-  h1 { font-size: 14pt; margin: 0; }
-  table { width: 100%; border-collapse: collapse; }
-  td { padding: 4px 0; vertical-align: top; }
-  .label { width: 38%; font-weight: bold; }
-  .sig-line { border-top: 1px solid #000; padding-top: 4px; text-align: center; width: 200px; margin: 0 auto; }
-  @media print { body { padding: 32px 40px; } }
-</style></head><body>${html}</body></html>`);
-    win.document.close();
-    win.focus();
-    setTimeout(() => { win.print(); }, 300);
-  };
+  const handleIssuePrint = async () => {
+    if (!selectedTemplate || processing) return;
 
-  // Single action: print first (opens window immediately), then process via API
-  const handleIssuePrint = () => {
-    handlePrint();
-    if (!printOnly) onConfirm();
+    const customContent = !useGlobalDesign && customDesignSettings.custom_content
+      ? customDesignSettings.custom_content
+      : `${certBody}${footerNote ? `\n\n${footerNote}` : ""}`;
+
+    await onConfirm({
+      template: selectedTemplate,
+      customContent,
+      customFieldValues: {
+        business_name: establishment.business_name || "",
+        business_type: establishment.business_type || "",
+        nature_of_business: establishment.business_type || "",
+        owner_name: establishment.owner_name || "",
+        business_address: address,
+        prev_permit_no: establishment.permit_number || "",
+        closure_date: today.toISOString().split("T")[0],
+        closure_reason: "Business closure",
+      },
+    });
   };
 
   const address = [establishment.purok, establishment.street].filter(Boolean).join(", ") || establishment.exact_address || "—";
@@ -855,7 +855,7 @@ If the user only wants to change one field, keep the other field unchanged. Alwa
           <div className="px-5 py-4 border-t border-border shrink-0 space-y-2">
             <button
               onClick={handleIssuePrint}
-              disabled={processing}
+              disabled={processing || !selectedTemplate}
               className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-xl text-white transition-all hover:opacity-90 disabled:opacity-60"
               style={{ background: docConfig.confirmBg }}
             >
@@ -1351,12 +1351,37 @@ export default function EstablishmentsPage() {
   };
 
   // Confirm & process the transaction shown in DocGenModal
-  const handleDocGenConfirm = async () => {
+  const handleDocGenConfirm = async ({
+    template,
+    customContent,
+    customFieldValues,
+  }: {
+    template: DocumentTemplate;
+    customContent: string;
+    customFieldValues: Record<string, string>;
+  }) => {
     if (!docGenTarget || docGenProcessing) return;
     setDocGenProcessing(true);
     try {
+      const issuedDate = new Date();
+      const payload: IssueDocumentPayload = {
+        template_id: template.id,
+        constituent_type: "establishment",
+        constituent_id: docGenTarget.id,
+        issued_date: issuedDate.toISOString().split("T")[0],
+        custom_field_values: customFieldValues,
+        custom_content: customContent,
+      };
+
+      if (template.settings?.show_expiry && template.settings.expiry_months) {
+        issuedDate.setMonth(issuedDate.getMonth() + template.settings.expiry_months);
+        payload.valid_until = issuedDate.toISOString().split("T")[0];
+      }
+
+      const result = await api.issuedDocuments.create(payload);
+
       if (docGenType === "new") {
-        await api.establishments.permit(docGenTarget.id);
+        if (!docGenPrintOnly) await api.establishments.permit(docGenTarget.id);
         addToast({ type: "success", title: "Permit Issued", message: `Business permit issued for ${docGenTarget.business_name}.` });
       } else if (docGenType === "renewal") {
         await api.establishments.renew(docGenTarget.id);
@@ -1367,6 +1392,7 @@ export default function EstablishmentsPage() {
       }
       setDocGenOpen(false);
       setDocGenTarget(null);
+      window.open(`/api/v1/issued-documents/${result.issued_document.id}/pdf`, "_blank");
       fetchList();
       fetchStats();
       // Refresh history if view modal is open for this establishment
