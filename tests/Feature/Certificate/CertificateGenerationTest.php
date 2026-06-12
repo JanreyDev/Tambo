@@ -17,6 +17,7 @@ use App\Models\Admin\Barangay;
 use App\Models\Admin\File;
 use App\Models\Tenant\Documents\DocumentTemplate;
 use App\Models\Tenant\Documents\IssuedDocument;
+use App\Models\Tenant\Records\Establishment;
 use App\Models\Tenant\Resident;
 use App\Models\User;
 use App\Services\DocumentPdfService;
@@ -79,6 +80,39 @@ test('can create an issued document for a resident', function () {
         ->assertJsonPath('issued_document.constituent_id', $this->resident->id)
         ->assertJsonPath('issued_document.status', 'issued')
         ->assertJsonPath('issued_document.template_name', 'Barangay Clearance');
+});
+
+test('can create an issued document for an establishment', function () {
+    $template = DocumentTemplate::factory()->system()->create([
+        'name' => 'Business Clearance (New)',
+        'category' => 'business_clearance_new',
+        'constituent_type' => 'establishment',
+    ]);
+    $establishment = Establishment::create([
+        'barangay_id' => $this->barangay->id,
+        'establishment_number' => 'EST-2026-0001',
+        'business_name' => 'Baháy Kubo Eatery',
+        'business_type' => 'Restaurant',
+        'owner_name' => 'Juan Dizon',
+        'status' => 'active',
+    ]);
+
+    $response = $this->postJson('/api/v1/issued-documents', [
+        'template_id' => $template->id,
+        'constituent_type' => 'establishment',
+        'constituent_id' => $establishment->id,
+        'custom_field_values' => [
+            'business_name' => $establishment->business_name,
+            'owner_name' => $establishment->owner_name,
+        ],
+    ], $this->headers);
+
+    $response->assertCreated()
+        ->assertJsonPath('issued_document.constituent_type', 'establishment')
+        ->assertJsonPath('issued_document.constituent_name', 'Baháy Kubo Eatery')
+        ->assertJsonPath('issued_document.constituent_number', 'EST-2026-0001');
+
+    expect($response->json('issued_document.pdf_file_id'))->not->toBeNull();
 });
 
 test('issued document gets auto-generated document number', function () {

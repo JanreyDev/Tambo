@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Admin\Barangay;
 use App\Models\Tenant\Documents\DocumentTemplate;
 use App\Models\Tenant\Documents\IssuedDocument;
+use App\Models\Tenant\Records\Establishment;
 use App\Models\Tenant\Resident;
 use App\Services\AiService;
 use App\Services\DocumentPdfService;
@@ -135,8 +136,15 @@ class IssuedDocumentController extends Controller
                 ->orWhereNull('barangay_id');
         })->findOrFail($validated['template_id']);
 
+        if ($template->constituent_type !== $validated['constituent_type']) {
+            return response()->json([
+                'message' => 'The selected template does not match the constituent type.',
+            ], 422);
+        }
+
         // Resolve resident (for merge fields)
         $resident = null;
+        $establishment = null;
         $constituentName = null;
         $constituentNumber = null;
         if ($validated['constituent_type'] === 'resident') {
@@ -147,6 +155,11 @@ class IssuedDocumentController extends Controller
                 $constituentName = $resident->full_name;
                 $constituentNumber = $resident->resident_number;
             }
+        } elseif ($validated['constituent_type'] === 'establishment') {
+            $establishment = Establishment::where('barangay_id', $barangayId)
+                ->findOrFail($validated['constituent_id']);
+            $constituentName = $establishment->business_name;
+            $constituentNumber = $establishment->establishment_number;
         }
 
         // Auto-generate document number (barangay-scoped)
@@ -176,7 +189,7 @@ class IssuedDocumentController extends Controller
 
         // Phase 1: Generate PDF without hash to compute the hash
         $pdfBinary = $this->pdfService->generate(
-            $document, $template, $barangay, $resident, $request->user()
+            $document, $template, $barangay, $resident, $establishment, $request->user()
         );
 
         // Compute blockchain hash from initial PDF
@@ -191,7 +204,7 @@ class IssuedDocumentController extends Controller
 
         // Phase 2: Re-generate final PDF with hash in footer, then store
         $file = $this->pdfService->generateAndStore(
-            $document->fresh(), $template, $barangay, $resident, $request->user()
+            $document->fresh(), $template, $barangay, $resident, $establishment, $request->user()
         );
 
         $document->update(['pdf_file_id' => $file->id]);
@@ -231,6 +244,21 @@ class IssuedDocumentController extends Controller
                         'document_id' => $document->id,
                         'template_name' => $template->name,
                         'purpose' => $document->purpose,
+                    ],
+                ]);
+            }
+
+            if ($validated['constituent_type'] === 'establishment' && $establishment) {
+                \App\Models\Platform\AuditLog::create([
+                    ...$auditBase,
+                    'action' => 'document_issued',
+                    'resource_type' => 'establishment',
+                    'resource_id' => $establishment->id,
+                    'changes' => [
+                        'description' => "Issued {$template->name}",
+                        'document_number' => $nextNumber,
+                        'document_id' => $document->id,
+                        'template_name' => $template->name,
                     ],
                 ]);
             }
@@ -301,14 +329,18 @@ class IssuedDocumentController extends Controller
         }
 
         $resident = null;
+        $establishment = null;
         if ($document->constituent_type === 'resident' && $document->constituent_id) {
             $resident = Resident::where('barangay_id', $barangayId)
                 ->with(['photoFile', 'sectoralTags'])
                 ->find($document->constituent_id);
+        } elseif ($document->constituent_type === 'establishment' && $document->constituent_id) {
+            $establishment = Establishment::where('barangay_id', $barangayId)
+                ->find($document->constituent_id);
         }
 
         $file = $this->pdfService->generateAndStore(
-            $document, $template, $barangay, $resident, $request->user()
+            $document, $template, $barangay, $resident, $establishment, $request->user()
         );
 
         // Delete old file if exists

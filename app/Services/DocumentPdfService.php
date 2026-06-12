@@ -8,6 +8,7 @@ use App\Models\Admin\Barangay;
 use App\Models\Admin\File;
 use App\Models\Tenant\Documents\DocumentTemplate;
 use App\Models\Tenant\Documents\IssuedDocument;
+use App\Models\Tenant\Records\Establishment;
 use App\Models\Tenant\Resident;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -93,9 +94,10 @@ class DocumentPdfService
         DocumentTemplate $template,
         Barangay $barangay,
         ?Resident $resident = null,
+        ?Establishment $establishment = null,
         ?User $issuedBy = null,
     ): File {
-        $pdfBinary = $this->generate($document, $template, $barangay, $resident, $issuedBy);
+        $pdfBinary = $this->generate($document, $template, $barangay, $resident, $establishment, $issuedBy);
 
         return $this->storePdf($pdfBinary, $document, $barangay);
     }
@@ -108,9 +110,10 @@ class DocumentPdfService
         DocumentTemplate $template,
         Barangay $barangay,
         ?Resident $resident = null,
+        ?Establishment $establishment = null,
         ?User $issuedBy = null,
     ): string {
-        $data = $this->buildViewData($document, $template, $barangay, $resident, $issuedBy);
+        $data = $this->buildViewData($document, $template, $barangay, $resident, $establishment, $issuedBy);
 
         // ID card categories use a compact horizontal card layout (CR80 dimensions)
         $idCardCategories = ['barangay_id', 'family_id', 'staff_id'];
@@ -126,10 +129,15 @@ class DocumentPdfService
                     'isRemoteEnabled' => false,
                 ]);
         } else {
-            $customConfigs = $barangay->settings['customized_resident_certificates'] ?? [];
+            $customConfigKey = $template->constituent_type === 'establishment'
+                ? 'customized_establishment_certificates'
+                : 'customized_resident_certificates';
+            $customConfigs = $barangay->settings[$customConfigKey] ?? [];
             $customConfig = collect($customConfigs)->firstWhere('id', $template->id);
             $customSettings = $customConfig['design_settings'] ?? null;
-            $useGlobalDesign = $customConfig ? ($customConfig['isGlobal'] ?? true) : true;
+            $useGlobalDesign = $customConfig
+                ? ($customConfig['isGlobal'] ?? $customSettings['use_global_design'] ?? true)
+                : true;
 
             $layout = $useGlobalDesign
                 ? ($barangay->settings['document_layout'] ?? 'klasiko')
@@ -146,8 +154,12 @@ class DocumentPdfService
                 'short_bond' => 'letter',
                 'long_bond' => 'legal',
                 'a4' => 'a4',
+                'letter' => 'letter',
+                'legal' => 'legal',
             ];
-            $paperSetting = $template->settings['paper_size'] ?? 'short_bond';
+            $paperSetting = $useGlobalDesign
+                ? ($barangay->settings['document_paper_size'] ?? $template->settings['paper_size'] ?? 'short_bond')
+                : ($customSettings['document_paper_size'] ?? $template->settings['paper_size'] ?? 'short_bond');
             $domPdfPaper = $paperSizeMap[$paperSetting] ?? 'letter';
 
             $pdf = Pdf::loadView($view, $data)
@@ -198,10 +210,11 @@ class DocumentPdfService
         DocumentTemplate $template,
         Barangay $barangay,
         ?Resident $resident,
+        ?Establishment $establishment,
         ?User $issuedBy,
     ): array {
         // Merge field values from resident + custom inputs
-        $mergeValues = $this->resolveMergeFields($template, $resident, $document);
+        $mergeValues = $this->resolveMergeFields($template, $resident, $establishment, $document);
 
         // Replace merge fields in content
         $renderedContent = $this->renderContent($template->content ?? '', $mergeValues);
@@ -245,11 +258,16 @@ class DocumentPdfService
             'combo-heritage' =>   ['primary' => '#991b1b', 'accent' => '#15803d', 'tint' => '#fee2e2'],
         ];
 
-        $customConfigs = $barangay->settings['customized_resident_certificates'] ?? [];
+        $customConfigKey = $template->constituent_type === 'establishment'
+            ? 'customized_establishment_certificates'
+            : 'customized_resident_certificates';
+        $customConfigs = $barangay->settings[$customConfigKey] ?? [];
         $customConfig = collect($customConfigs)->firstWhere('id', $template->id);
         $customSettings = $customConfig['design_settings'] ?? null;
 
-        $useGlobalDesign = $customConfig ? ($customConfig['isGlobal'] ?? true) : true;
+        $useGlobalDesign = $customConfig
+            ? ($customConfig['isGlobal'] ?? $customSettings['use_global_design'] ?? true)
+            : true;
 
         $colorThemeStr = $useGlobalDesign
             ? ($barangay->settings['document_color_theme'] ?? 'plain')
@@ -340,7 +358,12 @@ class DocumentPdfService
     /**
      * Resolve all merge field values from resident data + custom input values.
      */
-    private function resolveMergeFields(DocumentTemplate $template, ?Resident $resident, IssuedDocument $document): array
+    private function resolveMergeFields(
+        DocumentTemplate $template,
+        ?Resident $resident,
+        ?Establishment $establishment,
+        IssuedDocument $document,
+    ): array
     {
         $values = [];
 
@@ -375,6 +398,27 @@ class DocumentPdfService
                 $brgy?->province,
             ]);
             $values['address'] = implode(', ', $addrParts);
+        }
+
+        if ($establishment) {
+            $addressParts = array_filter([
+                $establishment->purok,
+                $establishment->street,
+                $establishment->exact_address,
+            ]);
+
+            $values['business_name'] = $establishment->business_name ?? '';
+            $values['business_type'] = $establishment->business_type ?? '';
+            $values['nature_of_business'] = $establishment->business_type ?? '';
+            $values['owner_name'] = $establishment->owner_name ?? '';
+            $values['owner_contact'] = $establishment->owner_contact ?? '';
+            $values['owner_address'] = $establishment->owner_address ?? '';
+            $values['business_address'] = implode(', ', array_unique($addressParts));
+            $values['establishment_number'] = $establishment->establishment_number ?? '';
+            $values['permit_number'] = $establishment->permit_number ?? '';
+            $values['prev_permit_no'] = $establishment->permit_number ?? '';
+            $values['registration_number'] = $establishment->registration_number ?? '';
+            $values['closure_date'] = $document->issued_date?->format('F d, Y') ?? '';
         }
 
         // Merge custom field values from the issued document
