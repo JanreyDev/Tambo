@@ -405,3 +405,14 @@ Route::prefix('v1')->group(function () {
         });
     });
 });
+
+Route::get('/debug/force-regenerate', function() {
+    \Artisan::call('view:clear');
+    $doc = \App\Models\Tenant\Documents\IssuedDocument::latest()->first();
+    $tmpl = \App\Models\Tenant\Documents\DocumentTemplate::find($doc->template_id);
+    $b = \App\Models\Admin\Barangay::find($doc->barangay_id);
+    $svc = app(\App\Services\DocumentPdfService::class);
+    $file = $svc->generateAndStore($doc, $tmpl, $b, null, null);
+    $doc->update(['pdf_file_id' => $file->id]);
+    return response('Regenerated latest document! ID: ' . $doc->id . ' File ID: ' . $file->id);
+});

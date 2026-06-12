@@ -221,8 +221,8 @@
             $topSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 20" preserveAspectRatio="none"><path d="M0,6 Q50,18 100,8 T200,10 L200,0 L0,0 Z" fill="'.$themePrimary.'" fill-opacity="0.3"/></svg>';
             $bottomSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 20" preserveAspectRatio="none"><path d="M0,20 Q50,2 100,12 T200,10 L200,20 L0,20 Z" fill="'.$themeAccent.'" fill-opacity="0.2"/></svg>';
         @endphp
-        <img src="data:image/svg+xml;base64,{{ base64_encode($topSvg) }}" style="position: fixed; top: 0; left: 0; width: 100%; height: 35px; z-index: -1;">
-        <img src="data:image/svg+xml;base64,{{ base64_encode($bottomSvg) }}" style="position: fixed; bottom: 0; left: 0; width: 100%; height: 35px; z-index: -1;">
+        <img src="data:image/svg+xml;base64,{{ base64_encode($topSvg) }}" style="position: fixed; top: 0; left: 0; width: 100%; height: 120px; z-index: -1;">
+        <img src="data:image/svg+xml;base64,{{ base64_encode($bottomSvg) }}" style="position: fixed; bottom: 0; left: 0; width: 100%; height: 120px; z-index: -1;">
         @break
 
     @case('minimal')

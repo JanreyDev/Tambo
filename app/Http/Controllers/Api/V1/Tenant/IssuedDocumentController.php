@@ -286,27 +286,58 @@ class IssuedDocumentController extends Controller
      */
     public function downloadPdf(Request $request, string $id): Response|JsonResponse
     {
-        $document = IssuedDocument::where('barangay_id', $request->user()->barangay_id)
+        $barangayId = $request->user()->barangay_id;
+        $document = IssuedDocument::where('barangay_id', $barangayId)
             ->findOrFail($id);
 
-        if (! $document->pdf_file_id) {
-            return response()->json(['message' => 'No PDF available for this document.'], 404);
+        $barangay = Barangay::findOrFail($barangayId);
+
+        $template = DocumentTemplate::where(function ($q) use ($barangayId) {
+            $q->where('barangay_id', $barangayId)
+                ->orWhereNull('barangay_id');
+        })->find($document->template_id);
+
+        if (! $template) {
+            // Fallback: serve stored PDF if template was deleted
+            if ($document->pdf_file_id) {
+                $file = \App\Models\Admin\File::find($document->pdf_file_id);
+                if ($file) {
+                    $disk = $file->metadata['disk'] ?? config('filesystems.default', 'public');
+                    try {
+                        $content = Storage::disk($disk)->get($file->storage_path);
+                        return response($content, 200, [
+                            'Content-Type' => 'application/pdf',
+                            'Content-Disposition' => 'inline; filename="'.($file->original_name ?? $document->document_number.'.pdf').'"',
+                            'Cache-Control' => 'no-store, no-cache, must-revalidate',
+                        ]);
+                    } catch (\Throwable) {}
+                }
+            }
+            return response()->json(['message' => 'Template not found and no stored PDF available.'], 404);
         }
 
-        $file = \App\Models\Admin\File::find($document->pdf_file_id);
-        if (! $file) {
-            return response()->json(['message' => 'PDF file record not found.'], 404);
+        // Resolve constituent
+        $resident = null;
+        $establishment = null;
+        $lotBuilding = null;
+        if ($document->constituent_type === 'resident' && $document->constituent_id) {
+            $resident = Resident::where('barangay_id', $barangayId)
+                ->with(['photoFile', 'sectoralTags'])
+                ->find($document->constituent_id);
+        } elseif ($document->constituent_type === 'establishment' && $document->constituent_id) {
+            $establishment = Establishment::where('barangay_id', $barangayId)
+                ->find($document->constituent_id);
+        } elseif ($document->constituent_type === 'lot_building' && $document->constituent_id) {
+            $lotBuilding = LotBuilding::where('barangay_id', $barangayId)
+                ->find($document->constituent_id);
         }
 
-        $disk = $file->metadata['disk'] ?? config('filesystems.default', 'public');
+        // Always generate fresh PDF from current template
+        $content = $this->pdfService->generate(
+            $document, $template, $barangay, $resident, $establishment, $lotBuilding, $request->user()
+        );
 
-        try {
-            $content = Storage::disk($disk)->get($file->storage_path);
-        } catch (\Throwable) {
-            return response()->json(['message' => 'PDF file could not be read from storage.'], 500);
-        }
-
-        $filename = $file->original_name ?? $document->document_number.'.pdf';
+        $filename = $document->document_number.'.pdf';
 
         return response($content, 200, [
             'Content-Type' => 'application/pdf',

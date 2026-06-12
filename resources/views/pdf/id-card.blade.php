@@ -5,389 +5,159 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
     <title>{{ $template->title ?? 'Barangay ID' }}</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-
-        @page {
-            margin: 0;
-        }
-
+        @page { margin: 0; }
+        * { margin: 0; padding: 0; }
         body {
             font-family: sans-serif;
-            font-size: 7pt;
-            color: #1a1a1a;
-            background: #fff;
+            font-size: 6pt;
+            color: #1e293b;
             width: 242.64pt;
             height: 153.07pt;
-            overflow: hidden;
+            background: #fff;
         }
 
         .card {
             width: 242.64pt;
             height: 153.07pt;
-            position: relative;
+            border-collapse: collapse;
+            table-layout: fixed;
             background: #fff;
-            border: 1.5pt solid #1a3a6e;
         }
+        .card td { padding: 0; border: none; }
 
-        /* ── Top header band ── */
-        .header-band {
-            background: #1a3a6e;
-            color: #fff;
-            padding: 3pt 5pt;
-            display: flex;
-            align-items: center;
-            gap: 4pt;
-            height: 28pt;
-        }
+        .hdr td { background: #1a3a6e; color: #fff; vertical-align: middle; }
+        .hdr img { width: 22pt; height: 22pt; }
 
-        .seal-wrap {
-            width: 20pt;
-            height: 20pt;
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .seal-img {
-            width: 20pt;
-            height: 20pt;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.15);
-        }
-
-        .header-text {
-            flex: 1;
-            text-align: center;
-            line-height: 1.2;
-        }
-
-        .republic-label {
-            font-size: 5pt;
-            text-transform: uppercase;
-            letter-spacing: 0.5pt;
-            opacity: 0.85;
-        }
-
-        .barangay-name {
-            font-size: 9pt;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 0.3pt;
-        }
-
-        .location-text {
-            font-size: 5pt;
-            opacity: 0.85;
-        }
-
-        .id-type-label {
-            font-size: 5.5pt;
-            font-weight: bold;
-            text-align: center;
+        .band td {
             background: #f59e0b;
-            color: #1a1a1a;
-            padding: 1.5pt 4pt;
-            letter-spacing: 0.5pt;
-            text-transform: uppercase;
-        }
-
-        /* ── Body ── */
-        .body {
-            display: flex;
-            padding: 4pt 5pt;
-            gap: 5pt;
-            height: 100pt;
-        }
-
-        /* Left: photo + thumbmark */
-        .photo-col {
-            width: 44pt;
-            flex-shrink: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 3pt;
-        }
-
-        .photo-frame {
-            width: 40pt;
-            height: 44pt;
-            border: 1pt solid #1a3a6e;
-            background: #f0f4ff;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .photo-img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .photo-placeholder {
-            font-size: 5pt;
-            color: #999;
             text-align: center;
-            padding: 2pt;
-        }
-
-        .thumb-label {
             font-size: 5pt;
-            color: #666;
-            text-transform: uppercase;
-            letter-spacing: 0.3pt;
-        }
-
-        .thumb-box {
-            width: 30pt;
-            height: 20pt;
-            border: 0.75pt solid #aaa;
-            background: #fafafa;
-        }
-
-        /* Right: details */
-        .details-col {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 2.5pt;
-        }
-
-        .name-row {
-            border-bottom: 0.75pt solid #1a3a6e;
-            padding-bottom: 2pt;
-        }
-
-        .name-label {
-            font-size: 5pt;
-            color: #666;
-            text-transform: uppercase;
-            letter-spacing: 0.3pt;
-        }
-
-        .name-value {
-            font-size: 9pt;
             font-weight: bold;
-            color: #1a3a6e;
-            line-height: 1.1;
             text-transform: uppercase;
-        }
-
-        .field-row {
-            display: flex;
-            gap: 6pt;
-        }
-
-        .field {
-            flex: 1;
-        }
-
-        .field-label {
-            font-size: 4.5pt;
-            color: #888;
-            text-transform: uppercase;
-            letter-spacing: 0.2pt;
-        }
-
-        .field-value {
-            font-size: 6.5pt;
+            letter-spacing: 0.8pt;
             color: #1a1a1a;
-            font-weight: 600;
-            border-bottom: 0.5pt solid #ddd;
-            padding-bottom: 1pt;
-            min-height: 8pt;
+            line-height: 1;
         }
 
-        .address-block .field-value {
-            font-size: 5.5pt;
-            font-weight: 500;
-        }
+        .body-row > td { vertical-align: top; background: #fff; }
 
-        /* ── Bottom footer band ── */
-        .footer-band {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 24pt;
-            background: #f8fafc;
-            border-top: 0.75pt solid #e2e8f0;
-            display: flex;
-            align-items: center;
-            padding: 3pt 5pt;
-            gap: 4pt;
-        }
+        .ftr td { background: #f8fafc; border-top: 0.5pt solid #e2e8f0; vertical-align: middle; }
 
-        .validity-block {
-            flex: 1;
-            line-height: 1.2;
-        }
-
-        .validity-label {
-            font-size: 4.5pt;
-            color: #888;
-            text-transform: uppercase;
-        }
-
-        .validity-dates {
-            font-size: 5.5pt;
-            font-weight: 600;
-            color: #1a1a1a;
-        }
-
-        .doc-number {
-            font-size: 4.5pt;
-            color: #aaa;
-            text-align: center;
-        }
-
-        .qr-block {
-            width: 22pt;
-            height: 22pt;
-            flex-shrink: 0;
-        }
-
-        .qr-img {
-            width: 22pt;
-            height: 22pt;
-        }
-
-        .sig-block {
-            flex: 1;
-            text-align: center;
-            line-height: 1.2;
-        }
-
-        .sig-line {
-            border-top: 0.75pt solid #1a3a6e;
-            margin-bottom: 1.5pt;
-            margin-top: 8pt;
-        }
-
-        .sig-label {
-            font-size: 4.5pt;
-            color: #555;
-            text-transform: uppercase;
-            letter-spacing: 0.2pt;
-        }
+        .fl { font-size: 4pt; color: #888; text-transform: uppercase; letter-spacing: 0.2pt; line-height: 1; }
+        .fv { font-size: 5.5pt; font-weight: 600; border-bottom: 0.5pt solid #e5e7eb; padding-bottom: 1pt; line-height: 1.2; }
     </style>
 </head>
 <body>
-<div class="card">
+<table class="card" cellpadding="0" cellspacing="0">
 
-    {{-- ── Header band ── --}}
-    <div class="header-band">
-        <div class="seal-wrap">
-            @if($sealDataUri)
-                <img src="{{ $sealDataUri }}" class="seal-img" alt="Seal">
-            @else
-                <div class="seal-img"></div>
-            @endif
-        </div>
-        <div class="header-text">
-            <div class="republic-label">Republic of the Philippines</div>
-            <div class="barangay-name">Barangay {{ $barangay->name }}</div>
-            <div class="location-text">{{ $barangay->city_municipality }}{{ $barangay->province ? ', '.$barangay->province : '' }}</div>
-        </div>
-        <div class="seal-wrap">
-            {{-- Mirror seal for balance --}}
-            @if($sealDataUri)
-                <img src="{{ $sealDataUri }}" class="seal-img" alt="Seal">
-            @else
-                <div class="seal-img"></div>
-            @endif
-        </div>
-    </div>
+    {{-- ROW 1: HEADER (28pt) --}}
+    <tr class="hdr" style="height: 28pt;">
+        <td style="width: 30pt; text-align: center;">
+            @if($sealDataUri)<img src="{{ $sealDataUri }}" alt="">@endif
+        </td>
+        <td style="text-align: center; line-height: 1.2;" colspan="2">
+            <div style="font-size: 4.5pt; text-transform: uppercase; letter-spacing: 0.5pt; opacity: 0.85;">Republic of the Philippines</div>
+            <div style="font-size: 9pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.3pt;">Barangay {{ $barangay->name }}</div>
+            <div style="font-size: 4.5pt; opacity: 0.85;">{{ $barangay->city_municipality }}{{ $barangay->province ? ', '.$barangay->province : '' }}</div>
+        </td>
+        <td style="width: 30pt; text-align: center;">
+            @if($municipalityLogoUrl)<img src="{{ $municipalityLogoUrl }}" alt="">@elseif($sealDataUri)<img src="{{ $sealDataUri }}" alt="">@endif
+        </td>
+    </tr>
 
-    {{-- ── ID type label ── --}}
-    <div class="id-type-label">{{ $template->title ?? 'Barangay Identification Card' }}</div>
+    {{-- ROW 2: BAND (7pt) --}}
+    <tr class="band" style="height: 7pt;">
+        <td colspan="4">{{ $template->title ?? 'BARANGAY IDENTIFICATION CARD' }}</td>
+    </tr>
 
-    {{-- ── Body ── --}}
-    <div class="body">
-
+    {{-- ROW 3: BODY (94pt) --}}
+    <tr class="body-row" style="height: 94pt;">
         {{-- Photo column --}}
-        <div class="photo-col">
-            <div class="photo-frame">
-                @if($photoDataUri && ($settings['show_photo'] ?? false))
-                    <img src="{{ $photoDataUri }}" class="photo-img" alt="Photo">
-                @else
-                    <div class="photo-placeholder">2x2<br>PHOTO</div>
-                @endif
-            </div>
-            @if($settings['show_thumbmark'] ?? false)
-                <div class="thumb-label">Thumbmark</div>
-                <div class="thumb-box"></div>
+        <td style="width: 56pt; vertical-align: top; text-align: center; padding: 4pt 2pt 3pt 4pt; border-right: 0.5pt solid #e2e8f0;">
+            @if($photoDataUri && ($settings['show_photo'] ?? false))
+                <img src="{{ $photoDataUri }}" alt="" style="width: 46pt; height: 52pt; border: 0.75pt solid #1a3a6e;">
+            @else
+                <div style="width: 46pt; height: 52pt; border: 0.75pt solid #1a3a6e; background: #f0f4ff; margin: 0 auto;">
+                    <div style="font-size: 5pt; color: #aaa; padding-top: 18pt; text-align: center; line-height: 1.2;">2x2<br>PHOTO</div>
+                </div>
             @endif
-        </div>
+            @if($settings['show_thumbmark'] ?? false)
+                <div style="font-size: 4pt; color: #888; text-transform: uppercase; margin-top: 2pt;">Thumbmark</div>
+                <div style="width: 26pt; height: 14pt; border: 0.5pt solid #bbb; margin: 1pt auto 0;"></div>
+            @endif
+        </td>
 
         {{-- Details column --}}
-        <div class="details-col">
-            <div class="name-row">
-                <div class="name-label">Name</div>
-                <div class="name-value">{{ $document->constituent_name }}</div>
+        <td style="vertical-align: top; padding: 4pt 4pt 30pt 5pt;" colspan="3">
+            {{-- Name --}}
+            <div style="border-bottom: 0.75pt solid #1a3a6e; padding-bottom: 2pt; margin-bottom: 3pt;">
+                <div class="fl">Name</div>
+                <div style="font-size: 9pt; font-weight: bold; color: #1a3a6e; text-transform: uppercase; line-height: 1.1;">{{ $document->constituent_name }}</div>
             </div>
 
-            <div class="field-row">
-                <div class="field">
-                    <div class="field-label">Date of Birth</div>
-                    <div class="field-value">{{ $mergeValues['date_of_birth'] ?? '—' }}</div>
-                </div>
-                <div class="field">
-                    <div class="field-label">Sex</div>
-                    <div class="field-value">{{ $mergeValues['sex'] ?? '—' }}</div>
-                </div>
-                <div class="field">
-                    <div class="field-label">Blood Type</div>
-                    <div class="field-value">{{ $mergeValues['blood_type'] ?? '—' }}</div>
-                </div>
+            {{-- DOB / Sex / Blood --}}
+            <table style="width: 100%; border-collapse: collapse;" cellpadding="0" cellspacing="0">
+                <tr>
+                    <td style="width: 45%; padding-right: 3pt; vertical-align: top;">
+                        <div class="fl">Date of Birth</div>
+                        <div class="fv">{{ $mergeValues['date_of_birth'] ?? '—' }}</div>
+                    </td>
+                    <td style="width: 25%; padding-right: 3pt; vertical-align: top;">
+                        <div class="fl">Sex</div>
+                        <div class="fv">{{ $mergeValues['sex'] ?? '—' }}</div>
+                    </td>
+                    <td style="width: 30%; vertical-align: top;">
+                        <div class="fl">Blood Type</div>
+                        <div class="fv">{{ $mergeValues['blood_type'] ?? '—' }}</div>
+                    </td>
+                </tr>
+            </table>
+
+            {{-- Address --}}
+            <div style="margin-top: 3pt;">
+                <div class="fl">Address</div>
+                <div class="fv" style="font-size: 4.5pt; font-weight: 500; line-height: 1.15;">{{ $mergeValues['address'] ?? '—' }}</div>
             </div>
 
-            <div class="field address-block">
-                <div class="field-label">Address</div>
-                <div class="field-value">{{ $mergeValues['address'] ?? '—' }}</div>
-            </div>
+            {{-- Emergency --}}
+            <table style="width: 100%; border-collapse: collapse; margin-top: 3pt;" cellpadding="0" cellspacing="0">
+                <tr>
+                    <td style="width: 55%; padding-right: 3pt; vertical-align: top;">
+                        <div class="fl">Emergency Contact</div>
+                        <div class="fv">{{ $mergeValues['emergency_contact'] ?? '—' }}</div>
+                    </td>
+                    <td style="width: 45%; vertical-align: top;">
+                        <div class="fl">Contact No.</div>
+                        <div class="fv">{{ $mergeValues['emergency_number'] ?? $mergeValues['contact_number'] ?? '—' }}</div>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
 
-            <div class="field-row">
-                <div class="field">
-                    <div class="field-label">Emergency Contact</div>
-                    <div class="field-value">{{ $mergeValues['emergency_contact'] ?? '—' }}</div>
-                </div>
-                <div class="field">
-                    <div class="field-label">Contact No.</div>
-                    <div class="field-value">{{ $mergeValues['emergency_number'] ?? $mergeValues['contact_number'] ?? '—' }}</div>
-                </div>
-            </div>
-        </div>
-
-    </div>
-
-    {{-- ── Footer band ── --}}
-    <div class="footer-band">
-        <div class="validity-block">
-            <div class="validity-label">Valid From / Until</div>
-            <div class="validity-dates">
+    {{-- ROW 4: FOOTER (24pt) --}}
+    <tr class="ftr" style="height: 24pt;">
+        <td colspan="2" style="padding-left: 5pt;">
+            <div style="font-size: 4pt; color: #888; text-transform: uppercase;">Valid From / Until</div>
+            <div style="font-size: 5pt; font-weight: 600; color: #0f172a;">
                 {{ \Carbon\Carbon::parse($document->issued_date)->format('M d, Y') }}
                 &nbsp;–&nbsp;
                 {{ $document->valid_until ? \Carbon\Carbon::parse($document->valid_until)->format('M d, Y') : 'N/A' }}
             </div>
-            <div class="doc-number">No. {{ $document->document_number }}</div>
-        </div>
+            <div style="font-size: 3.5pt; color: #aaa;">No. {{ $document->document_number }}</div>
+        </td>
+        <td style="text-align: center; vertical-align: bottom; padding-bottom: 3pt;">
+            <div style="width: 70pt; border-top: 0.75pt solid #1a3a6e; margin: 0 auto 1pt;"></div>
+            <div style="font-size: 4.5pt; font-weight: bold; color: #1a3a6e; text-transform: uppercase;">{{ $barangay->captain_name ?: '—' }}</div>
+            <div style="font-size: 3.5pt; color: #555; text-transform: uppercase; letter-spacing: 0.2pt;">{{ $approvalConfig['right']['label'] ?? 'Punong Barangay' }}</div>
+        </td>
+        <td style="width: 26pt; text-align: center; vertical-align: middle;">
+            @if(($settings['show_qr'] ?? false) && $qrDataUri)
+                <img src="{{ $qrDataUri }}" style="width: 18pt; height: 18pt;">
+            @endif
+        </td>
+    </tr>
 
-        <div class="sig-block">
-            <div class="sig-line"></div>
-            <div class="sig-label">{{ $approvalConfig['right']['label'] ?? 'Punong Barangay' }}</div>
-        </div>
-
-        @if(($settings['show_qr'] ?? false) && $qrDataUri)
-            <div class="qr-block">
-                <img src="{{ $qrDataUri }}" class="qr-img" alt="QR">
-            </div>
-        @endif
-    </div>
-
-</div>
+</table>
 </body>
 </html>

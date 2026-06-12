@@ -183,6 +183,63 @@
 </head>
 <body>
 
+<!-- ── Dynamic Design Patterns (DomPDF Safe) ── -->
+@php
+    $hexToRgba = function($hex, $opacity) {
+        $hex = ltrim($hex, '#');
+        if (strlen($hex) == 3) {
+            $hex = $hex[0].$hex[0].$hex[1].$hex[1].$hex[2].$hex[2];
+        }
+        $r = hexdec(substr($hex, 0, 2));
+        $g = hexdec(substr($hex, 2, 2));
+        $b = hexdec(substr($hex, 4, 2));
+        return "rgba($r, $g, $b, $opacity)";
+    };
+@endphp
+
+@switch($designPattern)
+    @case('wave')
+        @php
+            $topSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 20" preserveAspectRatio="none"><path d="M0,6 Q50,18 100,8 T200,10 L200,0 L0,0 Z" fill="'.$themePrimary.'" fill-opacity="0.3"/></svg>';
+            $bottomSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 20" preserveAspectRatio="none"><path d="M0,20 Q50,2 100,12 T200,10 L200,20 L0,20 Z" fill="'.$themeAccent.'" fill-opacity="0.2"/></svg>';
+        @endphp
+        <img src="data:image/svg+xml;base64,{{ base64_encode($topSvg) }}" style="position: fixed; top: 0; left: 0; width: 100%; height: 120px; z-index: -1;">
+        <img src="data:image/svg+xml;base64,{{ base64_encode($bottomSvg) }}" style="position: fixed; bottom: 0; left: 0; width: 100%; height: 120px; z-index: -1;">
+        @break
+
+    @case('minimal')
+        <div style="position: fixed; top: 30px; left: 30px; right: 30px; height: 1px; background-color: {{ $hexToRgba($themeAccent, 0.7) }}; z-index: -1;"></div>
+        @break
+
+    @case('gradient')
+        @php
+            $gradSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" preserveAspectRatio="none">
+                <rect x="0%" y="0%" width="100%" height="100%" fill="'.$themePrimary.'" fill-opacity="0.25"/>
+                <rect x="20%" y="0%" width="80%" height="100%" fill="'.$themeAccent.'" fill-opacity="0.05"/>
+                <rect x="40%" y="0%" width="60%" height="100%" fill="'.$themeAccent.'" fill-opacity="0.05"/>
+                <rect x="60%" y="0%" width="40%" height="100%" fill="'.$themeAccent.'" fill-opacity="0.05"/>
+                <rect x="80%" y="0%" width="20%" height="100%" fill="'.$themeAccent.'" fill-opacity="0.05"/>
+            </svg>';
+            $gradSvg = str_replace(["\n", "\r", "  "], "", $gradSvg);
+        @endphp
+        <img src="data:image/svg+xml;base64,{{ base64_encode($gradSvg) }}" style="position: fixed; top: 0; left: 0; width: 100%; height: 40px; z-index: -1;">
+        @break
+
+    @case('bold')
+    @case('bold-stripe')
+        <div style="position: fixed; top: 0; left: 0; right: 0; height: 40px; background-color: {{ $hexToRgba($themePrimary, 0.25) }}; z-index: -1;"></div>
+        @break
+
+    @case('geometric')
+        @php
+            $geo1 = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><polygon points="50,0 100,50 50,100 0,50" fill="'.$themePrimary.'" fill-opacity="0.15"/></svg>';
+            $geo2 = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><polygon points="50,0 100,50 50,100 0,50" fill="'.$themeAccent.'" fill-opacity="0.15"/></svg>';
+        @endphp
+        <img src="data:image/svg+xml;base64,{{ base64_encode($geo1) }}" style="position: fixed; top: -30px; left: -30px; width: 120px; height: 120px; z-index: -1;">
+        <img src="data:image/svg+xml;base64,{{ base64_encode($geo2) }}" style="position: fixed; bottom: -30px; right: -30px; width: 120px; height: 120px; z-index: -1;">
+        @break
+@endswitch
+
 <div class="page-container">
     <div class="inner-container">
 

@@ -86,6 +86,7 @@ class BarangaySettingsController extends Controller
             'settings.document_color_theme' => ['nullable', 'in:plain,blue,red,green,yellow,combo-flag,combo-festive,combo-earth,combo-gov,combo-bayanihan,combo-sunrise,combo-coastal,combo-heritage'],
             'settings.document_design_pattern' => ['nullable', 'in:wave,gradient,bold,photo,minimal,stripe,wreath,sunburst,gothic,scroll,diplomatic,ornate,geometric,bold-stripe,tech'],
             'settings.customized_resident_certificates' => ['nullable', 'array'],
+            'settings.customized_establishment_certificates' => ['nullable', 'array'],
             'settings.customized_lot_building_certificates' => ['nullable', 'array'],
             // Sub-object namespaces — validated loosely (sub-shape validated by each tab's UI)
             'settings.vawc' => ['nullable', 'array'],
@@ -130,6 +131,7 @@ class BarangaySettingsController extends Controller
                 // Per-barangay autocomplete dictionaries for the Residents form
                 'residents_dictionaries',
                 'customized_resident_certificates',
+                'customized_establishment_certificates',
                 'customized_lot_building_certificates',
             ];
             $validated['settings'] = array_intersect_key(

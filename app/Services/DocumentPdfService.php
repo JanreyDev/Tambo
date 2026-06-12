@@ -400,7 +400,7 @@ class DocumentPdfService
             $brgy = Barangay::find($resident->barangay_id);
             $addrParts = array_filter([
                 $resident->house_block_lot,
-                $resident->purok_sitio ? 'Purok/Sitio '.$resident->purok_sitio : null,
+                $resident->purok ? 'Purok '.$resident->purok : null,
                 $resident->street,
                 $brgy ? 'Barangay '.$brgy->name : null,
                 $brgy?->city_municipality,
