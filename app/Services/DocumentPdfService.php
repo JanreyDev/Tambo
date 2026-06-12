@@ -222,8 +222,9 @@ class DocumentPdfService
         // Merge field values from resident + custom inputs
         $mergeValues = $this->resolveMergeFields($template, $resident, $establishment, $lotBuilding, $document);
 
-        // Replace merge fields in content
-        $renderedContent = $this->renderContent($template->content ?? '', $mergeValues);
+        // Issuance-specific edits must override the reusable template content.
+        $content = $document->custom_content ?? $template->content ?? '';
+        $renderedContent = $this->renderContent($content, $mergeValues);
         $renderedSalutation = $this->renderContent($template->salutation ?? '', $mergeValues);
 
         // Photo as base64 data URI

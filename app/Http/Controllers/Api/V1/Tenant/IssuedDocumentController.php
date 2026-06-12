@@ -189,11 +189,6 @@ class IssuedDocumentController extends Controller
             'created_by' => $request->user()->id,
         ]);
 
-        // If caller provided manual content override (custom documents / edited preview), apply it
-        if (! empty($validated['custom_content'])) {
-            $template->content = $validated['custom_content'];
-        }
-
         // Phase 1: Generate PDF without hash to compute the hash
         $pdfBinary = $this->pdfService->generate(
             $document, $template, $barangay, $resident, $establishment, $lotBuilding, $request->user()

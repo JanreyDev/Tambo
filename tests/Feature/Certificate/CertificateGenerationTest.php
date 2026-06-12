@@ -82,6 +82,25 @@ test('can create an issued document for a resident', function () {
         ->assertJsonPath('issued_document.template_name', 'Barangay Clearance');
 });
 
+test('issued document persists issuance-specific edited content', function () {
+    $editedContent = 'This exact live preview text must be used in the generated PDF.';
+
+    $response = $this->postJson('/api/v1/issued-documents', [
+        'template_id' => $this->template->id,
+        'constituent_type' => 'resident',
+        'constituent_id' => $this->resident->id,
+        'custom_content' => $editedContent,
+    ], $this->headers);
+
+    $response->assertCreated()
+        ->assertJsonPath('issued_document.custom_content', $editedContent);
+
+    $this->assertDatabaseHas('issued_documents', [
+        'id' => $response->json('issued_document.id'),
+        'custom_content' => $editedContent,
+    ]);
+});
+
 test('can create an issued document for an establishment', function () {
     $template = DocumentTemplate::factory()->system()->create([
         'name' => 'Business Clearance (New)',

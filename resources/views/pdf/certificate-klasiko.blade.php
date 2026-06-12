@@ -260,8 +260,10 @@
                 <tr>
                     <td style="font-weight: bold; color: {{ $themePrimary }}; padding-right: 8px;">O.R. No.:</td>
                     <td style="color: #333;">{{ $document->or_number }}</td>
+                    @if($document->or_amount !== null)
                     <td style="font-weight: bold; color: {{ $themePrimary }}; padding-left: 15px; padding-right: 8px;">Amount:</td>
-                    <td style="color: #333;">&#8369;{{ number_format((float)($document->or_amount ?? 0), 2) }}</td>
+                    <td style="color: #333;">&#8369;{{ number_format((float)$document->or_amount, 2) }}</td>
+                    @endif
                 </tr>
             </table>
             @endif
