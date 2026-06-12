@@ -18,10 +18,24 @@ import { Badge, StatusBadge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/stat-card";
 import { Modal, ModalButton } from "@/components/ui/modal";
 import { SortableHeader } from "@/components/ui/sortable-header";
-import { cn } from "@/lib/utils";
+import { cn, resolvePhotoUrl } from "@/lib/utils";
 import { MabiniButton } from "@/components/ui/mabini-button";
 import { api } from "@/lib/api";
-import type { AiStreamEvent, Establishment, ApiError } from "@/lib/types";
+import type { AiStreamEvent, Establishment, ApiError, BarangaySettings, DocumentTemplate } from "@/lib/types";
+
+interface SavedCertificateDesign {
+  id: string;
+  isGlobal?: boolean;
+  design_settings?: {
+    use_global_design?: boolean;
+    document_layout?: string;
+    document_color_theme?: string;
+    document_font?: string;
+    document_design_pattern?: string;
+    document_paper_size?: string;
+    custom_content?: string;
+  };
+}
 
 // ── Toast ─────────────────────────────────────────────────────────────────
 
@@ -488,12 +502,13 @@ function ActionMenuPortal({
 // Full-screen overlay: live-editable document preview + Mabini AI inline editor + single Issue & Print button
 
 function DocGenModal({
-  open, type, establishment, settings, printOnly, processing, onConfirm, onClose,
+  open, type, establishment, settings, templates, printOnly, processing, onConfirm, onClose,
 }: {
   open: boolean;
   type: "new" | "renewal" | "closure";
   establishment: Establishment | null;
-  settings?: any;
+  settings?: BarangaySettings | null;
+  templates: DocumentTemplate[];
   printOnly?: boolean;
   processing?: boolean;
   onConfirm: () => void;
@@ -504,6 +519,28 @@ function DocGenModal({
   const today = new Date();
   const year = today.getFullYear();
   const dateStr = today.toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" });
+  const templateCategory = {
+    new: "business_clearance_new",
+    renewal: "business_clearance_renewal",
+    closure: "business_closure",
+  }[type];
+  const barangayDocumentSettings = settings?.settings ?? {};
+  const customCertificates = Array.isArray(barangayDocumentSettings.customized_establishment_certificates)
+    ? barangayDocumentSettings.customized_establishment_certificates as SavedCertificateDesign[]
+    : [];
+  const categoryTemplates = templates.filter((template) => template.category === templateCategory);
+  const configuredTemplate = categoryTemplates.find((template) =>
+    customCertificates.some((certificate) => certificate.id === template.id)
+  );
+  const selectedTemplate = configuredTemplate
+    ?? categoryTemplates.find((template) => template.barangay_id !== null)
+    ?? categoryTemplates[0]
+    ?? null;
+  const customConfig = customCertificates.find((certificate) => certificate.id === selectedTemplate?.id);
+  const customDesignSettings = customConfig?.design_settings ?? {};
+  const useGlobalDesign = customConfig
+    ? (customConfig.isGlobal ?? customDesignSettings.use_global_design ?? true)
+    : true;
 
   // ── Editable document content (Mabini can modify these) ──
   const defaultCertBody = type === "closure"
@@ -519,13 +556,13 @@ function DocGenModal({
 
   // Reset editable fields when modal opens for a new type/establishment
   useEffect(() => {
-    setCertBody(defaultCertBody);
+    setCertBody(selectedTemplate?.content || defaultCertBody);
     setFooterNote(defaultFooterNote);
     setMabiniInput("");
     setMabiniReply("");
     setMabiniConvId(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, type, establishment?.id]);
+  }, [open, type, establishment?.id, selectedTemplate?.id]);
 
   // ── Mabini inline editor ──
   const [mabiniInput, setMabiniInput] = useState("");
@@ -646,33 +683,29 @@ If the user only wants to change one field, keep the other field unchanged. Alwa
         {/* ── Left: Document Preview ── */}
         <div className="flex-1 bg-slate-100 dark:bg-slate-800/60 overflow-y-auto p-6 flex justify-center items-start custom-scrollbar">
           {(() => {
-            // Find template configuration
-            const docTitle = docConfig.title;
-            const customCerts = settings?.customized_establishment_certificates || [];
-            // Match custom certificate by title (case insensitive)
-            const customConfig = customCerts.find((c: any) => c.title && c.title.toLowerCase() === docTitle.toLowerCase()) || 
-                                 customCerts.find((c: any) => c.name && c.name.toLowerCase().includes(type));
-            
-            const isGlobal = !customConfig || customConfig.isGlobal;
-            
-            const docFont = settings?.document_font || "times";
-            const fontVal = isGlobal ? docFont : customConfig?.design_settings?.document_font;
-            
-            const docPattern = settings?.document_design_pattern || "wave";
-            const pattern = isGlobal ? docPattern : customConfig?.design_settings?.document_design_pattern;
-            
-            const docColor = settings?.document_color_theme || "plain";
-            const colors = isGlobal ? docColor : customConfig?.design_settings?.document_color_theme;
-            
-            const layout = isGlobal ? (settings?.document_layout || "klasiko") : (customConfig?.design_settings?.document_layout || "klasiko");
-            const paperSize = isGlobal ? (settings?.document_paper_size || "a4") : (customConfig?.design_settings?.document_paper_size || "a4");
+            const docTitle = selectedTemplate?.title || docConfig.title;
+            const fontVal = useGlobalDesign
+              ? (barangayDocumentSettings.document_font || "times")
+              : (customDesignSettings.document_font || "times");
+            const pattern = useGlobalDesign
+              ? (barangayDocumentSettings.document_design_pattern || "wave")
+              : (customDesignSettings.document_design_pattern || "wave");
+            const colors = useGlobalDesign
+              ? (barangayDocumentSettings.document_color_theme || "plain")
+              : (customDesignSettings.document_color_theme || "plain");
+            const layout = useGlobalDesign
+              ? (barangayDocumentSettings.document_layout || "klasiko")
+              : (customDesignSettings.document_layout || "klasiko");
+            const paperSize = useGlobalDesign
+              ? (barangayDocumentSettings.document_paper_size || "a4")
+              : (customDesignSettings.document_paper_size || "a4");
 
             // Build dynamic body content by replacing variables
             let finalBodyHtml = certBody || "";
             // If they defined a custom content block, use it! Otherwise fallback to certBody
             let rawCustom = "";
-            if (!isGlobal && customConfig?.design_settings?.custom_content) {
-              rawCustom = customConfig.design_settings.custom_content;
+            if (!useGlobalDesign && customDesignSettings.custom_content) {
+              rawCustom = customDesignSettings.custom_content;
               finalBodyHtml = rawCustom;
             }
 
@@ -680,8 +713,12 @@ If the user only wants to change one field, keep the other field unchanged. Alwa
             const vars: Record<string, string> = {
               "{{business_name}}": establishment.business_name || "",
               "{{business_type}}": establishment.business_type || "",
+              "{{nature_of_business}}": establishment.business_type || "",
               "{{owner_name}}": establishment.owner_name || "",
               "{{business_address}}": address || "",
+              "{{prev_permit_no}}": establishment.permit_number || "",
+              "{{closure_date}}": dateStr,
+              "{{closure_reason}}": "Business closure",
             };
             Object.entries(vars).forEach(([k, v]) => {
               finalBodyHtml = finalBodyHtml.split(k).join(v);
@@ -693,7 +730,7 @@ If the user only wants to change one field, keep the other field unchanged. Alwa
             }
 
             return (
-              <div ref={docRef} className="shrink-0" style={{ width: '800px', transformOrigin: 'top center' }}>
+              <div ref={docRef} className="flex w-full justify-center shrink-0">
                 <DocumentLivePreview
                   layout={layout as any}
                   paperSize={paperSize as any}
@@ -703,11 +740,12 @@ If the user only wants to change one field, keep the other field unchanged. Alwa
                   barangayName={settings?.name}
                   municipality={settings?.city_municipality}
                   province={settings?.province}
-                  logoUrl={settings?.logo_url ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/public-assets/${settings.logo_url}` : undefined}
-                  municipalityLogoUrl={settings?.municipality_logo_url ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/public-assets/${settings.municipality_logo_url}` : undefined}
-                  signatoryName={settings?.punong_barangay_name || "JUAN DELA CRUZ"}
-                  signatoryTitle="PUNONG BARANGAY"
+                  logoUrl={resolvePhotoUrl(settings?.logo_url) || undefined}
+                  municipalityLogoUrl={resolvePhotoUrl(settings?.municipality_logo_url) || undefined}
+                  signatoryName={barangayDocumentSettings.default_signatory_name || settings?.captain_name || "JUAN DELA CRUZ"}
+                  signatoryTitle={barangayDocumentSettings.default_signatory_title || "PUNONG BARANGAY"}
                   contentTitle={docTitle}
+                  contentSalutation={selectedTemplate?.salutation}
                   contentBodyHtml={finalBodyHtml}
                   contentControlNo={`NO. ${establishment.establishment_number}`}
                   hideChrome={true}
@@ -849,10 +887,14 @@ export default function EstablishmentsPage() {
 
   // Data
   const [establishments, setEstablishments] = useState<Establishment[]>([]);
-  const [settings, setSettings] = useState<any>(null);
+  const [settings, setSettings] = useState<BarangaySettings | null>(null);
+  const [documentTemplates, setDocumentTemplates] = useState<DocumentTemplate[]>([]);
 
   useEffect(() => {
     api.settings.get().then(setSettings).catch(console.error);
+    api.documentTemplates.list({ constituent_type: "establishment", is_active: true, per_page: 100 })
+      .then((response) => setDocumentTemplates(response.data))
+      .catch(console.error);
   }, []);
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
@@ -2068,6 +2110,7 @@ export default function EstablishmentsPage() {
         type={docGenType}
         establishment={docGenTarget}
         settings={settings}
+        templates={documentTemplates}
         printOnly={docGenPrintOnly}
         processing={docGenProcessing}
         onConfirm={handleDocGenConfirm}

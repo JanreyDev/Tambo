@@ -723,6 +723,7 @@ export default function SettingsPage() {
   const [modalStep, setModalStep] = useState(1);
   const [selectedCertType, setSelectedCertType] = useState<string | null>(null);
   const [previewCertId, setPreviewCertId] = useState<string | null>(null);
+  const [previewConstituentType, setPreviewConstituentType] = useState<"resident" | "establishment">("resident");
   const [themeSource, setThemeSource] = useState<"global" | "custom">("global");
   const [residentCertificates, setResidentCertificates] = useState<any[]>([]);
   const [establishmentCertificates, setEstablishmentCertificates] = useState<any[]>([]);
@@ -821,6 +822,15 @@ export default function SettingsPage() {
   >("wave");
   const [docPaperSize, setDocPaperSize] = useState<"a4" | "letter" | "legal">("a4");
   const [docFont, setDocFont] = useState<"times" | "arial" | "inter" | "poppins" | "merriweather" | "playfair">("times");
+  const loadGlobalDocumentDesign = useCallback(() => {
+    const globalDesign = settings?.settings ?? {};
+    setDocLayout((globalDesign.document_layout as typeof docLayout) || "klasiko");
+    setDocColorTheme((globalDesign.document_color_theme as typeof docColorTheme) || "plain");
+    setDocFont((globalDesign.document_font as typeof docFont) || "times");
+    setDocDesignPattern((globalDesign.document_design_pattern as typeof docDesignPattern) || "wave");
+    setDocPaperSize((globalDesign.document_paper_size as typeof docPaperSize) || "a4");
+    setDocCustomContent("");
+  }, [settings]);
   // Track whether the user has touched structure/color/paper at least once.
   // Patterns stay as dummy placeholders until first interaction so the user
   // sees the "patterns are generated from your choices" model clearly.
@@ -1161,6 +1171,8 @@ export default function SettingsPage() {
         const newCert = {
           id: option.id,
           name: option.name,
+          title: option.title || option.name,
+          category: option.category,
           isGlobal: false,
           badgeColor: "blue",
           description: `Customization for ${(option.name || "").toLowerCase()}`,
@@ -1193,6 +1205,7 @@ export default function SettingsPage() {
           }
         }
         addToast("Custom template design saved!", "success");
+        loadGlobalDocumentDesign();
         setCustomizeTab(editingConstituentType);
     } catch (err) {
       addToast("Failed to save custom design", "error");
@@ -2234,7 +2247,13 @@ export default function SettingsPage() {
                         ) : (
                           <>
                             <div className="flex items-center gap-3 mb-1">
-                              <button onClick={() => setCustomizeTab(editingConstituentType)} className="p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors -ml-2">
+                              <button
+                                onClick={() => {
+                                  loadGlobalDocumentDesign();
+                                  setCustomizeTab(editingConstituentType);
+                                }}
+                                className="p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-colors -ml-2"
+                              >
                                 <ArrowLeft className="w-5 h-5" />
                               </button>
                               <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
@@ -2520,7 +2539,7 @@ export default function SettingsPage() {
                                   <CertIcon type={cert.iconType} />
                                   <div className="flex flex-col gap-1">
                                     <div className="flex items-center gap-2">
-                                      <span className="font-semibold text-sm text-foreground">{cert.title}</span>
+                                      <span className="font-semibold text-sm text-foreground">{cert.title || cert.name}</span>
                                       <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-sm ${cert.isGlobal ? 'bg-green-500/10 text-green-500' : cert.badgeColor === 'blue' ? 'bg-blue-500/10 text-blue-500' : cert.badgeColor === 'red' ? 'bg-red-500/10 text-red-500' : 'bg-purple-500/10 text-purple-500'}`}>
                                         {cert.isGlobal ? 'Global Theme' : 'Custom Theme'}
                                       </span>
@@ -2553,7 +2572,10 @@ export default function SettingsPage() {
                                 <div className="flex items-center justify-center gap-3 pt-1">
                                   <button 
                                     className="text-muted-foreground hover:text-foreground transition-colors"
-                                    onClick={() => setPreviewCertId(cert.id)}
+                                    onClick={() => {
+                                      setPreviewConstituentType(customizeTab === "establishment" ? "establishment" : "resident");
+                                      setPreviewCertId(cert.id);
+                                    }}
                                     title="Preview Design"
                                   >
                                     <Eye className="w-4 h-4" />
@@ -2561,6 +2583,7 @@ export default function SettingsPage() {
                                   <button 
                                     className="text-muted-foreground hover:text-blue-500 transition-colors"
                                     onClick={() => {
+                                      setEditingConstituentType(customizeTab === "establishment" ? "establishment" : "resident");
                                       setSelectedCertType(cert.id);
                                       if (cert.design_settings && cert.design_settings.use_global_design === false) {
                                         setDocLayout((cert.design_settings.document_layout as any) || "klasiko");
@@ -2570,7 +2593,7 @@ export default function SettingsPage() {
                                         setDocPaperSize((cert.design_settings.document_paper_size as any) || "a4");
                                         setDocCustomContent(cert.design_settings.custom_content || "");
                                       } else {
-                                        setDocCustomContent("");
+                                        loadGlobalDocumentDesign();
                                       }
                                       setCustomizeTab("editor");
                                     }}
@@ -2753,7 +2776,10 @@ export default function SettingsPage() {
                                     const option = dbTemplates.find(c => c.id === selectedCertType);
                                     
                                     if (themeSource === "custom") {
-                                      const existing = residentCertificates.find(c => c.id === selectedCertType);
+                                      const existingCertificates = editingConstituentType === "establishment"
+                                        ? establishmentCertificates
+                                        : residentCertificates;
+                                      const existing = existingCertificates.find(c => c.id === selectedCertType);
                                       if (existing && existing.design_settings && existing.design_settings.use_global_design === false) {
                                         setDocLayout((existing.design_settings.document_layout as any) || "klasiko");
                                         setDocColorTheme((existing.design_settings.document_color_theme as any) || "plain");
@@ -2762,7 +2788,7 @@ export default function SettingsPage() {
                                         setDocPaperSize((existing.design_settings.document_paper_size as any) || "a4");
                                         setDocCustomContent(existing.design_settings.custom_content || "");
                                       } else {
-                                        setDocCustomContent("");
+                                        loadGlobalDocumentDesign();
                                       }
                                       setCustomizeTab("editor");
                                       setIsModalOpen(false);
@@ -2772,6 +2798,8 @@ export default function SettingsPage() {
                                           const newCert = {
                                             id: option.id,
                                             name: option.name,
+                                            title: option.title || option.name,
+                                            category: option.category,
                                             isGlobal: true,
                                             badgeColor: "green",
                                             description: `Customization for ${(option.name || "").toLowerCase()}`,
@@ -4263,15 +4291,23 @@ export default function SettingsPage() {
             </div>
             <div className="p-6 overflow-y-auto flex-1 bg-slate-900/50 flex justify-center min-h-[600px]">
               {(() => {
-                const cert = residentCertificates.find(c => c.id === previewCertId);
+                const certificateDesigns = previewConstituentType === "establishment"
+                  ? establishmentCertificates
+                  : residentCertificates;
+                const cert = certificateDesigns.find(c => c.id === previewCertId);
                 const isGlobal = !cert || cert.isGlobal !== false;
-                
-                const layout = isGlobal ? docLayout : cert.design_settings?.document_layout;
-                const paper = isGlobal ? docPaperSize : cert.design_settings?.document_paper_size;
-                const fontVal = isGlobal ? docFont : cert.design_settings?.document_font;
-                const pattern = isGlobal ? docDesignPattern : cert.design_settings?.document_design_pattern;
-                const colors = isGlobal ? docColorTheme : cert.design_settings?.document_color_theme;
+                const globalDesign = settings?.settings ?? {};
+                const customDesign = cert?.design_settings ?? {};
+
+                const layout = isGlobal ? globalDesign.document_layout : customDesign.document_layout;
+                const paper = isGlobal ? globalDesign.document_paper_size : customDesign.document_paper_size;
+                const fontVal = isGlobal ? globalDesign.document_font : customDesign.document_font;
+                const pattern = isGlobal ? globalDesign.document_design_pattern : customDesign.document_design_pattern;
+                const colors = isGlobal ? globalDesign.document_color_theme : customDesign.document_color_theme;
                 const dbTemp = dbTemplates.find(t => t.id === previewCertId);
+                const previewContent = !isGlobal && customDesign.custom_content
+                  ? customDesign.custom_content
+                  : dbTemp?.content;
 
                 return (
                   <DocumentLivePreview
@@ -4289,7 +4325,7 @@ export default function SettingsPage() {
                     signatoryTitle={previewSignatoryTitle}
                     contentTitle={dbTemp?.title || dbTemp?.name || "CERTIFICATE PREVIEW"}
                     contentSalutation={dbTemp?.salutation || "TO WHOM IT MAY CONCERN:"}
-                    contentBodyHtml={dbTemp?.content || "This is a live preview of the design for this certificate."}
+                    contentBodyHtml={previewContent || "This is a live preview of the design for this certificate."}
                     contentControlNo="PREVIEW-12345"
                     contentIssuedDate={previewIssueDate.toLocaleDateString("en-PH", { month: "long", day: "numeric", year: "numeric" })}
                     fitToContainer={true}
