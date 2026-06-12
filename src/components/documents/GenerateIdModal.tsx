@@ -5,10 +5,9 @@ import {
   X, IdCard, Users, UserCheck, Loader2, CheckCircle2,
   Printer, AlertTriangle, Shield, ChevronRight,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { useAuth } from "@/contexts/auth-context";
+import { cn, resolvePhotoUrl } from "@/lib/utils";
 import { api } from "@/lib/api";
-import type { DocumentTemplate, IssuedDocument, ResidentDetail } from "@/lib/types";
+import type { BarangaySettings, DocumentTemplate, IssuedDocument, ResidentDetail } from "@/lib/types";
 
 // ── ID type definitions ──
 const ID_TYPES = [
@@ -61,11 +60,9 @@ interface Props {
 }
 
 export function GenerateIdModal({ open, onClose, residentId, onSuccess }: Props) {
-  const { user } = useAuth();
-  const barangay = user?.barangay;
-
   const [step, setStep] = useState<Step>("select");
   const [resident, setResident] = useState<ResidentDetail | null>(null);
+  const [barangay, setBarangay] = useState<BarangaySettings | null>(null);
   const [templates, setTemplates] = useState<DocumentTemplate[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<IdCategory | null>(null);
@@ -83,11 +80,13 @@ export function GenerateIdModal({ open, onClose, residentId, onSuccess }: Props)
     const loadData = async () => {
       setLoading(true);
       try {
-        const [res, tplRes] = await Promise.all([
+        const [res, tplRes, barangaySettings] = await Promise.all([
           api.residents.get(residentId) as Promise<ResidentDetail>,
           api.documentTemplates.list({ per_page: 100 }),
+          api.settings.get(),
         ]);
         setResident(res);
+        setBarangay(barangaySettings);
         setTemplates(tplRes.data.filter((t) =>
           ["barangay_id", "family_id", "staff_id"].includes(t.category)
         ));
@@ -145,16 +144,6 @@ export function GenerateIdModal({ open, onClose, residentId, onSuccess }: Props)
 
   const selectedIdType = ID_TYPES.find((t) => t.category === selectedCategory);
   const selectedTemplate = selectedCategory ? templateFor(selectedCategory) : null;
-
-  // ── Computed ID card fields ──
-  const dobRaw = resident?.date_of_birth;
-  const dobDate = dobRaw ? new Date(dobRaw.includes("T") ? dobRaw : dobRaw + "T00:00:00") : null;
-  const dobFormatted = dobDate ? dobDate.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" }) : "—";
-  const address = [
-    resident?.house_block_lot,
-    resident?.purok ? `Purok ${resident.purok}` : null,
-    resident?.street,
-  ].filter(Boolean).join(", ") || "—";
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
@@ -240,7 +229,7 @@ export function GenerateIdModal({ open, onClose, residentId, onSuccess }: Props)
                           </p>
                           <p className="text-[11px] text-muted-foreground">{idType.desc}</p>
                           {!available && (
-                            <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5">
+                           <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5">
                               Template not configured — add in Documents → Templates
                             </p>
                           )}
@@ -325,7 +314,7 @@ export function GenerateIdModal({ open, onClose, residentId, onSuccess }: Props)
 // ── ID Card Preview Component ──
 interface IdCardPreviewProps {
   resident: ResidentDetail;
-  barangay: { name?: string; city_municipality?: string | null; province?: string | null; seal_url?: string | null; logo_url?: string | null; captain_name?: string | null } | null | undefined;
+  barangay: BarangaySettings | null;
   doc: IssuedDocument;
   template: DocumentTemplate | null;
   idType: typeof ID_TYPES[number];
@@ -342,6 +331,9 @@ function IdCardPreview({ resident, barangay, doc, template, idType }: IdCardPrev
     resident.house_block_lot,
     resident.purok ? `Purok ${resident.purok}` : null,
     resident.street,
+    barangay?.name ? `Barangay ${barangay.name}` : null,
+    barangay?.city_municipality,
+    barangay?.province,
   ].filter(Boolean).join(", ") || "—";
 
   const issuedFmt = doc.issued_date
@@ -352,7 +344,9 @@ function IdCardPreview({ resident, barangay, doc, template, idType }: IdCardPrev
     : "—";
 
   const signatoryLabel = template?.approval_config?.right?.label ?? "Punong Barangay";
-  const sealUrl = barangay?.seal_url ?? barangay?.logo_url ?? null;
+  const barangayLogoUrl = resolvePhotoUrl(barangay?.seal_url ?? barangay?.logo_url);
+  const municipalityLogoUrl = resolvePhotoUrl(barangay?.municipality_logo_url);
+  const residentPhotoUrl = resolvePhotoUrl(resident.photo_url);
 
   // CR80 aspect ratio: 85.6mm × 54mm
   return (
@@ -367,9 +361,9 @@ function IdCardPreview({ resident, barangay, doc, template, idType }: IdCardPrev
       >
         {/* Left seal */}
         <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center shrink-0 overflow-hidden">
-          {sealUrl ? (
+          {barangayLogoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={sealUrl} alt="Seal" className="w-8 h-8 object-contain rounded-full" />
+            <img src={barangayLogoUrl} alt="Barangay seal" className="w-8 h-8 object-contain rounded-full" />
           ) : (
             <Shield className="w-4 h-4 text-white/40" />
           )}
@@ -388,9 +382,12 @@ function IdCardPreview({ resident, barangay, doc, template, idType }: IdCardPrev
         </div>
         {/* Right seal (mirror) */}
         <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center shrink-0 overflow-hidden">
-          {sealUrl ? (
+          {municipalityLogoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={sealUrl} alt="Seal" className="w-8 h-8 object-contain rounded-full" />
+            <img src={municipalityLogoUrl} alt="Municipality seal" className="w-8 h-8 object-contain rounded-full" />
+          ) : barangayLogoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={barangayLogoUrl} alt="Barangay seal" className="w-8 h-8 object-contain rounded-full" />
           ) : (
             <Shield className="w-4 h-4 text-white/40" />
           )}
@@ -406,7 +403,7 @@ function IdCardPreview({ resident, barangay, doc, template, idType }: IdCardPrev
       </div>
 
       {/* Body */}
-      <div className="flex bg-white" style={{ height: "48%" }}>
+      <div className="flex bg-white" style={{ height: "48%", color: "#1e293b" }}>
         {/* Photo column */}
         <div
           className="flex flex-col items-center justify-start pt-1.5 gap-1 shrink-0"
@@ -416,11 +413,11 @@ function IdCardPreview({ resident, barangay, doc, template, idType }: IdCardPrev
             className="border border-[#1a3a6e] bg-slate-50 flex items-center justify-center overflow-hidden"
             style={{ width: "80%", aspectRatio: "40/44" }}
           >
-            {resident.photo_url ? (
+            {residentPhotoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={resident.photo_url}
-                alt="Photo"
+                src={residentPhotoUrl}
+                alt={`${resident.first_name} ${resident.last_name}`}
                 className="w-full h-full object-cover"
               />
             ) : (
@@ -491,7 +488,7 @@ function IdCardPreview({ resident, barangay, doc, template, idType }: IdCardPrev
       {/* Footer band */}
       <div
         className="flex items-center px-3 gap-3"
-        style={{ height: "24%", background: "#f8fafc", borderTop: "0.75px solid #e2e8f0" }}
+        style={{ height: "24%", background: "#f8fafc", borderTop: "0.75px solid #e2e8f0", color: "#1e293b" }}
       >
         {/* Validity */}
         <div className="flex-1 min-w-0">
@@ -505,6 +502,9 @@ function IdCardPreview({ resident, barangay, doc, template, idType }: IdCardPrev
         {/* Signatory */}
         <div className="text-center" style={{ width: "30%", flexShrink: 0 }}>
           <div style={{ borderTop: "0.75px solid #1a3a6e", marginBottom: "2px", marginTop: "4px" }} />
+          <p style={{ fontSize: "5px", fontWeight: 700, color: "#1a3a6e", textTransform: "uppercase", lineHeight: 1.1 }}>
+            {barangay?.captain_name ?? "—"}
+          </p>
           <p style={{ fontSize: "4.5px", color: "#555", textTransform: "uppercase", letterSpacing: "0.2px" }}>
             {signatoryLabel}
           </p>
