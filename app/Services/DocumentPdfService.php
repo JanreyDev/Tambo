@@ -9,6 +9,7 @@ use App\Models\Admin\File;
 use App\Models\Tenant\Documents\DocumentTemplate;
 use App\Models\Tenant\Documents\IssuedDocument;
 use App\Models\Tenant\Records\Establishment;
+use App\Models\Tenant\Records\LotBuilding;
 use App\Models\Tenant\Resident;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -95,9 +96,10 @@ class DocumentPdfService
         Barangay $barangay,
         ?Resident $resident = null,
         ?Establishment $establishment = null,
+        ?LotBuilding $lotBuilding = null,
         ?User $issuedBy = null,
     ): File {
-        $pdfBinary = $this->generate($document, $template, $barangay, $resident, $establishment, $issuedBy);
+        $pdfBinary = $this->generate($document, $template, $barangay, $resident, $establishment, $lotBuilding, $issuedBy);
 
         return $this->storePdf($pdfBinary, $document, $barangay);
     }
@@ -111,9 +113,10 @@ class DocumentPdfService
         Barangay $barangay,
         ?Resident $resident = null,
         ?Establishment $establishment = null,
+        ?LotBuilding $lotBuilding = null,
         ?User $issuedBy = null,
     ): string {
-        $data = $this->buildViewData($document, $template, $barangay, $resident, $establishment, $issuedBy);
+        $data = $this->buildViewData($document, $template, $barangay, $resident, $establishment, $lotBuilding, $issuedBy);
 
         // ID card categories use a compact horizontal card layout (CR80 dimensions)
         $idCardCategories = ['barangay_id', 'family_id', 'staff_id'];
@@ -129,9 +132,11 @@ class DocumentPdfService
                     'isRemoteEnabled' => false,
                 ]);
         } else {
-            $customConfigKey = $template->constituent_type === 'establishment'
-                ? 'customized_establishment_certificates'
-                : 'customized_resident_certificates';
+            $customConfigKey = match ($template->constituent_type) {
+                'establishment' => 'customized_establishment_certificates',
+                'lot_building' => 'customized_lot_building_certificates',
+                default => 'customized_resident_certificates',
+            };
             $customConfigs = $barangay->settings[$customConfigKey] ?? [];
             $customConfig = collect($customConfigs)->firstWhere('id', $template->id);
             $customSettings = $customConfig['design_settings'] ?? null;
@@ -211,10 +216,11 @@ class DocumentPdfService
         Barangay $barangay,
         ?Resident $resident,
         ?Establishment $establishment,
+        ?LotBuilding $lotBuilding,
         ?User $issuedBy,
     ): array {
         // Merge field values from resident + custom inputs
-        $mergeValues = $this->resolveMergeFields($template, $resident, $establishment, $document);
+        $mergeValues = $this->resolveMergeFields($template, $resident, $establishment, $lotBuilding, $document);
 
         // Replace merge fields in content
         $renderedContent = $this->renderContent($template->content ?? '', $mergeValues);
@@ -258,9 +264,11 @@ class DocumentPdfService
             'combo-heritage' =>   ['primary' => '#991b1b', 'accent' => '#15803d', 'tint' => '#fee2e2'],
         ];
 
-        $customConfigKey = $template->constituent_type === 'establishment'
-            ? 'customized_establishment_certificates'
-            : 'customized_resident_certificates';
+        $customConfigKey = match ($template->constituent_type) {
+            'establishment' => 'customized_establishment_certificates',
+            'lot_building' => 'customized_lot_building_certificates',
+            default => 'customized_resident_certificates',
+        };
         $customConfigs = $barangay->settings[$customConfigKey] ?? [];
         $customConfig = collect($customConfigs)->firstWhere('id', $template->id);
         $customSettings = $customConfig['design_settings'] ?? null;
@@ -362,6 +370,7 @@ class DocumentPdfService
         DocumentTemplate $template,
         ?Resident $resident,
         ?Establishment $establishment,
+        ?LotBuilding $lotBuilding,
         IssuedDocument $document,
     ): array
     {
@@ -419,6 +428,24 @@ class DocumentPdfService
             $values['prev_permit_no'] = $establishment->permit_number ?? '';
             $values['registration_number'] = $establishment->registration_number ?? '';
             $values['closure_date'] = $document->issued_date?->format('F d, Y') ?? '';
+        }
+
+        if ($lotBuilding) {
+            $address = implode(', ', array_filter([$lotBuilding->purok, $lotBuilding->street, $lotBuilding->exact_address]));
+            $values += [
+                'owner_name' => $lotBuilding->owner_name ?? '',
+                'owner_address' => $lotBuilding->owner_address ?? '',
+                'lot_address' => $address,
+                'property_address' => $address,
+                'construction_address' => $address,
+                'site_address' => $address,
+                'lot_area' => $lotBuilding->size ?? '',
+                'floor_area' => $lotBuilding->size ?? '',
+                'tax_dec_no' => $lotBuilding->tax_declaration_number ?? '',
+                'structure_type' => $lotBuilding->classification ?? '',
+                'applicant_name' => $lotBuilding->owner_name ?? '',
+                'lot_building_number' => $lotBuilding->lot_building_number ?? '',
+            ];
         }
 
         // Merge custom field values from the issued document

@@ -9,6 +9,7 @@ use App\Models\Admin\Barangay;
 use App\Models\Tenant\Documents\DocumentTemplate;
 use App\Models\Tenant\Documents\IssuedDocument;
 use App\Models\Tenant\Records\Establishment;
+use App\Models\Tenant\Records\LotBuilding;
 use App\Models\Tenant\Resident;
 use App\Services\AiService;
 use App\Services\DocumentPdfService;
@@ -145,6 +146,7 @@ class IssuedDocumentController extends Controller
         // Resolve resident (for merge fields)
         $resident = null;
         $establishment = null;
+        $lotBuilding = null;
         $constituentName = null;
         $constituentNumber = null;
         if ($validated['constituent_type'] === 'resident') {
@@ -160,6 +162,11 @@ class IssuedDocumentController extends Controller
                 ->findOrFail($validated['constituent_id']);
             $constituentName = $establishment->business_name;
             $constituentNumber = $establishment->establishment_number;
+        } elseif ($validated['constituent_type'] === 'lot_building') {
+            $lotBuilding = LotBuilding::where('barangay_id', $barangayId)
+                ->findOrFail($validated['constituent_id']);
+            $constituentName = $lotBuilding->owner_name;
+            $constituentNumber = $lotBuilding->lot_building_number;
         }
 
         // Auto-generate document number (barangay-scoped)
@@ -189,7 +196,7 @@ class IssuedDocumentController extends Controller
 
         // Phase 1: Generate PDF without hash to compute the hash
         $pdfBinary = $this->pdfService->generate(
-            $document, $template, $barangay, $resident, $establishment, $request->user()
+            $document, $template, $barangay, $resident, $establishment, $lotBuilding, $request->user()
         );
 
         // Compute blockchain hash from initial PDF
@@ -204,7 +211,7 @@ class IssuedDocumentController extends Controller
 
         // Phase 2: Re-generate final PDF with hash in footer, then store
         $file = $this->pdfService->generateAndStore(
-            $document->fresh(), $template, $barangay, $resident, $establishment, $request->user()
+            $document->fresh(), $template, $barangay, $resident, $establishment, $lotBuilding, $request->user()
         );
 
         $document->update(['pdf_file_id' => $file->id]);
@@ -330,6 +337,7 @@ class IssuedDocumentController extends Controller
 
         $resident = null;
         $establishment = null;
+        $lotBuilding = null;
         if ($document->constituent_type === 'resident' && $document->constituent_id) {
             $resident = Resident::where('barangay_id', $barangayId)
                 ->with(['photoFile', 'sectoralTags'])
@@ -337,10 +345,13 @@ class IssuedDocumentController extends Controller
         } elseif ($document->constituent_type === 'establishment' && $document->constituent_id) {
             $establishment = Establishment::where('barangay_id', $barangayId)
                 ->find($document->constituent_id);
+        } elseif ($document->constituent_type === 'lot_building' && $document->constituent_id) {
+            $lotBuilding = LotBuilding::where('barangay_id', $barangayId)
+                ->find($document->constituent_id);
         }
 
         $file = $this->pdfService->generateAndStore(
-            $document, $template, $barangay, $resident, $establishment, $request->user()
+            $document, $template, $barangay, $resident, $establishment, $lotBuilding, $request->user()
         );
 
         // Delete old file if exists
