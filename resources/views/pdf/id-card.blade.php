@@ -11,9 +11,9 @@
             font-family: sans-serif;
             font-size: 6pt;
             color: #1e293b;
+            background: #fff;
             width: 242.64pt;
             height: 153.07pt;
-            background: #fff;
         }
 
         .card {
@@ -50,12 +50,12 @@
 <body>
 <table class="card" cellpadding="0" cellspacing="0">
 
-    {{-- ROW 1: HEADER (28pt) --}}
-    <tr class="hdr" style="height: 28pt;">
+    {{-- ROW 1: HEADER (38pt) --}}
+    <tr class="hdr" style="height: 38pt;">
         <td style="width: 30pt; text-align: center;">
             @if($sealDataUri)<img src="{{ $sealDataUri }}" alt="">@endif
         </td>
-        <td style="text-align: center; line-height: 1.2;" colspan="2">
+        <td style="text-align: center; line-height: 1.2; padding-top: 4pt; padding-bottom: 7pt;" colspan="2">
             <div style="font-size: 4.5pt; text-transform: uppercase; letter-spacing: 0.5pt; opacity: 0.85;">Republic of the Philippines</div>
             <div style="font-size: 9pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.3pt;">Barangay {{ $barangay->name }}</div>
             <div style="font-size: 4.5pt; opacity: 0.85;">{{ $barangay->city_municipality }}{{ $barangay->province ? ', '.$barangay->province : '' }}</div>
@@ -70,8 +70,8 @@
         <td colspan="4">{{ $template->title ?? 'BARANGAY IDENTIFICATION CARD' }}</td>
     </tr>
 
-    {{-- ROW 3: BODY (94pt) --}}
-    <tr class="body-row" style="height: 94pt;">
+    {{-- ROW 3: BODY (84pt) --}}
+    <tr class="body-row" style="height: 84pt;">
         {{-- Photo column --}}
         <td style="width: 56pt; vertical-align: top; text-align: center; padding: 4pt 2pt 3pt 4pt; border-right: 0.5pt solid #e2e8f0;">
             @if($photoDataUri && ($settings['show_photo'] ?? false))
@@ -88,7 +88,7 @@
         </td>
 
         {{-- Details column --}}
-        <td style="vertical-align: top; padding: 4pt 4pt 30pt 5pt;" colspan="3">
+        <td style="vertical-align: top; padding: 4pt 4pt 25pt 5pt;" colspan="3">
             {{-- Name --}}
             <div style="border-bottom: 0.75pt solid #1a3a6e; padding-bottom: 2pt; margin-bottom: 3pt;">
                 <div class="fl">Name</div>
