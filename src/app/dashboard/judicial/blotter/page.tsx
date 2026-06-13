@@ -103,12 +103,19 @@ function FormCombobox({ label, value, onChange, options, required, error, placeh
         {label}{required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
       {open ? (
-        <div className={cn("w-full flex items-center gap-2 px-3 py-2 text-sm rounded-xl border bg-background focus-within:ring-2", error ? "border-red-500 focus-within:ring-red-300" : "border-accent-primary focus-within:ring-accent-ring")}>
-          <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        <div
+          className={cn(
+            "relative w-full overflow-hidden border bg-background text-sm focus-within:ring-2",
+            error ? "border-red-500 focus-within:ring-red-300" : "border-accent-primary focus-within:ring-accent-ring",
+            filtered.length > 0 ? (dropUp ? "rounded-b-xl rounded-t-none border-t-transparent" : "rounded-t-xl rounded-b-none border-b-transparent") : "rounded-xl"
+          )}
+        >
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <input ref={inputRef} value={query} onChange={(e) => setQuery(e.target.value)}
             placeholder={`Search ${label.toLowerCase()}...`}
-            className="flex-1 bg-transparent text-foreground outline-none placeholder:text-muted-foreground text-sm" />
-          <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground"><X className="h-3.5 w-3.5" /></button>
+            style={{ outline: "none", boxShadow: "none", WebkitAppearance: "none", appearance: "none" }}
+            className="block w-full border-0 bg-transparent py-2 pr-9 pl-8 text-sm text-foreground shadow-none outline-none ring-0 placeholder:text-muted-foreground focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0" />
+          <button onClick={() => setOpen(false)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"><X className="h-3.5 w-3.5" /></button>
         </div>
       ) : (
         <button type="button" onClick={handleOpen}
@@ -120,7 +127,12 @@ function FormCombobox({ label, value, onChange, options, required, error, placeh
         </button>
       )}
       {open && (
-        <div className={cn("absolute left-0 right-0 z-[9999] bg-white dark:bg-slate-800 border border-border rounded-xl shadow-xl overflow-hidden", dropUp ? "bottom-full mb-1" : "top-full mt-1")}>
+        <div
+          className={cn(
+            "absolute left-0 right-0 z-[9999] overflow-hidden border border-border bg-white shadow-xl dark:bg-slate-800",
+            dropUp ? "bottom-full -mb-px rounded-t-xl rounded-b-none border-b-0" : "top-full -mt-px rounded-b-xl rounded-t-none border-t-0"
+          )}
+        >
           <div className="max-h-52 overflow-y-auto">
             {filtered.length > 0 ? filtered.map((o) => (
               <button key={o} type="button" onClick={() => { onChange(o); setOpen(false); setQuery(""); }}
@@ -507,10 +519,6 @@ export default function BlotterPage() {
                 <p className="text-sm font-medium text-foreground">No blotter records found</p>
                 <p className="text-xs text-muted-foreground mt-0.5">Incidents reported to the barangay will appear here.</p>
               </div>
-              <button onClick={openCreate} className="px-4 py-1.5 text-xs font-semibold rounded-lg text-white"
-                style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>
-                + Record Blotter
-              </button>
             </div>
           </div>
         ) : (
@@ -581,26 +589,43 @@ export default function BlotterPage() {
         description={showEdit ? "Update an existing incident report" : "File a new barangay incident report"}
         size="lg" disableOutsideClick
         footer={
-          <div className="flex items-center justify-between w-full">
-            <div>
-              {formTab > 0 && (
-                <ModalButton variant="secondary" onClick={() => setFormTab((t) => t - 1)}>
-                  <ChevronLeft className="w-4 h-4 mr-1" /> Previous
-                </ModalButton>
-              )}
-            </div>
+          <div className="flex w-full items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <ModalButton variant="secondary" onClick={closeFormModal}>Cancel</ModalButton>
-              {formTab < formTabs.length - 1 ? (
-                <ModalButton variant="primary" onClick={() => setFormTab((t) => t + 1)}>
-                  Next <ChevronRight className="w-4 h-4 ml-1" />
-                </ModalButton>
-              ) : (
-                <ModalButton variant="primary" onClick={handleSubmit} disabled={saving}>
-                  {saving ? "Saving..." : showEdit ? "Update Record" : "Record Blotter"}
-                </ModalButton>
+              {formTab > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setFormTab((t) => t - 1)}
+                  className="inline-flex h-10 items-center rounded-lg border border-border bg-muted px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted/80"
+                >
+                  <ChevronLeft className="mr-1.5 h-4 w-4" /> Previous
+                </button>
               )}
+              <button
+                type="button"
+                onClick={closeFormModal}
+                className="inline-flex h-10 items-center rounded-lg border border-border bg-muted px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted/80"
+              >
+                Cancel
+              </button>
             </div>
+            {formTab < formTabs.length - 1 ? (
+              <button
+                type="button"
+                onClick={() => setFormTab((t) => t + 1)}
+                className="inline-flex h-10 min-w-[112px] items-center justify-center rounded-lg bg-accent-primary px-5 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
+              >
+                Next <ChevronRight className="ml-1.5 h-4 w-4" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={saving}
+                className="inline-flex h-10 min-w-[140px] items-center justify-center rounded-lg bg-accent-primary px-5 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {saving ? "Saving..." : showEdit ? "Update Record" : "Record Blotter"}
+              </button>
+            )}
           </div>
         }>
         <div className="flex gap-1 mb-6">
