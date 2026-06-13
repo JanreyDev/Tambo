@@ -11,6 +11,7 @@ use App\Models\Tenant\Judicial\KpCase;
 use App\Services\SmsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class KpCaseController extends Controller
 {
@@ -159,7 +160,7 @@ class KpCaseController extends Controller
             'filing_date' => ['required', 'date'],
             'presiding_officer_id' => ['nullable', 'uuid'],
             'lupon_secretary_id' => ['nullable', 'uuid'],
-            'status' => ['nullable', 'in:mediation,conciliation,arbitration,settled,dismissed,elevated'],
+            'status' => ['nullable', 'in:filed,mediation,conciliation,arbitration,settled,cfa_issued,dismissed,closed,elevated'],
         ]);
 
         $barangayId = $request->user()->barangay_id;
@@ -168,9 +169,13 @@ class KpCaseController extends Controller
         // Handles late entries: December cases filed in January still get KP-{prev_year}-XXXX.
         // created_at is the audit trail for when it was actually entered.
         $year = \Carbon\Carbon::parse($validated['filing_date'])->format('Y');
+        $casePrefix = "KP-{$year}-";
+        $sequenceOrderSql = DB::connection()->getDriverName() === 'sqlite'
+            ? 'CAST(SUBSTR(case_number, '.(strlen($casePrefix) + 1).') AS INTEGER) DESC'
+            : "CAST(SUBSTRING(case_number FROM 'KP-\\d{4}-(\\d+)') AS INTEGER) DESC NULLS LAST";
         $lastCase = KpCase::where('barangay_id', $barangayId)
-            ->where('case_number', 'ilike', "KP-{$year}-%")
-            ->orderByRaw("CAST(SUBSTRING(case_number FROM 'KP-\\d{4}-(\\d+)') AS INTEGER) DESC NULLS LAST")
+            ->where('case_number', 'like', "{$casePrefix}%")
+            ->orderByRaw($sequenceOrderSql)
             ->first();
 
         $nextSeq = $lastCase
@@ -182,7 +187,7 @@ class KpCaseController extends Controller
             ...$validated,
             'barangay_id' => $barangayId,
             'case_number' => $caseNumber,
-            'status' => $validated['status'] ?? 'mediation',
+            'status' => $validated['status'] ?? 'filed',
             'created_by' => $request->user()->id,
         ]);
 
@@ -230,7 +235,7 @@ class KpCaseController extends Controller
             'certification_to_file_action' => ['boolean'],
             'cfa_date' => ['nullable', 'date'],
             'cfa_reason' => ['nullable', 'string'],
-            'status' => ['sometimes', 'in:mediation,conciliation,arbitration,settled,cfa_issued,dismissed,elevated'],
+            'status' => ['sometimes', 'in:filed,mediation,conciliation,arbitration,settled,cfa_issued,dismissed,closed,elevated'],
             'remarks' => ['nullable', 'string'],
         ]);
 
