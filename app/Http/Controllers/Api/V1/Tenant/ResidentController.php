@@ -1220,9 +1220,13 @@ class ResidentController extends Controller
         $rowNum = 1;
 
         // Get the highest existing sequence number once (not per row)
+        $residentPrefix = "RES-{$psgcCode}-";
+        $sequenceOrderSql = DB::connection()->getDriverName() === 'sqlite'
+            ? 'CAST(SUBSTR(resident_number, '.(strlen($residentPrefix) + 1).') AS INTEGER) DESC'
+            : "CAST(SPLIT_PART(resident_number, '-', 3) AS INTEGER) DESC";
         $lastNumber = Resident::where('barangay_id', $barangayId)
-            ->where('resident_number', 'like', "RES-{$psgcCode}-%")
-            ->orderByRaw("CAST(SPLIT_PART(resident_number, '-', 3) AS INTEGER) DESC")
+            ->where('resident_number', 'like', "{$residentPrefix}%")
+            ->orderByRaw($sequenceOrderSql)
             ->value('resident_number');
         $nextSeq = 1;
         if ($lastNumber) {

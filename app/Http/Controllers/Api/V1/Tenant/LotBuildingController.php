@@ -12,6 +12,7 @@ use App\Models\Tenant\Records\LotBuildingTransaction;
 use App\Services\SmsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class LotBuildingController extends Controller
 {
@@ -145,11 +146,14 @@ class LotBuildingController extends Controller
         $psgcCode = $barangay->psgc_code;
         $phYear = now()->year;
         $prefix = "LB-{$psgcCode}-{$phYear}-";
+        $sequenceOrderSql = DB::connection()->getDriverName() === 'sqlite'
+            ? 'CAST(SUBSTR(lot_building_number, '.(strlen($prefix) + 1).') AS INTEGER) DESC'
+            : "CAST(SPLIT_PART(lot_building_number, '-', 4) AS INTEGER) DESC";
 
         $lastSeq = LotBuilding::withTrashed()
             ->where('barangay_id', $barangayId)
             ->where('lot_building_number', 'like', "{$prefix}%")
-            ->orderByRaw("CAST(SPLIT_PART(lot_building_number, '-', 4) AS INTEGER) DESC")
+            ->orderByRaw($sequenceOrderSql)
             ->value('lot_building_number');
 
         $nextSeq = $lastSeq

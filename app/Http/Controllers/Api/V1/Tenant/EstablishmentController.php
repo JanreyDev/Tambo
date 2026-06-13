@@ -12,6 +12,7 @@ use App\Models\Tenant\Records\EstablishmentTransaction;
 use App\Services\SmsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class EstablishmentController extends Controller
 {
@@ -157,9 +158,12 @@ class EstablishmentController extends Controller
 
         // Generate EST-{PSGC}-{YEAR}-{XXXX} — sequential per barangay per year
         $prefix = "EST-{$psgcCode}-{$phYear}-";
+        $sequenceOrderSql = DB::connection()->getDriverName() === 'sqlite'
+            ? 'CAST(SUBSTR(establishment_number, '.(strlen($prefix) + 1).') AS INTEGER) DESC'
+            : "CAST(SPLIT_PART(establishment_number, '-', 4) AS INTEGER) DESC";
         $lastSeq = Establishment::where('barangay_id', $barangayId)
             ->where('establishment_number', 'like', "{$prefix}%")
-            ->orderByRaw("CAST(SPLIT_PART(establishment_number, '-', 4) AS INTEGER) DESC")
+            ->orderByRaw($sequenceOrderSql)
             ->value('establishment_number');
 
         $nextSeq = $lastSeq
