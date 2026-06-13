@@ -304,7 +304,7 @@ function FCombobox({
   const openCb = () => {
     if (!open && wRef.current) {
       const r = wRef.current.getBoundingClientRect();
-      setPos({ top: r.bottom + 6, left: r.left, width: r.width });
+      setPos({ top: r.bottom - 1, left: r.left, width: r.width });
     }
     setOpen(true); setQuery("");
   };
@@ -336,14 +336,18 @@ function FCombobox({
     <div ref={wRef} className="relative">
       <label className="block text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{label}</label>
       <div
-        className="flex items-center w-full rounded-xl border border-border bg-background transition-all"
+        className={cn(
+          "flex items-center w-full overflow-hidden border border-border bg-background transition-all",
+          open ? "rounded-t-xl rounded-b-none border-b-transparent" : "rounded-xl"
+        )}
         style={open ? { borderColor: "var(--accent-primary)", boxShadow: "0 0 0 3px rgba(37,99,235,0.12)" } : undefined}
       >
         <input
           type="text"
           value={open ? query : displayVal}
           placeholder={value ? undefined : (placeholder || "Type to search...")}
-          className="flex-1 px-3 py-2 text-sm bg-transparent focus:outline-none min-w-0"
+          className="flex-1 min-w-0 border-0 bg-transparent px-3 py-2 text-sm shadow-none outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
+          style={{ outline: "none", boxShadow: "none", WebkitAppearance: "none", appearance: "none" }}
           onFocus={openCb}
           onChange={(e) => { setQuery(uppercase ? e.target.value.toUpperCase() : e.target.value); if (!open) openCb(); }}
           onKeyDown={(e) => { if (e.key === "Enter" && trimmed) { e.preventDefault(); fuzzyMatch ? handleSelect(fuzzyMatch.canonical) : handleNew(); } }}
@@ -356,7 +360,9 @@ function FCombobox({
         <ChevronDown className={cn("h-4 w-4 mr-2 text-muted-foreground transition-transform shrink-0", open && "rotate-180")} />
       </div>
       {open && typeof window !== "undefined" && createPortal(
-        <div ref={dRef} className="fixed z-[10001] rounded-xl shadow-xl max-h-52 overflow-y-auto bg-background border border-border"
+        <div
+          ref={dRef}
+          className="fixed z-[10001] rounded-b-xl rounded-t-none shadow-xl max-h-52 overflow-y-auto bg-background border border-border border-t-0"
           style={{ top: pos.top, left: pos.left, width: pos.width }}>
           {fuzzyMatch && (
             <button type="button" onClick={() => handleSelect(fuzzyMatch.canonical)}

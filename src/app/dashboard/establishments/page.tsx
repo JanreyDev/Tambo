@@ -1604,15 +1604,6 @@ export default function EstablishmentsPage() {
                             : "Register your first business establishment to get started."}
                         </p>
                       </div>
-                      {!search && typeFilter === "All Types" && statusFilter === "All Status" && (
-                        <button
-                          onClick={openCreate}
-                          className="mt-1 px-4 py-2 text-xs font-semibold rounded-lg text-white transition-all hover:opacity-90"
-                          style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}
-                        >
-                          + New Establishment
-                        </button>
-                      )}
                     </div>
                   </td>
                 </tr>
