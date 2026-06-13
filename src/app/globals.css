@@ -97,6 +97,14 @@ input:-webkit-autofill:active {
   outline-offset: 2px;
 }
 
+.kp-combobox-input:focus,
+.kp-combobox-input:focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
+}
+
 /* ── Glassmorphism Utilities ──────────────────────────────── */
 
 /* Glass card — primary surface (login card, dashboard widgets, modals) */

@@ -394,13 +394,19 @@ function FormCombobox({ label, value, onChange, options, required, error, placeh
         {label}{required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
       {open ? (
-        <div className={cn("w-full flex items-center gap-2 px-3 py-2 text-sm rounded-xl border bg-background focus-within:ring-2 focus-within:ring-accent-ring", error ? "border-red-500" : "border-accent-primary")}>
-          <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        <div
+          className={cn(
+            "relative w-full overflow-hidden border bg-background text-sm focus-within:ring-2 focus-within:ring-accent-ring",
+            error ? "border-red-500" : "border-accent-primary",
+            filtered.length > 0 ? (dropUp ? "rounded-b-xl rounded-t-none border-t-transparent" : "rounded-t-xl rounded-b-none border-b-transparent") : "rounded-xl"
+          )}
+        >
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <input ref={inputRef} value={query} onChange={(e) => setQuery(e.target.value.toUpperCase())}
             placeholder={`Search ${label.toLowerCase()}...`}
-            style={{ textTransform: "uppercase" }}
-            className="flex-1 bg-transparent text-foreground outline-none placeholder:text-muted-foreground text-sm" />
-          <button onClick={() => { setOpen(false); setQuery(""); }} className="text-muted-foreground hover:text-foreground">
+            style={{ textTransform: "uppercase", outline: "none", boxShadow: "none", WebkitAppearance: "none", appearance: "none" }}
+            className="kp-combobox-input block w-full border-0 bg-transparent py-2 pr-9 pl-8 text-sm text-foreground shadow-none outline-none ring-0 placeholder:text-muted-foreground focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0" />
+          <button onClick={() => { setOpen(false); setQuery(""); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
             <X className="h-3.5 w-3.5" />
           </button>
         </div>
@@ -414,8 +420,12 @@ function FormCombobox({ label, value, onChange, options, required, error, placeh
         </button>
       )}
       {open && filtered.length > 0 && (
-        <div className={cn("absolute left-0 right-0 z-[9999] bg-white dark:bg-slate-800 border border-border rounded-xl shadow-xl overflow-hidden",
-          dropUp ? "bottom-full mb-1" : "top-full mt-1")}>
+        <div
+          className={cn(
+            "absolute left-0 right-0 z-[9999] overflow-hidden border border-border bg-white shadow-xl dark:bg-slate-800",
+            dropUp ? "bottom-full -mb-px rounded-t-xl rounded-b-none border-b-0" : "top-full -mt-px rounded-b-xl rounded-t-none border-t-0"
+          )}
+        >
           <div className="max-h-52 overflow-y-auto">
             {filtered.map((o) => (
               <button key={o.value} type="button" onClick={() => handleSelect(o.value)}
