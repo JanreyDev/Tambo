@@ -40,8 +40,10 @@ class ResidentController extends Controller
     public function index(Request $request): JsonResponse
     {
         $barangayId = $request->user()->barangay_id;
+        $archivedOnly = $request->boolean('archived_only');
 
-        $query = Resident::where('barangay_id', $barangayId)
+        $query = ($archivedOnly ? Resident::onlyTrashed() : Resident::query())
+            ->where('barangay_id', $barangayId)
             ->with(['sectoralTags', 'crossBarangayFlags', 'photoFile']);
 
         // Search
@@ -211,7 +213,8 @@ class ResidentController extends Controller
      */
     public function show(Request $request, string $id): JsonResponse
     {
-        $resident = Resident::where('barangay_id', $request->user()->barangay_id)
+        $resident = Resident::withTrashed()
+            ->where('barangay_id', $request->user()->barangay_id)
             ->with(['household', 'sectoralTags', 'crossBarangayFlags', 'photoFile'])
             ->findOrFail($id);
 
