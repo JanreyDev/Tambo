@@ -10,6 +10,7 @@ use App\Models\Platform\AuditLog;
 use App\Models\Tenant\Judicial\VawcCase;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class VawcCaseController extends Controller
 {
@@ -172,9 +173,13 @@ class VawcCaseController extends Controller
 
         // Auto-generate case number
         $year = now()->format('Y');
+        $casePrefix = "VAWC-{$year}-";
+        $sequenceOrderSql = DB::connection()->getDriverName() === 'sqlite'
+            ? 'CAST(SUBSTR(case_number, '.(strlen($casePrefix) + 1).') AS INTEGER) DESC'
+            : "CAST(SUBSTRING(case_number FROM 'VAWC-\\d{4}-(\\d+)') AS INTEGER) DESC NULLS LAST";
         $lastCase = VawcCase::where('barangay_id', $barangayId)
-            ->where('case_number', 'ilike', "VAWC-{$year}-%")
-            ->orderByRaw("CAST(SUBSTRING(case_number FROM 'VAWC-\\d{4}-(\\d+)') AS INTEGER) DESC NULLS LAST")
+            ->where('case_number', 'like', "{$casePrefix}%")
+            ->orderByRaw($sequenceOrderSql)
             ->first();
 
         $nextSeq = $lastCase

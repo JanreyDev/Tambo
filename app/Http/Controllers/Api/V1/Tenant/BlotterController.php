@@ -9,6 +9,7 @@ use App\Models\Admin\Barangay;
 use App\Models\Tenant\Judicial\BlotterRecord;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class BlotterController extends Controller
 {
@@ -123,9 +124,13 @@ class BlotterController extends Controller
 
         // Auto-generate blotter number: BLT-YYYY-XXXX
         $year = now()->format('Y');
+        $blotterPrefix = "BLT-{$year}-";
+        $sequenceOrderSql = DB::connection()->getDriverName() === 'sqlite'
+            ? 'CAST(SUBSTR(blotter_number, '.(strlen($blotterPrefix) + 1).') AS INTEGER) DESC'
+            : "CAST(SUBSTRING(blotter_number FROM 'BLT-\\d{4}-(\\d+)') AS INTEGER) DESC NULLS LAST";
         $lastBlotter = BlotterRecord::where('barangay_id', $barangayId)
-            ->where('blotter_number', 'ilike', "BLT-{$year}-%")
-            ->orderByRaw("CAST(SUBSTRING(blotter_number FROM 'BLT-\\d{4}-(\\d+)') AS INTEGER) DESC NULLS LAST")
+            ->where('blotter_number', 'like', "{$blotterPrefix}%")
+            ->orderByRaw($sequenceOrderSql)
             ->first();
 
         $nextSeq = $lastBlotter
