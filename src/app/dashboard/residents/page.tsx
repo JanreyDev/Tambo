@@ -182,6 +182,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
   const [page, setPage] = useState(1);
   const [viewResident, setViewResident] = useState<ResidentDetail | null>(null);
   const [viewLoading, setViewLoading] = useState(false);
+  const [residentView, setResidentView] = useState<"active" | "archived">("active");
   // Default to latest-registered first so newly added residents surface at the top.
   // User can still click any column header to sort differently.
   const [sortKey, setSortKey] = useState<string | null>("created_at");
@@ -241,6 +242,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
       if (religionFilter !== "All Religion") params.religion = religionFilter;
       if (ethnicityFilter !== "All Ethnicity") params.ethnicity = ethnicityFilter;
       if (sectorFilter !== "All Sectors") params.sector = sectorFilter;
+      if (residentView === "archived") params.archived_only = true;
       if (sortKey) {
         // Map frontend sort keys to backend column names
         const sortMap: Record<string, string> = { age: "date_of_birth", resident_number: "resident_number", last_name: "last_name", created_at: "created_at" };
@@ -257,7 +259,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
     } finally {
       setListLoading(false);
     }
-  }, [page, search, purokFilter, statusFilter, sexFilter, voterFilter, civilStatusFilter, residentTypeFilter, hohFilter, citizenshipFilter, religionFilter, ethnicityFilter, sectorFilter, sortKey, sortDir]);
+  }, [page, search, purokFilter, statusFilter, sexFilter, voterFilter, civilStatusFilter, residentTypeFilter, hohFilter, citizenshipFilter, religionFilter, ethnicityFilter, sectorFilter, residentView, sortKey, sortDir]);
 
   // ── Form State ──
   const [mode, setMode] = useState<"list" | "create" | "edit">("list");
@@ -2155,6 +2157,30 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
       <ResidentStatCards residentStats={residentStats} statsLoading={statsLoading} listTotal={listTotal} />
 
       <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { setResidentView("active"); setPage(1); setActionMenu(null); }}
+            className={cn(
+              "inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors",
+              residentView === "active"
+                ? "border-accent-primary bg-accent-bg text-accent-text"
+                : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
+            )}
+          >
+            {t.residents.search.activeTab}
+          </button>
+          <button
+            onClick={() => { setResidentView("archived"); setPage(1); setActionMenu(null); }}
+            className={cn(
+              "inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors",
+              residentView === "archived"
+                ? "border-amber-400 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-300"
+                : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
+            )}
+          >
+            {t.residents.search.archivedTab}
+          </button>
+        </div>
         {/* Search + Actions row — premium with focus glow, filter chip + match counter inside */}
         <div className="flex items-center gap-3">
           <div className="relative flex-1 group">
@@ -2197,9 +2223,11 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
               </kbd>
             </div>
           </div>
-          <button onClick={openCreate} className="inline-flex items-center gap-2 h-10 px-5 text-sm font-semibold rounded-xl text-white shadow-sm transition-all hover:opacity-90 hover:shadow-lg active:scale-[0.98] hover:-translate-y-0.5 duration-200" style={{ background: "var(--accent-primary)" }}>
-            <Plus className="h-4 w-4" /> {t.residents.search.newResident}
-          </button>
+          {residentView === "active" && (
+            <button onClick={openCreate} className="inline-flex items-center gap-2 h-10 px-5 text-sm font-semibold rounded-xl text-white shadow-sm transition-all hover:opacity-90 hover:shadow-lg active:scale-[0.98] hover:-translate-y-0.5 duration-200" style={{ background: "var(--accent-primary)" }}>
+              <Plus className="h-4 w-4" /> {t.residents.search.newResident}
+            </button>
+          )}
         </div>
         {/* Filter chips row */}
         {showFilters && (
@@ -2301,10 +2329,16 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                         <Users className="w-6 h-6 text-muted-foreground" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-foreground">{t.residents.table.noResidentsFound}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{search || purokFilter !== "All Puroks" || statusFilter !== "All Status" ? t.residents.table.adjustSearchOrFilters : t.residents.table.registerOrImport}</p>
+                        <p className="text-sm font-medium text-foreground">{residentView === "archived" ? t.residents.table.noArchivedResidents : t.residents.table.noResidentsFound}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {search || purokFilter !== "All Puroks" || statusFilter !== "All Status"
+                            ? t.residents.table.adjustSearchOrFilters
+                            : residentView === "archived"
+                              ? t.residents.table.archivedResidentsWillAppear
+                              : t.residents.table.registerOrImport}
+                        </p>
                       </div>
-                      {!search && purokFilter === "All Puroks" && statusFilter === "All Status" && (
+                      {residentView === "active" && !search && purokFilter === "All Puroks" && statusFilter === "All Status" && (
                         <button onClick={openCreate} className="mt-1 px-4 py-2 text-xs font-semibold rounded-lg text-white transition-all hover:opacity-90" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>
                           + {t.residents.search.newResident}
                         </button>
@@ -2652,7 +2686,9 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                                   {printingId === r.id ? t.residents.actions.generatingPdf : t.residents.actions.printRecord}
                                 </button>
                                 <div className="border-t border-gray-200 dark:border-slate-600 my-1" />
-                                <button onClick={() => { setActionMenu(null); setArchiveTarget({ id: r.id, first_name: r.first_name, last_name: r.last_name, sex: r.sex, resident_number: r.resident_number }); setArchiveModal(true); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-amber-50 dark:hover:bg-amber-950/20 text-left text-amber-600 dark:text-amber-400 transition-colors"><Archive className="h-4 w-4" /> {t.residents.actions.archiveRecord}</button>
+                                {residentView === "active" && (
+                                  <button onClick={() => { setActionMenu(null); setArchiveTarget({ id: r.id, first_name: r.first_name, last_name: r.last_name, sex: r.sex, resident_number: r.resident_number }); setArchiveModal(true); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-amber-50 dark:hover:bg-amber-950/20 text-left text-amber-600 dark:text-amber-400 transition-colors"><Archive className="h-4 w-4" /> {t.residents.actions.archiveRecord}</button>
+                                )}
                               </div>
                             )}
                           </div>

@@ -496,6 +496,7 @@ const api = {
       religion?: string;
       ethnicity?: string;
       sector?: string;
+      archived_only?: boolean;
       sort_by?: string;
       sort_dir?: string;
     }) => {
@@ -514,6 +515,7 @@ const api = {
       if (params?.religion) query.set("religion", params.religion);
       if (params?.ethnicity) query.set("ethnicity", params.ethnicity);
       if (params?.sector) query.set("sector", params.sector);
+      if (params?.archived_only !== undefined) query.set("archived_only", String(params.archived_only));
       if (params?.sort_by) query.set("sort_by", params.sort_by);
       if (params?.sort_dir) query.set("sort_dir", params.sort_dir);
       const qs = query.toString();
