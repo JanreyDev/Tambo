@@ -1,0 +1,12 @@
+# Root level scripts and workspace files
+/fix*.js
+/fix*.php
+/get_*.js
+/inject_log.js
+/revert_settings.js
+*.code-workspace
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
