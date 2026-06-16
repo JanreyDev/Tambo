@@ -1,0 +1,437 @@
+@import "tailwindcss";
+
+/* Tailwind v4 defaults dark: to prefers-color-scheme. We toggle theme via .dark
+   class on <html>, so wire dark: to that instead. Without this, every dark:
+   variant in the codebase is silent dead code. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  /* Accent colors (overridden by JS) */
+  --accent-primary: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-ring: #3b82f6;
+  --accent-bg: #eff6ff;
+  --accent-text: #1e40af;
+
+  /* Light theme */
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --border: #e2e8f0;
+  --sidebar-bg: #ffffff;
+  --sidebar-border: #e2e8f0;
+  --sidebar-hover: #f1f5f9;
+  --input-bg: #ffffff;
+  --input-border: #cbd5e1;
+}
+
+.dark {
+  --background: #0f172a;
+  --foreground: #f1f5f9;
+  --card: #1e293b;
+  --card-foreground: #f1f5f9;
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  --border: #334155;
+  --sidebar-bg: #0f172a;
+  --sidebar-border: #1e293b;
+  --sidebar-hover: #1e293b;
+  --input-bg: #1e293b;
+  --input-border: #475569;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-sidebar-bg: var(--sidebar-bg);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-hover: var(--sidebar-hover);
+  --color-input-bg: var(--input-bg);
+  --color-input-border: var(--input-border);
+  --color-accent: var(--accent-primary);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-ring: var(--accent-ring);
+  --color-accent-bg: var(--accent-bg);
+  --color-accent-text: var(--accent-text);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  overflow-x: hidden;
+  max-width: 100%;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Override Chrome autofill background — uses CSS vars so dark mode works automatically */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0px 1000px var(--input-bg) inset !important;
+  -webkit-text-fill-color: var(--foreground) !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--muted-foreground); border-radius: 3px; opacity: 0.3; }
+::-webkit-scrollbar-thumb:hover { opacity: 0.5; }
+
+/* Focus ring */
+*:focus-visible {
+  outline: 2px solid var(--accent-ring);
+  outline-offset: 2px;
+}
+
+.kp-combobox-input:focus,
+.kp-combobox-input:focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
+}
+
+/* ── Glassmorphism Utilities ──────────────────────────────── */
+
+/* Glass card — primary surface (login card, dashboard widgets, modals) */
+.glass {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.dark .glass {
+  background: rgba(30, 41, 59, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Glass subtle — lighter effect for nested elements (stat cards, table rows) */
+.glass-subtle {
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.dark .glass-subtle {
+  background: rgba(30, 41, 59, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Glass popover — for dropdowns, menus, notifications over content (high opacity, strong blur) */
+.glass-popover {
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 12px 48px -8px rgba(0, 0, 0, 0.18), 0 4px 12px -2px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.dark .glass-popover {
+  background: rgba(20, 28, 45, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 48px -8px rgba(0, 0, 0, 0.5), 0 4px 12px -2px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+@supports (backdrop-filter: blur(20px)) {
+  .glass-popover {
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+  }
+}
+
+/* Glass header — for sticky header bar */
+.glass-header {
+  background: rgba(255, 255, 255, 0.78);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+}
+
+.dark .glass-header {
+  background: rgba(15, 23, 42, 0.82);
+  border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+}
+
+/* Glass sidebar */
+.glass-sidebar {
+  background: rgba(255, 255, 255, 0.68);
+  border-right: 1px solid rgba(226, 232, 240, 0.5);
+}
+
+.dark .glass-sidebar {
+  background: rgba(15, 23, 42, 0.75);
+  border-right: 1px solid rgba(51, 65, 85, 0.4);
+}
+
+/* Backdrop blur — applied via @supports for performance fallback */
+@supports (backdrop-filter: blur(12px)) {
+  .glass,
+  .glass-subtle {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  .glass-header {
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+  .glass-sidebar {
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+}
+
+/* Animated glow ring for login card */
+@keyframes glass-glow {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.7; }
+}
+
+/* Premium login background orbs */
+@keyframes orb-drift-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.12; }
+  50% { transform: translate(60px, -40px) scale(1.08); opacity: 0.20; }
+}
+@keyframes orb-drift-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.08; }
+  50% { transform: translate(-50px, 50px) scale(1.12); opacity: 0.16; }
+}
+@keyframes orb-drift-3 {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.06; }
+  50% { transform: translate(30px, 30px) scale(1.1); opacity: 0.12; }
+}
+@keyframes flag-shimmer {
+  0%, 100% { opacity: 0.55; background-position: 0% 50%; }
+  50% { opacity: 0.85; background-position: 100% 50%; }
+}
+@keyframes login-card-rise {
+  0% { opacity: 0; transform: translateY(12px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.glass-glow {
+  position: relative;
+}
+
+.glass-glow::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, var(--accent-primary), transparent 40%, transparent 60%, var(--accent-ring));
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  -webkit-mask-composite: xor;
+  opacity: 0.5;
+  animation: glass-glow 4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Glass form section — frosted panel for form accordion content areas */
+.glass-section {
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.dark .glass-section {
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+@supports (backdrop-filter: blur(12px)) {
+  .glass-section {
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+}
+
+/* Glass input — semi-transparent form inputs with frosted effect */
+.glass-input {
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 0 rgba(255, 255, 255, 0.5);
+  transition: all 0.2s ease;
+}
+
+.dark .glass-input {
+  background: rgba(30, 41, 59, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.15), 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.glass-input:focus-within {
+  background: rgba(255, 255, 255, 0.8);
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12), inset 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.dark .glass-input:focus-within {
+  background: rgba(30, 41, 59, 0.7);
+  border-color: var(--accent-ring);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15), inset 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Glass accordion header — quiet glass + login-style left accent rule
+   (was solid blue gradient — replaced for premium restraint). */
+.glass-accordion {
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  position: relative;
+}
+
+.dark .glass-accordion {
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* Login-style vertical accent rule on the left edge — signature gradient. */
+.glass-accordion::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 0.75rem 0 0 0.75rem;
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.75) 0%, rgba(139, 92, 246, 0.35) 100%);
+  pointer-events: none;
+}
+
+.glass-accordion-closed {
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.dark .glass-accordion-closed {
+  background: rgba(30, 41, 59, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+@supports (backdrop-filter: blur(12px)) {
+  .glass-accordion,
+  .glass-accordion-closed {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+}
+
+/* Form background gradient — subtle blue gradient for visual depth */
+.form-gradient-bg {
+  background: linear-gradient(160deg, #eff6ff 0%, #f0f4ff 25%, #f8fafc 50%, #eef2ff 75%, #f0f9ff 100%);
+  position: relative;
+}
+
+.dark .form-gradient-bg {
+  background: linear-gradient(160deg, #0f172a 0%, #111827 25%, #0f172a 50%, #1e1b4b 75%, #0f172a 100%);
+}
+
+/* Decorative gradient orbs behind form */
+.form-gradient-bg::before {
+  content: "";
+  position: absolute;
+  top: -10%;
+  right: -5%;
+  width: 40%;
+  height: 40%;
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.08) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.form-gradient-bg::after {
+  content: "";
+  position: absolute;
+  bottom: 10%;
+  left: -5%;
+  width: 35%;
+  height: 35%;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.06) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Toast progress bar animation */
+@keyframes shrink {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
+/* ── Census Mobile Mode ──
+   Form-only mobile registration. Force single-column layout,
+   big touch targets, readable inputs on small screens.
+   Applies on ALL screen sizes (census is always mobile-optimized). */
+.census-mobile-view {
+  /* Force ALL grids to single column -- Tailwind v4 atomic classes */
+  /* Exception: checkbox grids (gap-y-1.5) keep 2 columns for compact layout */
+  & [class*="grid-cols"]:not([class*="gap-y-"]) {
+    grid-template-columns: 1fr !important;
+  }
+  & [class*="grid-cols"][class*="gap-y-"] {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  /* Force all col-span to full width */
+  & [class*="col-span"] {
+    grid-column: 1 / -1 !important;
+  }
+  /* Full-width form inputs */
+  & input, & select, & textarea, & [role="combobox"] {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  /* Hide desktop-only elements */
+  & .hidden-census { display: none !important; }
+  /* Principle #10: All interactive elements min 44px */
+  & button,
+  & select,
+  & input,
+  & [role="button"] {
+    min-height: 44px;
+  }
+  /* Larger text for form inputs -- readable on small screens */
+  & input, & select, & textarea {
+    font-size: 16px !important; /* Prevents iOS zoom on focus */
+  }
+  /* Form labels: slightly larger for readability */
+  & label { font-size: 0.8125rem !important; }
+  /* Accordion sections: tighter padding */
+  & .glass-section { padding: 0.75rem 0.75rem 0.5rem !important; }
+  & .glass-accordion { padding: 0.75rem 0.875rem !important; }
+  /* Form gradient container: tighter padding */
+  & .form-gradient-bg { padding: 0.5rem !important; }
+  /* Reduce grid gaps */
+  & .gap-6 { gap: 0.75rem !important; }
+  & .gap-4 { gap: 0.75rem !important; }
+  /* Calendar dropdown: full width on mobile */
+  & .absolute.z-50.w-72 {
+    width: calc(100vw - 2rem) !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+  }
+  /* Toast repositioning for mobile */
+  & ~ .fixed.bottom-6.right-6 { bottom: 1rem; right: 0.5rem; left: 0.5rem; }
+  & ~ .fixed.bottom-6.right-6 > div { width: 100%; }
+}
+
+/* Extra small phones (<360px) -- even tighter */
+@media (max-width: 359px) {
+  .census-mobile-view {
+    & .glass-section { padding: 0.5rem !important; }
+    & .gap-4 { gap: 0.5rem !important; }
+  }
+}

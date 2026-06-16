@@ -1,0 +1,1429 @@
+
+> bcmp-web@0.1.0 dev D:\dev\primex\bcmp-web
+> next dev --port 3000
+
+[@sentry/nextjs] DEPRECATION WARNING: disableLogger is deprecated and will be removed in a future version. Use webpack.treeshake.removeDebugLogging instead. (Not supported with Turbopack.)
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://100.103.66.81:3000
+- Environments: .env.local
+- Experiments (use with caution):
+  · clientTraceMetadata
+
+✓ Starting...
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+✓ Ready in 2.3s
+ GET /dashboard/residents 200 in 664ms (compile: 266ms, proxy.ts: 69ms, render: 329ms)
+(node:31984) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ GET /dashboard/residents 200 in 88ms (compile: 13ms, proxy.ts: 9ms, render: 66ms)
+✓ Compiled in 464ms
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /dashboard/residents 200 in 204ms (compile: 80ms, proxy.ts: 6ms, render: 118ms)
+ GET /dashboard/residents 200 in 73ms (compile: 5ms, proxy.ts: 6ms, render: 62ms)
+✓ Compiled in 141ms
+✓ Compiled in 116ms
+ GET /dashboard/residents 200 in 225ms (compile: 73ms, proxy.ts: 9ms, render: 143ms)
+✓ Compiled in 208ms
+✓ Compiled in 231ms
+✓ Compiled in 176ms
+ GET /dashboard/residents 200 in 168ms (compile: 57ms, proxy.ts: 7ms, render: 104ms)
+✓ Compiled in 225ms
+✓ Compiled in 297ms
+✓ Compiled in 210ms
+✓ Compiled in 202ms
+ GET /dashboard/residents 200 in 212ms (compile: 87ms, proxy.ts: 5ms, render: 121ms)
+ GET /dashboard/residents 200 in 76ms (compile: 8ms, proxy.ts: 6ms, render: 62ms)
+ GET /dashboard/residents 200 in 65ms (compile: 5ms, proxy.ts: 6ms, render: 54ms)
+✓ Compiled in 215ms
+✓ Compiled in 301ms
+✓ Compiled in 151ms
+✓ Compiled in 227ms
+✓ Compiled in 137ms
+⚠ Found a change in next.config.ts. Restarting the server to apply the changes...
+[@sentry/nextjs] DEPRECATION WARNING: disableLogger is deprecated and will be removed in a future version. Use webpack.treeshake.removeDebugLogging instead. (Not supported with Turbopack.)
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://100.103.66.81:3000
+- Environments: .env.local
+- Experiments (use with caution):
+  · clientTraceMetadata
+
+✓ Starting...
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+✓ Ready in 2.5s
+ GET /dashboard/residents 200 in 1231ms (compile: 856ms, proxy.ts: 73ms, render: 302ms)
+(node:39268) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ GET /dashboard/residents 200 in 86ms (compile: 8ms, proxy.ts: 9ms, render: 69ms)
+ GET /dashboard 200 in 57ms (compile: 23ms, proxy.ts: 7ms, render: 27ms)
+ GET /dashboard/residents 200 in 44ms (compile: 9ms, proxy.ts: 5ms, render: 29ms)
+ GET /dashboard/establishments 200 in 1368ms (compile: 1335ms, proxy.ts: 4ms, render: 29ms)
+ GET /dashboard/residents 200 in 30ms (compile: 8ms, proxy.ts: 6ms, render: 16ms)
+✓ Compiled in 109ms
+✓ Compiled in 183ms
+✓ Compiled in 208ms
+✓ Compiled in 240ms
+✓ Compiled in 235ms
+✓ Compiled in 191ms
+ GET /dashboard/residents 200 in 259ms (compile: 97ms, proxy.ts: 7ms, render: 155ms)
+✓ Compiled in 121ms
+✓ Compiled in 144ms
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /dashboard/residents 200 in 237ms (compile: 82ms, proxy.ts: 10ms, render: 146ms)
+ GET /dashboard/residents 200 in 84ms (compile: 7ms, proxy.ts: 4ms, render: 73ms)
+ GET /dashboard/residents 200 in 71ms (compile: 7ms, proxy.ts: 7ms, render: 57ms)
+✓ Compiled in 208ms
+✓ Compiled in 175ms
+✓ Compiled in 184ms
+ GET /dashboard/residents 200 in 210ms (compile: 69ms, proxy.ts: 9ms, render: 132ms)
+✓ Compiled in 187ms
+✓ Compiled in 215ms
+ GET /dashboard/residents 200 in 220ms (compile: 73ms, proxy.ts: 7ms, render: 139ms)
+✓ Compiled in 271ms
+✓ Compiled in 235ms
+ GET /dashboard/residents 200 in 227ms (compile: 83ms, proxy.ts: 8ms, render: 137ms)
+✓ Compiled in 234ms
+ GET /dashboard/residents 200 in 244ms (compile: 83ms, proxy.ts: 6ms, render: 155ms)
+✓ Compiled in 230ms
+✓ Compiled in 225ms
+✓ Compiled in 155ms
+ GET /dashboard/residents 200 in 113ms (compile: 79ms, proxy.ts: 4ms, render: 31ms)
+✓ Compiled in 268ms
+ GET /dashboard/residents 200 in 175ms (compile: 68ms, proxy.ts: 5ms, render: 102ms)
+✓ Compiled in 217ms
+✓ Compiled in 115ms
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /dashboard/residents 200 in 215ms (compile: 73ms, proxy.ts: 7ms, render: 134ms)
+✓ Compiled in 187ms
+ GET /dashboard/residents 200 in 154ms (compile: 103ms, proxy.ts: 3ms, render: 48ms)
+⚠ Found a change in next.config.ts. Restarting the server to apply the changes...
+[@sentry/nextjs] DEPRECATION WARNING: disableLogger is deprecated and will be removed in a future version. Use webpack.treeshake.removeDebugLogging instead. (Not supported with Turbopack.)
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://100.103.66.81:3000
+- Environments: .env.local
+- Experiments (use with caution):
+  · clientTraceMetadata
+
+✓ Starting...
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+✓ Ready in 1877ms
+ GET /dashboard/residents 200 in 1092ms (compile: 651ms, proxy.ts: 87ms, render: 354ms)
+(node:11844) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ GET /dashboard/residents 200 in 100ms (compile: 13ms, proxy.ts: 11ms, render: 76ms)
+✓ Compiled in 200ms
+✓ Compiled in 98ms
+✓ Compiled in 96ms
+✓ Compiled in 209ms
+✓ Compiled in 129ms
+ GET /dashboard/residents 200 in 250ms (compile: 94ms, proxy.ts: 4ms, render: 152ms)
+⚠ Found a change in next.config.ts. Restarting the server to apply the changes...
+[@sentry/nextjs] DEPRECATION WARNING: disableLogger is deprecated and will be removed in a future version. Use webpack.treeshake.removeDebugLogging instead. (Not supported with Turbopack.)
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://100.103.66.81:3000
+- Environments: .env.local
+- Experiments (use with caution):
+  · clientTraceMetadata
+
+✓ Starting...
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+✓ Ready in 1765ms
+ GET /dashboard/residents 200 in 1015ms (compile: 669ms, proxy.ts: 81ms, render: 265ms)
+(node:27516) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+✓ Compiled in 122ms
+✓ Compiled in 189ms
+ GET /dashboard/residents 200 in 231ms (compile: 84ms, proxy.ts: 7ms, render: 140ms)
+ GET /dashboard/residents/019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 513ms (compile: 451ms, proxy.ts: 4ms, render: 58ms)
+ GET /dashboard/establishments 200 in 85ms (compile: 45ms, proxy.ts: 4ms, render: 36ms)
+ GET /dashboard/residents 200 in 34ms (compile: 7ms, proxy.ts: 6ms, render: 21ms)
+ GET /dashboard/residents/019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 44ms (compile: 17ms, proxy.ts: 3ms, render: 24ms)
+✓ Compiled in 80ms
+✓ Compiled in 83ms
+ GET /dashboard/residents/019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 160ms (compile: 78ms, proxy.ts: 7ms, render: 75ms)
+ GET /dashboard/residents/019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 150ms (compile: 24ms, proxy.ts: 7ms, render: 119ms)
+✓ Compiled in 110ms
+✓ Compiled in 131ms
+ GET /dashboard/residents/019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 249ms (compile: 84ms, proxy.ts: 4ms, render: 160ms)
+ GET /dashboard/residents 200 in 42ms (compile: 13ms, proxy.ts: 7ms, render: 22ms)
+✓ Compiled in 214ms
+✓ Compiled in 178ms
+✓ Compiled in 209ms
+ GET /dashboard/residents 200 in 256ms (compile: 108ms, proxy.ts: 9ms, render: 139ms)
+ GET /dashboard/residents/019cf187-47f3-70b2-bfa6-ab836b730e06 200 in 58ms (compile: 17ms, proxy.ts: 4ms, render: 37ms)
+✓ Compiled in 198ms
+✓ Compiled in 189ms
+✓ Compiled in 228ms
+✓ Compiled in 169ms
+✓ Compiled in 66ms
+✓ Compiled in 85ms
+ GET /dashboard/residents 200 in 91ms (compile: 57ms, proxy.ts: 7ms, render: 27ms)
+✓ Compiled in 210ms
+✓ Compiled in 184ms
+ GET /dashboard/residents 200 in 289ms (compile: 82ms, proxy.ts: 7ms, render: 200ms)
+✓ Compiled in 221ms
+ GET /dashboard/residents 200 in 194ms (compile: 60ms, proxy.ts: 6ms, render: 128ms)
+ GET /dashboard/residents 200 in 73ms (compile: 7ms, proxy.ts: 6ms, render: 61ms)
+ GET /dashboard/residents/019cf195-2334-72f7-8bb3-e4683aa5d487 200 in 86ms (compile: 58ms, proxy.ts: 1939µs, render: 26ms)
+ GET /dashboard/residents 200 in 27ms (compile: 4ms, proxy.ts: 5ms, render: 18ms)
+ GET /dashboard/residents 200 in 37ms (compile: 8ms, proxy.ts: 8ms, render: 22ms)
+ GET /dashboard/establishments 200 in 43ms (compile: 12ms, proxy.ts: 5ms, render: 25ms)
+ GET /dashboard/residents 200 in 23ms (compile: 4ms, proxy.ts: 4ms, render: 15ms)
+ GET /dashboard/residents/019cf195-2334-72f7-8bb3-e4683aa5d487 200 in 39ms (compile: 14ms, proxy.ts: 5ms, render: 20ms)
+ GET /dashboard/residents 200 in 37ms (compile: 7ms, proxy.ts: 7ms, render: 23ms)
+✓ Compiled in 177ms
+ GET /dashboard/residents 200 in 246ms (compile: 90ms, proxy.ts: 7ms, render: 149ms)
+ GET /dashboard/residents 200 in 116ms (compile: 22ms, proxy.ts: 10ms, render: 85ms)
+ GET /dashboard/residents/019cf19e-776a-7120-80f2-fd38003aff1b 200 in 76ms (compile: 26ms, proxy.ts: 9ms, render: 41ms)
+ GET /dashboard/residents 200 in 23ms (compile: 6ms, proxy.ts: 3ms, render: 14ms)
+✓ Compiled in 171ms
+✓ Compiled in 252ms
+✓ Compiled in 229ms
+✓ Compiled in 213ms
+✓ Compiled in 203ms
+ GET /dashboard/residents 200 in 274ms (compile: 123ms, proxy.ts: 6ms, render: 145ms)
+ GET /dashboard/residents/019cf19e-776a-7120-80f2-fd38003aff1b 200 in 61ms (compile: 20ms, proxy.ts: 5ms, render: 36ms)
+ GET /dashboard/residents 200 in 23ms (compile: 4ms, proxy.ts: 4ms, render: 16ms)
+✓ Compiled in 158ms
+ GET /dashboard/residents 200 in 49ms (compile: 11ms, proxy.ts: 8ms, render: 30ms)
+ GET /dashboard/residents 200 in 43ms (compile: 8ms, proxy.ts: 7ms, render: 29ms)
+ GET /dashboard/residents/019cf1b2-1a49-73b7-ba17-d415ed45f228 200 in 85ms (compile: 51ms, proxy.ts: 3ms, render: 31ms)
+ GET /dashboard/residents/019cf19e-776a-7120-80f2-fd38003aff1b 200 in 47ms (compile: 13ms, proxy.ts: 5ms, render: 29ms)
+✓ Compiled in 122ms
+✓ Compiled in 110ms
+✓ Compiled in 88ms
+✓ Compiled in 163ms
+✓ Compiled in 128ms
+✓ Compiled in 82ms
+✓ Compiled in 88ms
+ GET /dashboard/residents/019cf19e-776a-7120-80f2-fd38003aff1b 200 in 308ms (compile: 86ms, proxy.ts: 4ms, render: 218ms)
+ GET /dashboard/residents 200 in 27ms (compile: 5ms, proxy.ts: 6ms, render: 16ms)
+ GET /dashboard/residents/019cf1bc-4a3b-701d-a866-9c0906e3193d 200 in 76ms (compile: 15ms, proxy.ts: 4ms, render: 58ms)
+ GET /dashboard/residents 200 in 39ms (compile: 5ms, proxy.ts: 7ms, render: 27ms)
+ GET /dashboard/residents/019cf1c0-b0eb-7247-a214-5c94aa5a7e44 200 in 72ms (compile: 25ms, proxy.ts: 7ms, render: 40ms)
+✓ Compiled in 88ms
+✓ Compiled in 87ms
+✓ Compiled in 59ms
+✓ Compiled in 72ms
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+✓ Compiled in 63ms
+ GET /dashboard/residents/019cf1c0-b0eb-7247-a214-5c94aa5a7e44 200 in 272ms (compile: 108ms, proxy.ts: 4ms, render: 160ms)
+ GET /dashboard/residents 200 in 34ms (compile: 7ms, proxy.ts: 6ms, render: 21ms)
+ GET /dashboard 200 in 126ms (compile: 36ms, proxy.ts: 5ms, render: 84ms)
+ GET /dashboard/residents 200 in 33ms (compile: 3ms, proxy.ts: 6ms, render: 24ms)
+✓ Compiled in 266ms
+ GET /dashboard/residents 200 in 102ms (compile: 69ms, proxy.ts: 7ms, render: 26ms)
+ GET /dashboard/establishments 200 in 55ms (compile: 18ms, proxy.ts: 4ms, render: 33ms)
+ GET /dashboard/residents 200 in 23ms (compile: 4ms, proxy.ts: 4ms, render: 16ms)
+ GET /dashboard/residents/019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 57ms (compile: 22ms, proxy.ts: 5ms, render: 29ms)
+✓ Compiled in 239ms
+✓ Compiled in 244ms
+✓ Compiled in 258ms
+✓ Compiled in 256ms
+✓ Compiled in 259ms
+✓ Compiled in 92ms
+ GET /dashboard/residents/019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 214ms (compile: 66ms, proxy.ts: 6ms, render: 142ms)
+ GET /dashboard/establishments 200 in 47ms (compile: 10ms, proxy.ts: 13ms, render: 25ms)
+ GET /dashboard/residents 200 in 78ms (compile: 53ms, proxy.ts: 6ms, render: 19ms)
+ GET /dashboard/residents 200 in 140ms (compile: 66ms, proxy.ts: 4ms, render: 70ms)
+ GET /dashboard/establishments 200 in 41ms (compile: 10ms, proxy.ts: 5ms, render: 27ms)
+ GET /dashboard/residents 200 in 29ms (compile: 4ms, proxy.ts: 5ms, render: 20ms)
+ GET /dashboard/residents/019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 70ms (compile: 28ms, proxy.ts: 14ms, render: 28ms)
+ GET /dashboard/establishments 200 in 33ms (compile: 5ms, proxy.ts: 6ms, render: 22ms)
+ GET /dashboard/residents 200 in 21ms (compile: 3ms, proxy.ts: 2ms, render: 16ms)
+✓ Compiled in 71ms
+✓ Compiled in 72ms
+ GET /dashboard/establishments 200 in 43ms (compile: 9ms, proxy.ts: 8ms, render: 26ms)
+ GET /dashboard/residents 200 in 25ms (compile: 5ms, proxy.ts: 5ms, render: 15ms)
+ GET /dashboard/residents/019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 100ms (compile: 68ms, proxy.ts: 5ms, render: 27ms)
+✓ Compiled in 206ms
+✓ Compiled in 218ms
+✓ Compiled in 223ms
+✓ Compiled in 234ms
+✓ Compiled in 225ms
+✓ Compiled in 208ms
+✓ Compiled in 218ms
+✓ Compiled in 297ms
+✓ Compiled in 191ms
+✓ Compiled in 103ms
+✓ Compiled in 97ms
+ GET /dashboard/residents/019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 362ms (compile: 108ms, proxy.ts: 5ms, render: 248ms)
+ GET /dashboard/residents/019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 102ms (compile: 16ms, proxy.ts: 4ms, render: 81ms)
+✓ Compiled in 82ms
+✓ Compiled in 80ms
+✓ Compiled in 120ms
+✓ Compiled in 98ms
+✓ Compiled in 77ms
+✓ Compiled in 127ms
+✓ Compiled in 97ms
+✓ Compiled in 139ms
+✓ Compiled in 127ms
+✓ Compiled in 79ms
+✓ Compiled in 221ms
+ GET /dashboard/residents/019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 345ms (compile: 87ms, proxy.ts: 20ms, render: 237ms)
+ GET /dashboard/residents 200 in 78ms (compile: 55ms, proxy.ts: 4ms, render: 18ms)
+✓ Compiled in 107ms
+✓ Compiled in 399ms
+✓ Compiled in 205ms
+✓ Compiled in 167ms
+✓ Compiled in 190ms
+✓ Compiled in 71ms
+✓ Compiled in 94ms
+✓ Compiled in 74ms
+✓ Compiled in 116ms
+✓ Compiled in 119ms
+✓ Compiled in 105ms
+ GET /dashboard/residents 200 in 276ms (compile: 80ms, proxy.ts: 7ms, render: 189ms)
+✓ Compiled in 111ms
+ GET /dashboard/residents 200 in 83ms (compile: 9ms, proxy.ts: 5ms, render: 69ms)
+✓ Compiled in 201ms
+✓ Compiled in 145ms
+ GET /dashboard/residents 200 in 270ms (compile: 75ms, proxy.ts: 5ms, render: 190ms)
+✓ Compiled in 81ms
+✓ Compiled in 281ms
+ GET /dashboard/residents 200 in 211ms (compile: 68ms, proxy.ts: 5ms, render: 138ms)
+ GET /dashboard/residents 200 in 81ms (compile: 6ms, proxy.ts: 6ms, render: 69ms)
+✓ Compiled in 175ms
+✓ Compiled in 169ms
+ GET /dashboard/residents 200 in 306ms (compile: 94ms, proxy.ts: 16ms, render: 196ms)
+✓ Compiled in 76ms
+✓ Compiled in 75ms
+✓ Compiled in 79ms
+ GET /dashboard/residents 200 in 120ms (compile: 17ms, proxy.ts: 12ms, render: 90ms)
+ GET /dashboard/residents 200 in 86ms (compile: 6ms, proxy.ts: 3ms, render: 77ms)
+✓ Compiled in 75ms
+ GET /dashboard/residents 200 in 112ms (compile: 20ms, proxy.ts: 16ms, render: 76ms)
+ GET /dashboard/residents 200 in 150ms (compile: 11ms, proxy.ts: 8ms, render: 131ms)
+ GET /dashboard/residents 200 in 83ms (compile: 10ms, proxy.ts: 8ms, render: 65ms)
+ GET /dashboard/residents/019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 109ms (compile: 72ms, proxy.ts: 3ms, render: 33ms)
+✓ Compiled in 87ms
+ GET /dashboard/residents 200 in 24ms (compile: 4ms, proxy.ts: 5ms, render: 15ms)
+✓ Compiled in 204ms
+✓ Compiled in 175ms
+✓ Compiled in 199ms
+✓ Compiled in 193ms
+✓ Compiled in 291ms
+✓ Compiled in 118ms
+ GET /dashboard/residents 200 in 254ms (compile: 91ms, proxy.ts: 5ms, render: 159ms)
+ GET /dashboard/residents 200 in 122ms (compile: 7ms, proxy.ts: 6ms, render: 109ms)
+ GET /dashboard/residents 200 in 80ms (compile: 6ms, proxy.ts: 4ms, render: 71ms)
+ GET /dashboard/residents 200 in 44ms (compile: 6ms, proxy.ts: 6ms, render: 32ms)
+✓ Compiled in 97ms
+✓ Compiled in 206ms
+✓ Compiled in 355ms
+✓ Compiled in 134ms
+✓ Compiled in 182ms
+✓ Compiled in 296ms
+✓ Compiled in 220ms
+✓ Compiled in 233ms
+✓ Compiled in 204ms
+✓ Compiled in 180ms
+✓ Compiled in 130ms
+✓ Compiled in 238ms
+✓ Compiled in 159ms
+✓ Compiled in 217ms
+✓ Compiled in 89ms
+ GET /dashboard/map 200 in 1311ms (compile: 1283ms, proxy.ts: 2ms, render: 26ms)
+ GET /dashboard 200 in 66ms (compile: 49ms, proxy.ts: 4ms, render: 13ms)
+ GET /dashboard/residents 200 in 101ms (compile: 56ms, proxy.ts: 3ms, render: 41ms)
+ GET /dashboard/residents 200 in 38ms (compile: 5ms, proxy.ts: 4ms, render: 29ms)
+ GET /dashboard/residents 200 in 163ms (compile: 6ms, proxy.ts: 4ms, render: 154ms)
+✓ Compiled in 72ms
+✓ Compiled in 193ms
+✓ Compiled in 166ms
+ GET /dashboard/residents 200 in 276ms (compile: 74ms, proxy.ts: 7ms, render: 195ms)
+✓ Compiled in 259ms
+ GET /dashboard/residents 200 in 281ms (compile: 80ms, proxy.ts: 4ms, render: 197ms)
+✓ Compiled in 94ms
+ GET /dashboard/residents/019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 131ms (compile: 89ms, proxy.ts: 3ms, render: 39ms)
+ GET /dashboard/residents 200 in 67ms (compile: 41ms, proxy.ts: 3ms, render: 23ms)
+✓ Compiled in 77ms
+✓ Compiled in 89ms
+ GET /dashboard/residents/019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 103ms (compile: 66ms, proxy.ts: 5ms, render: 33ms)
+✓ Compiled in 72ms
+✓ Compiled in 72ms
+✓ Compiled in 83ms
+✓ Compiled in 98ms
+✓ Compiled in 97ms
+✓ Compiled in 143ms
+✓ Compiled in 168ms
+ GET /dashboard/residents 200 in 122ms (compile: 69ms, proxy.ts: 5ms, render: 48ms)
+ GET /dashboard/residents/019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 110ms (compile: 67ms, proxy.ts: 4ms, render: 39ms)
+✓ Compiled in 120ms
+✓ Compiled in 144ms
+✓ Compiled in 143ms
+✓ Compiled in 129ms
+✓ Compiled in 173ms
+ GET /dashboard/residents/019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 393ms (compile: 132ms, proxy.ts: 13ms, render: 248ms)
+ GET /dashboard/residents 200 in 101ms (compile: 68ms, proxy.ts: 9ms, render: 24ms)
+ GET /dashboard/residents 200 in 179ms (compile: 7ms, proxy.ts: 7ms, render: 165ms)
+ GET /dashboard/residents/019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 84ms (compile: 46ms, proxy.ts: 7ms, render: 30ms)
+✓ Compiled in 114ms
+✓ Compiled in 115ms
+✓ Compiled in 96ms
+Failed to proxy http://127.0.0.1:8000/api/v1/residents/019cf174-f143-71b1-90ff-b558dc8fcb0f Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+✓ Compiled in 66ms
+✓ Compiled in 109ms
+✓ Compiled in 76ms
+ GET /dashboard/residents/019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 335ms (compile: 91ms, proxy.ts: 9ms, render: 235ms)
+✓ Compiled in 110ms
+✓ Compiled in 103ms
+ GET /dashboard/residents?edit=019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 32ms (compile: 4ms, proxy.ts: 4ms, render: 24ms)
+✓ Compiled in 76ms
+✓ Compiled in 97ms
+ GET /dashboard/residents?edit=019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 83ms (compile: 5ms, proxy.ts: 4ms, render: 74ms)
+ GET /dashboard/residents/019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 113ms (compile: 72ms, proxy.ts: 4ms, render: 36ms)
+✓ Compiled in 235ms
+✓ Compiled in 212ms
+✓ Compiled in 200ms
+✓ Compiled in 126ms
+✓ Compiled in 125ms
+✓ Compiled in 220ms
+✓ Compiled in 196ms
+✓ Compiled in 189ms
+✓ Compiled in 179ms
+ GET /dashboard/residents/019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 86ms (compile: 22ms, proxy.ts: 7ms, render: 57ms)
+✓ Compiled in 253ms
+  Reload env: .env.local
+ GET /dashboard/residents?edit=019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 451ms (compile: 336ms, proxy.ts: 73ms, render: 41ms)
+ GET /dashboard/residents?edit=019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 192ms (compile: 8ms, proxy.ts: 6ms, render: 178ms)
+✓ Compiled in 196ms
+✓ Compiled in 138ms
+✓ Compiled in 178ms
+✓ Compiled in 207ms
+✓ Compiled in 203ms
+✓ Compiled in 206ms
+✓ Compiled in 183ms
+ GET /dashboard/residents?edit=019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 297ms (compile: 104ms, proxy.ts: 5ms, render: 189ms)
+ GET /dashboard/residents/019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 94ms (compile: 34ms, proxy.ts: 7ms, render: 54ms)
+ GET /dashboard/residents?edit=019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 29ms (compile: 5ms, proxy.ts: 5ms, render: 19ms)
+✓ Compiled in 323ms
+✓ Compiled in 206ms
+ GET /dashboard/residents 200 in 97ms (compile: 69ms, proxy.ts: 3ms, render: 26ms)
+✓ Compiled in 119ms
+✓ Compiled in 235ms
+✓ Compiled in 222ms
+✓ Compiled in 228ms
+✓ Compiled in 209ms
+ GET /dashboard/residents 200 in 281ms (compile: 84ms, proxy.ts: 11ms, render: 187ms)
+ GET /dashboard/residents/019cf1bc-4a3b-701d-a866-9c0906e3193d 200 in 112ms (compile: 58ms, proxy.ts: 5ms, render: 48ms)
+ GET /dashboard/residents 200 in 34ms (compile: 4ms, proxy.ts: 4ms, render: 25ms)
+ GET /dashboard/residents/019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 47ms (compile: 16ms, proxy.ts: 5ms, render: 26ms)
+✓ Compiled in 72ms
+ GET /dashboard/residents?edit=019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 68ms (compile: 43ms, proxy.ts: 3ms, render: 22ms)
+ GET /dashboard/residents 200 in 42ms (compile: 8ms, proxy.ts: 8ms, render: 26ms)
+✓ Compiled in 175ms
+ GET /dashboard/residents/019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 102ms (compile: 65ms, proxy.ts: 7ms, render: 31ms)
+✓ Compiled in 102ms
+✓ Compiled in 140ms
+ GET /dashboard 200 in 103ms (compile: 70ms, proxy.ts: 4ms, render: 29ms)
+ GET /dashboard/map 200 in 107ms (compile: 71ms, proxy.ts: 5ms, render: 32ms)
+✓ Compiled in 90ms
+✓ Compiled in 159ms
+ GET /dashboard/map 200 in 94ms (compile: 47ms, proxy.ts: 3ms, render: 44ms)
+ GET /dashboard 200 in 109ms (compile: 73ms, proxy.ts: 8ms, render: 28ms)
+ GET /dashboard/map 200 in 30ms (compile: 7ms, proxy.ts: 4ms, render: 20ms)
+ GET /dashboard/residents 200 in 117ms (compile: 77ms, proxy.ts: 7ms, render: 32ms)
+ GET /census 200 in 305ms (compile: 261ms, proxy.ts: 7ms, render: 37ms)
+ GET /census 200 in 119ms (compile: 56ms, proxy.ts: 8ms, render: 55ms)
+✓ Compiled in 93ms
+ GET /census 200 in 238ms (compile: 111ms, proxy.ts: 5ms, render: 123ms)
+ GET /census 200 in 168ms (compile: 9ms, proxy.ts: 6ms, render: 152ms)
+✓ Compiled in 300ms
+Failed to proxy http://127.0.0.1:8000/api/v1/auth/me Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+ GET /census 200 in 226ms (compile: 80ms, proxy.ts: 6ms, render: 140ms)
+✓ Compiled in 141ms
+ GET /census 200 in 227ms (compile: 87ms, proxy.ts: 5ms, render: 134ms)
+ GET /census 200 in 65ms (compile: 4ms, proxy.ts: 4ms, render: 57ms)
+✓ Compiled in 88ms
+ GET /census 200 in 174ms (compile: 61ms, proxy.ts: 3ms, render: 110ms)
+✓ Compiled in 152ms
+✓ Compiled in 72ms
+✓ Compiled in 59ms
+✓ Compiled in 90ms
+✓ Compiled in 117ms
+✓ Compiled in 108ms
+✓ Compiled in 94ms
+✓ Compiled in 146ms
+✓ Compiled in 103ms
+✓ Compiled in 80ms
+✓ Compiled in 73ms
+✓ Compiled in 68ms
+✓ Compiled in 99ms
+✓ Compiled in 137ms
+✓ Compiled in 110ms
+✓ Compiled in 158ms
+✓ Compiled in 142ms
+ GET /census 200 in 111ms (compile: 55ms, proxy.ts: 3ms, render: 53ms)
+✓ Compiled in 130ms
+✓ Compiled in 104ms
+✓ Compiled in 118ms
+✓ Compiled in 148ms
+✓ Compiled in 103ms
+✓ Compiled in 90ms
+✓ Compiled in 113ms
+✓ Compiled in 113ms
+✓ Compiled in 77ms
+✓ Compiled in 83ms
+✓ Compiled in 97ms
+✓ Compiled in 76ms
+✓ Compiled in 82ms
+✓ Compiled in 58ms
+✓ Compiled in 92ms
+✓ Compiled in 86ms
+✓ Compiled in 144ms
+✓ Compiled in 82ms
+✓ Compiled in 101ms
+ GET /census 200 in 89ms (compile: 50ms, proxy.ts: 3ms, render: 36ms)
+ GET /census 200 in 242ms (compile: 12ms, proxy.ts: 8ms, render: 222ms)
+Failed to proxy http://127.0.0.1:8000/api/v1/auth/me Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+✓ Compiled in 85ms
+✓ Compiled in 86ms
+Failed to proxy http://127.0.0.1:8000/api/v1/puroks?per_page=100 Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+ GET / 200 in 130ms (compile: 46ms, proxy.ts: 6ms, render: 78ms)
+ GET /?redirect=%2F.well-known%2Fappspecific%2Fcom.chrome.devtools.json 200 in 59ms (compile: 7ms, proxy.ts: 3ms, render: 48ms)
+✓ Compiled in 82ms
+✓ Compiled in 80ms
+✓ Compiled in 95ms
+ GET / 200 in 545ms (compile: 455ms, proxy.ts: 50ms, render: 40ms)
+ GET / 200 in 95ms (compile: 5ms, proxy.ts: 5ms, render: 85ms)
+ GET / 200 in 100ms (compile: 4ms, proxy.ts: 3ms, render: 93ms)
+ GET / 200 in 127ms (compile: 5ms, proxy.ts: 5ms, render: 118ms)
+ GET / 200 in 128ms (compile: 5ms, proxy.ts: 5ms, render: 118ms)
+ GET / 200 in 130ms (compile: 8ms, proxy.ts: 4ms, render: 117ms)
+ GET / 200 in 136ms (compile: 8ms, proxy.ts: 4ms, render: 124ms)
+ GET / 200 in 127ms (compile: 6ms, proxy.ts: 4ms, render: 117ms)
+ GET / 200 in 147ms (compile: 6ms, proxy.ts: 7ms, render: 135ms)
+ GET / 200 in 148ms (compile: 5ms, proxy.ts: 5ms, render: 139ms)
+ GET / 200 in 164ms (compile: 5ms, proxy.ts: 4ms, render: 155ms)
+ GET / 200 in 173ms (compile: 8ms, proxy.ts: 5ms, render: 160ms)
+ GET / 200 in 169ms (compile: 10ms, proxy.ts: 7ms, render: 152ms)
+ GET / 200 in 168ms (compile: 6ms, proxy.ts: 6ms, render: 155ms)
+ GET / 200 in 161ms (compile: 9ms, proxy.ts: 11ms, render: 141ms)
+ GET / 200 in 147ms (compile: 4ms, proxy.ts: 8ms, render: 135ms)
+ GET / 200 in 149ms (compile: 5ms, proxy.ts: 9ms, render: 136ms)
+ GET / 200 in 153ms (compile: 5ms, proxy.ts: 6ms, render: 142ms)
+ GET / 200 in 175ms (compile: 7ms, proxy.ts: 4ms, render: 164ms)
+ GET / 200 in 175ms (compile: 4ms, proxy.ts: 5ms, render: 167ms)
+ GET / 200 in 192ms (compile: 11ms, proxy.ts: 4ms, render: 176ms)
+ GET / 200 in 200ms (compile: 10ms, proxy.ts: 6ms, render: 184ms)
+ GET / 200 in 203ms (compile: 7ms, proxy.ts: 10ms, render: 185ms)
+ GET / 200 in 219ms (compile: 8ms, proxy.ts: 10ms, render: 201ms)
+ GET / 200 in 201ms (compile: 9ms, proxy.ts: 11ms, render: 181ms)
+ GET / 200 in 206ms (compile: 9ms, proxy.ts: 5ms, render: 192ms)
+ GET / 200 in 193ms (compile: 10ms, proxy.ts: 4ms, render: 179ms)
+ GET / 200 in 178ms (compile: 7ms, proxy.ts: 6ms, render: 165ms)
+ GET / 200 in 186ms (compile: 9ms, proxy.ts: 9ms, render: 169ms)
+ GET / 200 in 174ms (compile: 5ms, proxy.ts: 5ms, render: 164ms)
+ GET / 200 in 151ms (compile: 5ms, proxy.ts: 10ms, render: 136ms)
+ GET / 200 in 167ms (compile: 7ms, proxy.ts: 7ms, render: 154ms)
+ GET / 200 in 182ms (compile: 6ms, proxy.ts: 7ms, render: 169ms)
+ GET / 200 in 182ms (compile: 12ms, proxy.ts: 11ms, render: 159ms)
+ GET / 200 in 141ms (compile: 16ms, proxy.ts: 8ms, render: 118ms)
+ GET / 200 in 80ms (compile: 5ms, proxy.ts: 5ms, render: 70ms)
+ GET / 200 in 79ms (compile: 3ms, proxy.ts: 3ms, render: 73ms)
+ GET / 200 in 76ms (compile: 5ms, proxy.ts: 4ms, render: 67ms)
+ GET / 200 in 81ms (compile: 3ms, proxy.ts: 3ms, render: 74ms)
+ GET / 200 in 90ms (compile: 4ms, proxy.ts: 10ms, render: 77ms)
+ GET / 200 in 95ms (compile: 6ms, proxy.ts: 3ms, render: 86ms)
+ GET / 200 in 93ms (compile: 5ms, proxy.ts: 3ms, render: 85ms)
+ GET / 200 in 113ms (compile: 6ms, proxy.ts: 3ms, render: 103ms)
+ GET / 200 in 162ms (compile: 5ms, proxy.ts: 3ms, render: 155ms)
+ GET / 200 in 179ms (compile: 10ms, proxy.ts: 7ms, render: 161ms)
+ GET / 200 in 167ms (compile: 8ms, proxy.ts: 6ms, render: 154ms)
+ GET / 200 in 133ms (compile: 10ms, proxy.ts: 5ms, render: 118ms)
+ GET / 200 in 113ms (compile: 6ms, proxy.ts: 4ms, render: 102ms)
+ GET / 200 in 92ms (compile: 13ms, proxy.ts: 7ms, render: 72ms)
+ GET / 200 in 81ms (compile: 4ms, proxy.ts: 3ms, render: 75ms)
+ GET / 200 in 84ms (compile: 5ms, proxy.ts: 1977µs, render: 78ms)
+ GET / 200 in 93ms (compile: 4ms, proxy.ts: 3ms, render: 87ms)
+ GET / 200 in 98ms (compile: 3ms, proxy.ts: 4ms, render: 91ms)
+ GET / 200 in 104ms (compile: 4ms, proxy.ts: 3ms, render: 98ms)
+ GET / 200 in 120ms (compile: 7ms, proxy.ts: 5ms, render: 109ms)
+ GET / 200 in 116ms (compile: 5ms, proxy.ts: 3ms, render: 108ms)
+ GET / 200 in 141ms (compile: 6ms, proxy.ts: 3ms, render: 132ms)
+ GET / 200 in 161ms (compile: 5ms, proxy.ts: 5ms, render: 152ms)
+ GET / 200 in 159ms (compile: 4ms, proxy.ts: 3ms, render: 153ms)
+ GET / 200 in 177ms (compile: 6ms, proxy.ts: 2ms, render: 169ms)
+ GET / 200 in 173ms (compile: 17ms, proxy.ts: 5ms, render: 151ms)
+ GET / 200 in 125ms (compile: 8ms, proxy.ts: 4ms, render: 112ms)
+ GET / 200 in 86ms (compile: 7ms, proxy.ts: 6ms, render: 72ms)
+ GET / 200 in 43ms (compile: 5ms, proxy.ts: 6ms, render: 32ms)
+ GET /census 200 in 266ms (compile: 137ms, proxy.ts: 3ms, render: 126ms)
+ GET /census 200 in 87ms (compile: 15ms, proxy.ts: 15ms, render: 57ms)
+✓ Compiled in 233ms
+ GET / 200 in 54ms (compile: 14ms, proxy.ts: 5ms, render: 35ms)
+ GET /login 200 in 316ms (compile: 138ms, proxy.ts: 6ms, render: 171ms)
+ GET / 200 in 49ms (compile: 6ms, proxy.ts: 4ms, render: 39ms)
+✓ Compiled in 256ms
+ GET /dashboard 200 in 234ms (compile: 152ms, proxy.ts: 5ms, render: 77ms)
+ GET /dashboard 200 in 63ms (compile: 9ms, proxy.ts: 5ms, render: 50ms)
+ GET /dashboard/map 200 in 113ms (compile: 82ms, proxy.ts: 3ms, render: 27ms)
+ GET /dashboard/residents 200 in 254ms (compile: 204ms, proxy.ts: 8ms, render: 42ms)
+ GET /dashboard/map 200 in 35ms (compile: 6ms, proxy.ts: 5ms, render: 24ms)
+ GET /dashboard/map 200 in 170ms (compile: 6ms, proxy.ts: 7ms, render: 157ms)
+✓ Compiled in 102ms
+✓ Compiled in 112ms
+ GET /dashboard/map 200 in 278ms (compile: 105ms, proxy.ts: 3ms, render: 170ms)
+ GET /dashboard 200 in 47ms (compile: 7ms, proxy.ts: 10ms, render: 30ms)
+ GET /dashboard/updates 200 in 856ms (compile: 825ms, proxy.ts: 3ms, render: 28ms)
+ GET /dashboard/map 200 in 26ms (compile: 4ms, proxy.ts: 2ms, render: 20ms)
+ GET /dashboard/residents 200 in 60ms (compile: 11ms, proxy.ts: 3ms, render: 45ms)
+✓ Compiled in 115ms
+✓ Compiled in 97ms
+✓ Compiled in 119ms
+✓ Compiled in 165ms
+✓ Compiled in 93ms
+✓ Compiled in 124ms
+ GET /dashboard/residents 200 in 316ms (compile: 127ms, proxy.ts: 5ms, render: 185ms)
+✓ Compiled in 84ms
+✓ Compiled in 97ms
+✓ Compiled in 106ms
+✓ Compiled in 94ms
+✓ Compiled in 181ms
+ GET /dashboard/residents 200 in 227ms (compile: 43ms, proxy.ts: 45ms, render: 139ms)
+ GET /dashboard/residents 200 in 118ms (compile: 5ms, proxy.ts: 4ms, render: 108ms)
+ GET /dashboard/residents 200 in 156ms (compile: 11ms, proxy.ts: 6ms, render: 139ms)
+ GET /dashboard/residents 200 in 147ms (compile: 7ms, proxy.ts: 4ms, render: 136ms)
+ GET /dashboard/residents 200 in 138ms (compile: 9ms, proxy.ts: 4ms, render: 125ms)
+ GET /dashboard/residents 200 in 154ms (compile: 8ms, proxy.ts: 6ms, render: 140ms)
+ GET /dashboard/residents 200 in 172ms (compile: 10ms, proxy.ts: 10ms, render: 153ms)
+ GET /dashboard/residents 200 in 191ms (compile: 6ms, proxy.ts: 5ms, render: 180ms)
+ GET /dashboard/residents 200 in 209ms (compile: 7ms, proxy.ts: 4ms, render: 198ms)
+ GET /dashboard/residents 200 in 195ms (compile: 13ms, proxy.ts: 10ms, render: 172ms)
+ GET /dashboard/residents 200 in 162ms (compile: 11ms, proxy.ts: 5ms, render: 147ms)
+ GET /dashboard/residents 200 in 142ms (compile: 5ms, proxy.ts: 4ms, render: 133ms)
+ GET /dashboard/residents 200 in 134ms (compile: 9ms, proxy.ts: 7ms, render: 117ms)
+ GET /dashboard/residents 200 in 124ms (compile: 5ms, proxy.ts: 3ms, render: 117ms)
+ GET /dashboard/residents 200 in 138ms (compile: 8ms, proxy.ts: 4ms, render: 126ms)
+ GET /dashboard/residents 200 in 151ms (compile: 10ms, proxy.ts: 8ms, render: 132ms)
+ GET /dashboard/residents 200 in 173ms (compile: 5ms, proxy.ts: 4ms, render: 164ms)
+ GET /dashboard/residents 200 in 236ms (compile: 9ms, proxy.ts: 3ms, render: 224ms)
+ GET /dashboard/residents 200 in 201ms (compile: 10ms, proxy.ts: 3ms, render: 187ms)
+ GET /dashboard/residents 200 in 186ms (compile: 13ms, proxy.ts: 4ms, render: 170ms)
+ GET /dashboard/residents 200 in 155ms (compile: 8ms, proxy.ts: 4ms, render: 143ms)
+ GET /dashboard/residents 200 in 112ms (compile: 7ms, proxy.ts: 6ms, render: 99ms)
+ GET /dashboard/residents 200 in 90ms (compile: 3ms, proxy.ts: 2ms, render: 85ms)
+ GET /dashboard/residents 200 in 105ms (compile: 3ms, proxy.ts: 3ms, render: 99ms)
+ GET /dashboard/residents 200 in 127ms (compile: 5ms, proxy.ts: 3ms, render: 119ms)
+ GET /dashboard/residents 200 in 176ms (compile: 8ms, proxy.ts: 4ms, render: 163ms)
+ GET /dashboard/residents 200 in 197ms (compile: 12ms, proxy.ts: 3ms, render: 183ms)
+ GET /dashboard/residents 200 in 195ms (compile: 8ms, proxy.ts: 3ms, render: 185ms)
+ GET /dashboard/residents 200 in 180ms (compile: 10ms, proxy.ts: 11ms, render: 159ms)
+ GET /dashboard/residents 200 in 160ms (compile: 9ms, proxy.ts: 3ms, render: 149ms)
+ GET /dashboard/residents 200 in 141ms (compile: 10ms, proxy.ts: 7ms, render: 124ms)
+ GET /dashboard/residents 200 in 117ms (compile: 6ms, proxy.ts: 7ms, render: 104ms)
+ GET /dashboard/residents 200 in 110ms (compile: 4ms, proxy.ts: 4ms, render: 102ms)
+ GET /dashboard/residents 200 in 117ms (compile: 7ms, proxy.ts: 8ms, render: 102ms)
+ GET /dashboard/residents 200 in 147ms (compile: 4ms, proxy.ts: 4ms, render: 138ms)
+ GET /dashboard/residents 200 in 171ms (compile: 5ms, proxy.ts: 3ms, render: 163ms)
+ GET /dashboard/residents 200 in 204ms (compile: 13ms, proxy.ts: 6ms, render: 186ms)
+ GET /dashboard/residents 200 in 165ms (compile: 12ms, proxy.ts: 5ms, render: 148ms)
+ GET /dashboard/residents 200 in 175ms (compile: 12ms, proxy.ts: 8ms, render: 155ms)
+ GET /dashboard/residents 200 in 141ms (compile: 11ms, proxy.ts: 9ms, render: 121ms)
+ GET /dashboard/residents 200 in 169ms (compile: 6ms, proxy.ts: 6ms, render: 158ms)
+ GET /dashboard/residents 200 in 196ms (compile: 7ms, proxy.ts: 4ms, render: 186ms)
+ GET /dashboard/residents 200 in 217ms (compile: 10ms, proxy.ts: 6ms, render: 201ms)
+ GET /dashboard/residents 200 in 214ms (compile: 12ms, proxy.ts: 8ms, render: 194ms)
+ GET /dashboard/residents 200 in 194ms (compile: 9ms, proxy.ts: 7ms, render: 179ms)
+ GET /dashboard/residents 200 in 182ms (compile: 10ms, proxy.ts: 8ms, render: 164ms)
+ GET /dashboard/residents 200 in 166ms (compile: 15ms, proxy.ts: 9ms, render: 142ms)
+ GET /dashboard/residents 200 in 135ms (compile: 6ms, proxy.ts: 5ms, render: 124ms)
+ GET /dashboard/residents 200 in 149ms (compile: 8ms, proxy.ts: 4ms, render: 137ms)
+ GET /dashboard/residents 200 in 170ms (compile: 13ms, proxy.ts: 4ms, render: 153ms)
+ GET /dashboard/residents 200 in 137ms (compile: 8ms, proxy.ts: 5ms, render: 124ms)
+ GET /dashboard/residents 200 in 175ms (compile: 18ms, proxy.ts: 4ms, render: 153ms)
+ GET /dashboard/residents 200 in 188ms (compile: 29ms, proxy.ts: 10ms, render: 149ms)
+ GET /dashboard/residents 200 in 155ms (compile: 3ms, proxy.ts: 3ms, render: 149ms)
+ GET /dashboard/residents 200 in 159ms (compile: 7ms, proxy.ts: 4ms, render: 148ms)
+ GET /dashboard/residents 200 in 131ms (compile: 10ms, proxy.ts: 11ms, render: 110ms)
+ GET /dashboard/residents 200 in 112ms (compile: 7ms, proxy.ts: 7ms, render: 98ms)
+ GET /dashboard/residents 200 in 103ms (compile: 5ms, proxy.ts: 4ms, render: 94ms)
+ GET /dashboard/residents 200 in 95ms (compile: 4ms, proxy.ts: 2ms, render: 89ms)
+ GET /dashboard/residents 200 in 124ms (compile: 5ms, proxy.ts: 4ms, render: 115ms)
+ GET /dashboard/residents 200 in 143ms (compile: 4ms, proxy.ts: 5ms, render: 134ms)
+ GET /dashboard/residents 200 in 140ms (compile: 3ms, proxy.ts: 3ms, render: 133ms)
+ GET /dashboard/residents 200 in 152ms (compile: 7ms, proxy.ts: 6ms, render: 139ms)
+ GET /dashboard/residents 200 in 106ms (compile: 8ms, proxy.ts: 9ms, render: 89ms)
+ GET /dashboard/residents 200 in 57ms (compile: 5ms, proxy.ts: 4ms, render: 48ms)
+ GET /dashboard/residents 200 in 34ms (compile: 6ms, proxy.ts: 5ms, render: 23ms)
+✓ Compiled in 174ms
+ GET /dashboard/residents 200 in 190ms (compile: 66ms, proxy.ts: 14ms, render: 109ms)
+ GET /dashboard/residents 200 in 122ms (compile: 9ms, proxy.ts: 5ms, render: 107ms)
+ GET /dashboard/residents 200 in 182ms (compile: 5ms, proxy.ts: 3ms, render: 174ms)
+ GET /dashboard/residents 200 in 151ms (compile: 6ms, proxy.ts: 3ms, render: 142ms)
+ GET /dashboard/residents 200 in 147ms (compile: 6ms, proxy.ts: 6ms, render: 135ms)
+ GET /dashboard/residents 200 in 147ms (compile: 7ms, proxy.ts: 5ms, render: 135ms)
+ GET /dashboard/residents 200 in 114ms (compile: 4ms, proxy.ts: 3ms, render: 106ms)
+ GET /dashboard/residents 200 in 140ms (compile: 6ms, proxy.ts: 3ms, render: 131ms)
+ GET /dashboard/residents 200 in 183ms (compile: 10ms, proxy.ts: 5ms, render: 168ms)
+ GET /dashboard/residents 200 in 196ms (compile: 7ms, proxy.ts: 5ms, render: 184ms)
+ GET /dashboard/residents 200 in 187ms (compile: 10ms, proxy.ts: 8ms, render: 170ms)
+ GET /dashboard/residents 200 in 248ms (compile: 14ms, proxy.ts: 4ms, render: 230ms)
+ GET /dashboard/residents 200 in 225ms (compile: 8ms, proxy.ts: 6ms, render: 211ms)
+ GET /dashboard/residents 200 in 203ms (compile: 8ms, proxy.ts: 5ms, render: 189ms)
+ GET /dashboard/residents 200 in 178ms (compile: 8ms, proxy.ts: 5ms, render: 165ms)
+ GET /dashboard/residents 200 in 129ms (compile: 6ms, proxy.ts: 6ms, render: 117ms)
+ GET /dashboard/residents 200 in 155ms (compile: 4ms, proxy.ts: 2ms, render: 149ms)
+ GET /dashboard/residents 200 in 173ms (compile: 5ms, proxy.ts: 2ms, render: 166ms)
+ GET /dashboard/residents 200 in 215ms (compile: 6ms, proxy.ts: 3ms, render: 206ms)
+ GET /dashboard/residents 200 in 207ms (compile: 14ms, proxy.ts: 9ms, render: 184ms)
+ GET /dashboard/residents 200 in 181ms (compile: 11ms, proxy.ts: 6ms, render: 165ms)
+ GET /dashboard/residents 200 in 178ms (compile: 12ms, proxy.ts: 7ms, render: 159ms)
+ GET /dashboard/residents 200 in 152ms (compile: 12ms, proxy.ts: 12ms, render: 128ms)
+ GET /dashboard/residents 200 in 151ms (compile: 6ms, proxy.ts: 4ms, render: 141ms)
+ GET /dashboard/residents 200 in 162ms (compile: 7ms, proxy.ts: 6ms, render: 149ms)
+ GET /dashboard/residents 200 in 195ms (compile: 8ms, proxy.ts: 6ms, render: 181ms)
+ GET /dashboard/residents 200 in 204ms (compile: 10ms, proxy.ts: 5ms, render: 189ms)
+ GET /dashboard/residents 200 in 185ms (compile: 8ms, proxy.ts: 7ms, render: 170ms)
+ GET /dashboard/residents 200 in 170ms (compile: 10ms, proxy.ts: 6ms, render: 155ms)
+ GET /dashboard/residents 200 in 159ms (compile: 15ms, proxy.ts: 9ms, render: 136ms)
+ GET /dashboard/residents 200 in 140ms (compile: 5ms, proxy.ts: 3ms, render: 132ms)
+ GET /dashboard/residents 200 in 151ms (compile: 8ms, proxy.ts: 6ms, render: 136ms)
+ GET /dashboard/residents 200 in 124ms (compile: 3ms, proxy.ts: 3ms, render: 118ms)
+ GET /dashboard/residents 200 in 135ms (compile: 9ms, proxy.ts: 5ms, render: 121ms)
+ GET /dashboard/residents 200 in 126ms (compile: 6ms, proxy.ts: 5ms, render: 115ms)
+ GET /dashboard/residents 200 in 130ms (compile: 7ms, proxy.ts: 4ms, render: 119ms)
+ GET /dashboard/residents 200 in 128ms (compile: 6ms, proxy.ts: 3ms, render: 120ms)
+ GET /dashboard/residents 200 in 122ms (compile: 6ms, proxy.ts: 4ms, render: 112ms)
+ GET /dashboard/residents 200 in 107ms (compile: 8ms, proxy.ts: 3ms, render: 96ms)
+ GET /dashboard/residents 200 in 98ms (compile: 7ms, proxy.ts: 6ms, render: 85ms)
+ GET /dashboard/residents 200 in 84ms (compile: 6ms, proxy.ts: 2ms, render: 76ms)
+ GET /dashboard/residents 200 in 85ms (compile: 3ms, proxy.ts: 2ms, render: 79ms)
+ GET /dashboard/residents 200 in 91ms (compile: 5ms, proxy.ts: 4ms, render: 82ms)
+ GET /dashboard/residents 200 in 88ms (compile: 3ms, proxy.ts: 3ms, render: 83ms)
+ GET /dashboard/residents 200 in 118ms (compile: 6ms, proxy.ts: 2ms, render: 110ms)
+ GET /dashboard/residents 200 in 109ms (compile: 5ms, proxy.ts: 4ms, render: 100ms)
+ GET /dashboard/residents 200 in 106ms (compile: 4ms, proxy.ts: 3ms, render: 98ms)
+ GET /dashboard/residents 200 in 103ms (compile: 28ms, proxy.ts: 2ms, render: 72ms)
+ GET /dashboard/residents 200 in 62ms (compile: 4ms, proxy.ts: 2ms, render: 56ms)
+ GET /dashboard/residents 200 in 63ms (compile: 3ms, proxy.ts: 3ms, render: 57ms)
+ GET /dashboard/residents 200 in 79ms (compile: 4ms, proxy.ts: 5ms, render: 70ms)
+ GET /dashboard/residents 200 in 122ms (compile: 5ms, proxy.ts: 2ms, render: 115ms)
+ GET /dashboard/residents 200 in 125ms (compile: 6ms, proxy.ts: 2ms, render: 116ms)
+ GET /dashboard/residents 200 in 140ms (compile: 11ms, proxy.ts: 4ms, render: 125ms)
+ GET /dashboard/residents 200 in 133ms (compile: 7ms, proxy.ts: 3ms, render: 123ms)
+ GET /dashboard/residents 200 in 124ms (compile: 5ms, proxy.ts: 6ms, render: 112ms)
+ GET /dashboard/residents 200 in 105ms (compile: 8ms, proxy.ts: 6ms, render: 92ms)
+ GET /dashboard/residents 200 in 90ms (compile: 6ms, proxy.ts: 6ms, render: 78ms)
+ GET /dashboard/residents 200 in 116ms (compile: 6ms, proxy.ts: 3ms, render: 107ms)
+ GET /dashboard/residents 200 in 154ms (compile: 7ms, proxy.ts: 4ms, render: 143ms)
+ GET /dashboard/residents 200 in 176ms (compile: 4ms, proxy.ts: 3ms, render: 169ms)
+ GET /dashboard/residents 200 in 168ms (compile: 9ms, proxy.ts: 3ms, render: 156ms)
+ GET /dashboard/residents 200 in 221ms (compile: 30ms, proxy.ts: 5ms, render: 186ms)
+ GET /dashboard/residents 200 in 209ms (compile: 9ms, proxy.ts: 9ms, render: 191ms)
+ GET /dashboard/residents 200 in 190ms (compile: 11ms, proxy.ts: 9ms, render: 170ms)
+ GET /dashboard/residents 200 in 141ms (compile: 5ms, proxy.ts: 3ms, render: 133ms)
+ GET /dashboard/residents 200 in 91ms (compile: 6ms, proxy.ts: 9ms, render: 76ms)
+ GET /dashboard/residents 200 in 35ms (compile: 10ms, proxy.ts: 4ms, render: 20ms)
+✓ Compiled in 93ms
+✓ Compiled in 152ms
+✓ Compiled in 108ms
+✓ Compiled in 69ms
+✓ Compiled in 63ms
+ GET /dashboard/residents 200 in 337ms (compile: 155ms, proxy.ts: 19ms, render: 163ms)
+ GET /dashboard/residents 200 in 148ms (compile: 7ms, proxy.ts: 18ms, render: 123ms)
+ GET /dashboard/residents 200 in 165ms (compile: 10ms, proxy.ts: 5ms, render: 150ms)
+ GET /dashboard/residents 200 in 152ms (compile: 9ms, proxy.ts: 4ms, render: 139ms)
+ GET /dashboard/residents 200 in 149ms (compile: 5ms, proxy.ts: 3ms, render: 141ms)
+ GET /dashboard/residents 200 in 162ms (compile: 9ms, proxy.ts: 5ms, render: 148ms)
+ GET /dashboard/residents 200 in 161ms (compile: 9ms, proxy.ts: 6ms, render: 147ms)
+ GET /dashboard/residents 200 in 168ms (compile: 5ms, proxy.ts: 4ms, render: 160ms)
+ GET /dashboard/residents 200 in 168ms (compile: 7ms, proxy.ts: 8ms, render: 153ms)
+ GET /dashboard/residents 200 in 156ms (compile: 10ms, proxy.ts: 8ms, render: 138ms)
+ GET /dashboard/residents 200 in 148ms (compile: 11ms, proxy.ts: 4ms, render: 133ms)
+ GET /dashboard/residents 200 in 150ms (compile: 7ms, proxy.ts: 5ms, render: 138ms)
+ GET /dashboard/residents 200 in 159ms (compile: 6ms, proxy.ts: 4ms, render: 149ms)
+ GET /dashboard/residents 200 in 175ms (compile: 6ms, proxy.ts: 3ms, render: 166ms)
+ GET /dashboard/residents 200 in 187ms (compile: 9ms, proxy.ts: 3ms, render: 175ms)
+ GET /dashboard/residents 200 in 206ms (compile: 9ms, proxy.ts: 5ms, render: 192ms)
+ GET /dashboard/residents 200 in 218ms (compile: 9ms, proxy.ts: 8ms, render: 201ms)
+ GET /dashboard/residents 200 in 256ms (compile: 8ms, proxy.ts: 6ms, render: 242ms)
+ GET /dashboard/residents 200 in 236ms (compile: 15ms, proxy.ts: 10ms, render: 211ms)
+ GET /dashboard/residents 200 in 184ms (compile: 13ms, proxy.ts: 6ms, render: 165ms)
+ GET /dashboard/residents 200 in 198ms (compile: 8ms, proxy.ts: 6ms, render: 185ms)
+ GET /dashboard/residents 200 in 160ms (compile: 6ms, proxy.ts: 5ms, render: 149ms)
+ GET /dashboard/residents 200 in 165ms (compile: 9ms, proxy.ts: 5ms, render: 151ms)
+ GET /dashboard/residents 200 in 159ms (compile: 8ms, proxy.ts: 5ms, render: 147ms)
+ GET /dashboard/residents 200 in 155ms (compile: 8ms, proxy.ts: 5ms, render: 141ms)
+ GET /dashboard/residents 200 in 165ms (compile: 8ms, proxy.ts: 5ms, render: 151ms)
+ GET /dashboard/residents 200 in 188ms (compile: 9ms, proxy.ts: 3ms, render: 176ms)
+ GET /dashboard/residents 200 in 216ms (compile: 6ms, proxy.ts: 4ms, render: 206ms)
+ GET /dashboard/residents 200 in 226ms (compile: 7ms, proxy.ts: 5ms, render: 214ms)
+ GET /dashboard/residents 200 in 254ms (compile: 16ms, proxy.ts: 11ms, render: 227ms)
+ GET /dashboard/residents 200 in 239ms (compile: 12ms, proxy.ts: 12ms, render: 215ms)
+ GET /dashboard/residents 200 in 214ms (compile: 14ms, proxy.ts: 10ms, render: 190ms)
+ GET /dashboard/residents 200 in 194ms (compile: 9ms, proxy.ts: 9ms, render: 176ms)
+ GET /dashboard/residents 200 in 163ms (compile: 9ms, proxy.ts: 6ms, render: 148ms)
+ GET /dashboard/residents 200 in 162ms (compile: 8ms, proxy.ts: 4ms, render: 150ms)
+ GET /dashboard/residents 200 in 159ms (compile: 7ms, proxy.ts: 7ms, render: 145ms)
+ GET /dashboard/residents 200 in 163ms (compile: 6ms, proxy.ts: 5ms, render: 152ms)
+ GET /dashboard/residents 200 in 167ms (compile: 5ms, proxy.ts: 13ms, render: 148ms)
+ GET /dashboard/residents 200 in 152ms (compile: 5ms, proxy.ts: 4ms, render: 143ms)
+ GET /dashboard/residents 200 in 163ms (compile: 6ms, proxy.ts: 9ms, render: 148ms)
+ GET /dashboard/residents 200 in 170ms (compile: 10ms, proxy.ts: 5ms, render: 155ms)
+ GET /dashboard/residents 200 in 164ms (compile: 8ms, proxy.ts: 4ms, render: 152ms)
+ GET /dashboard/residents 200 in 188ms (compile: 12ms, proxy.ts: 5ms, render: 171ms)
+ GET /dashboard/residents 200 in 187ms (compile: 16ms, proxy.ts: 8ms, render: 164ms)
+ GET /dashboard/residents 200 in 176ms (compile: 10ms, proxy.ts: 6ms, render: 160ms)
+ GET /dashboard/residents 200 in 127ms (compile: 9ms, proxy.ts: 6ms, render: 113ms)
+ GET /dashboard/residents 200 in 109ms (compile: 8ms, proxy.ts: 9ms, render: 92ms)
+ GET /dashboard/residents 200 in 134ms (compile: 9ms, proxy.ts: 10ms, render: 115ms)
+ GET /dashboard/residents 200 in 132ms (compile: 5ms, proxy.ts: 2ms, render: 125ms)
+ GET /dashboard/residents 200 in 165ms (compile: 5ms, proxy.ts: 4ms, render: 156ms)
+ GET /dashboard/residents 200 in 170ms (compile: 14ms, proxy.ts: 4ms, render: 152ms)
+ GET /dashboard/residents 200 in 168ms (compile: 8ms, proxy.ts: 7ms, render: 152ms)
+ GET /dashboard/residents 200 in 175ms (compile: 13ms, proxy.ts: 4ms, render: 158ms)
+ GET /dashboard/residents 200 in 173ms (compile: 6ms, proxy.ts: 5ms, render: 162ms)
+ GET /dashboard/residents 200 in 176ms (compile: 9ms, proxy.ts: 6ms, render: 161ms)
+ GET /dashboard/residents 200 in 180ms (compile: 7ms, proxy.ts: 4ms, render: 169ms)
+ GET /dashboard/residents 200 in 180ms (compile: 10ms, proxy.ts: 4ms, render: 165ms)
+ GET /dashboard/residents 200 in 162ms (compile: 10ms, proxy.ts: 7ms, render: 145ms)
+ GET /dashboard/residents 200 in 119ms (compile: 10ms, proxy.ts: 5ms, render: 104ms)
+ GET /dashboard/residents 200 in 109ms (compile: 17ms, proxy.ts: 5ms, render: 87ms)
+ GET /dashboard/residents 200 in 126ms (compile: 6ms, proxy.ts: 3ms, render: 116ms)
+ GET /dashboard/residents 200 in 129ms (compile: 6ms, proxy.ts: 4ms, render: 119ms)
+ GET /dashboard/residents 200 in 126ms (compile: 5ms, proxy.ts: 4ms, render: 116ms)
+ GET /dashboard/residents 200 in 137ms (compile: 11ms, proxy.ts: 3ms, render: 122ms)
+ GET /dashboard/residents 200 in 157ms (compile: 5ms, proxy.ts: 4ms, render: 149ms)
+ GET /dashboard/residents 200 in 184ms (compile: 5ms, proxy.ts: 5ms, render: 174ms)
+ GET /dashboard/residents 200 in 193ms (compile: 7ms, proxy.ts: 6ms, render: 180ms)
+ GET /dashboard/residents 200 in 191ms (compile: 17ms, proxy.ts: 4ms, render: 170ms)
+ GET /dashboard/residents 200 in 174ms (compile: 11ms, proxy.ts: 9ms, render: 154ms)
+ GET /dashboard/residents 200 in 152ms (compile: 7ms, proxy.ts: 4ms, render: 141ms)
+ GET /dashboard/residents 200 in 161ms (compile: 7ms, proxy.ts: 5ms, render: 149ms)
+ GET /dashboard/residents 200 in 154ms (compile: 11ms, proxy.ts: 7ms, render: 136ms)
+ GET /dashboard/residents 200 in 161ms (compile: 4ms, proxy.ts: 4ms, render: 152ms)
+ GET /dashboard/residents 200 in 174ms (compile: 8ms, proxy.ts: 6ms, render: 160ms)
+ GET /dashboard/residents 200 in 175ms (compile: 6ms, proxy.ts: 5ms, render: 164ms)
+ GET /dashboard/residents 200 in 193ms (compile: 10ms, proxy.ts: 4ms, render: 179ms)
+ GET /dashboard/residents 200 in 179ms (compile: 7ms, proxy.ts: 3ms, render: 169ms)
+ GET /dashboard/residents 200 in 169ms (compile: 8ms, proxy.ts: 7ms, render: 154ms)
+ GET /dashboard/residents 200 in 156ms (compile: 10ms, proxy.ts: 8ms, render: 138ms)
+ GET /dashboard/residents 200 in 144ms (compile: 6ms, proxy.ts: 4ms, render: 134ms)
+ GET /dashboard/residents 200 in 161ms (compile: 6ms, proxy.ts: 4ms, render: 151ms)
+ GET /dashboard/residents 200 in 170ms (compile: 5ms, proxy.ts: 4ms, render: 161ms)
+ GET /dashboard/residents 200 in 183ms (compile: 5ms, proxy.ts: 6ms, render: 173ms)
+ GET /dashboard/residents 200 in 188ms (compile: 8ms, proxy.ts: 6ms, render: 174ms)
+ GET /dashboard/residents 200 in 170ms (compile: 5ms, proxy.ts: 5ms, render: 159ms)
+ GET /dashboard/residents 200 in 173ms (compile: 9ms, proxy.ts: 13ms, render: 151ms)
+ GET /dashboard/residents 200 in 188ms (compile: 18ms, proxy.ts: 7ms, render: 163ms)
+ GET /dashboard/residents 200 in 183ms (compile: 7ms, proxy.ts: 5ms, render: 172ms)
+ GET /dashboard/residents 200 in 209ms (compile: 8ms, proxy.ts: 4ms, render: 197ms)
+ GET /dashboard/residents 200 in 210ms (compile: 12ms, proxy.ts: 10ms, render: 188ms)
+ GET /dashboard/residents 200 in 200ms (compile: 8ms, proxy.ts: 4ms, render: 187ms)
+ GET /dashboard/residents 200 in 195ms (compile: 14ms, proxy.ts: 6ms, render: 175ms)
+ GET /dashboard/residents 200 in 162ms (compile: 11ms, proxy.ts: 7ms, render: 144ms)
+ GET /dashboard/residents 200 in 157ms (compile: 10ms, proxy.ts: 5ms, render: 142ms)
+ GET /dashboard/residents 200 in 154ms (compile: 6ms, proxy.ts: 7ms, render: 141ms)
+ GET /dashboard/residents 200 in 153ms (compile: 5ms, proxy.ts: 3ms, render: 144ms)
+ GET /dashboard/residents 200 in 181ms (compile: 5ms, proxy.ts: 4ms, render: 172ms)
+ GET /dashboard/residents 200 in 187ms (compile: 6ms, proxy.ts: 5ms, render: 176ms)
+ GET /dashboard/residents 200 in 182ms (compile: 7ms, proxy.ts: 6ms, render: 169ms)
+ GET /dashboard/residents 200 in 173ms (compile: 7ms, proxy.ts: 6ms, render: 161ms)
+ GET /dashboard/residents 200 in 178ms (compile: 7ms, proxy.ts: 7ms, render: 164ms)
+ GET /dashboard/residents 200 in 177ms (compile: 6ms, proxy.ts: 4ms, render: 167ms)
+ GET /dashboard/residents 200 in 181ms (compile: 7ms, proxy.ts: 10ms, render: 164ms)
+ GET /dashboard/residents 200 in 167ms (compile: 5ms, proxy.ts: 6ms, render: 157ms)
+ GET /dashboard/residents 200 in 158ms (compile: 7ms, proxy.ts: 4ms, render: 147ms)
+ GET /dashboard/residents 200 in 154ms (compile: 6ms, proxy.ts: 4ms, render: 144ms)
+ GET /dashboard/residents 200 in 146ms (compile: 5ms, proxy.ts: 6ms, render: 135ms)
+ GET /dashboard/residents 200 in 149ms (compile: 10ms, proxy.ts: 5ms, render: 135ms)
+ GET /dashboard/residents 200 in 146ms (compile: 9ms, proxy.ts: 6ms, render: 131ms)
+ GET /dashboard/residents 200 in 141ms (compile: 7ms, proxy.ts: 4ms, render: 131ms)
+ GET /dashboard/residents 200 in 156ms (compile: 5ms, proxy.ts: 3ms, render: 148ms)
+ GET /dashboard/residents 200 in 158ms (compile: 4ms, proxy.ts: 3ms, render: 150ms)
+ GET /dashboard/residents 200 in 158ms (compile: 6ms, proxy.ts: 3ms, render: 150ms)
+ GET /dashboard/residents 200 in 169ms (compile: 13ms, proxy.ts: 5ms, render: 151ms)
+ GET /dashboard/residents 200 in 147ms (compile: 6ms, proxy.ts: 5ms, render: 136ms)
+ GET /dashboard/residents 200 in 149ms (compile: 6ms, proxy.ts: 4ms, render: 140ms)
+ GET /dashboard/residents 200 in 160ms (compile: 7ms, proxy.ts: 14ms, render: 140ms)
+ GET /dashboard/residents 200 in 149ms (compile: 9ms, proxy.ts: 5ms, render: 136ms)
+ GET /dashboard/residents 200 in 140ms (compile: 10ms, proxy.ts: 4ms, render: 125ms)
+ GET /dashboard/residents 200 in 138ms (compile: 8ms, proxy.ts: 6ms, render: 125ms)
+ GET /dashboard/residents 200 in 134ms (compile: 8ms, proxy.ts: 6ms, render: 119ms)
+ GET /dashboard/residents 200 in 160ms (compile: 6ms, proxy.ts: 4ms, render: 150ms)
+ GET /dashboard/residents 200 in 170ms (compile: 6ms, proxy.ts: 3ms, render: 161ms)
+ GET /dashboard/residents 200 in 173ms (compile: 7ms, proxy.ts: 8ms, render: 158ms)
+ GET /dashboard/residents 200 in 198ms (compile: 17ms, proxy.ts: 8ms, render: 173ms)
+ GET /dashboard/residents 200 in 201ms (compile: 6ms, proxy.ts: 9ms, render: 186ms)
+ GET /dashboard/residents 200 in 204ms (compile: 5ms, proxy.ts: 6ms, render: 193ms)
+ GET /dashboard/residents 200 in 203ms (compile: 9ms, proxy.ts: 8ms, render: 186ms)
+ GET /dashboard/residents 200 in 170ms (compile: 5ms, proxy.ts: 5ms, render: 160ms)
+ GET /dashboard/residents 200 in 152ms (compile: 9ms, proxy.ts: 6ms, render: 138ms)
+ GET /dashboard/residents 200 in 167ms (compile: 7ms, proxy.ts: 7ms, render: 153ms)
+ GET /dashboard/residents 200 in 177ms (compile: 5ms, proxy.ts: 5ms, render: 167ms)
+ GET /dashboard/residents 200 in 196ms (compile: 8ms, proxy.ts: 6ms, render: 182ms)
+ GET /dashboard/residents 200 in 197ms (compile: 5ms, proxy.ts: 6ms, render: 186ms)
+ GET /dashboard/residents 200 in 170ms (compile: 9ms, proxy.ts: 7ms, render: 154ms)
+ GET /dashboard/residents 200 in 170ms (compile: 6ms, proxy.ts: 6ms, render: 159ms)
+ GET /dashboard/residents 200 in 183ms (compile: 7ms, proxy.ts: 5ms, render: 171ms)
+ GET /dashboard/residents 200 in 199ms (compile: 7ms, proxy.ts: 7ms, render: 185ms)
+ GET /dashboard/residents 200 in 200ms (compile: 9ms, proxy.ts: 7ms, render: 185ms)
+ GET /dashboard/residents 200 in 155ms (compile: 10ms, proxy.ts: 7ms, render: 138ms)
+ GET /dashboard/residents 200 in 100ms (compile: 6ms, proxy.ts: 9ms, render: 86ms)
+ GET /dashboard/residents 200 in 48ms (compile: 9ms, proxy.ts: 6ms, render: 33ms)
+ GET /dashboard/residents 200 in 320ms (compile: 83ms, proxy.ts: 21ms, render: 217ms)
+ GET /dashboard/residents 200 in 207ms (compile: 9ms, proxy.ts: 7ms, render: 191ms)
+ GET /dashboard/residents 200 in 208ms (compile: 10ms, proxy.ts: 6ms, render: 193ms)
+ GET /dashboard/residents 200 in 187ms (compile: 10ms, proxy.ts: 8ms, render: 168ms)
+ GET /dashboard/residents 200 in 183ms (compile: 10ms, proxy.ts: 7ms, render: 166ms)
+ GET /dashboard/residents 200 in 189ms (compile: 11ms, proxy.ts: 11ms, render: 168ms)
+ GET /dashboard/residents 200 in 208ms (compile: 6ms, proxy.ts: 4ms, render: 198ms)
+ GET /dashboard/residents 200 in 220ms (compile: 10ms, proxy.ts: 7ms, render: 203ms)
+ GET /dashboard/residents 200 in 218ms (compile: 10ms, proxy.ts: 6ms, render: 202ms)
+ GET /dashboard/residents 200 in 273ms (compile: 11ms, proxy.ts: 17ms, render: 245ms)
+ GET /dashboard/residents 200 in 282ms (compile: 18ms, proxy.ts: 5ms, render: 259ms)
+ GET /dashboard/residents 200 in 274ms (compile: 13ms, proxy.ts: 6ms, render: 255ms)
+ GET /dashboard/residents 200 in 269ms (compile: 10ms, proxy.ts: 5ms, render: 255ms)
+ GET /dashboard/residents 200 in 207ms (compile: 30ms, proxy.ts: 11ms, render: 165ms)
+ GET /dashboard/residents 200 in 164ms (compile: 7ms, proxy.ts: 9ms, render: 148ms)
+ GET /dashboard/residents 200 in 158ms (compile: 7ms, proxy.ts: 6ms, render: 145ms)
+ GET /dashboard/residents 200 in 161ms (compile: 8ms, proxy.ts: 5ms, render: 148ms)
+ GET /dashboard/residents 200 in 180ms (compile: 4ms, proxy.ts: 5ms, render: 171ms)
+ GET /dashboard/residents 200 in 178ms (compile: 7ms, proxy.ts: 4ms, render: 168ms)
+ GET /dashboard/residents 200 in 240ms (compile: 8ms, proxy.ts: 7ms, render: 225ms)
+ GET /dashboard/residents 200 in 230ms (compile: 9ms, proxy.ts: 7ms, render: 214ms)
+ GET /dashboard/residents 200 in 219ms (compile: 8ms, proxy.ts: 9ms, render: 201ms)
+ GET /dashboard/residents 200 in 225ms (compile: 7ms, proxy.ts: 6ms, render: 212ms)
+ GET /dashboard/residents 200 in 174ms (compile: 8ms, proxy.ts: 5ms, render: 161ms)
+ GET /dashboard/residents 200 in 182ms (compile: 8ms, proxy.ts: 7ms, render: 167ms)
+ GET /dashboard/residents 200 in 186ms (compile: 7ms, proxy.ts: 6ms, render: 172ms)
+ GET /dashboard/residents 200 in 180ms (compile: 11ms, proxy.ts: 5ms, render: 164ms)
+ GET /dashboard/residents 200 in 168ms (compile: 6ms, proxy.ts: 4ms, render: 158ms)
+ GET /dashboard/residents 200 in 169ms (compile: 9ms, proxy.ts: 4ms, render: 155ms)
+ GET /dashboard/residents 200 in 150ms (compile: 4ms, proxy.ts: 6ms, render: 140ms)
+ GET /dashboard/residents 200 in 153ms (compile: 8ms, proxy.ts: 8ms, render: 137ms)
+ GET /dashboard/residents 200 in 147ms (compile: 6ms, proxy.ts: 7ms, render: 134ms)
+ GET /dashboard/residents 200 in 139ms (compile: 5ms, proxy.ts: 4ms, render: 130ms)
+ GET /dashboard/residents 200 in 148ms (compile: 5ms, proxy.ts: 4ms, render: 138ms)
+ GET /dashboard/residents 200 in 155ms (compile: 5ms, proxy.ts: 7ms, render: 143ms)
+ GET /dashboard/residents 200 in 159ms (compile: 6ms, proxy.ts: 4ms, render: 148ms)
+ GET /dashboard/residents 200 in 177ms (compile: 6ms, proxy.ts: 5ms, render: 167ms)
+ GET /dashboard/residents 200 in 175ms (compile: 9ms, proxy.ts: 5ms, render: 161ms)
+ GET /dashboard/residents 200 in 168ms (compile: 5ms, proxy.ts: 5ms, render: 158ms)
+ GET /dashboard/residents 200 in 173ms (compile: 9ms, proxy.ts: 14ms, render: 150ms)
+ GET /dashboard/residents 200 in 172ms (compile: 5ms, proxy.ts: 4ms, render: 163ms)
+ GET /dashboard/residents 200 in 178ms (compile: 5ms, proxy.ts: 4ms, render: 169ms)
+ GET /dashboard/residents 200 in 185ms (compile: 8ms, proxy.ts: 4ms, render: 173ms)
+ GET /dashboard/residents 200 in 209ms (compile: 9ms, proxy.ts: 7ms, render: 193ms)
+ GET /dashboard/residents 200 in 220ms (compile: 7ms, proxy.ts: 7ms, render: 205ms)
+ GET /dashboard/residents 200 in 241ms (compile: 8ms, proxy.ts: 5ms, render: 228ms)
+ GET /dashboard/residents 200 in 260ms (compile: 18ms, proxy.ts: 6ms, render: 236ms)
+ GET /dashboard/residents 200 in 258ms (compile: 16ms, proxy.ts: 5ms, render: 237ms)
+ GET /dashboard/residents 200 in 217ms (compile: 13ms, proxy.ts: 8ms, render: 196ms)
+ GET /dashboard/residents 200 in 242ms (compile: 10ms, proxy.ts: 10ms, render: 222ms)
+ GET /dashboard/residents 200 in 227ms (compile: 15ms, proxy.ts: 11ms, render: 201ms)
+ GET /dashboard/residents 200 in 219ms (compile: 13ms, proxy.ts: 8ms, render: 198ms)
+ GET /dashboard/residents 200 in 204ms (compile: 7ms, proxy.ts: 4ms, render: 192ms)
+ GET /dashboard/residents 200 in 230ms (compile: 7ms, proxy.ts: 3ms, render: 220ms)
+ GET /dashboard/residents 200 in 214ms (compile: 16ms, proxy.ts: 7ms, render: 191ms)
+ GET /dashboard/residents 200 in 267ms (compile: 11ms, proxy.ts: 7ms, render: 250ms)
+ GET /dashboard/residents 200 in 288ms (compile: 10ms, proxy.ts: 5ms, render: 273ms)
+ GET /dashboard/residents 200 in 295ms (compile: 21ms, proxy.ts: 15ms, render: 259ms)
+ GET /dashboard/residents 200 in 255ms (compile: 13ms, proxy.ts: 8ms, render: 234ms)
+ GET /dashboard/residents 200 in 280ms (compile: 11ms, proxy.ts: 8ms, render: 261ms)
+ GET /dashboard/residents 200 in 306ms (compile: 14ms, proxy.ts: 11ms, render: 280ms)
+ GET /dashboard/residents 200 in 296ms (compile: 10ms, proxy.ts: 9ms, render: 277ms)
+ GET /dashboard/residents 200 in 324ms (compile: 14ms, proxy.ts: 10ms, render: 301ms)
+ GET /dashboard/residents 200 in 331ms (compile: 12ms, proxy.ts: 8ms, render: 312ms)
+ GET /dashboard/residents 200 in 284ms (compile: 17ms, proxy.ts: 9ms, render: 258ms)
+ GET /dashboard/residents 200 in 281ms (compile: 18ms, proxy.ts: 11ms, render: 252ms)
+ GET /dashboard/residents 200 in 259ms (compile: 20ms, proxy.ts: 7ms, render: 232ms)
+ GET /dashboard/residents 200 in 228ms (compile: 7ms, proxy.ts: 4ms, render: 218ms)
+ GET /dashboard/residents 200 in 185ms (compile: 11ms, proxy.ts: 11ms, render: 163ms)
+ GET /dashboard/residents 200 in 122ms (compile: 8ms, proxy.ts: 10ms, render: 104ms)
+ GET /dashboard/residents 200 in 71ms (compile: 10ms, proxy.ts: 7ms, render: 55ms)
+ GET /dashboard/residents 200 in 310ms (compile: 8ms, proxy.ts: 6ms, render: 297ms)
+ GET /dashboard/email 200 in 672ms (compile: 641ms, proxy.ts: 5ms, render: 26ms)
+ GET /dashboard/marketplace 200 in 648ms (compile: 615ms, proxy.ts: 5ms, render: 27ms)
+ GET /dashboard/residents 200 in 35ms (compile: 7ms, proxy.ts: 3ms, render: 25ms)
+ GET /dashboard/residents/019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 188ms (compile: 119ms, proxy.ts: 4ms, render: 65ms)
+ GET /dashboard/residents/019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 247ms (compile: 75ms, proxy.ts: 14ms, render: 157ms)
+✓ Compiled in 145ms
+✓ Compiled in 171ms
+✓ Compiled in 182ms
+✓ Compiled in 169ms
+✓ Compiled in 114ms
+ GET / 200 in 224ms (compile: 97ms, proxy.ts: 9ms, render: 118ms)
+ GET /dashboard/residents/019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 534ms (compile: 134ms, proxy.ts: 4ms, render: 396ms)
+ GET /dashboard/settings 200 in 856ms (compile: 825ms, proxy.ts: 3ms, render: 28ms)
+ GET /dashboard/documents 200 in 932ms (compile: 904ms, proxy.ts: 3ms, render: 24ms)
+ GET /dashboard/vawc 200 in 718ms (compile: 682ms, proxy.ts: 3ms, render: 32ms)
+ GET /dashboard/residents 200 in 40ms (compile: 9ms, proxy.ts: 3ms, render: 28ms)
+✓ Compiled in 118ms
+✓ Compiled in 117ms
+✓ Compiled in 111ms
+✓ Compiled in 81ms
+✓ Compiled in 170ms
+✓ Compiled in 77ms
+✓ Compiled in 85ms
+✓ Compiled in 89ms
+✓ Compiled in 121ms
+✓ Compiled in 109ms
+✓ Compiled in 151ms
+✓ Compiled in 138ms
+✓ Compiled in 119ms
+ GET /dashboard/residents 200 in 140ms (compile: 104ms, proxy.ts: 3ms, render: 32ms)
+✓ Compiled in 108ms
+ GET /dashboard/residents 200 in 220ms (compile: 11ms, proxy.ts: 8ms, render: 202ms)
+✓ Compiled in 173ms
+ GET /dashboard/residents 200 in 192ms (compile: 66ms, proxy.ts: 51ms, render: 75ms)
+ GET /dashboard/residents 200 in 88ms (compile: 4ms, proxy.ts: 4ms, render: 80ms)
+ GET /dashboard/residents 200 in 68ms (compile: 3ms, proxy.ts: 2ms, render: 62ms)
+ GET /dashboard/residents 200 in 99ms (compile: 4ms, proxy.ts: 3ms, render: 92ms)
+ GET /dashboard/residents 200 in 134ms (compile: 4ms, proxy.ts: 2ms, render: 128ms)
+ GET /dashboard/residents 200 in 149ms (compile: 5ms, proxy.ts: 3ms, render: 141ms)
+ GET /dashboard/residents 200 in 175ms (compile: 5ms, proxy.ts: 3ms, render: 168ms)
+ GET /dashboard/residents 200 in 170ms (compile: 9ms, proxy.ts: 7ms, render: 154ms)
+ GET /dashboard/residents 200 in 168ms (compile: 5ms, proxy.ts: 3ms, render: 161ms)
+ GET /dashboard/residents 200 in 152ms (compile: 6ms, proxy.ts: 5ms, render: 141ms)
+ GET /dashboard/residents 200 in 137ms (compile: 5ms, proxy.ts: 3ms, render: 128ms)
+ GET /dashboard/residents 200 in 145ms (compile: 7ms, proxy.ts: 7ms, render: 131ms)
+ GET /dashboard/residents 200 in 140ms (compile: 5ms, proxy.ts: 4ms, render: 130ms)
+ GET /dashboard/residents 200 in 152ms (compile: 4ms, proxy.ts: 3ms, render: 145ms)
+ GET /dashboard/residents 200 in 163ms (compile: 12ms, proxy.ts: 3ms, render: 148ms)
+ GET /dashboard/residents 200 in 198ms (compile: 6ms, proxy.ts: 5ms, render: 187ms)
+ GET /dashboard/residents 200 in 196ms (compile: 5ms, proxy.ts: 6ms, render: 185ms)
+ GET /dashboard/residents 200 in 183ms (compile: 9ms, proxy.ts: 6ms, render: 168ms)
+ GET /dashboard/residents 200 in 159ms (compile: 14ms, proxy.ts: 9ms, render: 136ms)
+ GET /dashboard/residents 200 in 98ms (compile: 5ms, proxy.ts: 8ms, render: 86ms)
+ GET /dashboard/residents 200 in 89ms (compile: 4ms, proxy.ts: 3ms, render: 81ms)
+ GET /dashboard/residents 200 in 94ms (compile: 3ms, proxy.ts: 2ms, render: 88ms)
+ GET /dashboard/residents 200 in 129ms (compile: 5ms, proxy.ts: 3ms, render: 122ms)
+ GET /dashboard/residents 200 in 153ms (compile: 5ms, proxy.ts: 3ms, render: 146ms)
+ GET /dashboard/residents 200 in 202ms (compile: 7ms, proxy.ts: 4ms, render: 190ms)
+ GET /dashboard/residents 200 in 200ms (compile: 12ms, proxy.ts: 3ms, render: 185ms)
+ GET /dashboard/residents 200 in 152ms (compile: 9ms, proxy.ts: 6ms, render: 138ms)
+ GET /dashboard/residents 200 in 127ms (compile: 7ms, proxy.ts: 5ms, render: 115ms)
+ GET /dashboard/residents 200 in 96ms (compile: 5ms, proxy.ts: 4ms, render: 87ms)
+ GET /dashboard/residents 200 in 146ms (compile: 5ms, proxy.ts: 4ms, render: 138ms)
+ GET /dashboard/residents 200 in 174ms (compile: 10ms, proxy.ts: 4ms, render: 160ms)
+ GET /dashboard/residents 200 in 190ms (compile: 7ms, proxy.ts: 8ms, render: 175ms)
+ GET /dashboard/residents 200 in 147ms (compile: 8ms, proxy.ts: 5ms, render: 135ms)
+ GET /dashboard/residents 200 in 138ms (compile: 8ms, proxy.ts: 4ms, render: 126ms)
+ GET /dashboard/residents 200 in 116ms (compile: 7ms, proxy.ts: 6ms, render: 103ms)
+ GET /dashboard/residents 200 in 94ms (compile: 6ms, proxy.ts: 5ms, render: 83ms)
+ GET /dashboard/residents 200 in 90ms (compile: 8ms, proxy.ts: 4ms, render: 78ms)
+ GET /dashboard/residents 200 in 119ms (compile: 7ms, proxy.ts: 4ms, render: 107ms)
+ GET /dashboard/residents 200 in 123ms (compile: 5ms, proxy.ts: 2ms, render: 115ms)
+ GET /dashboard/residents 200 in 101ms (compile: 7ms, proxy.ts: 2ms, render: 93ms)
+ GET /dashboard/residents 200 in 127ms (compile: 7ms, proxy.ts: 3ms, render: 118ms)
+ GET /dashboard/residents 200 in 135ms (compile: 9ms, proxy.ts: 6ms, render: 120ms)
+ GET /dashboard/residents 200 in 138ms (compile: 8ms, proxy.ts: 4ms, render: 126ms)
+ GET /dashboard/residents 200 in 159ms (compile: 11ms, proxy.ts: 7ms, render: 141ms)
+ GET /dashboard/residents 200 in 162ms (compile: 8ms, proxy.ts: 6ms, render: 148ms)
+ GET /dashboard/residents 200 in 146ms (compile: 5ms, proxy.ts: 4ms, render: 137ms)
+ GET /dashboard/residents 200 in 131ms (compile: 5ms, proxy.ts: 3ms, render: 124ms)
+ GET /dashboard/residents 200 in 126ms (compile: 13ms, proxy.ts: 10ms, render: 102ms)
+ GET /dashboard/residents 200 in 113ms (compile: 7ms, proxy.ts: 4ms, render: 103ms)
+ GET /dashboard/residents 200 in 134ms (compile: 7ms, proxy.ts: 3ms, render: 124ms)
+ GET /dashboard/residents 200 in 120ms (compile: 5ms, proxy.ts: 3ms, render: 112ms)
+ GET /dashboard/residents 200 in 156ms (compile: 7ms, proxy.ts: 6ms, render: 142ms)
+ GET /dashboard/residents 200 in 139ms (compile: 10ms, proxy.ts: 7ms, render: 122ms)
+ GET /dashboard/residents 200 in 116ms (compile: 8ms, proxy.ts: 6ms, render: 103ms)
+ GET /dashboard/residents 200 in 100ms (compile: 5ms, proxy.ts: 2ms, render: 93ms)
+ GET /dashboard/residents 200 in 104ms (compile: 6ms, proxy.ts: 5ms, render: 93ms)
+ GET /dashboard/residents 200 in 138ms (compile: 5ms, proxy.ts: 3ms, render: 131ms)
+ GET /dashboard/residents 200 in 149ms (compile: 5ms, proxy.ts: 4ms, render: 140ms)
+ GET /dashboard/residents 200 in 164ms (compile: 6ms, proxy.ts: 4ms, render: 154ms)
+ GET /dashboard/residents 200 in 187ms (compile: 11ms, proxy.ts: 8ms, render: 167ms)
+ GET /dashboard/residents 200 in 164ms (compile: 7ms, proxy.ts: 5ms, render: 152ms)
+ GET /dashboard/residents 200 in 204ms (compile: 6ms, proxy.ts: 3ms, render: 195ms)
+ GET /dashboard/residents 200 in 192ms (compile: 7ms, proxy.ts: 3ms, render: 182ms)
+ GET /dashboard/residents 200 in 180ms (compile: 6ms, proxy.ts: 3ms, render: 171ms)
+ GET /dashboard/residents 200 in 175ms (compile: 14ms, proxy.ts: 8ms, render: 154ms)
+ GET /dashboard/residents 200 in 122ms (compile: 7ms, proxy.ts: 9ms, render: 106ms)
+ GET /dashboard/residents 200 in 122ms (compile: 5ms, proxy.ts: 7ms, render: 110ms)
+ GET /dashboard/residents 200 in 88ms (compile: 7ms, proxy.ts: 6ms, render: 74ms)
+ GET /dashboard/residents 200 in 55ms (compile: 6ms, proxy.ts: 5ms, render: 44ms)
+ GET /dashboard/residents 200 in 28ms (compile: 5ms, proxy.ts: 3ms, render: 21ms)
+✓ Compiled in 172ms
+✓ Compiled in 148ms
+ GET /dashboard/residents 200 in 442ms (compile: 23ms, proxy.ts: 46ms, render: 373ms)
+ GET /dashboard/residents 200 in 81ms (compile: 5ms, proxy.ts: 4ms, render: 73ms)
+ GET /dashboard/establishments 200 in 320ms (compile: 264ms, proxy.ts: 7ms, render: 49ms)
+ GET /dashboard/residents 200 in 37ms (compile: 9ms, proxy.ts: 6ms, render: 22ms)
+✓ Compiled in 213ms
+ GET /dashboard/residents 200 in 267ms (compile: 91ms, proxy.ts: 5ms, render: 172ms)
+ GET /dashboard/residents 200 in 123ms (compile: 20ms, proxy.ts: 13ms, render: 90ms)
+ GET /dashboard/documents?resident_id=019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 140ms (compile: 110ms, proxy.ts: 3ms, render: 27ms)
+ GET /dashboard/residents 200 in 53ms (compile: 7ms, proxy.ts: 10ms, render: 36ms)
+ GET /dashboard/documents?resident_id=019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 41ms (compile: 6ms, proxy.ts: 6ms, render: 30ms)
+✓ Compiled in 105ms
+✓ Compiled in 63ms
+✓ Compiled in 74ms
+✓ Compiled in 111ms
+✓ Compiled in 72ms
+✓ Compiled in 141ms
+✓ Compiled in 116ms
+✓ Compiled in 124ms
+✓ Compiled in 165ms
+✓ Compiled in 101ms
+✓ Compiled in 77ms
+✓ Compiled in 137ms
+✓ Compiled in 82ms
+✓ Compiled in 109ms
+✓ Compiled in 79ms
+✓ Compiled in 107ms
+✓ Compiled in 99ms
+✓ Compiled in 114ms
+✓ Compiled in 148ms
+✓ Compiled in 167ms
+✓ Compiled in 109ms
+✓ Compiled in 80ms
+✓ Compiled in 82ms
+Failed to proxy http://127.0.0.1:8000/api/v1/issued-documents/stats Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+Failed to proxy http://127.0.0.1:8000/api/v1/document-templates?is_active=true&per_page=100&sort_by=sort_order Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+Failed to proxy http://127.0.0.1:8000/api/v1/issued-documents?page=1&per_page=20&sort_by=created_at&sort_dir=desc Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+✓ Compiled in 151ms
+ GET /dashboard 200 in 80ms (compile: 55ms, proxy.ts: 8ms, render: 17ms)
+ GET /dashboard 200 in 164ms (compile: 5ms, proxy.ts: 4ms, render: 155ms)
+ GET /dashboard/establishments 200 in 102ms (compile: 73ms, proxy.ts: 3ms, render: 26ms)
+ GET /dashboard/residents 200 in 104ms (compile: 66ms, proxy.ts: 6ms, render: 31ms)
+ GET /dashboard/residents/019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 143ms (compile: 92ms, proxy.ts: 5ms, render: 46ms)
+ GET /dashboard/residents 200 in 31ms (compile: 5ms, proxy.ts: 4ms, render: 22ms)
+ GET /dashboard/documents?resident_id=019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 98ms (compile: 64ms, proxy.ts: 6ms, render: 28ms)
+✓ Compiled in 149ms
+✓ Compiled in 89ms
+ GET /dashboard/documents?resident_id=019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 222ms (compile: 68ms, proxy.ts: 3ms, render: 150ms)
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload when ./src/app/dashboard/documents/page.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+✓ Compiled in 82ms
+ GET /dashboard/documents?resident_id=019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 208ms (compile: 68ms, proxy.ts: 5ms, render: 134ms)
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+✓ Compiled in 89ms
+ GET /dashboard/documents?resident_id=019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 260ms (compile: 80ms, proxy.ts: 5ms, render: 175ms)
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+✓ Compiled in 110ms
+ GET /dashboard/documents?resident_id=019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 225ms (compile: 70ms, proxy.ts: 5ms, render: 150ms)
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+✓ Compiled in 122ms
+ GET /dashboard/documents?resident_id=019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 256ms (compile: 98ms, proxy.ts: 7ms, render: 151ms)
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+✓ Compiled in 113ms
+ GET /dashboard/documents?resident_id=019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 222ms (compile: 81ms, proxy.ts: 7ms, render: 134ms)
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+✓ Compiled in 80ms
+ GET /dashboard/documents?resident_id=019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 190ms (compile: 46ms, proxy.ts: 5ms, render: 139ms)
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+✓ Compiled in 94ms
+ GET /dashboard/documents?resident_id=019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 182ms (compile: 65ms, proxy.ts: 4ms, render: 113ms)
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+✓ Compiled in 73ms
+ GET /dashboard/documents?resident_id=019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 146ms (compile: 42ms, proxy.ts: 3ms, render: 101ms)
+✓ Compiled in 186ms
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /dashboard/documents?resident_id=019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 246ms (compile: 62ms, proxy.ts: 4ms, render: 180ms)
+✓ Compiled in 96ms
+ GET /dashboard/residents 200 in 174ms (compile: 145ms, proxy.ts: 4ms, render: 25ms)
+ GET /dashboard/settings 200 in 110ms (compile: 90ms, proxy.ts: 5ms, render: 15ms)
+ GET /dashboard/residents 200 in 33ms (compile: 5ms, proxy.ts: 5ms, render: 24ms)
+✓ Compiled in 79ms
+✓ Compiled in 87ms
+✓ Compiled in 133ms
+ GET /dashboard 200 in 117ms (compile: 15ms, proxy.ts: 8ms, render: 95ms)
+✓ Compiled in 218ms
+✓ Compiled in 189ms
+ GET /dashboard/residents 200 in 274ms (compile: 63ms, proxy.ts: 8ms, render: 203ms)
+✓ Compiled in 115ms
+✓ Compiled in 208ms
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /dashboard/residents 200 in 313ms (compile: 122ms, proxy.ts: 13ms, render: 177ms)
+ GET /dashboard/settings 200 in 38ms (compile: 12ms, proxy.ts: 4ms, render: 22ms)
+ GET /dashboard/residents 200 in 50ms (compile: 9ms, proxy.ts: 7ms, render: 34ms)
+ GET /dashboard/residents 200 in 41ms (compile: 7ms, proxy.ts: 4ms, render: 30ms)
+✓ Compiled in 253ms
+✓ Compiled in 188ms
+✓ Compiled in 279ms
+✓ Compiled in 156ms
+✓ Compiled in 346ms
+ GET /dashboard/residents 200 in 286ms (compile: 92ms, proxy.ts: 11ms, render: 184ms)
+✓ Compiled in 129ms
+✓ Compiled in 178ms
+✓ Compiled in 180ms
+✓ Compiled in 304ms
+✓ Compiled in 154ms
+✓ Compiled in 260ms
+✓ Compiled in 94ms
+✓ Compiled in 276ms
+✓ Compiled in 147ms
+ GET /dashboard/residents 200 in 560ms (compile: 167ms, proxy.ts: 9ms, render: 384ms)
+ GET /dashboard/residents/019cf186-173a-71ed-ba76-c8b33084bebd 200 in 191ms (compile: 156ms, proxy.ts: 4ms, render: 31ms)
+ GET /dashboard/residents/019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 61ms (compile: 31ms, proxy.ts: 8ms, render: 22ms)
+ GET /dashboard/residents 200 in 39ms (compile: 5ms, proxy.ts: 6ms, render: 28ms)
+✓ Compiled in 347ms
+✓ Compiled in 170ms
+✓ Compiled in 190ms
+✓ Compiled in 146ms
+✓ Compiled in 220ms
+ GET /dashboard/residents 200 in 309ms (compile: 113ms, proxy.ts: 9ms, render: 187ms)
+ GET /dashboard/residents/019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 44ms (compile: 13ms, proxy.ts: 2ms, render: 29ms)
+✓ Compiled in 262ms
+✓ Compiled in 181ms
+✓ Compiled in 301ms
+ GET /dashboard/residents 200 in 313ms (compile: 109ms, proxy.ts: 5ms, render: 199ms)
+✓ Compiled in 97ms
+✓ Compiled in 107ms
+✓ Compiled in 152ms
+✓ Compiled in 285ms
+✓ Compiled in 102ms
+ GET /dashboard/residents/019cf1c0-b0eb-7247-a214-5c94aa5a7e44 200 in 93ms (compile: 27ms, proxy.ts: 3ms, render: 62ms)
+ GET /dashboard/residents 200 in 103ms (compile: 69ms, proxy.ts: 5ms, render: 29ms)
+ GET /dashboard/residents/019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 63ms (compile: 21ms, proxy.ts: 8ms, render: 34ms)
+ GET /dashboard/residents?edit=019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 28ms (compile: 5ms, proxy.ts: 3ms, render: 20ms)
+ GET /dashboard/residents 200 in 43ms (compile: 6ms, proxy.ts: 4ms, render: 34ms)
+ GET /dashboard/residents/019cf1bc-4a3b-701d-a866-9c0906e3193d 200 in 63ms (compile: 15ms, proxy.ts: 4ms, render: 43ms)
+✓ Compiled in 153ms
+✓ Compiled in 171ms
+✓ Compiled in 116ms
+✓ Compiled in 141ms
+✓ Compiled in 183ms
+✓ Compiled in 183ms
+ GET /dashboard/residents/019cf1bc-4a3b-701d-a866-9c0906e3193d 200 in 282ms (compile: 95ms, proxy.ts: 5ms, render: 181ms)
+ GET /dashboard/establishments 200 in 149ms (compile: 103ms, proxy.ts: 7ms, render: 39ms)
+✓ Compiled in 105ms
+✓ Compiled in 221ms
+✓ Compiled in 203ms
+ GET /dashboard/residents 200 in 111ms (compile: 76ms, proxy.ts: 5ms, render: 29ms)
+✓ Compiled in 218ms
+✓ Compiled in 168ms
+ GET /dashboard/residents 200 in 184ms (compile: 5ms, proxy.ts: 3ms, render: 176ms)
+ GET /dashboard/residents 200 in 80ms (compile: 5ms, proxy.ts: 4ms, render: 71ms)
+ GET /dashboard/residents/019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 169ms (compile: 121ms, proxy.ts: 3ms, render: 44ms)
+✓ Compiled in 90ms
+✓ Compiled in 274ms
+✓ Compiled in 117ms
+ GET /dashboard/residents/019cf174-f143-71b1-90ff-b558dc8fcb0f 200 in 410ms (compile: 87ms, proxy.ts: 7ms, render: 316ms)
+ GET /dashboard/residents 200 in 140ms (compile: 96ms, proxy.ts: 5ms, render: 39ms)
+ GET /dashboard/residents/019cf1bc-4a3b-701d-a866-9c0906e3193d 200 in 76ms (compile: 22ms, proxy.ts: 7ms, render: 47ms)
+ GET /dashboard/establishments 200 in 114ms (compile: 78ms, proxy.ts: 8ms, render: 28ms)
+✓ Compiled in 86ms
+✓ Compiled in 250ms
+✓ Compiled in 148ms
+✓ Compiled in 101ms
+✓ Compiled in 83ms
+✓ Compiled in 78ms
+✓ Compiled in 99ms
+✓ Compiled in 121ms
+✓ Compiled in 107ms
+✓ Compiled in 117ms
+✓ Compiled in 112ms
+✓ Compiled in 112ms
+✓ Compiled in 89ms
+✓ Compiled in 140ms
+✓ Compiled in 96ms
+✓ Compiled in 97ms
+✓ Compiled in 177ms
+✓ Compiled in 116ms
+✓ Compiled in 109ms
+✓ Compiled in 91ms
+✓ Compiled in 73ms
+✓ Compiled in 82ms
+✓ Compiled in 95ms
+✓ Compiled in 95ms
+✓ Compiled in 131ms
+ GET /dashboard/establishments 200 in 704ms (compile: 118ms, proxy.ts: 4ms, render: 583ms)
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+⚠ Fast Refresh had to perform a full reload when ./src/app/dashboard/establishments/page.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+✓ Compiled in 86ms
+ GET /dashboard/establishments 200 in 260ms (compile: 127ms, proxy.ts: 3ms, render: 130ms)
+✓ Compiled in 85ms
+✓ Compiled in 191ms
+✓ Compiled in 110ms
+✓ Compiled in 87ms
+✓ Compiled in 117ms
+ GET /dashboard/establishments 200 in 327ms (compile: 140ms, proxy.ts: 8ms, render: 179ms)
+✓ Compiled in 110ms
+✓ Compiled in 161ms
+✓ Compiled in 100ms
+✓ Compiled in 108ms
+✓ Compiled in 132ms
+✓ Compiled in 115ms
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+✓ Compiled in 111ms
+ GET /dashboard/establishments 200 in 217ms (compile: 78ms, proxy.ts: 3ms, render: 136ms)
+✓ Compiled in 103ms
+✓ Compiled in 90ms
+✓ Compiled in 107ms
+✓ Compiled in 89ms
+✓ Compiled in 100ms
+✓ Compiled in 100ms
+✓ Compiled in 90ms
+✓ Compiled in 110ms
+✓ Compiled in 107ms
+✓ Compiled in 110ms
+✓ Compiled in 204ms
+✓ Compiled in 146ms
+✓ Compiled in 103ms
+✓ Compiled in 103ms
+✓ Compiled in 121ms
+✓ Compiled in 111ms
+✓ Compiled in 90ms
+✓ Compiled in 142ms
+✓ Compiled in 119ms
+✓ Compiled in 105ms
+✓ Compiled in 147ms
+✓ Compiled in 90ms
+✓ Compiled in 75ms
+ GET /dashboard/settings 200 in 162ms (compile: 117ms, proxy.ts: 4ms, render: 41ms)
+ GET /dashboard/establishments 200 in 122ms (compile: 70ms, proxy.ts: 9ms, render: 44ms)
+✓ Compiled in 140ms
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+✓ Compiled in 100ms
+ GET /dashboard/establishments 200 in 325ms (compile: 91ms, proxy.ts: 3ms, render: 231ms)
+✓ Compiled in 105ms
+✓ Compiled in 111ms
+✓ Compiled in 113ms
+✓ Compiled in 127ms
+✓ Compiled in 75ms
+✓ Compiled in 82ms
+✓ Compiled in 78ms
+✓ Compiled in 75ms
+✓ Compiled in 110ms
+✓ Compiled in 130ms
+✓ Compiled in 128ms
+✓ Compiled in 138ms
+✓ Compiled in 96ms
+✓ Compiled in 110ms
+✓ Compiled in 134ms
+✓ Compiled in 106ms
+✓ Compiled in 106ms
+✓ Compiled in 87ms
+✓ Compiled in 134ms
+✓ Compiled in 112ms
+✓ Compiled in 171ms
+✓ Compiled in 141ms
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+✓ Compiled in 114ms
+ GET /dashboard/establishments 200 in 312ms (compile: 89ms, proxy.ts: 4ms, render: 218ms)
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+✓ Compiled in 115ms
+ GET /dashboard/establishments 200 in 230ms (compile: 81ms, proxy.ts: 5ms, render: 144ms)
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+✓ Compiled in 104ms
+ GET /dashboard/establishments 200 in 287ms (compile: 89ms, proxy.ts: 7ms, render: 191ms)
+✓ Compiled in 207ms
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /dashboard/establishments 200 in 318ms (compile: 167ms, proxy.ts: 13ms, render: 139ms)
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+✓ Compiled in 102ms
+ GET /dashboard/establishments 200 in 234ms (compile: 79ms, proxy.ts: 4ms, render: 150ms)
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+✓ Compiled in 99ms
+ GET /dashboard/establishments 200 in 253ms (compile: 94ms, proxy.ts: 4ms, render: 155ms)
+✓ Compiled in 139ms
+✓ Compiled in 92ms
+✓ Compiled in 97ms
+✓ Compiled in 128ms
+✓ Compiled in 119ms
+✓ Compiled in 124ms
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+✓ Compiled in 157ms
+ GET /dashboard/establishments 200 in 352ms (compile: 101ms, proxy.ts: 5ms, render: 246ms)
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+✓ Compiled in 153ms
+ GET /dashboard/establishments 200 in 281ms (compile: 104ms, proxy.ts: 6ms, render: 171ms)
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+✓ Compiled in 114ms
+ GET /dashboard/establishments 200 in 266ms (compile: 74ms, proxy.ts: 4ms, render: 188ms)
+✓ Compiled in 125ms
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /dashboard/establishments 200 in 250ms (compile: 95ms, proxy.ts: 6ms, render: 149ms)
+✓ Compiled in 86ms
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /dashboard/establishments 200 in 400ms (compile: 189ms, proxy.ts: 11ms, render: 200ms)
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+✓ Compiled in 106ms
+ GET /dashboard/establishments 200 in 304ms (compile: 156ms, proxy.ts: 7ms, render: 141ms)
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+✓ Compiled in 155ms
+ GET /dashboard/establishments 200 in 283ms (compile: 127ms, proxy.ts: 6ms, render: 150ms)
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
+✓ Compiled in 190ms
+ GET /dashboard/establishments 200 in 272ms (compile: 95ms, proxy.ts: 8ms, render: 169ms)
+✓ Compiled in 118ms
+✓ Compiled in 167ms
+✓ Compiled in 129ms
+✓ Compiled in 138ms
+✓ Compiled in 120ms
+✓ Compiled in 163ms
+✓ Compiled in 223ms
+✓ Compiled in 105ms
+✓ Compiled in 109ms
+✓ Compiled in 144ms
+✓ Compiled in 122ms
+✓ Compiled in 110ms
+✓ Compiled in 139ms
+ GET /dashboard/establishments 200 in 303ms (compile: 141ms, proxy.ts: 8ms, render: 154ms)
+✓ Compiled in 211ms
+✓ Compiled in 125ms
+✓ Compiled in 212ms
+✓ Compiled in 167ms
+ GET /dashboard/establishments 200 in 211ms (compile: 86ms, proxy.ts: 3ms, render: 122ms)
+ GET /dashboard/establishments 200 in 76ms (compile: 5ms, proxy.ts: 5ms, render: 66ms)
+✓ Compiled in 137ms
+✓ Compiled in 105ms
+✓ Compiled in 106ms
+✓ Compiled in 150ms
+✓ Compiled in 130ms
+ GET /dashboard/lots-buildings 200 in 1515ms (compile: 1469ms, proxy.ts: 6ms, render: 40ms)
+✓ Compiled in 132ms
+✓ Compiled in 107ms
+[@sentry/nextjs] DEPRECATION WARNING: disableLogger is deprecated and will be removed in a future version. Use webpack.treeshake.removeDebugLogging instead. (Not supported with Turbopack.)
+[?25h
+ ELIFECYCLE  Command failed with exit code 4294967295.
