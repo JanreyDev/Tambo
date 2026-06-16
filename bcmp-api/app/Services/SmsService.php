@@ -1,0 +1,312 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services;
+
+use App\Models\Admin\Barangay;
+use App\Models\Platform\SmsTransaction;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+
+class SmsService
+{
+    /**
+     * Default chars per SMS segment (GSM standard).
+     * Cost and segment size configurable via config('bcmp.sms.*').
+     */
+    private const DEFAULT_COST_PER_SEGMENT = 0.50;
+
+    private const DEFAULT_CHARS_PER_SEGMENT = 159;
+
+    /**
+     * Monthly sender name reservation fee per barangay (PHP pesos).
+     * Charged automatically on the 1st of each month.
+     */
+    public const MONTHLY_SENDER_NAME_FEE = 300.00;
+
+    /**
+     * Calculate the number of SMS segments for a message.
+     */
+    public static function calculateSegments(string $message): int
+    {
+        $length = mb_strlen($message);
+        $charsPerSegment = (int) config('bcmp.sms.chars_per_segment', self::DEFAULT_CHARS_PER_SEGMENT);
+
+        return $length === 0 ? 1 : (int) ceil($length / $charsPerSegment);
+    }
+
+    /**
+     * Calculate the cost of sending an SMS based on message length.
+     */
+    public static function calculateCost(string $message): float
+    {
+        return self::calculateSegments($message) * self::costPerSegment();
+    }
+
+    /**
+     * Get the cost per SMS segment.
+     */
+    public static function costPerSegment(): float
+    {
+        return (float) config('bcmp.sms.cost_per_segment', self::DEFAULT_COST_PER_SEGMENT);
+    }
+
+    /**
+     * Send an SMS via TxtBox API.
+     * Calculates cost based on message segments (ceil(length/160) * 0.50).
+     * Logs every SMS to sms_transactions table.
+     * Deducts SMS credit from barangay balance on success.
+     *
+     * @param  string  $source  Source context (e.g., 'phone_verification', 'password_reset', 'notification')
+     * @param  string|null  $sourceId  Related entity UUID (e.g., user_id, resident_id)
+     */
+    public function send(
+        string $phone,
+        string $message,
+        ?Barangay $barangay = null,
+        string $source = 'manual',
+        ?string $sourceId = null,
+    ): bool {
+        $cost = self::calculateCost($message);
+        $segments = self::calculateSegments($message);
+        $normalizedPhone = $this->normalizePhone($phone);
+        $maskedPhone = substr($normalizedPhone, 0, 4).'****'.substr($normalizedPhone, -2);
+
+        // Check SMS credits if barangay provided
+        if ($barangay && ! $barangay->hasSmsCredits($cost)) {
+            Log::warning('SMS not sent: insufficient SMS credits', [
+                'barangay_id' => $barangay->id,
+                'balance' => $barangay->sms_credit_balance,
+                'required' => $cost,
+                'segments' => $segments,
+            ]);
+
+            // Log the failed attempt
+            $this->logTransaction($barangay, $normalizedPhone, $message, $cost, $source, $sourceId, 'failed', [
+                'reason' => 'insufficient_credits',
+                'balance' => (float) $barangay->sms_credit_balance,
+            ]);
+
+            return false;
+        }
+
+        $apiKey = config('services.txtbox.api_key');
+
+        if (! $apiKey) {
+            Log::warning('TxtBox API key not configured, SMS not sent', [
+                'phone' => $maskedPhone,
+            ]);
+
+            $this->logTransaction($barangay, $normalizedPhone, $message, $cost, $source, $sourceId, 'failed', [
+                'reason' => 'api_key_not_configured',
+            ]);
+
+            return false;
+        }
+
+        try {
+            $response = Http::withHeaders([
+                'X-TXTBOX-Auth' => $apiKey,
+            ])->post(config('services.txtbox.url'), [
+                'message' => $message,
+                'number' => $normalizedPhone,
+            ]);
+
+            if ($response->successful()) {
+                // Deduct SMS credit on successful send
+                if ($barangay) {
+                    $barangay->deductSmsCredit($cost);
+                }
+
+                // Log successful transaction
+                $this->logTransaction($barangay, $normalizedPhone, $message, $cost, $source, $sourceId, 'sent', [
+                    'provider' => 'txtbox',
+                    'segments' => $segments,
+                    'response_status' => $response->status(),
+                ]);
+
+                Log::info('SMS sent successfully', [
+                    'phone' => $maskedPhone,
+                    'barangay_id' => $barangay?->id,
+                    'segments' => $segments,
+                    'cost' => $cost,
+                    'remaining_balance' => $barangay?->fresh()?->sms_credit_balance,
+                    'source' => $source,
+                ]);
+
+                return true;
+            }
+
+            // Log failed transaction
+            $this->logTransaction($barangay, $normalizedPhone, $message, $cost, $source, $sourceId, 'failed', [
+                'provider' => 'txtbox',
+                'response_status' => $response->status(),
+                'response_body' => $response->body(),
+            ]);
+
+            Log::error('SMS send failed', [
+                'phone' => $maskedPhone,
+                'status' => $response->status(),
+                'body' => $response->body(),
+                'source' => $source,
+            ]);
+
+            return false;
+        } catch (\Throwable $e) {
+            $this->logTransaction($barangay, $normalizedPhone, $message, $cost, $source, $sourceId, 'failed', [
+                'reason' => 'exception',
+                'error' => $e->getMessage(),
+            ]);
+
+            Log::error('SMS send exception', [
+                'phone' => $maskedPhone,
+                'error' => $e->getMessage(),
+                'source' => $source,
+            ]);
+
+            return false;
+        }
+    }
+
+    /**
+     * Generate and send an OTP code.
+     * Deducts SMS credit from barangay if provided.
+     *
+     * @return string|null The generated OTP code, or null if send failed
+     */
+    public function sendOtp(string $phone, string $purpose = 'verification', ?Barangay $barangay = null, ?string $sourceId = null): ?string
+    {
+        $otp = (string) random_int(100000, 999999);
+
+        $message = match ($purpose) {
+            'phone_verification' => "[Kapitan] Your phone verification code is {$otp}. Valid for 5 minutes. Do not share this code with anyone.",
+            'password_reset' => "[Kapitan] Your password reset code is {$otp}. Valid for 5 minutes. Do not share this code with anyone. If you did not request this, ignore this message.",
+            'login_2fa' => "[Kapitan] Your login verification code is {$otp}. Valid for 5 minutes. Do not share this code with anyone. Secure your account if not requested.",
+            default => "[Kapitan] Your verification code is {$otp}. Valid for 5 minutes. Do not share this code with anyone.",
+        };
+
+        $sent = $this->send($phone, $message, $barangay, $purpose, $sourceId);
+
+        if (! $sent) {
+            return null;
+        }
+
+        // Store OTP in cache with 5-minute TTL (only after successful send)
+        $cacheKey = "otp:{$purpose}:{$this->normalizePhone($phone)}";
+        Cache::put($cacheKey, $otp, now()->addMinutes(5));
+
+        return $otp;
+    }
+
+    /**
+     * Verify an OTP code.
+     */
+    public function verifyOtp(string $phone, string $code, string $purpose = 'verification'): bool
+    {
+        $cacheKey = "otp:{$purpose}:{$this->normalizePhone($phone)}";
+        $storedOtp = Cache::get($cacheKey);
+
+        if (! $storedOtp || $storedOtp !== $code) {
+            return false;
+        }
+
+        // Delete used OTP
+        Cache::forget($cacheKey);
+
+        return true;
+    }
+
+    /**
+     * Format an SMS message body with barangay sender name header.
+     * Example output:
+     *   BARANGAY
+     *   TAMBO
+     *
+     *   Your registration has been confirmed.
+     */
+    public static function formatWithSenderHeader(string $message, ?Barangay $barangay = null): string
+    {
+        if (! $barangay) {
+            return $message;
+        }
+
+        $senderName = mb_strtoupper(trim($barangay->sms_sender_name ?? ''));
+        $barangayName = mb_strtoupper(trim($barangay->name));
+
+        if ($senderName === '') {
+            // Fallback: use "BARANGAY\n{NAME}" if no custom sender name
+            return "BARANGAY\n{$barangayName}\n\n{$message}";
+        }
+
+        // Avoid duplicate when sender name equals barangay name (e.g., both "TAMBO")
+        if ($senderName === $barangayName) {
+            return "BARANGAY {$barangayName}\n\n{$message}";
+        }
+
+        return "{$senderName}\nBRGY. {$barangayName}\n\n{$message}";
+    }
+
+    /**
+     * Normalize Philippine phone number to 09XXXXXXXXX format.
+     */
+    public function normalizePhone(string $phone): string
+    {
+        // Remove spaces, dashes, parentheses
+        $phone = preg_replace('/[\s\-\(\)]/', '', $phone);
+
+        // Convert +63 to 0
+        if (str_starts_with($phone, '+63')) {
+            $phone = '0'.substr($phone, 3);
+        }
+
+        // Convert 63 (without +) to 0
+        if (str_starts_with($phone, '63') && strlen($phone) === 12) {
+            $phone = '0'.substr($phone, 2);
+        }
+
+        return $phone;
+    }
+
+    /**
+     * Log every SMS activity to sms_transactions table.
+     * Sets tenant context for RLS if barangay is provided.
+     */
+    private function logTransaction(
+        ?Barangay $barangay,
+        string $phone,
+        string $message,
+        float $cost,
+        string $source,
+        ?string $sourceId,
+        string $status,
+        array $providerResponse = [],
+    ): void {
+        try {
+            // Set tenant context for RLS
+            if ($barangay && DB::getDriverName() === 'pgsql') {
+                DB::statement("SET app.current_barangay_id = '{$barangay->id}'");
+            }
+
+            SmsTransaction::create([
+                'barangay_id' => $barangay?->id,
+                'recipient_phone' => $phone,
+                'message' => $message,
+                'credit_cost' => $cost,
+                'source' => $source,
+                'source_id' => $sourceId,
+                'status' => $status,
+                'provider_response' => $providerResponse,
+            ]);
+        } catch (\Throwable $e) {
+            // Never let logging failure break SMS flow
+            Log::error('Failed to log SMS transaction', [
+                'error' => $e->getMessage(),
+                'phone' => substr($phone, 0, 4).'****',
+                'source' => $source,
+            ]);
+        }
+    }
+}
