@@ -681,6 +681,18 @@ function PersonalInfoTab({
 
       <Divider />
 
+      {/* Parent/Guardian Details — only shown for minors */}
+      {r.date_of_birth && typeof age(r.date_of_birth) === "number" && (age(r.date_of_birth) as number) < 18 && (
+        <>
+          <Section title="Parent / Guardian Information" icon={<User className="h-4 w-4" />}>
+            <Field label="Guardian Name" value={r.guardian_name ? cap(r.guardian_name) : null} wide />
+            <Field label="Relationship" value={r.guardian_relationship ? cap(r.guardian_relationship) : null} />
+            <Field label="Contact Number" value={r.guardian_phone || null} />
+          </Section>
+          <Divider />
+        </>
+      )}
+
       {/* Contact & Address */}
       <Section title="Contact & Address" icon={<Phone className="h-4 w-4" />}>
         <Field label="Mobile" value={r.mobile_number} icon={<Phone className="h-3 w-3" />} />

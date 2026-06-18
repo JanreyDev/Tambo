@@ -125,6 +125,11 @@ class Resident extends Model
         'emergency_contact_address',
         'emergency_contact_relationship',
 
+        // Guardian for minors
+        'guardian_name',
+        'guardian_relationship',
+        'guardian_phone',
+
         // Status
         'is_head_of_household',
         'household_id',

@@ -502,6 +502,9 @@ export interface ResidentDetail extends ResidentSummary {
   pwd_id: string | null;
   pwd_id_expiry: string | null;
   senior_citizen_id: string | null;
+  guardian_name: string | null;
+  guardian_relationship: string | null;
+  guardian_phone: string | null;
   registration_source: string | null;
   import_batch_id: string | null;
   updated_at: string;

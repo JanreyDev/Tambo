@@ -37,6 +37,14 @@ describe("residentSchema", () => {
       if (!result.ok) expect(result.errors.sex).toBeTruthy();
     });
 
+    it("accepts all valid sex / gender values", () => {
+      const genders = ["M", "F", "male", "female", "Male", "Female", "Lesbian", "Gay", "Bisexual", "Transgender", "Queer", "Intersex", "Other", "Prefer not to say"];
+      for (const sex of genders) {
+        const result = validateResident({ ...validResident, sex });
+        expect(result.ok, `sex="${sex}" should validate`).toBe(true);
+      }
+    });
+
     it("rejects malformed date_of_birth", () => {
       const result = validateResident({ ...validResident, date_of_birth: "not-a-date" });
       expect(result.ok).toBe(false);
@@ -183,6 +191,43 @@ describe("residentSchema", () => {
       // Compile-time check: parse() should succeed on minimum-valid input
       const parsed = residentSchema.safeParse(validResident);
       expect(parsed.success).toBe(true);
+    });
+  });
+
+  describe("minor guardian validation", () => {
+    it("accepts an adult (18+) with missing guardian fields", () => {
+      const result = validateResident({
+        ...validResident,
+        date_of_birth: "2000-01-01",
+        guardian_name: "",
+        guardian_relationship: "",
+      });
+      expect(result.ok).toBe(true);
+    });
+
+    it("rejects a minor (<18) with missing guardian fields", () => {
+      const result = validateResident({
+        ...validResident,
+        date_of_birth: "2015-01-01",
+        guardian_name: "",
+        guardian_relationship: "",
+      });
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.errors.guardian_name).toBe("Guardian name is required for minors.");
+        expect(result.errors.guardian_relationship).toBe("Guardian relationship is required for minors.");
+      }
+    });
+
+    it("accepts a minor (<18) with complete guardian fields", () => {
+      const result = validateResident({
+        ...validResident,
+        date_of_birth: "2015-01-01",
+        guardian_name: "Jane Doe",
+        guardian_relationship: "Mother",
+        guardian_phone: "09171234567",
+      });
+      expect(result.ok).toBe(true);
     });
   });
 

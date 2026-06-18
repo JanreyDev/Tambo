@@ -31,11 +31,12 @@ const optionalDate = z
     message: "Date must be in YYYY-MM-DD format.",
   });
 
-const requiredName = z
-  .string({ message: "Required" })
-  .trim()
-  .min(1, "Required")
-  .max(100, "Maximum 100 characters");
+const requiredField = (fieldLabel: string) =>
+  z
+    .string({ message: `${fieldLabel} is required` })
+    .trim()
+    .min(1, `${fieldLabel} is required`)
+    .max(100, "Maximum 100 characters");
 
 const phMobile = z
   .string()
@@ -84,9 +85,19 @@ const numericString = (label: string, opts?: { min?: number; max?: number }) =>
 export const residentSchema = z
   .object({
     // Required identity
-    first_name: requiredName,
-    last_name: requiredName,
-    sex: z.enum(["M", "F", "male", "female", "Male", "Female"], {
+    first_name: requiredField("First Name"),
+    last_name: requiredField("Last Name"),
+    sex: z.enum([
+      "M", "F", "male", "female", "Male", "Female",
+      "Lesbian", "lesbian",
+      "Gay", "gay",
+      "Bisexual", "bisexual",
+      "Transgender", "transgender",
+      "Queer", "queer",
+      "Intersex", "intersex",
+      "Other", "other",
+      "Prefer not to say", "prefer not to say"
+    ], {
       message: "Sex is required.",
     }),
     date_of_birth: z
@@ -95,7 +106,7 @@ export const residentSchema = z
       .refine((v) => /^\d{4}-\d{2}-\d{2}/.test(v), {
         message: "Date must be in YYYY-MM-DD format.",
       }),
-    place_of_birth: requiredName,
+    place_of_birth: requiredField("Place of Birth"),
     civil_status: z.enum(
       [
         "Single",
@@ -174,6 +185,11 @@ export const residentSchema = z
     emergency_contact_phone: phMobile,
     emergency_contact_address: optionalString,
 
+    // Guardian info for minors
+    guardian_name: optionalString,
+    guardian_relationship: optionalString,
+    guardian_phone: phMobile,
+
     // Notes
     health_history: optionalString,
     other_remarks: optionalString,
@@ -189,7 +205,38 @@ export const residentSchema = z
     transferred_date: optionalDate,
     deceased_date: optionalDate,
   })
-  .catchall(z.unknown());
+  .catchall(z.unknown())
+  .superRefine((data, ctx) => {
+    if (data.date_of_birth) {
+      // Calculate age
+      const birthDate = new Date(data.date_of_birth);
+      if (!isNaN(birthDate.getTime())) {
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const m = today.getMonth() - birthDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+          age--;
+        }
+        
+        if (age < 18) {
+          if (!data.guardian_name) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ["guardian_name"],
+              message: "Guardian name is required for minors.",
+            });
+          }
+          if (!data.guardian_relationship) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ["guardian_relationship"],
+              message: "Guardian relationship is required for minors.",
+            });
+          }
+        }
+      }
+    }
+  });
 
 export type ResidentForm = z.infer<typeof residentSchema>;
 

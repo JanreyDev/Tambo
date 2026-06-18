@@ -974,6 +974,11 @@ class ResidentController extends Controller
             'emergency_contact_address' => ['nullable', 'string', 'max:1000'],
             'emergency_contact_relationship' => ['nullable', 'string', 'max:50'],
 
+            // Guardian for minors
+            'guardian_name' => ['nullable', 'string', 'max:200'],
+            'guardian_relationship' => ['nullable', 'string', 'max:50'],
+            'guardian_phone' => ['nullable', 'string', 'max:20'],
+
             // Biometric file references (upload via POST /api/v1/files first)
             'photo_file_id' => ['nullable', 'uuid', 'exists:files,id'],
             'signature_file_id' => ['nullable', 'uuid', 'exists:files,id'],

@@ -782,7 +782,7 @@ export default function ResidentsPage() {
   const updateForm = (key: string, value: string | boolean) => {
     let v = value;
     // Auto-format Philippine mobile number
-    if (key === "mobile_number" && typeof v === "string") {
+    if (["mobile_number", "guardian_phone", "emergency_contact_phone"].includes(key) && typeof v === "string") {
       v = formatPHMobile(v);
     }
     // Use functional setState so async callers (geocoding, map pin) never overwrite
@@ -794,8 +794,8 @@ export default function ResidentsPage() {
     // Clear field error on change
     if (formErrors[key]) setFormErrors((prev) => { const n = { ...prev }; delete n[key]; return n; });
     // Real-time validation for mobile/email
-    if (key === "mobile_number" && typeof v === "string" && v.replace(/\s/g, "").length === 11) {
-      if (!isValidPHMobile(v)) setFormErrors((prev) => ({ ...prev, mobile_number: "Must be a valid PH mobile number (09XX XXX XXXX)" }));
+    if (["mobile_number", "guardian_phone", "emergency_contact_phone"].includes(key) && typeof v === "string" && v.replace(/\s/g, "").length === 11) {
+      if (!isValidPHMobile(v)) setFormErrors((prev) => ({ ...prev, [key]: "Must be a valid PH mobile number (09XX XXX XXXX)" }));
     }
     if (key === "email" && typeof v === "string" && v.length > 0) {
       if (!isValidEmail(v)) setFormErrors((prev) => ({ ...prev, email: "Must be a valid email address" }));
@@ -896,6 +896,8 @@ export default function ResidentsPage() {
       "telephone",
       // Voter & Household
       "voter_precinct_number", "last_voted_year", "relationship_to_head",
+      // Guardian details for minors
+      "guardian_name", "guardian_relationship", "guardian_phone",
     ];
     for (const key of directFields) {
       const val = f(key);
@@ -1047,6 +1049,12 @@ export default function ResidentsPage() {
       if (!v) return "";
       return String(v).toUpperCase();
     };
+    const sexMap: Record<string, string> = {
+      male: "Male", female: "Female",
+      lesbian: "Lesbian", gay: "Gay", bisexual: "Bisexual",
+      transgender: "Transgender", queer: "Queer", intersex: "Intersex",
+      other: "Other", "prefer not to say": "Prefer not to say",
+    };
     const civilStatusMap: Record<string, string> = {
       single: "Single", married: "Married", widowed: "Widowed",
       separated: "Separated", divorced: "Divorced", annulled: "Annulled",
@@ -1079,11 +1087,14 @@ export default function ResidentsPage() {
       emergency_contact_name: upper(r.emergency_contact_name),
       emergency_contact_address: upper(r.emergency_contact_address),
       emergency_contact_relationship: upper(r.emergency_contact_relationship),
+      guardian_name: upper(r.guardian_name),
+      guardian_relationship: cap(r.guardian_relationship),
+      guardian_phone: upper(r.guardian_phone),
       house_block_lot: upper((r as unknown as Record<string, unknown>).house_block_lot),
       street: upper((r as unknown as Record<string, unknown>).street),
       purok: upper((r as unknown as Record<string, unknown>).purok),
       // Normalize enums to title-case to match FSelect options
-      sex: cap(r.sex),
+      sex: sexMap[String(r.sex || "").toLowerCase()] || cap(r.sex),
       civil_status: civilStatusMap[String(r.civil_status || "").toLowerCase()] || cap(r.civil_status),
       resident_type: residentTypeMap[String(r.resident_type || "").toLowerCase()] || cap(r.resident_type),
       // Normalize all date fields: strip ISO time component → YYYY-MM-DD
@@ -1367,6 +1378,46 @@ export default function ResidentsPage() {
                         options={[{ value: "yes", label: "Yes" }, { value: "no", label: "No" }]}
                         onChange={(n, v) => updateForm(n, v === "yes")} />
                     </div>
+
+                    {/* Parent / Guardian Information — only rendered if resident is a minor (<18) */}
+                    {(() => {
+                      const age = getAgeFromDob(f("date_of_birth"));
+                      return age !== null && age < 18;
+                    })() && (
+                      <div className="rounded-xl border border-border bg-blue-50/20 dark:bg-blue-950/5 p-4 space-y-3">
+                        <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Parent / Guardian / Beneficiary Information</p>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <FInput
+                            label="Parent / Guardian Name"
+                            name="guardian_name"
+                            required
+                            placeholder="e.g. Maria Dela Cruz"
+                            value={f("guardian_name")}
+                            onChange={updateForm}
+                            error={formErrors.guardian_name}
+                          />
+                          <FSelect
+                            label="Relationship to Minor"
+                            name="guardian_relationship"
+                            required
+                            options={["", "Mother", "Father", "Grandparent", "Sibling", "Legal Guardian", "Other Relative"]}
+                            value={f("guardian_relationship")}
+                            onChange={updateForm}
+                            error={formErrors.guardian_relationship}
+                          />
+                          <FInput
+                            label="Guardian Contact No."
+                            name="guardian_phone"
+                            type="tel"
+                            placeholder="09XX XXX XXXX"
+                            value={f("guardian_phone")}
+                            onChange={updateForm}
+                            maxLength={13}
+                            error={formErrors.guardian_phone}
+                          />
+                        </div>
+                      </div>
+                    )}
                     {/* Record Status — edit mode only */}
                     {mode === "edit" && (
                       <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 space-y-3">
@@ -2555,12 +2606,20 @@ export default function ResidentsPage() {
                       <td className="px-4 py-3.5 text-center">
                         {r.sex ? (
                           <span className={cn(
-                            "inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium",
-                            r.sex === "male"
+                            "inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium capitalize",
+                            r.sex.toLowerCase() === "male"
                               ? "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"
-                              : "bg-pink-50 text-pink-700 dark:bg-pink-950/40 dark:text-pink-300"
+                              : r.sex.toLowerCase() === "female"
+                                ? "bg-pink-50 text-pink-700 dark:bg-pink-950/40 dark:text-pink-300"
+                                : ["lesbian", "gay", "bisexual", "transgender", "queer", "intersex"].includes(r.sex.toLowerCase())
+                                  ? "bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300"
+                                  : "bg-slate-50 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300"
                           )}>
-                            {r.sex === "male" ? t.residents.sex.male : t.residents.sex.female}
+                            {r.sex.toLowerCase() === "male"
+                              ? t.residents.sex.male
+                              : r.sex.toLowerCase() === "female"
+                                ? t.residents.sex.female
+                                : r.sex}
                           </span>
                         ) : (
                           <span className="text-sm text-muted-foreground">—</span>
@@ -2850,6 +2909,30 @@ export default function ResidentsPage() {
                 </div>
               </div>
             </div>
+
+            {/* Guardian Info for Minors */}
+            {(() => {
+              const age = getAgeFromDob(viewResident.date_of_birth);
+              return age !== null && age < 18;
+            })() && (
+              <div className="mt-3 p-3.5 rounded-xl bg-muted/40 dark:bg-slate-800/40 space-y-2.5">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Parent / Guardian Information</p>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <span className="text-[10px] text-muted-foreground block">Guardian Name</span>
+                    <span className="text-sm font-semibold text-foreground truncate block">{viewResident.guardian_name || "—"}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-muted-foreground block">Relationship</span>
+                    <span className="text-sm font-semibold text-foreground truncate block capitalize">{viewResident.guardian_relationship || "—"}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-muted-foreground block">Contact Number</span>
+                    <span className="text-sm font-semibold text-foreground truncate block">{viewResident.guardian_phone || "—"}</span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Sectoral tags */}
             {(viewResident.sectoral_tags?.length ?? 0) > 0 && (
