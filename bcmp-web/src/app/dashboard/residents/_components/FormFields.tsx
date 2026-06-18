@@ -395,7 +395,7 @@ export function FCombobox({
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const trimmed = query.trim();
-  const sorted = [...entries].sort((a, b) => b.count - a.count);
+  const sorted = [...entries].sort((a, b) => a.canonical.localeCompare(b.canonical));
 
   const matched = trimmed
     ? sorted.map((e) => {
@@ -403,7 +403,7 @@ export function FCombobox({
         const sim = similarity(trimmed, e.canonical);
         const aliasMatch = e.aliases.some((a) => similarity(trimmed, a) > 0.6);
         return { ...e, score: sub ? 1 : Math.max(sim, aliasMatch ? 0.7 : 0), sim };
-      }).filter((e) => e.score > 0.35).sort((a, b) => b.score - a.score || b.count - a.count)
+      }).filter((e) => e.score > 0.35).sort((a, b) => b.score - a.score || a.canonical.localeCompare(b.canonical))
     : sorted.map((e) => ({ ...e, score: 1, sim: 0 }));
 
   const exactMatch = entries.some((e) => normalizeAddress(e.canonical) === normalizeAddress(trimmed));
