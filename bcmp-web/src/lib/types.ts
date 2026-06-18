@@ -509,6 +509,7 @@ export interface ResidentDetail extends ResidentSummary {
   housing_type: string | null;
   registration_source: string | null;
   import_batch_id: string | null;
+  date_of_occupancy: string | null;
   updated_at: string;
 }
 

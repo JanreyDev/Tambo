@@ -898,7 +898,7 @@ export default function ResidentsPage() {
       "voter_precinct_number", "last_voted_year", "relationship_to_head",
       // Guardian details for minors
       "guardian_name", "guardian_relationship", "guardian_phone",
-      "housing_type",
+      "housing_type", "date_of_occupancy",
     ];
     for (const key of directFields) {
       const val = f(key);
@@ -1092,6 +1092,7 @@ export default function ResidentsPage() {
       guardian_relationship: cap(r.guardian_relationship),
       guardian_phone: upper(r.guardian_phone),
       housing_type: cap(r.housing_type),
+      date_of_occupancy: upper(r.date_of_occupancy),
       house_block_lot: upper((r as unknown as Record<string, unknown>).house_block_lot),
       street: upper((r as unknown as Record<string, unknown>).street),
       purok: upper((r as unknown as Record<string, unknown>).purok),
@@ -1182,6 +1183,23 @@ export default function ResidentsPage() {
     const m = now.getMonth() - d.getMonth();
     if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age--;
     return age;
+  };
+
+  const lengthOfStay = (dateStr: string | null | undefined): string => {
+    if (!dateStr) return "";
+    const d = new Date(dateStr + "T00:00:00");
+    if (isNaN(d.getTime())) return "";
+    const now = new Date();
+    let years = now.getFullYear() - d.getFullYear();
+    let months = now.getMonth() - d.getMonth();
+    if (now.getDate() < d.getDate()) months--;
+    if (months < 0) { years--; months += 12; }
+    if (years < 0) return "Not yet moved in";
+    if (years === 0 && months === 0) return "Just moved in";
+    const yStr = years > 0 ? `${years} year${years !== 1 ? 's' : ''}` : "";
+    const mStr = months > 0 ? `${months} month${months !== 1 ? 's' : ''}` : "";
+    if (yStr && mStr) return `${yStr}, ${mStr}`;
+    return yStr || mStr;
   };
 
   const computeSectorWarnings = useCallback((currentSectors: string[], formData: Record<string, string | boolean>) => {
@@ -1377,6 +1395,7 @@ export default function ResidentsPage() {
                       <FInput label="Email Address" name="email" type="email" placeholder="name@example.com" value={f("email")} onChange={updateForm} error={formErrors.email} />
                       <FSelect label="Residence Type" name="resident_type" options={residentTypes} required value={f("resident_type")} onChange={updateForm} error={formErrors.resident_type} />
                       <FSelect label="Housing / Settlement Type" name="housing_type" options={["", "Street", "Barracks", "Subdivision", "House / Apartment"]} value={f("housing_type")} onChange={updateForm} error={formErrors.housing_type} />
+                      <FInput label="Date of Occupancy (Length of Stay)" name="date_of_occupancy" type="date" value={f("date_of_occupancy")} onChange={updateForm} error={formErrors.date_of_occupancy} />
                       <FRadio label="Head of Household?" name="is_head_of_household" value={fb("is_head_of_household") ? "yes" : "no"}
                         options={[{ value: "yes", label: "Yes" }, { value: "no", label: "No" }]}
                         onChange={(n, v) => updateForm(n, v === "yes")} />
@@ -2913,6 +2932,15 @@ export default function ResidentsPage() {
                     <Home className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                     <span className="text-[11px] text-muted-foreground w-14 shrink-0">Housing</span>
                     <span className="text-sm font-medium text-foreground truncate">{viewResident.housing_type || "—"}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="text-[11px] text-muted-foreground w-14 shrink-0">Occupancy</span>
+                    <span className="text-sm font-medium text-foreground truncate">
+                      {viewResident.date_of_occupancy 
+                        ? `${new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'short', day: 'numeric' }).format(new Date(viewResident.date_of_occupancy))} (${lengthOfStay(viewResident.date_of_occupancy)})`
+                        : "—"}
+                    </span>
                   </div>
                 </div>
               </div>

@@ -194,6 +194,9 @@ export const residentSchema = z
     // Notes
     health_history: optionalString,
     other_remarks: optionalString,
+    
+    // Address / Occupancy
+    date_of_occupancy: optionalDate,
 
     // Status / type flags
     status: z.enum(["active", "inactive", "deceased", "transferred", "archived"]).optional(),

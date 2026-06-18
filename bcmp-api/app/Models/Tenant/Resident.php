@@ -31,6 +31,7 @@ class Resident extends Model
         'import_batch_id',
         'resident_type',
         'housing_type',
+        'date_of_occupancy',
         'transfer_date',
 
         // Personal

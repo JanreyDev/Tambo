@@ -47,6 +47,33 @@ function age(dob: string) {
   return a;
 }
 
+function lengthOfStay(dateStr: string | null | undefined): string {
+  if (!dateStr) return "";
+  const d = parseDate(dateStr);
+  if (isNaN(d.getTime())) return "";
+  const now = new Date();
+  
+  let years = now.getFullYear() - d.getFullYear();
+  let months = now.getMonth() - d.getMonth();
+  
+  if (now.getDate() < d.getDate()) {
+    months--;
+  }
+  if (months < 0) {
+    years--;
+    months += 12;
+  }
+  
+  if (years < 0) return "Not yet moved in";
+  if (years === 0 && months === 0) return "Just moved in";
+  
+  const yStr = years > 0 ? `${years} year${years !== 1 ? 's' : ''}` : "";
+  const mStr = months > 0 ? `${months} month${months !== 1 ? 's' : ''}` : "";
+  
+  if (yStr && mStr) return `${yStr}, ${mStr}`;
+  return yStr || mStr;
+}
+
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
@@ -677,6 +704,7 @@ function PersonalInfoTab({
         <Field label="Complexion" value={cap(r.complexion)} />
         <Field label="Resident Type" value={cap(r.resident_type)} />
         <Field label="Housing / Settlement Type" value={cap(r.housing_type)} />
+        <Field label="Date of Occupancy" value={r.date_of_occupancy ? `${new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'long', day: 'numeric' }).format(new Date(r.date_of_occupancy))} (${lengthOfStay(r.date_of_occupancy)})` : null} />
         <Field label="Mother's Maiden Name" value={cap(r.mothers_maiden_name)} wide />
       </Section>
 
