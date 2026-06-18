@@ -189,6 +189,7 @@ export const residentSchema = z
     guardian_name: optionalString,
     guardian_relationship: optionalString,
     guardian_phone: phMobile,
+    housing_type: optionalString,
 
     // Notes
     health_history: optionalString,

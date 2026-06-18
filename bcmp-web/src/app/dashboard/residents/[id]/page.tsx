@@ -676,6 +676,7 @@ function PersonalInfoTab({
         <Field label="Weight" value={r.weight_kg ? `${r.weight_kg} kg` : null} />
         <Field label="Complexion" value={cap(r.complexion)} />
         <Field label="Resident Type" value={cap(r.resident_type)} />
+        <Field label="Housing / Settlement Type" value={cap(r.housing_type)} />
         <Field label="Mother's Maiden Name" value={cap(r.mothers_maiden_name)} wide />
       </Section>
 

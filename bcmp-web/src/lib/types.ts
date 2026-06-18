@@ -425,6 +425,7 @@ export interface ResidentSummary {
   is_head_of_household: boolean;
   occupation: string | null;
   resident_type: string;
+  housing_type?: string | null;
   profile_completion_pct: number;
   photo_file_id: string | null;
   photo_url: string | null;
@@ -505,6 +506,7 @@ export interface ResidentDetail extends ResidentSummary {
   guardian_name: string | null;
   guardian_relationship: string | null;
   guardian_phone: string | null;
+  housing_type: string | null;
   registration_source: string | null;
   import_batch_id: string | null;
   updated_at: string;

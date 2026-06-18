@@ -847,6 +847,7 @@ class ResidentController extends Controller
             'religion' => ['nullable', 'string', 'max:100'],
             'ethnicity' => ['nullable', 'string', 'max:100'],
             'resident_type' => ['required', 'in:permanent,transient,transferee'],
+            'housing_type' => ['nullable', 'string', 'max:50'],
 
             // Contact
             'email' => ['nullable', 'email', 'max:255'],

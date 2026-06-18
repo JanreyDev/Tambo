@@ -898,6 +898,7 @@ export default function ResidentsPage() {
       "voter_precinct_number", "last_voted_year", "relationship_to_head",
       // Guardian details for minors
       "guardian_name", "guardian_relationship", "guardian_phone",
+      "housing_type",
     ];
     for (const key of directFields) {
       const val = f(key);
@@ -1090,6 +1091,7 @@ export default function ResidentsPage() {
       guardian_name: upper(r.guardian_name),
       guardian_relationship: cap(r.guardian_relationship),
       guardian_phone: upper(r.guardian_phone),
+      housing_type: cap(r.housing_type),
       house_block_lot: upper((r as unknown as Record<string, unknown>).house_block_lot),
       street: upper((r as unknown as Record<string, unknown>).street),
       purok: upper((r as unknown as Record<string, unknown>).purok),
@@ -1374,6 +1376,7 @@ export default function ResidentsPage() {
                       <FInput label="Telephone" name="telephone" type="tel" placeholder="e.g. (02) 8123 4567" value={f("telephone")} onChange={updateForm} />
                       <FInput label="Email Address" name="email" type="email" placeholder="name@example.com" value={f("email")} onChange={updateForm} error={formErrors.email} />
                       <FSelect label="Residence Type" name="resident_type" options={residentTypes} required value={f("resident_type")} onChange={updateForm} error={formErrors.resident_type} />
+                      <FSelect label="Housing / Settlement Type" name="housing_type" options={["", "Street", "Barracks", "Subdivision", "House / Apartment"]} value={f("housing_type")} onChange={updateForm} error={formErrors.housing_type} />
                       <FRadio label="Head of Household?" name="is_head_of_household" value={fb("is_head_of_household") ? "yes" : "no"}
                         options={[{ value: "yes", label: "Yes" }, { value: "no", label: "No" }]}
                         onChange={(n, v) => updateForm(n, v === "yes")} />
@@ -2905,6 +2908,11 @@ export default function ResidentsPage() {
                     <span className="text-sm font-medium text-foreground">
                       {viewResident.is_voter ? `Yes${viewResident.voter_precinct_number ? ` · Pct ${viewResident.voter_precinct_number}` : ""}` : "No"}
                     </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Home className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="text-[11px] text-muted-foreground w-14 shrink-0">Housing</span>
+                    <span className="text-sm font-medium text-foreground truncate">{viewResident.housing_type || "—"}</span>
                   </div>
                 </div>
               </div>
