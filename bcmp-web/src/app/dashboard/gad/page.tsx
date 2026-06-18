@@ -81,6 +81,22 @@ function FormSelect({ label, name, value, options, required, error, onChange }: 
 
 type ToastType = "success" | "error" | "warning" | "info";
 
+interface GadForm {
+  plan_type: string;
+  fiscal_year: string;
+  barangay_total_budget: string;
+  gad_budget: string;
+  status: string;
+}
+
+const emptyGadForm: GadForm = {
+  plan_type: "",
+  fiscal_year: "",
+  barangay_total_budget: "",
+  gad_budget: "",
+  status: "",
+};
+
 export default function GadPage() {
   const router = useRouter();
   const [plans, setPlans] = useState<GadPlan[]>([]);
@@ -92,7 +108,7 @@ export default function GadPage() {
   const [showDelete, setShowDelete] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<GadPlan | null>(null);
   const [formTab, setFormTab] = useState(0);
-  const [form, setForm] = useState<Record<string, string>>({});
+  const [form, setForm] = useState<GadForm>(emptyGadForm);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [formLoading, setFormLoading] = useState(false);
   const [actionMenu, setActionMenu] = useState<string | null>(null);
@@ -121,7 +137,7 @@ export default function GadPage() {
   useEffect(() => { fetchPlans(); }, [fetchPlans]);
 
   const handleFieldChange = (name: string, value: string) => {
-    setForm((f) => ({ ...f, [name]: value }));
+    setForm((f) => ({ ...f, [name]: value } as GadForm));
     setFormErrors((e) => { const next = { ...e }; delete next[name]; return next; });
   };
 
@@ -144,7 +160,7 @@ export default function GadPage() {
   };
 
   const openCreate = () => {
-    setForm({ fiscal_year: String(new Date().getFullYear()), status: "draft" });
+    setForm({ ...emptyGadForm, fiscal_year: String(new Date().getFullYear()), status: "draft" });
     setFormErrors({}); setFormTab(0); setShowCreate(true);
   };
   const openEdit = (p: GadPlan) => {

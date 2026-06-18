@@ -84,7 +84,7 @@ class BarangaySettingsController extends Controller
             'settings.document_paper_size' => ['nullable', 'in:a4,letter,legal'],
             'settings.document_font' => ['nullable', 'in:times,arial,inter,poppins,merriweather,playfair'],
             'settings.document_color_theme' => ['nullable', 'in:plain,blue,red,green,yellow,combo-flag,combo-festive,combo-earth,combo-gov,combo-bayanihan,combo-sunrise,combo-coastal,combo-heritage'],
-            'settings.document_design_pattern' => ['nullable', 'in:wave,gradient,bold,photo,minimal,stripe,wreath,sunburst,gothic,scroll,diplomatic,ornate,geometric,bold-stripe,tech'],
+            'settings.document_design_pattern' => ['nullable', 'in:plain,wave,gradient,bold,photo,minimal,stripe,wreath,sunburst,gothic,scroll,diplomatic,ornate,geometric,bold-stripe,tech'],
             'settings.customized_resident_certificates' => ['nullable', 'array'],
             'settings.customized_establishment_certificates' => ['nullable', 'array'],
             'settings.customized_lot_building_certificates' => ['nullable', 'array'],

@@ -11,7 +11,7 @@ type ColorTheme =
   | "combo-flag" | "combo-festive" | "combo-earth" | "combo-gov"
   | "combo-bayanihan" | "combo-sunrise" | "combo-coastal" | "combo-heritage";
 type DesignPattern =
-  | "wave" | "gradient" | "bold" | "photo" | "minimal" | "stripe"
+  | "plain" | "wave" | "gradient" | "bold" | "photo" | "minimal" | "stripe"
   | "wreath" | "sunburst" | "gothic" | "scroll" | "diplomatic" | "ornate"
   | "geometric" | "bold-stripe" | "tech";
 

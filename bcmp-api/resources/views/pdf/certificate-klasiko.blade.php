@@ -280,23 +280,33 @@
 
             {{-- Signature Block (Fixed at bottom right) --}}
             @php
-                $pbName = 'PUNONG BARANGAY';
+                $pbName = '';
                 foreach($officials as $official) {
                     if (stripos($official->position, 'Punong Barangay') !== false || stripos($official->position, 'Captain') !== false || stripos($official->position, 'Kapitan') !== false) {
                         $pbName = 'HON. ' . strtoupper($official->name);
                         break;
                     }
                 }
+                $fallbackSigName = $barangay->settings['default_signatory_name'] ?? 'HON. ____________________';
+                $defaultSigName = $pbName ?: strtoupper($fallbackSigName);
                 
-                $rightName = $document->approved_by_right ?? $approvalConfig['right']['label'] ?? null;
-                if (empty($rightName) || strtolower(trim($rightName)) === 'punong barangay') {
-                    $rightName = $pbName;
+                $rightName = $document->approved_by_right ?? $defaultSigName;
+                $rightPos = $barangay->settings['default_signatory_title'] ?? 'PUNONG BARANGAY';
+
+                if (!empty($approvalConfig['right'])) {
+                    $configPos = $approvalConfig['right']['position'] ?? '';
+                    $configLabel = $approvalConfig['right']['label'] ?? '';
+
+                    if (strtolower($configPos) !== 'punong barangay' && strtolower($configLabel) !== 'punong barangay') {
+                        $rightName = $document->approved_by_right ?? $configLabel;
+                        $rightPos = $configPos;
+                    }
                 }
             @endphp
             <div style="position: fixed; bottom: 80px; right: 50px; width: 350px; text-align: center;">
                 <div style="font-size: 11pt; font-weight: bold; text-transform: uppercase; color: {{ $themePrimary }}; letter-spacing: 1px;">{{ $rightName }}</div>
                 <div style="border-top: 1px solid {{ $hexToRgba($themePrimary, 0.5) }}; margin: 5px 0;"></div>
-                <div style="font-size: 8pt; color: #666; text-transform: uppercase; letter-spacing: 2px;">{{ $approvalConfig['right']['position'] ?? 'PUNONG BARANGAY' }}</div>
+                <div style="font-size: 8pt; color: #666; text-transform: uppercase; letter-spacing: 2px;">{{ strtoupper($rightPos) }}</div>
             </div>
 
         </td>

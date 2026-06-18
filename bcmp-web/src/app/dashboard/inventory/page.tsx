@@ -256,6 +256,74 @@ function ToastStack({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id: st
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
+interface ItemForm {
+  name: string;
+  category_id: string;
+  description: string;
+  sku: string;
+  quantity: string;
+  minimum_stock: string;
+  unit: string;
+  location: string;
+  expiry_date: string;
+  condition: string;
+  status: string;
+}
+
+const emptyItemForm: ItemForm = {
+  name: "",
+  category_id: "",
+  description: "",
+  sku: "",
+  quantity: "0",
+  minimum_stock: "0",
+  unit: "",
+  location: "",
+  expiry_date: "",
+  condition: "good",
+  status: "in_stock",
+};
+
+interface TxForm {
+  item_id: string;
+  transaction_type: string;
+  quantity: string;
+  unit_cost: string;
+  reference_number: string;
+  notes: string;
+  transaction_date: string;
+}
+
+const emptyTxForm: TxForm = {
+  item_id: "",
+  transaction_type: "in",
+  quantity: "",
+  unit_cost: "",
+  reference_number: "",
+  notes: "",
+  transaction_date: "",
+};
+
+interface SupplierForm {
+  name: string;
+  contact_person: string;
+  contact_number: string;
+  email: string;
+  address: string;
+  tin_number: string;
+  notes: string;
+}
+
+const emptySupplierForm: SupplierForm = {
+  name: "",
+  contact_person: "",
+  contact_number: "",
+  email: "",
+  address: "",
+  tin_number: "",
+  notes: "",
+};
+
 const ITEM_FORM_TABS = ["Item Info", "Details"];
 
 export default function InventoryPage() {
@@ -283,13 +351,13 @@ export default function InventoryPage() {
   const [showItemDelete, setShowItemDelete] = useState(false);
   const [deleteItem, setDeleteItem]         = useState<InventoryItem | null>(null);
   const [itemFormTab, setItemFormTab]       = useState(0);
-  const [itemForm, setItemForm]             = useState<Record<string, string>>({});
+  const [itemForm, setItemForm]             = useState<ItemForm>(emptyItemForm);
   const [itemFormErrors, setItemFormErrors] = useState<Record<string, string>>({});
   const [itemSubmitting, setItemSubmitting] = useState(false);
 
   // Transaction modal
   const [showTxCreate, setShowTxCreate] = useState(false);
-  const [txForm, setTxForm]             = useState<Record<string, string>>({});
+  const [txForm, setTxForm]             = useState<TxForm>(emptyTxForm);
   const [txFormErrors, setTxFormErrors] = useState<Record<string, string>>({});
   const [txSubmitting, setTxSubmitting] = useState(false);
 
@@ -299,7 +367,7 @@ export default function InventoryPage() {
   const [showSupplierDelete, setShowSupplierDelete] = useState(false);
   const [editingSupplier, setEditingSupplier]       = useState<Supplier | null>(null);
   const [deleteSupplier, setDeleteSupplier]         = useState<Supplier | null>(null);
-  const [supplierForm, setSupplierForm]             = useState<Record<string, string>>({});
+  const [supplierForm, setSupplierForm]             = useState<SupplierForm>(emptySupplierForm);
   const [supplierFormErrors, setSupplierFormErrors] = useState<Record<string, string>>({});
   const [supplierSubmitting, setSupplierSubmitting] = useState(false);
 
@@ -388,13 +456,13 @@ export default function InventoryPage() {
   // ── Item form ──────────────────────────────────────────────────────────────
 
   const handleItemField = (name: string, value: string) => {
-    setItemForm((f) => ({ ...f, [name]: value }));
+    setItemForm((f) => ({ ...f, [name]: value } as ItemForm));
     setItemFormErrors((e) => { const n = { ...e }; delete n[name]; return n; });
   };
 
   const validateItemForm = (): boolean => {
     const errors: Record<string, string> = {};
-    if (!itemForm.name?.trim()) errors.name = "Item name is required";
+    if (!itemForm.name.trim()) errors.name = "Item name is required";
     if (itemForm.quantity !== undefined && itemForm.quantity !== "" && (!Number.isInteger(Number(itemForm.quantity)) || Number(itemForm.quantity) < 0)) {
       errors.quantity = "Must be a non-negative whole number";
     }
@@ -403,7 +471,13 @@ export default function InventoryPage() {
   };
 
   const openItemCreate = () => {
-    setItemForm({ quantity: "0", minimum_stock: "0", condition: "good", status: "in_stock" });
+    setItemForm({
+      ...emptyItemForm,
+      quantity: "0",
+      minimum_stock: "0",
+      condition: "good",
+      status: "in_stock"
+    });
     setItemFormErrors({});
     setItemFormTab(0);
     setShowItemCreate(true);
@@ -503,7 +577,7 @@ export default function InventoryPage() {
   // ── Transaction form ───────────────────────────────────────────────────────
 
   const handleTxField = (name: string, value: string) => {
-    setTxForm((f) => ({ ...f, [name]: value }));
+    setTxForm((f) => ({ ...f, [name]: value } as TxForm));
     setTxFormErrors((e) => { const n = { ...e }; delete n[name]; return n; });
   };
 
@@ -511,7 +585,7 @@ export default function InventoryPage() {
     const errors: Record<string, string> = {};
     if (!txForm.item_id) errors.item_id = "Item is required";
     if (!txForm.transaction_type) errors.transaction_type = "Transaction type is required";
-    if (!txForm.quantity?.trim()) errors.quantity = "Quantity is required";
+    if (!txForm.quantity.trim()) errors.quantity = "Quantity is required";
     else if (!Number.isInteger(Number(txForm.quantity)) || Number(txForm.quantity) <= 0) {
       errors.quantity = "Must be a positive whole number";
     }
@@ -520,7 +594,12 @@ export default function InventoryPage() {
   };
 
   const openTxCreate = () => {
-    setTxForm({ transaction_type: "in", quantity: "", transaction_date: new Date().toISOString().split("T")[0] });
+    setTxForm({
+      ...emptyTxForm,
+      transaction_type: "in",
+      quantity: "",
+      transaction_date: new Date().toISOString().split("T")[0] ?? ""
+    });
     setTxFormErrors({});
     setShowTxCreate(true);
   };
@@ -551,19 +630,19 @@ export default function InventoryPage() {
   // ── Supplier form ──────────────────────────────────────────────────────────
 
   const handleSupplierField = (name: string, value: string) => {
-    setSupplierForm((f) => ({ ...f, [name]: value }));
+    setSupplierForm((f) => ({ ...f, [name]: value } as SupplierForm));
     setSupplierFormErrors((e) => { const n = { ...e }; delete n[name]; return n; });
   };
 
   const validateSupplierForm = (): boolean => {
     const errors: Record<string, string> = {};
-    if (!supplierForm.name?.trim()) errors.name = "Supplier name is required";
+    if (!supplierForm.name.trim()) errors.name = "Supplier name is required";
     setSupplierFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
   const openSupplierCreate = () => {
-    setSupplierForm({});
+    setSupplierForm(emptySupplierForm);
     setSupplierFormErrors({});
     setShowSupplierCreate(true);
   };

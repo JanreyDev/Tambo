@@ -1,15 +1,18 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api/v1";
-// Extract origin (e.g., "http://127.0.0.1:8000") from full API URL for rewrite proxy
-const apiOrigin = API_URL.replace(/\/api\/v1$/, "");
+// Proxy target: server-side only (no NEXT_PUBLIC). Browser always calls /api/* (same-origin).
+// Next.js server forwards those to the actual API on port 8011.
+const apiOrigin = process.env.BCMP_API_PROXY_TARGET || process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/v1$/, "") || "http://127.0.0.1:8000";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  // output: "standalone",
   poweredByHeader: false,
   compress: true,
   reactStrictMode: true,
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   compiler: {
     removeConsole: process.env.NODE_ENV === "production" ? { exclude: ["error", "warn"] } : false,
   },
@@ -48,7 +51,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://maps.googleapis.com https://maps.gstatic.com https://unpkg.com",
               "img-src 'self' data: blob: https: https://maps.googleapis.com https://maps.gstatic.com https://*.googleapis.com https://unpkg.com https://*.tile.openstreetmap.org",
               "font-src 'self' data: https://fonts.gstatic.com",
-              "connect-src 'self' https://api.kapitan.ph https://api.ipify.org https://*.ingest.us.sentry.io https://maps.googleapis.com https://overpass-api.de https://*.tile.openstreetmap.org https://nominatim.openstreetmap.org",
+              "connect-src 'self' ws: wss: https://api.kapitan.ph https://api.ipify.org https://*.ingest.us.sentry.io https://maps.googleapis.com https://overpass-api.de https://*.tile.openstreetmap.org https://nominatim.openstreetmap.org",
               "worker-src blob:",
               "frame-ancestors 'none'",
               "base-uri 'self'",

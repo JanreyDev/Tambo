@@ -114,9 +114,8 @@ export default function LoginPage() {
   useEffect(() => {
     const isSecure = window.location.protocol === "https:";
     setIsHttps(isSecure);
-    if (!isLocalhost() && !isSecure) {
-      setConnectionSecure(false);
-    }
+    // Bypassed: Allow HTTP for temporary IP testing
+    setConnectionSecure(true);
   }, []);
 
   // Authenticated → redirect

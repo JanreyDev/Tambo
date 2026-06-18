@@ -259,6 +259,74 @@ function ToastStack({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id: st
   );
 }
 
+interface BudgetForm {
+  fiscal_year: string;
+  appropriation: string;
+  allotment: string;
+  obligations: string;
+  unobligated: string;
+  beginning_cash_treasury: string;
+  beginning_cash_bank: string;
+  beginning_cash_advance: string;
+  beginning_petty_cash: string;
+  gad_budget: string;
+  sk_budget: string;
+  status: string;
+}
+
+interface DvForm {
+  dv_number: string;
+  dv_date: string;
+  payee: string;
+  amount: string;
+  fund_cluster: string;
+  purpose: string;
+  status: string;
+}
+
+interface CashbookForm {
+  entry_date: string;
+  entry_type: string;
+  description: string;
+  amount: string;
+  reference_number: string;
+  fund_cluster: string;
+}
+
+const emptyBudgetForm: BudgetForm = {
+  fiscal_year: "",
+  appropriation: "",
+  allotment: "",
+  obligations: "",
+  unobligated: "",
+  beginning_cash_treasury: "",
+  beginning_cash_bank: "",
+  beginning_cash_advance: "",
+  beginning_petty_cash: "",
+  gad_budget: "",
+  sk_budget: "",
+  status: "draft",
+};
+
+const emptyDvForm: DvForm = {
+  dv_number: "",
+  dv_date: "",
+  payee: "",
+  amount: "",
+  fund_cluster: "",
+  purpose: "",
+  status: "draft",
+};
+
+const emptyCashbookForm: CashbookForm = {
+  entry_date: "",
+  entry_type: "receipt",
+  description: "",
+  amount: "",
+  reference_number: "",
+  fund_cluster: "",
+};
+
 // ── Main Page ─────────────────────────────────────────────────────────────
 
 export default function FinancePage() {
@@ -300,7 +368,7 @@ export default function FinancePage() {
   const [showBudgetEdit, setShowBudgetEdit] = useState(false);
   const [showBudgetDelete, setShowBudgetDelete] = useState(false);
   const [deleteBudgetTarget, setDeleteBudgetTarget] = useState<Budget | null>(null);
-  const [budgetForm, setBudgetForm] = useState<Record<string, string>>({});
+  const [budgetForm, setBudgetForm] = useState<BudgetForm>(emptyBudgetForm);
   const [budgetFormErrors, setBudgetFormErrors] = useState<Record<string, string>>({});
   const [budgetSaving, setBudgetSaving] = useState(false);
 
@@ -310,13 +378,13 @@ export default function FinancePage() {
   const [showDvEdit, setShowDvEdit] = useState(false);
   const [showDvDelete, setShowDvDelete] = useState(false);
   const [deleteDvTarget, setDeleteDvTarget] = useState<DisbursementVoucher | null>(null);
-  const [dvForm, setDvForm] = useState<Record<string, string>>({});
+  const [dvForm, setDvForm] = useState<DvForm>(emptyDvForm);
   const [dvFormErrors, setDvFormErrors] = useState<Record<string, string>>({});
   const [dvSaving, setDvSaving] = useState(false);
 
   // ── Modals: Cashbook entry ────────────────────────────────────────────────
   const [showCashbookCreate, setShowCashbookCreate] = useState(false);
-  const [cashbookForm, setCashbookForm] = useState<Record<string, string>>({});
+  const [cashbookForm, setCashbookForm] = useState<CashbookForm>(emptyCashbookForm);
   const [cashbookFormErrors, setCashbookFormErrors] = useState<Record<string, string>>({});
   const [cashbookSaving, setCashbookSaving] = useState(false);
 
@@ -456,24 +524,24 @@ export default function FinancePage() {
   // ── Form helpers ──────────────────────────────────────────────────────────
 
   const handleBudgetFieldChange = (name: string, value: string) => {
-    setBudgetForm((f) => ({ ...f, [name]: value }));
+    setBudgetForm((f) => ({ ...f, [name]: value } as BudgetForm));
     setBudgetFormErrors((e) => { const n = { ...e }; delete n[name]; return n; });
   };
 
   const handleDvFieldChange = (name: string, value: string) => {
-    setDvForm((f) => ({ ...f, [name]: value }));
+    setDvForm((f) => ({ ...f, [name]: value } as DvForm));
     setDvFormErrors((e) => { const n = { ...e }; delete n[name]; return n; });
   };
 
   const handleCashbookFieldChange = (name: string, value: string) => {
-    setCashbookForm((f) => ({ ...f, [name]: value }));
+    setCashbookForm((f) => ({ ...f, [name]: value } as CashbookForm));
     setCashbookFormErrors((e) => { const n = { ...e }; delete n[name]; return n; });
   };
 
   // ── Budget CRUD ───────────────────────────────────────────────────────────
 
   const openBudgetCreate = () => {
-    setBudgetForm({ status: "draft", fiscal_year: String(new Date().getFullYear()) });
+    setBudgetForm({ ...emptyBudgetForm, status: "draft", fiscal_year: String(new Date().getFullYear()) });
     setBudgetFormErrors({});
     setShowBudgetCreate(true);
   };
@@ -563,7 +631,7 @@ export default function FinancePage() {
   // ── Disbursement Voucher CRUD ─────────────────────────────────────────────
 
   const openDvCreate = () => {
-    setDvForm({ status: "draft" });
+    setDvForm({ ...emptyDvForm, status: "draft" });
     setDvFormErrors({});
     setShowDvCreate(true);
   };
@@ -644,7 +712,7 @@ export default function FinancePage() {
   // ── Cashbook CRUD ─────────────────────────────────────────────────────────
 
   const openCashbookCreate = () => {
-    setCashbookForm({ entry_type: "receipt" });
+    setCashbookForm({ ...emptyCashbookForm, entry_type: "receipt" });
     setCashbookFormErrors({});
     setShowCashbookCreate(true);
   };

@@ -439,12 +439,14 @@ function ActionMenuPortal({
   onView,
   onClearance,
   onEdit,
+  onDelete,
   onClose,
 }: {
   position: { top: number; left: number };
   onView: () => void;
   onClearance: (type: ClearanceValue) => void;
   onEdit: () => void;
+  onDelete: () => void;
   onClose: () => void;
 }) {
   const [showClearanceSub, setShowClearanceSub] = useState(false);
@@ -512,6 +514,15 @@ function ActionMenuPortal({
         className="w-full px-3 py-2 text-left text-sm text-gray-800 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-2"
       >
         <Edit className="h-3.5 w-3.5 text-gray-400" /> Edit Record
+      </button>
+
+      <div className="border-t border-gray-200 dark:border-slate-600 my-1" />
+
+      <button
+        onClick={onDelete}
+        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-2 text-red-600 dark:text-red-400 transition-colors"
+      >
+        <Trash2 className="h-3.5 w-3.5" /> Delete
       </button>
     </div>,
     document.body
@@ -1179,6 +1190,10 @@ export default function LotsBuildingsPage() {
   const [clearanceTarget, setClearanceTarget] = useState<LotBuilding | null>(null);
   const [clearanceProcessing, setClearanceProcessing] = useState(false);
 
+  // ── Delete modal ──
+  const [deleteTarget, setDeleteTarget] = useState<LotBuilding | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
   // ── SMS modal ──
   const [smsTarget, setSmsTarget] = useState<LotBuilding | null>(null);
   const [showSmsModal, setShowSmsModal] = useState(false);
@@ -1551,6 +1566,24 @@ export default function LotsBuildingsPage() {
     }
   };
 
+  // ── Delete ──────────────────────────────────────────────────────────────
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      await api.lotsBuildings.destroy(deleteTarget.id);
+      addToast({ type: "success", title: "Record Deleted", message: "Property record deleted successfully" });
+      setDeleteTarget(null);
+      fetchList();
+      fetchStats();
+    } catch (err) {
+      addToast({ type: "error", title: "Delete Failed", message: (err as { message?: string }).message || "Something went wrong." });
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
 
   // ── Render helpers ──────────────────────────────────────────────────────
 
@@ -1776,6 +1809,7 @@ export default function LotsBuildingsPage() {
           onView={() => { setViewRecord(activeMenuRecord); closeMenu(); }}
           onClearance={(type) => { openClearance(activeMenuRecord, type); closeMenu(); }}
           onEdit={() => { openEdit(activeMenuRecord); closeMenu(); }}
+          onDelete={() => { setDeleteTarget(activeMenuRecord); closeMenu(); }}
           onClose={closeMenu}
         />
       )}
@@ -2179,6 +2213,26 @@ export default function LotsBuildingsPage() {
             <p className="text-xs text-muted-foreground">Do you want to continue creating a new record anyway?</p>
           </div>
         )}
+      </Modal>
+
+      {/* ── Delete Confirmation Modal ─────────────────────────────────── */}
+      <Modal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="Delete Record"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Are you sure you want to delete the record for <strong>{deleteTarget?.owner_name}</strong>? This action cannot be undone.
+          </p>
+          <div className="flex justify-end gap-3">
+            <button onClick={() => setDeleteTarget(null)} className="px-4 py-2 text-sm rounded-xl border border-border">Cancel</button>
+            <button onClick={handleDelete} disabled={deleteLoading} className="px-4 py-2 text-sm rounded-xl bg-red-600 text-white font-semibold">
+              {deleteLoading ? "Deleting..." : "Delete Record"}
+            </button>
+          </div>
+        </div>
       </Modal>
 
       {/* ── Create / Edit Drawer ────────────────────────────────────────── */}

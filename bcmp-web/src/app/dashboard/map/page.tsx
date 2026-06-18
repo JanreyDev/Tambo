@@ -421,16 +421,6 @@ export default function MapPage() {
                 </button>
               </div>
             </div>
-          ) : filteredResidents.length === 0 && residents.length === 0 ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-muted/20">
-              <div className="text-center max-w-xs px-4">
-                <Map className="h-12 w-12 mx-auto mb-3 text-muted-foreground/40" />
-                <p className="text-sm font-semibold text-foreground mb-1">No location data yet</p>
-                <p className="text-xs text-muted-foreground">
-                  Residents need coordinates to appear on the map. Open a resident profile, go to the Address tab, and drop a pin.
-                </p>
-              </div>
-            </div>
           ) : (
             <AllResidentsMap
               residents={filteredResidents}

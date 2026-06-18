@@ -46,4 +46,8 @@ deploy.tar.gz
 nul
 *temp_lint_output*
 
+# build log
+build.log
+/build.log
+
 certificates

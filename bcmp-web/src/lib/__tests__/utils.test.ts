@@ -51,6 +51,11 @@ describe("resolvePhotoUrl()", () => {
     expect(resolvePhotoUrl(url)).toBe("/storage/bcmp/photo.jpg");
   });
 
+  it("strips custom IP origin and returns relative path for local storage URLs", () => {
+    const url = "http://167.172.89.188:8011/storage/bcmp/photo.jpg";
+    expect(resolvePhotoUrl(url)).toBe("/storage/bcmp/photo.jpg");
+  });
+
   it("preserves query string when stripping localhost", () => {
     const url = "http://localhost:8000/storage/photo.jpg?w=200&h=200";
     expect(resolvePhotoUrl(url)).toBe("/storage/photo.jpg?w=200&h=200");

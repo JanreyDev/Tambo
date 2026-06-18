@@ -978,6 +978,7 @@ export default function SettingsPage() {
           residentCertificates: (s.customized_resident_certificates as any[]) || [],
           establishmentCertificates: (s.customized_establishment_certificates as any[]) || [],
           lotBuildingCertificates: (s.customized_lot_building_certificates as any[]) || [],
+          docCustomContent: "",
         };
 
         setSettings(data);
@@ -1201,6 +1202,7 @@ export default function SettingsPage() {
             const newCerts = [...lotBuildingCertificates.filter(c => c.id !== option.id), newCert];
             setLotBuildingCertificates(newCerts);
             await api.settings.update({ settings: { customized_lot_building_certificates: newCerts } } as any);
+            originalsRef.current.lotBuildingCertificates = newCerts;
           } else if (editingConstituentType === "establishment") {
             const newCerts = [...establishmentCertificates.filter(c => c.id !== option.id), newCert];
             setEstablishmentCertificates(newCerts);
@@ -1232,6 +1234,7 @@ export default function SettingsPage() {
         const newCerts = lotBuildingCertificates.filter(c => c.id !== idToRemove);
         setLotBuildingCertificates(newCerts);
         await api.settings.update({ settings: { customized_lot_building_certificates: newCerts } } as any);
+        originalsRef.current.lotBuildingCertificates = newCerts;
       } else if (type === "establishment") {
         const newCerts = establishmentCertificates.filter(c => c.id !== idToRemove);
         setEstablishmentCertificates(newCerts);
@@ -1267,9 +1270,10 @@ export default function SettingsPage() {
         document_design_pattern: docDesignPattern,
         customized_resident_certificates: residentCertificates,
         customized_establishment_certificates: establishmentCertificates,
+        customized_lot_building_certificates: lotBuildingCertificates,
       },
     },
-    { docHeader, docFooter, certValidityDays, clearanceFee, indigencyFee, idFee, cedulaFee, docLayout, docPaperSize, docFont, docColorTheme, docDesignPattern, residentCertificates, establishmentCertificates },
+    { docHeader, docFooter, certValidityDays, clearanceFee, indigencyFee, idFee, cedulaFee, docLayout, docPaperSize, docFont, docColorTheme, docDesignPattern, residentCertificates, establishmentCertificates, lotBuildingCertificates },
   );
 
   const saveNotifications = () => saveSettings(
@@ -1365,7 +1369,7 @@ export default function SettingsPage() {
     gad: { gadFocalName, gadFocalTitle, gadBudgetPercent, gadPlanUrl },
     kp: { kpHearingWindowDays, kpMediationExtensionDays, kpArbitrationWindowDays, kpSummonsTemplate },
     "residents-dict": { dictionaries },
-    "customize-template": { docLayout, docPaperSize, docFont, docColorTheme, docDesignPattern, residentCertificates, establishmentCertificates, docCustomContent },
+    "customize-template": { docLayout, docPaperSize, docFont, docColorTheme, docDesignPattern, residentCertificates, establishmentCertificates, lotBuildingCertificates, docCustomContent },
   };
 
   const tabFieldSetters: Record<string, Record<string, (v: unknown) => void>> = {
@@ -1406,7 +1410,8 @@ export default function SettingsPage() {
       docColorTheme: (v) => setDocColorTheme(v as typeof docColorTheme),
       docDesignPattern: (v) => setDocDesignPattern(v as typeof docDesignPattern),
       residentCertificates: (v) => setResidentCertificates(v as any[]),
-        establishmentCertificates: (v) => setEstablishmentCertificates(v as any[]),
+      establishmentCertificates: (v) => setEstablishmentCertificates(v as any[]),
+      lotBuildingCertificates: (v) => setLotBuildingCertificates(v as any[]),
       docCustomContent: (v) => setDocCustomContent(v as string),
     },
     system: { smsSenderName: (v) => setSmsSenderName(v as string), signatoryName: (v) => setSignatoryName(v as string), signatoryTitle: (v) => setSignatoryTitle(v as string) },
@@ -1442,10 +1447,13 @@ export default function SettingsPage() {
 
   const hasValidationErrors = Object.values(fieldErrors).some((v) => v != null && v !== "");
 
-  // Tab-switch guard — warn if current tab has unsaved changes
+  // Tab-switch guard — warn if current tab has unsaved changes.
+  // Only applies to tabs tracked by the sticky save bar; self-managed tabs
+  // (branding, officials, fees, customize-template) handle their own writes
+  // and should never trigger this warning.
   const handleTabSwitch = (nextSection: string) => {
     if (nextSection === activeSection) return;
-    if (isCurrentTabDirty) {
+    if (SAVE_BAR_TABS.includes(activeSection) && isCurrentTabDirty) {
       const ok = typeof window !== "undefined" && window.confirm(
         `You have ${changedFieldKeys.length} unsaved ${changedFieldKeys.length === 1 ? "change" : "changes"} in this tab. Discard and continue?`,
       );
@@ -1453,6 +1461,7 @@ export default function SettingsPage() {
       handleDiscardChanges();
     }
     setActiveSection(nextSection);
+
   };
 
   // Warn user about unsaved changes when navigating away
@@ -2827,6 +2836,7 @@ export default function SettingsPage() {
                                             const newCerts = [...lotBuildingCertificates.filter(c => c.id !== option.id), newCert];
                                             setLotBuildingCertificates(newCerts);
                                             await api.settings.update({ settings: { customized_lot_building_certificates: newCerts } } as any);
+                                            originalsRef.current.lotBuildingCertificates = newCerts;
                                           } else if (editingConstituentType === "establishment") {
                                             const newCerts = [...establishmentCertificates.filter(c => c.id !== option.id), newCert];
                                             setEstablishmentCertificates(newCerts);

@@ -366,7 +366,8 @@ export default function DocumentsPage() {
                 </tr>
               ) : (
                 documents.map((doc) => {
-                  const st = STATUS_CFG[doc.status] || STATUS_CFG.issued;
+                  const st = STATUS_CFG[doc.status] || { label: "Issued", color: "text-blue-700 dark:text-blue-400", bg: "bg-blue-100 dark:bg-blue-900/30" };
+                  const sourceCfg = doc.constituent_type ? SOURCE_CFG[doc.constituent_type] : null;
                   return (
                     <tr
                       key={doc.id}
@@ -383,13 +384,13 @@ export default function DocumentsPage() {
                       <td className="px-4 py-3 text-foreground">
                         <div className="flex flex-col gap-1">
                           <span className="text-foreground">{doc.template_name || "—"}</span>
-                          {doc.constituent_type && SOURCE_CFG[doc.constituent_type] && (
+                          {sourceCfg && (
                             <span className={cn(
                               "inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium w-fit",
-                              SOURCE_CFG[doc.constituent_type].bg,
-                              SOURCE_CFG[doc.constituent_type].color
+                              sourceCfg.bg,
+                              sourceCfg.color
                             )}>
-                              {SOURCE_CFG[doc.constituent_type].label}
+                              {sourceCfg.label}
                             </span>
                           )}
                         </div>

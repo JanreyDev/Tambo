@@ -314,14 +314,15 @@
             $pbName = '';
             foreach($officials as $off) {
                 if (strtolower($off->position) === 'punong barangay') {
-                    $pbName = $off->name;
+                    $pbName = 'HON. ' . strtoupper($off->name);
                     break;
                 }
             }
-            $defaultSigName = $pbName ? 'HON. ' . strtoupper($pbName) : 'HON. ____________________';
+            $fallbackSigName = $barangay->settings['default_signatory_name'] ?? 'HON. ____________________';
+            $defaultSigName = $pbName ?: strtoupper($fallbackSigName);
             
-            $rightSigName = $defaultSigName;
-            $rightSigPos = 'Punong Barangay';
+            $rightSigName = $document->approved_by_right ?? $defaultSigName;
+            $rightSigPos = $barangay->settings['default_signatory_title'] ?? 'Punong Barangay';
 
             if (!empty($approvalConfig['right'])) {
                 $configPos = $approvalConfig['right']['position'] ?? '';

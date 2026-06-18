@@ -325,7 +325,7 @@ export default function DisasterPage() {
       const payload = {
         hazard_type: pinForm.hazard_type, name: pinForm.name || null,
         description: pinForm.description || null,
-        latitude: parseFloat(pinForm.latitude), longitude: parseFloat(pinForm.longitude),
+        latitude: parseFloat(pinForm.latitude || "0"), longitude: parseFloat(pinForm.longitude || "0"),
         severity: pinForm.severity || null, status: pinForm.status || null,
       };
       if (showEditPin && selectedPin) {

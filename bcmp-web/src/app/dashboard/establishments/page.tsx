@@ -8,7 +8,7 @@ import {
   ChevronsRight, X, Store, Wrench, ShoppingBag, UtensilsCrossed, Pill, Wifi,
   Droplets, Scissors, Hammer, Eye, Edit, Bot, CheckCircle2,
   AlertTriangle, Loader2, ChevronDown, CalendarDays, RefreshCw, XCircle,
-  BadgeCheck, Calendar, Printer, MessageSquare,
+  BadgeCheck, Calendar, Printer, MessageSquare, Trash2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { DocumentLivePreview } from "@/components/settings/DocumentLivePreview";
@@ -423,7 +423,7 @@ function SkeletonRow() {
 
 function ActionMenuPortal({
   menuRef, activeId, position, establishment,
-  onClose, onNew, onRenewal, onClosure, onView, onEdit, onSms,
+  onClose, onNew, onRenewal, onClosure, onView, onEdit, onSms, onDelete,
 }: {
   menuRef: React.RefObject<HTMLDivElement | null>;
   activeId: string | null;
@@ -437,6 +437,7 @@ function ActionMenuPortal({
   onView: (e: Establishment) => void;
   onEdit: (e: Establishment) => void;
   onSms: (e: Establishment) => void;
+  onDelete: (e: Establishment) => void;
 }) {
   if (!activeId || !position || !establishment) return null;
   if (typeof document === "undefined") return null;
@@ -492,6 +493,13 @@ function ActionMenuPortal({
         className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-2 text-orange-600 dark:text-orange-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
       >
         <MessageSquare className="h-3.5 w-3.5" /> Send SMS
+      </button>
+      <div className="border-t border-gray-200 dark:border-slate-600 my-1" />
+      <button
+        onClick={() => onDelete(establishment)}
+        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center gap-2 text-red-600 dark:text-red-400 transition-colors"
+      >
+        <Trash2 className="h-3.5 w-3.5" /> Delete
       </button>
     </div>,
     document.body
@@ -938,7 +946,7 @@ export default function EstablishmentsPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerMode, setDrawerMode] = useState<"create" | "edit">("create");
   const [editTarget, setEditTarget] = useState<Establishment | null>(null);
-  const [form, setForm] = useState<Record<string, string>>(emptyForm);
+  const [form, setForm] = useState<typeof emptyForm>(emptyForm);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [formSaving, setFormSaving] = useState(false);
 
@@ -980,6 +988,10 @@ export default function EstablishmentsPage() {
   const [docGenTarget, setDocGenTarget] = useState<Establishment | null>(null);
   const [docGenPrintOnly, setDocGenPrintOnly] = useState(false);
   const [docGenProcessing, setDocGenProcessing] = useState(false);
+
+  // Delete modal
+  const [deleteTarget, setDeleteTarget] = useState<Establishment | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Closure confirmation (legacy — kept for dup-modal flow, replaced by DocGenModal elsewhere)
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -1158,7 +1170,9 @@ export default function EstablishmentsPage() {
 
   useEffect(() => {
     // Only run in create mode, and only when business_name is filled
-    if (drawerMode !== "create" || !form.business_name.trim()) {
+    const businessName = form.business_name || "";
+    const businessType = form.business_type || "";
+    if (drawerMode !== "create" || !businessName.trim()) {
       setDupCheckResult(null);
       return;
     }
@@ -1166,8 +1180,8 @@ export default function EstablishmentsPage() {
     const timer = setTimeout(async () => {
       try {
         const res = await api.establishments.checkDuplicate(
-          form.business_name.trim(),
-          form.business_type.trim() || undefined,
+          businessName.trim(),
+          businessType.trim() || undefined,
         );
         setDupCheckResult(res.duplicate ? (res.establishment ?? null) : null);
       } catch {
@@ -1182,17 +1196,22 @@ export default function EstablishmentsPage() {
   // ── Form helpers ────────────────────────────────────────────────────────
 
   const handleFieldChange = (name: string, value: string) => {
-    setForm((f) => ({ ...f, [name]: value }));
+    setForm((f) => ({ ...f, [name]: value } as typeof emptyForm));
     if (formErrors[name]) setFormErrors((p) => { const n = { ...p }; delete n[name]; return n; });
   };
 
   const validateForm = () => {
     const errors: Record<string, string> = {};
-    if (!form.business_name.trim()) errors.business_name = "Business name is required.";
-    if (!form.business_type.trim()) errors.business_type = "Business type is required.";
-    if (!form.owner_name.trim()) errors.owner_name = "Owner name is required.";
-    if (!form.owner_contact.trim()) errors.owner_contact = "Contact number is required.";
-    else if (form.owner_contact.length !== 11) errors.owner_contact = "Must be exactly 11 digits.";
+    const businessName = form.business_name || "";
+    const businessType = form.business_type || "";
+    const ownerName = form.owner_name || "";
+    const ownerContact = form.owner_contact || "";
+
+    if (!businessName.trim()) errors.business_name = "Business name is required.";
+    if (!businessType.trim()) errors.business_type = "Business type is required.";
+    if (!ownerName.trim()) errors.owner_name = "Owner name is required.";
+    if (!ownerContact.trim()) errors.owner_contact = "Contact number is required.";
+    else if (ownerContact.length !== 11) errors.owner_contact = "Must be exactly 11 digits.";
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -1242,13 +1261,16 @@ export default function EstablishmentsPage() {
       return;
     }
     setFormSaving(true);
-    const businessName = form.business_name.trim();
+    const businessName = (form.business_name || "").trim();
+    const businessType = (form.business_type || "").trim();
+    const ownerName = (form.owner_name || "").trim();
+    const ownerContact = form.owner_contact || null;
     try {
       const payload = {
         business_name: businessName,
-        business_type: form.business_type || null,
-        owner_name: form.owner_name.trim(),
-        owner_contact: form.owner_contact || null,
+        business_type: businessType || null,
+        owner_name: ownerName,
+        owner_contact: ownerContact,
         owner_email: form.owner_email || null,
         owner_address: form.owner_address || null,
         purok: form.purok || null,
@@ -1284,7 +1306,7 @@ export default function EstablishmentsPage() {
         // but re-check on submit as the final gate to prevent any race condition)
         const dupCheck = await api.establishments.checkDuplicate(
           businessName,
-          form.business_type.trim() || undefined,
+          businessType || undefined,
         );
         if (dupCheck.duplicate && dupCheck.establishment) {
           setDupTarget(dupCheck.establishment);
@@ -1327,7 +1349,7 @@ export default function EstablishmentsPage() {
       const apiErr = err as ApiError;
       if (apiErr.errors) {
         const mapped: Record<string, string> = {};
-        Object.entries(apiErr.errors).forEach(([k, v]) => { mapped[k] = Array.isArray(v) ? v[0] : String(v); });
+        Object.entries(apiErr.errors).forEach(([k, v]) => { mapped[k] = Array.isArray(v) ? (v[0] ?? "") : String(v); });
         setFormErrors(mapped);
         addToast({ type: "error", title: "Please Fix the Errors", message: "Some fields have invalid values." });
       } else {
@@ -1411,7 +1433,7 @@ export default function EstablishmentsPage() {
         addToast({ type: "success", title: "Renewal Processed", message: `${docGenTarget.business_name} renewed for ${new Date().getFullYear()}.` });
       } else if (docGenType === "closure") {
         await api.establishments.close(docGenTarget.id);
-        addToast({ type: "success", title: "Establishment Closed", message: `${docGenTarget.business_name} has been marked as closed.` });
+        addToast({ type: "success", title: "Closure Processed", message: `${docGenTarget.business_name} has been marked as closed.` });
       }
       setDocGenOpen(false);
       setDocGenTarget(null);
@@ -1427,6 +1449,23 @@ export default function EstablishmentsPage() {
       addToast({ type: "error", title: "Processing Failed", message: (err as ApiError).message || "Something went wrong." });
     } finally {
       setDocGenProcessing(false);
+    }
+  };
+
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    try {
+      await api.establishments.delete(deleteTarget.id);
+      addToast({ type: "success", title: "Deleted", message: "Establishment deleted successfully." });
+      setDeleteTarget(null);
+      fetchList();
+      fetchStats();
+    } catch (err: any) {
+      addToast({ type: "error", title: "Error", message: err.message || "Failed to delete establishment." });
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -1761,6 +1800,7 @@ export default function EstablishmentsPage() {
         onView={(e) => { setViewEstablishment(e); setActionMenu(null); setMenuPosition(null); }}
         onEdit={(e) => { openEdit(e); setActionMenu(null); setMenuPosition(null); }}
         onSms={(e) => { setSmsTarget(e); setShowSmsModal(true); setActionMenu(null); setMenuPosition(null); }}
+        onDelete={(e) => { setDeleteTarget(e); setActionMenu(null); setMenuPosition(null); }}
       />
 
       {/* ── View Modal ─────────────────────────────────────────────────── */}
@@ -2156,6 +2196,30 @@ export default function EstablishmentsPage() {
         onConfirm={handleDocGenConfirm}
         onClose={() => { setDocGenOpen(false); setDocGenTarget(null); }}
       />
+
+      {/* ── Delete Confirmation Modal ─────────────────────────────────── */}
+      <Modal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="Delete Establishment"
+        size="md"
+      >
+        <div className="flex items-center gap-4 text-amber-600 bg-amber-50 dark:bg-amber-900/20 p-4 rounded-xl mb-6">
+          <AlertTriangle className="h-8 w-8 shrink-0" />
+          <p className="text-sm font-medium">
+            Are you sure you want to delete <strong>{deleteTarget?.business_name}</strong>? This action cannot be undone.
+          </p>
+        </div>
+        <div className="flex justify-end gap-3">
+          <button onClick={() => setDeleteTarget(null)} disabled={deleteLoading} className="px-4 py-2 text-sm font-medium rounded-xl border border-border hover:bg-muted transition-colors">
+            Cancel
+          </button>
+          <button onClick={handleDelete} disabled={deleteLoading} className="px-4 py-2 text-sm font-semibold rounded-xl bg-red-600 hover:bg-red-700 text-white transition-colors flex items-center gap-2">
+            {deleteLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+            Delete Establishment
+          </button>
+        </div>
+      </Modal>
 
       {/* ── SMS Modal ─────────────────────────────────────────────────── */}
       <SendSmsModal

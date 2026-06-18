@@ -303,9 +303,10 @@ class DashboardController extends Controller
         $limit = min((int) $request->get('limit', 5), 20);
 
         $residents = Resident::where('barangay_id', $barangayId)
+            ->with('creator:id,first_name,last_name')
             ->latest()
             ->take($limit)
-            ->get(['id', 'first_name', 'last_name', 'middle_name', 'date_of_birth', 'sex', 'purok', 'created_at'])
+            ->get(['id', 'first_name', 'last_name', 'middle_name', 'date_of_birth', 'sex', 'purok', 'created_at', 'created_by'])
             ->map(fn ($r) => [
                 'id' => $r->id,
                 'first_name' => $r->first_name,
@@ -317,6 +318,7 @@ class DashboardController extends Controller
                 'sex' => $r->sex,
                 'purok' => $r->purok,
                 'created_at' => $r->created_at->toIso8601String(),
+                'encoded_by' => $r->creator ? trim($r->creator->first_name . ' ' . $r->creator->last_name) : null,
             ]);
 
         return response()->json(['residents' => $residents]);

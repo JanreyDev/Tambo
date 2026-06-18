@@ -85,11 +85,15 @@ async function request<T>(
   });
 
   if (res.status === 401) {
-    clearToken();
-    if (typeof window !== "undefined" && window.location.pathname !== "/") {
-      window.location.href = "/";
+    console.error(`[API Debug] 401 Unauthorized from ${method} ${path}`);
+    // Temporarily disable auto-logout for /map endpoints to debug the map page issue
+    if (!path.startsWith("/map/")) {
+      clearToken();
+      if (typeof window !== "undefined" && window.location.pathname !== "/") {
+        window.location.href = "/";
+      }
     }
-    const error: ApiError = { message: "Unauthorized" };
+    const error: ApiError = { message: "Unauthorized", status: 401 };
     throw error;
   }
 

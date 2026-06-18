@@ -117,12 +117,7 @@ const overpassRelationToGeoJson = (relation: OverpassRelation): object | null =>
 // ── MAIN PAGE COMPONENT
 // ══════════════════════════════════════════════════════════════
 
-interface ResidentsPageProps {
-  censusMode?: boolean;
-  onCensusRegistered?: () => void;
-}
-
-export default function ResidentsPage({ censusMode, onCensusRegistered }: ResidentsPageProps = {}) {
+export default function ResidentsPage() {
   const { user } = useAuth();
   const { t } = useLanguage();
   const router = useRouter();
@@ -1358,7 +1353,7 @@ export default function ResidentsPage({ censusMode, onCensusRegistered }: Reside
                       <FSelect label="Extension" name="extension_name" options={extensions} value={f("extension_name")} onChange={updateForm} />
                     </div>
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                      <FSelect label="Sex" name="sex" options={["", "Male", "Female"]} required value={f("sex")} onChange={updateForm} error={formErrors.sex} />
+                      <FSelect label="Sex / Gender" name="sex" options={["", "Male", "Female", "Lesbian", "Gay", "Bisexual", "Transgender", "Queer", "Intersex", "Other", "Prefer not to say"]} required value={f("sex")} onChange={updateForm} error={formErrors.sex} />
                       <FDatePicker label="Date of Birth" name="date_of_birth" required value={f("date_of_birth")} onChange={updateForm} valid={dupOk("date_of_birth")} error={formErrors.date_of_birth} />
                       <FCombobox label="Place of Birth" name="place_of_birth" required entries={placeOfBirthEntries} value={f("place_of_birth")} onChange={updateForm} onSubmit={(val) => submitEntry(placeOfBirthEntries, setPlaceOfBirthEntries, val, "place_of_birth")} />
                       <FSelect label="Civil Status" name="civil_status" options={["", ...civilStatuses]} required value={f("civil_status")} onChange={updateForm} error={formErrors.civil_status} />

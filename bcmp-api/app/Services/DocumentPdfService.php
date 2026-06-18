@@ -338,6 +338,22 @@ class DocumentPdfService
                 ];
             })->values();
 
+        // If officials list doesn't have a PB (e.g. resident missing), inject the default signatory
+        $hasPb = $officials->contains(function ($off) {
+            return strtolower($off->position) === 'punong barangay';
+        });
+
+        if (!$hasPb) {
+            $fallbackName = $barangay->settings['default_signatory_name'] ?? null;
+            if ($fallbackName) {
+                $cleanName = preg_replace('/^HON\.\s+/i', '', $fallbackName);
+                $officials->prepend((object) [
+                    'name' => $cleanName,
+                    'position' => $barangay->settings['default_signatory_title'] ?? 'Punong Barangay',
+                ]);
+            }
+        }
+
         return [
             'document' => $document,
             'template' => $template,

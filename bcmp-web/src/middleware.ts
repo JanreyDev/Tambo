@@ -61,13 +61,13 @@ export function middleware(request: NextRequest) {
     "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com data:",
-    "img-src 'self' data: blob: https:",
-    "connect-src 'self' https://api.ipify.org https://api.kapitan.ph https://*.kapitan.ph https://*.ingest.sentry.io",
+    "img-src 'self' data: blob: https: http:",
+    "connect-src 'self' ws: wss: https://api.ipify.org https://api.kapitan.ph https://*.kapitan.ph https://*.ingest.sentry.io",
     "form-action 'self'",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "object-src 'none'",
-    "upgrade-insecure-requests",
+    // upgrade-insecure-requests intentionally omitted: site runs over plain HTTP on temp IP
   ].join("; ");
   response.headers.set(isLogin ? "Content-Security-Policy-Report-Only" : "Content-Security-Policy", csp);
 

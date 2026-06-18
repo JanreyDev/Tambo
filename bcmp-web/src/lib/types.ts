@@ -292,6 +292,7 @@ export interface DashboardRecentResident {
   sex: "male" | "female" | null;
   purok: string | null;
   created_at: string;
+  encoded_by: string | null;
 }
 
 export interface DashboardDocumentTrendPoint {

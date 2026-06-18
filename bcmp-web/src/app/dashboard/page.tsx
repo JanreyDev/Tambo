@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { api } from "@/lib/api";
 import { useLanguage } from "@/contexts/language-context";
+import { useAuth } from "@/contexts/auth-context";
 import type {
   DashboardActivity,
   DashboardCredits,
@@ -218,6 +219,7 @@ function formatPeso(amount: number): string {
 export default function DashboardPage() {
   const router = useRouter();
   const { t } = useLanguage();
+  const { user } = useAuth();
   const [credits, setCredits] = useState<DashboardCredits | null>(null);
   const [creditsLoading, setCreditsLoading] = useState(true);
   const [platformUpdates, setPlatformUpdates] = useState<PlatformUpdate[]>([]);
@@ -410,7 +412,10 @@ export default function DashboardPage() {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <PageHeader title={t.dashboard.pageTitle} description={t.dashboard.pageDescription} />
+      <PageHeader 
+        title={t.dashboard.pageTitle} 
+        description={user?.barangay?.motto ? `"${user.barangay.motto}"` : t.dashboard.pageDescription} 
+      />
 
       {/* Credits Bar */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
@@ -733,7 +738,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">{fullName}</p>
-                      <p className="text-[10px] text-muted-foreground">{r.age !== null ? `${r.age}yo, ` : ""}{r.sex === "male" ? "M" : r.sex === "female" ? "F" : "—"}{r.purok ? ` | Purok ${r.purok}` : ""}</p>
+                      <p className="text-[10px] text-muted-foreground">{r.age !== null ? `${r.age}yo, ` : ""}{r.sex === "male" ? "M" : r.sex === "female" ? "F" : "—"}{r.purok ? ` | Purok ${r.purok}` : ""} {r.encoded_by ? ` • Encoded by: ${r.encoded_by}` : ""}</p>
                     </div>
                     <span className="text-[10px] text-muted-foreground shrink-0">{dayText}</span>
                   </div>

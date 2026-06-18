@@ -127,7 +127,6 @@ export default function DrivePage() {
     setBreadcrumb(prev => [...prev, folder]);
     fetchFolder(folder);
   };
-
   const navigateBack = (index: number) => {
     const newBreadcrumb = breadcrumb.slice(0, index);
     setBreadcrumb(newBreadcrumb);
@@ -136,7 +135,9 @@ export default function DrivePage() {
       fetchRoot();
     } else {
       const parent = newBreadcrumb[newBreadcrumb.length - 1];
-      fetchFolder(parent);
+      if (parent) {
+        fetchFolder(parent);
+      }
     }
   };
 

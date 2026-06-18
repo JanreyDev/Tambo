@@ -837,7 +837,7 @@ class ResidentController extends Controller
             'mothers_maiden_name' => ['nullable', 'string', 'max:200'],
             'date_of_birth' => ['required', 'date', 'before:today'],
             'place_of_birth' => ['required', 'string', 'max:255'],
-            'sex' => ['required', 'in:male,female'],
+            'sex' => ['required', 'in:male,female,lesbian,gay,bisexual,transgender,queer,intersex,other,prefer not to say'],
             'civil_status' => ['required', 'string', 'max:20'],
             'citizenship' => ['nullable', 'string', 'max:50'],
             'blood_type' => ['nullable', 'string', 'max:5'],
@@ -991,7 +991,7 @@ class ResidentController extends Controller
         $rules['last_name'] = ['sometimes', 'string', 'max:100'];
         $rules['date_of_birth'] = ['sometimes', 'date', 'before:today'];
         $rules['place_of_birth'] = ['sometimes', 'string', 'max:255'];
-        $rules['sex'] = ['sometimes', 'in:male,female'];
+        $rules['sex'] = ['sometimes', 'in:male,female,lesbian,gay,bisexual,transgender,queer,intersex,other,prefer not to say'];
         $rules['civil_status'] = ['sometimes', 'string', 'max:20'];
         $rules['resident_type'] = ['sometimes', 'in:permanent,transient,transferee'];
         $rules['status'] = ['sometimes', 'in:active,inactive,deceased,transferred'];

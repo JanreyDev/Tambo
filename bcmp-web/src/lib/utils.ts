@@ -19,8 +19,12 @@ export function resolvePhotoUrl(url: string | null | undefined): string | null {
   if (!url) return null;
   try {
     const parsed = new URL(url);
-    // Anything served from the API origin (localhost or 127.0.0.1) goes via proxy
-    if (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") {
+    // Anything served from the local API origin or local storage goes via proxy
+    if (
+      parsed.hostname === "localhost" ||
+      parsed.hostname === "127.0.0.1" ||
+      (!parsed.hostname.includes("digitaloceanspaces.com") && parsed.pathname.startsWith("/storage/"))
+    ) {
       return parsed.pathname + parsed.search;
     }
   } catch {
