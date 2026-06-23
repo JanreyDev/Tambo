@@ -86,13 +86,24 @@ export default function ReportsPage() {
   const [showGenerate, setShowGenerate] = useState(false);
   const [generateTarget, setGenerateTarget] = useState<ReportTemplate | null>(null);
   const [genPeriod, setGenPeriod] = useState("monthly");
-  const [genMonth, setGenMonth] = useState(months[new Date().getMonth()]);
+  const [genMonth, setGenMonth] = useState<string>(months[new Date().getMonth()] || "January");
   const [genQuarter, setGenQuarter] = useState("Q1 (Jan-Mar)");
   const [genYear, setGenYear] = useState("2026");
   const [genDateFrom, setGenDateFrom] = useState("");
   const [genDateTo, setGenDateTo] = useState("");
   const [genFormat, setGenFormat] = useState("pdf");
   const [genCharts, setGenCharts] = useState(true);
+
+  const formatDateTimeRange = (dateTimeStr: string) => {
+    if (!dateTimeStr) return "...";
+    try {
+      const d = new Date(dateTimeStr);
+      if (isNaN(d.getTime())) return dateTimeStr;
+      return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) + " " + d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+    } catch (e) {
+      return dateTimeStr;
+    }
+  };
 
   // Success modal
   const [showSuccess, setShowSuccess] = useState(false);
@@ -141,13 +152,13 @@ export default function ReportsPage() {
 
     if (genPeriod === "custom") {
       if (!genDateFrom) {
-        errors.dateFrom = "Start date is required";
+        errors.dateFrom = "Start date & time is required";
       }
       if (!genDateTo) {
-        errors.dateTo = "End date is required";
+        errors.dateTo = "End date & time is required";
       }
       if (genDateFrom && genDateTo && genDateFrom > genDateTo) {
-        errors.dateRange = "Start date must be on or before end date";
+        errors.dateRange = "Start date & time must be on or before end date & time";
       }
     }
 
@@ -377,14 +388,14 @@ export default function ReportsPage() {
                 <div className="space-y-2">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">From</label>
-                      <input type="date" value={genDateFrom} onChange={(e) => { setGenDateFrom(e.target.value); setFormErrors((prev) => { const { dateFrom, dateRange, ...rest } = prev; return rest; }); }}
+                      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">From (Date & Time)</label>
+                      <input type="datetime-local" value={genDateFrom} onChange={(e) => { setGenDateFrom(e.target.value); setFormErrors((prev) => { const { dateFrom, dateRange, ...rest } = prev; return rest; }); }}
                         className={cn("w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2", formErrors.dateFrom || formErrors.dateRange ? "border-red-500" : "border-border")} style={{ "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties} />
                       {formErrors.dateFrom && <p className="text-[11px] text-red-500 mt-1">{formErrors.dateFrom}</p>}
                     </div>
                     <div>
-                      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">To</label>
-                      <input type="date" value={genDateTo} onChange={(e) => { setGenDateTo(e.target.value); setFormErrors((prev) => { const { dateTo, dateRange, ...rest } = prev; return rest; }); }}
+                      <label className="block text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">To (Date & Time)</label>
+                      <input type="datetime-local" value={genDateTo} onChange={(e) => { setGenDateTo(e.target.value); setFormErrors((prev) => { const { dateTo, dateRange, ...rest } = prev; return rest; }); }}
                         className={cn("w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2", formErrors.dateTo || formErrors.dateRange ? "border-red-500" : "border-border")} style={{ "--tw-ring-color": "var(--accent-ring)" } as React.CSSProperties} />
                       {formErrors.dateTo && <p className="text-[11px] text-red-500 mt-1">{formErrors.dateTo}</p>}
                     </div>
@@ -447,7 +458,7 @@ export default function ReportsPage() {
                   {genPeriod === "monthly" && `${genMonth} ${genYear}`}
                   {genPeriod === "quarterly" && `${genQuarter} ${genYear}`}
                   {genPeriod === "annually" && genYear}
-                  {genPeriod === "custom" && `${genDateFrom || "..."} to ${genDateTo || "..."}`}
+                  {genPeriod === "custom" && `${formatDateTimeRange(genDateFrom)} to ${formatDateTimeRange(genDateTo)}`}
                 </span>
                 <span className="text-muted-foreground">Format:</span>
                 <span className="text-foreground font-medium">{formats.find((f) => f.id === genFormat)?.label}</span>
