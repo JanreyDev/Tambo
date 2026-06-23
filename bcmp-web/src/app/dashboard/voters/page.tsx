@@ -25,7 +25,7 @@ import { Modal, ModalButton } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
 import { MabiniButton } from "@/components/ui/mabini-button";
 import { api } from "@/lib/api";
-import type { Voter, VoterStats, VoterImportPreview, VoterImportResult } from "@/lib/types";
+import type { Voter, VoterStats, VoterImportPreview, VoterImportResult, Resident } from "@/lib/types";
 
 type ImportStep = "pick" | "preview" | "importing" | "done" | "error";
 
@@ -56,6 +56,25 @@ export default function VotersPage() {
   const [importResult, setImportResult] = useState<VoterImportResult | null>(null);
   const [importError, setImportError] = useState<string>("");
   const [loadingPreview, setLoadingPreview] = useState(false);
+
+  // --- Resolve Mismatches states ---
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [unmatchedVoters, setUnmatchedVoters] = useState<Voter[]>([]);
+  const [selectedVoter, setSelectedVoter] = useState<Voter | null>(null);
+  const [suggestions, setSuggestions] = useState<Resident[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [residentSearch, setResidentSearch] = useState("");
+  const [debouncedResidentSearch, setDebouncedResidentSearch] = useState("");
+  const [searchedResidents, setSearchedResidents] = useState<Resident[]>([]);
+  const [searchingResidents, setSearchingResidents] = useState(false);
+  const [unmatchedPage, setUnmatchedPage] = useState(1);
+  const [loadingUnmatched, setLoadingUnmatched] = useState(false);
+  const [unmatchedTotal, setUnmatchedTotal] = useState(0);
+  const [unmatchedLastPage, setUnmatchedLastPage] = useState(1);
+
+  // --- Single link modal ---
+  const [selectedVoterForLink, setSelectedVoterForLink] = useState<Voter | null>(null);
+  const [showSingleLinkModal, setShowSingleLinkModal] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -111,6 +130,108 @@ export default function VotersPage() {
 
   // reset page on filter change
   useEffect(() => { setPage(1); }, [debouncedSearch, precinctFilter]);
+
+  // --- Link/Unlink Handlers ---
+  const handleLinkVoter = async (voterId: string, residentId: string) => {
+    try {
+      await api.voters.link(voterId, residentId);
+      fetchStats();
+      fetchList();
+      if (showVerifyModal) {
+        fetchUnmatched();
+        if (selectedVoter?.id === voterId) {
+          setSelectedVoter(null);
+          setSuggestions([]);
+        }
+      }
+      if (showSingleLinkModal) {
+        setShowSingleLinkModal(false);
+        setSelectedVoterForLink(null);
+      }
+      alert("Voter successfully matched and linked to resident.");
+    } catch (err: any) {
+      alert(err.message || "Failed to link voter.");
+    }
+  };
+
+  const handleUnlinkVoter = async (voterId: string) => {
+    if (!confirm("Are you sure you want to unlink this voter record from their resident profile?")) return;
+    try {
+      await api.voters.unlink(voterId);
+      fetchStats();
+      fetchList();
+      alert("Voter successfully unlinked.");
+    } catch (err: any) {
+      alert(err.message || "Failed to unlink voter.");
+    }
+  };
+
+  // --- Fetch Unmatched Voters ---
+  const fetchUnmatched = useCallback(async () => {
+    setLoadingUnmatched(true);
+    try {
+      const res = await api.voters.list({ unmatched: true, page: unmatchedPage, per_page: 15 });
+      setUnmatchedVoters(res.data ?? []);
+      setUnmatchedTotal(res.total ?? 0);
+      setUnmatchedLastPage(res.last_page ?? 1);
+    } catch {
+      setUnmatchedVoters([]);
+    } finally {
+      setLoadingUnmatched(false);
+    }
+  }, [unmatchedPage]);
+
+  useEffect(() => {
+    if (showVerifyModal) {
+      fetchUnmatched();
+    }
+  }, [showVerifyModal, fetchUnmatched]);
+
+  // --- Fetch suggestions ---
+  const fetchSuggestions = async (voterId: string) => {
+    setLoadingSuggestions(true);
+    try {
+      const res = await api.voters.suggestions(voterId);
+      setSuggestions(res ?? []);
+    } catch {
+      setSuggestions([]);
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedVoter) {
+      fetchSuggestions(selectedVoter.id);
+      setResidentSearch("");
+      setSearchedResidents([]);
+    }
+  }, [selectedVoter]);
+
+  // --- Manual lookup search ---
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedResidentSearch(residentSearch), 350);
+    return () => clearTimeout(t);
+  }, [residentSearch]);
+
+  useEffect(() => {
+    const searchResidents = async () => {
+      if (!debouncedResidentSearch || debouncedResidentSearch.trim().length < 2) {
+        setSearchedResidents([]);
+        return;
+      }
+      setSearchingResidents(true);
+      try {
+        const res = await api.residents.list({ search: debouncedResidentSearch, per_page: 5 });
+        setSearchedResidents((res as any).data ?? []);
+      } catch {
+        setSearchedResidents([]);
+      } finally {
+        setSearchingResidents(false);
+      }
+    };
+    searchResidents();
+  }, [debouncedResidentSearch]);
 
   // --- Import handlers ---
   const openImport = () => {
@@ -258,6 +379,19 @@ export default function VotersPage() {
             <Filter className="h-4 w-4" />
           </button>
           <button
+            onClick={() => {
+              setSelectedVoter(null);
+              setSuggestions([]);
+              setUnmatchedPage(1);
+              setShowVerifyModal(true);
+            }}
+            className="px-3 py-2 rounded-lg border border-border hover:bg-muted hover:text-foreground text-sm font-semibold flex items-center gap-1.5 transition-colors text-muted-foreground"
+            title="Resolve Mismatches"
+          >
+            <AlertCircle className="h-4 w-4 text-amber-500" />
+            <span>Resolve Mismatches</span>
+          </button>
+          <button
             onClick={openImport}
             className="p-2 rounded-lg border border-border hover:bg-muted transition-colors"
             title="Import COMELEC"
@@ -299,12 +433,13 @@ export default function VotersPage() {
                 <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Voter</th>
                 <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-32">Precinct</th>
                 <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Address</th>
+                <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-32">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loadingList ? (
                 <tr>
-                  <td colSpan={3} className="px-4 py-16 text-center">
+                  <td colSpan={4} className="px-4 py-16 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
                       <p className="text-sm text-muted-foreground">Loading voters...</p>
@@ -313,7 +448,7 @@ export default function VotersPage() {
                 </tr>
               ) : voters.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="px-4 py-16 text-center">
+                  <td colSpan={4} className="px-4 py-16 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
                         <UserCheck className="w-6 h-6 text-muted-foreground" />
@@ -334,8 +469,12 @@ export default function VotersPage() {
                   <tr key={v.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
                     <td className="px-4 py-3">
                       <p className="text-sm font-medium text-foreground">{v.full_name}</p>
-                      {v.resident_id && (
-                        <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-0.5">Matched to resident</p>
+                      {v.resident ? (
+                        <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-0.5">
+                          Linked to: {v.resident.first_name} {v.resident.last_name} ({v.resident.resident_number})
+                        </p>
+                      ) : (
+                        <p className="text-[11px] text-amber-500 mt-0.5">Unmatched</p>
                       )}
                     </td>
                     <td className="px-4 py-3">
@@ -344,6 +483,27 @@ export default function VotersPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-muted-foreground">{v.address || "—"}</td>
+                    <td className="px-4 py-3 text-xs">
+                      {v.resident_id ? (
+                        <button
+                          onClick={() => handleUnlinkVoter(v.id)}
+                          className="font-semibold text-rose-500 hover:text-rose-600 hover:underline transition-colors"
+                        >
+                          Unlink Profile
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setSelectedVoterForLink(v);
+                            fetchSuggestions(v.id);
+                            setShowSingleLinkModal(true);
+                          }}
+                          className="font-semibold text-accent-primary hover:underline transition-colors"
+                        >
+                          Link Profile
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))
               )}
@@ -567,6 +727,239 @@ export default function VotersPage() {
             <div className="text-center">
               <p className="text-lg font-bold text-foreground">Import Failed</p>
               <p className="text-sm text-muted-foreground mt-1">{importError}</p>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Resolve Mismatches Modal */}
+      <Modal
+        open={showVerifyModal}
+        onClose={() => setShowVerifyModal(false)}
+        title="Resolve Mismatches & Link Profiles"
+        size="xl"
+      >
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 h-[550px] overflow-hidden">
+          {/* Left panel: Unmatched Voters */}
+          <div className="md:col-span-4 flex flex-col h-full border-r border-border pr-4 overflow-hidden">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Unmatched Voters ({unmatchedTotal})</p>
+            {loadingUnmatched ? (
+              <div className="flex-1 flex items-center justify-center">
+                <Loader2 className="h-6 w-6 text-muted-foreground animate-spin" />
+              </div>
+            ) : unmatchedVoters.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
+                <CheckCircle2 className="h-8 w-8 text-emerald-500 mb-2" />
+                <p className="text-sm font-medium text-foreground">All matched!</p>
+                <p className="text-xs text-muted-foreground">No unmatched voter records found.</p>
+              </div>
+            ) : (
+              <>
+                <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+                  {unmatchedVoters.map((v) => (
+                    <button
+                      key={v.id}
+                      onClick={() => setSelectedVoter(v)}
+                      className={cn(
+                        "w-full text-left p-3 rounded-xl border text-xs transition-all",
+                        selectedVoter?.id === v.id
+                          ? "border-accent-primary bg-accent-bg text-accent-text"
+                          : "border-border hover:bg-muted/50"
+                      )}
+                    >
+                      <p className="font-semibold">{v.full_name}</p>
+                      <p className="text-xs text-muted-foreground mt-1">Precinct: {v.precinct_number}</p>
+                    </button>
+                  ))}
+                </div>
+                {/* Pagination */}
+                {unmatchedLastPage > 1 && (
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
+                    <button
+                      onClick={() => setUnmatchedPage(p => Math.max(1, p - 1))}
+                      disabled={unmatchedPage <= 1}
+                      className="px-2 py-1 text-xs rounded border disabled:opacity-30 hover:bg-muted"
+                    >
+                      Prev
+                    </button>
+                    <span className="text-xs">{unmatchedPage} / {unmatchedLastPage}</span>
+                    <button
+                      onClick={() => setUnmatchedPage(p => Math.min(unmatchedLastPage, p + 1))}
+                      disabled={unmatchedPage >= unmatchedLastPage}
+                      className="px-2 py-1 text-xs rounded border disabled:opacity-30 hover:bg-muted"
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Right panel: Matcher & suggestions */}
+          <div className="md:col-span-8 flex flex-col h-full overflow-hidden">
+            {selectedVoter ? (
+              <div className="flex-1 flex flex-col h-full overflow-hidden space-y-4">
+                {/* Voter Info Card */}
+                <div className="p-4 rounded-xl bg-muted/30 border border-border">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-100 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 font-bold uppercase">
+                    Unmatched Voter
+                  </span>
+                  <h3 className="text-base font-bold text-foreground mt-2">{selectedVoter.full_name}</h3>
+                  <div className="grid grid-cols-2 gap-4 mt-3 text-xs">
+                    <div>
+                      <p className="text-muted-foreground font-semibold">Precinct Number</p>
+                      <p className="text-foreground mt-0.5 font-mono">{selectedVoter.precinct_number}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground font-semibold">Address from PDF</p>
+                      <p className="text-foreground mt-0.5">{selectedVoter.address || "—"}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Match Suggestions / Manual lookup */}
+                <div className="flex-1 flex flex-col overflow-hidden">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Match Suggestions</p>
+                  
+                  {loadingSuggestions ? (
+                    <div className="flex-1 flex items-center justify-center">
+                      <Loader2 className="h-6 w-6 text-muted-foreground animate-spin" />
+                    </div>
+                  ) : (
+                    <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+                      {suggestions.length === 0 ? (
+                        <p className="text-xs text-muted-foreground py-2">No automatically suggested residents found. Use the lookup tool below.</p>
+                      ) : (
+                        suggestions.map((r) => (
+                          <div key={r.id} className="p-3 rounded-xl border border-border flex items-center justify-between gap-4 hover:border-accent-primary/50 transition-all">
+                            <div>
+                              <p className="text-sm font-semibold text-foreground">
+                                {r.first_name} {r.middle_name ? r.middle_name[0] + '.' : ''} {r.last_name}
+                              </p>
+                              <p className="text-[11px] text-muted-foreground mt-1">
+                                No. {r.resident_number} • Purok {r.purok || "—"} • {r.street || "—"}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => handleLinkVoter(selectedVoter.id, r.id)}
+                              className="px-3 py-1 text-xs font-bold bg-accent-primary text-accent-text rounded-lg hover:opacity-90 transition-all"
+                            >
+                              Link Profile
+                            </button>
+                          </div>
+                        ))
+                      )}
+
+                      {/* Manual Lookup Search */}
+                      <div className="mt-4 pt-4 border-t border-border space-y-3">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Manual Resident Lookup</p>
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <input
+                            type="text"
+                            value={residentSearch}
+                            onChange={(e) => setResidentSearch(e.target.value)}
+                            placeholder="Search resident name or number..."
+                            className="w-full pl-9 pr-4 py-2 text-xs rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring"
+                          />
+                        </div>
+
+                        {searchingResidents ? (
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground pl-1">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            <span>Searching...</span>
+                          </div>
+                        ) : searchedResidents.length > 0 ? (
+                          <div className="space-y-2 border border-border rounded-xl p-2 bg-muted/10 max-h-32 overflow-y-auto">
+                            {searchedResidents.map((r) => (
+                              <div key={r.id} className="flex items-center justify-between text-xs p-2 border-b last:border-0 border-border">
+                                <div>
+                                  <p className="font-semibold text-foreground">{r.first_name} {r.last_name}</p>
+                                  <p className="text-[10px] text-muted-foreground">{r.resident_number}</p>
+                                </div>
+                                <button
+                                  onClick={() => handleLinkVoter(selectedVoter.id, r.id)}
+                                  className="text-xs text-accent-primary font-bold hover:underline"
+                                >
+                                  Link
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : residentSearch.length >= 2 ? (
+                          <p className="text-xs text-muted-foreground pl-1">No residents found matching "{residentSearch}".</p>
+                        ) : null}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+                <UserCheck className="h-12 w-12 text-muted-foreground mb-3" />
+                <p className="text-sm font-medium text-foreground">No voter selected</p>
+                <p className="text-xs text-muted-foreground mt-1">Select an unmatched voter on the left panel to find suggestions and link their profile.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </Modal>
+
+      {/* Direct Single Link Modal */}
+      <Modal
+        open={showSingleLinkModal}
+        onClose={() => { setShowSingleLinkModal(false); setSelectedVoterForLink(null); }}
+        title="Link Voter to Resident"
+        size="md"
+      >
+        {selectedVoterForLink && (
+          <div className="space-y-4">
+            <div className="p-3 rounded-lg bg-muted/30 border border-border">
+              <p className="text-xs font-semibold text-muted-foreground uppercase">Voter Record</p>
+              <p className="text-sm font-bold mt-1 text-foreground">{selectedVoterForLink.full_name}</p>
+              <p className="text-xs text-muted-foreground mt-1 font-mono">Precinct: {selectedVoterForLink.precinct_number}</p>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase">Suggested Match</p>
+              {loadingSuggestions ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
+                </div>
+              ) : suggestions.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No suggested matching profiles found. Use the verification assistant for manual search.</p>
+              ) : (
+                <div className="space-y-2">
+                  {suggestions.map((r) => (
+                    <div key={r.id} className="p-3 rounded-lg border border-border flex items-center justify-between text-xs">
+                      <div>
+                        <p className="font-semibold text-foreground">{r.first_name} {r.last_name}</p>
+                        <p className="text-muted-foreground mt-0.5">{r.resident_number}</p>
+                      </div>
+                      <button
+                        onClick={() => handleLinkVoter(selectedVoterForLink.id, r.id)}
+                        className="px-2 py-1 bg-accent-primary text-accent-text font-bold rounded"
+                      >
+                        Link
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="pt-2 border-t border-border flex justify-end">
+              <button
+                onClick={() => {
+                  setShowSingleLinkModal(false);
+                  setSelectedVoter(selectedVoterForLink);
+                  setShowVerifyModal(true);
+                }}
+                className="text-xs text-accent-primary hover:underline font-bold"
+              >
+                Open Verification Assistant for full search →
+              </button>
             </div>
           </div>
         )}

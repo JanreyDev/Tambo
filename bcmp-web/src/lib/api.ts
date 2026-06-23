@@ -1129,7 +1129,7 @@ const api = {
   },
 
   voters: {
-    list: (params?: { search?: string; precinct?: string; per_page?: number; page?: number }) => {
+    list: (params?: { search?: string; precinct?: string; per_page?: number; page?: number; unmatched?: boolean }) => {
       const q = new URLSearchParams();
       if (params) Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== "") q.append(k, String(v)); });
       const qs = q.toString();
@@ -1153,6 +1153,15 @@ const api = {
       form.append("pdf", file);
       return api.post<import("@/lib/types").VoterImportResult>("/voters/import", form);
     },
+
+    suggestions: (id: string) =>
+      api.get<import("@/lib/types").Resident[]>(`/voters/${id}/suggestions`),
+
+    link: (id: string, residentId: string) =>
+      api.post<{ message: string; voter: import("@/lib/types").Voter }>(`/voters/${id}/link`, { resident_id: residentId }),
+
+    unlink: (id: string) =>
+      api.post<{ message: string; voter: import("@/lib/types").Voter }>(`/voters/${id}/unlink`),
   },
 };
 

@@ -236,6 +236,9 @@ Route::prefix('v1')->group(function () {
             Route::post('voters/preview', [VoterController::class, 'preview']);
             Route::post('voters/import', [VoterController::class, 'import']);
             Route::apiResource('voters', VoterController::class)->only(['index']);
+            Route::get('voters/{voter}/suggestions', [VoterController::class, 'suggestions']);
+            Route::post('voters/{voter}/link', [VoterController::class, 'link']);
+            Route::post('voters/{voter}/unlink', [VoterController::class, 'unlink']);
 
             // ── Records ──
             Route::post('residents/check-duplicate', [ResidentController::class, 'checkDuplicate']);

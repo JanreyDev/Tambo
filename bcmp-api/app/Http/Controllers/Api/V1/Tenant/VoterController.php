@@ -39,6 +39,10 @@ class VoterController extends Controller
             $query->where('precinct_number', $precinct);
         }
 
+        if ($request->boolean('unmatched')) {
+            $query->whereNull('resident_id');
+        }
+
         $query->orderBy('last_name')->orderBy('first_name');
         $perPage = min((int) $request->get('per_page', 25), 100);
 
@@ -228,6 +232,113 @@ class VoterController extends Controller
 
             return response()->json(['message' => 'Import failed: '.$e->getMessage()], 500);
         }
+    }
+
+    // ── Match Suggestions ──────────────────────────────────────────────────
+
+    public function suggestions(Request $request, string $id): JsonResponse
+    {
+        $barangayId = $request->user()->barangay_id;
+        $voter = Voter::where('barangay_id', $barangayId)->findOrFail($id);
+
+        $lastName = trim($voter->last_name);
+        $firstName = trim($voter->first_name);
+
+        // Simple fuzzy/partial search on residents table within the same barangay
+        $candidates = Resident::where('barangay_id', $barangayId)
+            ->whereNull('deleted_at')
+            ->where(function ($q) use ($lastName, $firstName) {
+                $q->where('last_name', 'ilike', '%' . $lastName . '%')
+                  ->orWhere('first_name', 'ilike', '%' . $firstName . '%');
+            })
+            ->limit(10)
+            ->get(['id', 'first_name', 'last_name', 'middle_name', 'resident_number', 'purok', 'street', 'is_voter']);
+
+        return response()->json($candidates);
+    }
+
+    // ── Link Voter to Resident ─────────────────────────────────────────────
+
+    public function link(Request $request, string $id): JsonResponse
+    {
+        $barangayId = $request->user()->barangay_id;
+        $voter = Voter::where('barangay_id', $barangayId)->findOrFail($id);
+
+        $validated = $request->validate([
+            'resident_id' => ['required', 'uuid', 'exists:residents,id'],
+        ]);
+
+        $resident = Resident::where('barangay_id', $barangayId)
+            ->whereNull('deleted_at')
+            ->findOrFail($validated['resident_id']);
+
+        DB::transaction(function () use ($voter, $resident) {
+            // Update voter record
+            $voter->update([
+                'resident_id' => $resident->id,
+                'matched_at' => now(),
+            ]);
+
+            // Update resident profile
+            $resident->update([
+                'is_voter' => true,
+                'voter_precinct_number' => $voter->precinct_number,
+            ]);
+        });
+
+        Log::info('Voter manually linked to resident', [
+            'voter_id' => $voter->id,
+            'resident_id' => $resident->id,
+            'user_id' => $request->user()->id,
+        ]);
+
+        return response()->json([
+            'message' => 'Voter linked successfully.',
+            'voter' => $voter->fresh('resident:id,first_name,last_name,resident_number'),
+        ]);
+    }
+
+    // ── Unlink Voter from Resident ───────────────────────────────────────────
+
+    public function unlink(Request $request, string $id): JsonResponse
+    {
+        $barangayId = $request->user()->barangay_id;
+        $voter = Voter::where('barangay_id', $barangayId)->findOrFail($id);
+
+        $residentId = $voter->resident_id;
+
+        if ($residentId) {
+            $resident = Resident::where('barangay_id', $barangayId)
+                ->whereNull('deleted_at')
+                ->find($residentId);
+
+            DB::transaction(function () use ($voter, $resident) {
+                // Clear voter link
+                $voter->update([
+                    'resident_id' => null,
+                    'matched_at' => null,
+                ]);
+
+                // Clear resident voter status
+                if ($resident) {
+                    $resident->update([
+                        'is_voter' => false,
+                        'voter_precinct_number' => null,
+                    ]);
+                }
+            });
+
+            Log::info('Voter manually unlinked from resident', [
+                'voter_id' => $voter->id,
+                'resident_id' => $residentId,
+                'user_id' => $request->user()->id,
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'Voter unlinked successfully.',
+            'voter' => $voter->fresh(),
+        ]);
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────
