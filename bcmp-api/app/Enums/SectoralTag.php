@@ -17,6 +17,12 @@ enum SectoralTag: string
     case FourPs = '4ps';        // Pantawid Pamilyang Pilipino Program
     case SeniorCitizen = 'senior_citizen';
     case Ip = 'ip';             // Indigenous People
+    case Kasambahay = 'kasambahay';
+    case Barracks = 'barracks';
+    case Minor = 'minor';
+    case SapraRegistration = 'sapra_registration';
+    case Tahungan = 'tahungan';
+    case BancaOwners = 'banca_owners';
 
     public function label(): string
     {
@@ -32,6 +38,12 @@ enum SectoralTag: string
             self::FourPs => '4Ps',
             self::SeniorCitizen => 'Senior Citizen',
             self::Ip => 'Indigenous People',
+            self::Kasambahay => 'Kasambahay',
+            self::Barracks => 'Barracks',
+            self::Minor => 'Minor',
+            self::SapraRegistration => 'SAPRA Registration',
+            self::Tahungan => 'Tahungan',
+            self::BancaOwners => 'Banca Owners',
         };
     }
 }

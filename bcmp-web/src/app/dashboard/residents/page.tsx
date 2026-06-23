@@ -123,6 +123,14 @@ export default function ResidentsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  const isTambo = user?.barangay?.name?.toLowerCase() === "tambo";
+  const sectorsList = isTambo
+    ? sectorOptions
+        .filter((s) => s !== "Farmer")
+        .concat(["Banca Owners", "SAPRA Registration", "Tahungan"])
+        .sort((a, b) => a.localeCompare(b))
+    : sectorOptions;
+
   // Translate filter "All X" labels while keeping state values in English.
   const filterLabel = (v: string): string => {
     switch (v) {
@@ -1248,6 +1256,9 @@ export default function ResidentsPage() {
     if (age !== null && age >= 60 && !sectors.includes("Senior Citizen")) {
       suggestions.push({ sector: "Senior Citizen", reason: `Age is ${age}` });
     }
+    if (age !== null && age < 18 && !sectors.includes("Minor")) {
+      suggestions.push({ sector: "Minor", reason: `Age is ${age} (Under 18)` });
+    }
     if (f("pwd_id") && !sectors.includes("PWD")) {
       suggestions.push({ sector: "PWD", reason: "PWD ID is filled" });
     }
@@ -1802,7 +1813,7 @@ export default function ResidentsPage() {
               <div>
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Sector / Organization</p>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-y-1.5 gap-x-2">
-                  {sectorOptions.map((s) => (
+                  {sectorsList.map((s) => (
                     <div key={s}>
                       <label className="flex items-center gap-2 cursor-pointer group">
                         <input type="checkbox" checked={sectors.includes(s)} onChange={() => toggleSector(s)}
@@ -2352,7 +2363,7 @@ export default function ResidentsPage() {
             </select>
             <select value={sectorFilter} onChange={(e) => { setSectorFilter(e.target.value); setPage(1); }}
               className="h-8 px-3 text-xs font-medium rounded-full border border-border bg-background hover:bg-muted focus:outline-none focus:ring-2 focus:ring-accent-ring cursor-pointer transition-colors">
-              {["All Sectors", ...sectorOptions].map((s) => <option key={s} value={s}>{filterLabel(s)}</option>)}
+              {["All Sectors", ...sectorsList].map((s) => <option key={s} value={s}>{filterLabel(s)}</option>)}
             </select>
             {(purokFilter !== "All Puroks" || statusFilter !== "All Status" || sexFilter !== "All" || voterFilter !== "all" || civilStatusFilter !== "All Civil Status" || residentTypeFilter !== "All Resident Types" || hohFilter !== "all" || citizenshipFilter !== "All Citizenship" || religionFilter !== "All Religion" || ethnicityFilter !== "All Ethnicity" || sectorFilter !== "All Sectors") && (
               <button onClick={() => { setPurokFilter("All Puroks"); setStatusFilter("All Status"); setSexFilter("All"); setVoterFilter("all"); setCivilStatusFilter("All Civil Status"); setResidentTypeFilter("All Resident Types"); setHohFilter("all"); setCitizenshipFilter("All Citizenship"); setReligionFilter("All Religion"); setEthnicityFilter("All Ethnicity"); setSectorFilter("All Sectors"); }}
