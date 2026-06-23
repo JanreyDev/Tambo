@@ -230,6 +230,7 @@ class ResidentController extends Controller
             'tin_number' => 'tin_number_encrypted',
             'pwd_id' => 'pwd_id_encrypted',
             'senior_citizen_id' => 'senior_citizen_id_encrypted',
+            'solo_parent_id' => 'solo_parent_id_encrypted',
         ];
 
         $data = $resident->toArray();
@@ -315,6 +316,7 @@ class ResidentController extends Controller
                 'tin_number' => 'tin_number_encrypted',
                 'pwd_id' => 'pwd_id_encrypted',
                 'senior_citizen_id' => 'senior_citizen_id_encrypted',
+                'solo_parent_id' => 'solo_parent_id_encrypted',
             ];
 
             $residentData = collect($validated)
@@ -324,7 +326,7 @@ class ResidentController extends Controller
                     'relative_entries',
                     // Gov ID plain names (mapped to encrypted columns)
                     'philhealth_number', 'sss_gsis_number', 'pagibig_number',
-                    'tin_number', 'pwd_id', 'senior_citizen_id',
+                    'tin_number', 'pwd_id', 'senior_citizen_id', 'solo_parent_id',
                 ])
                 ->toArray();
 
@@ -482,6 +484,7 @@ class ResidentController extends Controller
             'tin_number' => 'tin_number_encrypted',
             'pwd_id' => 'pwd_id_encrypted',
             'senior_citizen_id' => 'senior_citizen_id_encrypted',
+            'solo_parent_id' => 'solo_parent_id_encrypted',
         ];
 
         $updateData = collect($validated)
@@ -490,7 +493,7 @@ class ResidentController extends Controller
                 'business_entries', 'pet_entries', 'assistance_entries',
                 'relative_entries',
                 'philhealth_number', 'sss_gsis_number', 'pagibig_number',
-                'tin_number', 'pwd_id', 'senior_citizen_id',
+                'tin_number', 'pwd_id', 'senior_citizen_id', 'solo_parent_id',
             ])
             ->toArray();
 
@@ -884,6 +887,9 @@ class ResidentController extends Controller
             'pwd_id' => ['nullable', 'string', 'max:50'],
             'pwd_id_expiry' => ['nullable', 'date'],
             'senior_citizen_id' => ['nullable', 'string', 'max:50'],
+            'senior_citizen_id_expiry' => ['nullable', 'date'],
+            'solo_parent_id' => ['nullable', 'string', 'max:50'],
+            'solo_parent_id_expiry' => ['nullable', 'date'],
 
             // Education
             'highest_education' => ['nullable', 'string', 'max:100'],

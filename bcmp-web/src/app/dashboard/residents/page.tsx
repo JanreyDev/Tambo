@@ -911,7 +911,8 @@ export default function ResidentsPage() {
       "pagibig_number", "pagibig_expiry",
       "tin_number", "tin_expiry",
       "pwd_id", "pwd_id_expiry",
-      "senior_citizen_id",
+      "senior_citizen_id", "senior_citizen_id_expiry",
+      "solo_parent_id", "solo_parent_id_expiry",
       // Contact
       "telephone",
       // Voter & Household
@@ -1133,6 +1134,9 @@ export default function ResidentsPage() {
       pagibig_expiry: dateOnly(r.pagibig_expiry),
       tin_expiry: dateOnly(r.tin_expiry),
       pwd_id_expiry: dateOnly(r.pwd_id_expiry),
+      senior_citizen_id_expiry: dateOnly((r as unknown as Record<string, unknown>).senior_citizen_id_expiry),
+      solo_parent_id: upper((r as unknown as Record<string, unknown>).solo_parent_id),
+      solo_parent_id_expiry: dateOnly((r as unknown as Record<string, unknown>).solo_parent_id_expiry),
     } as unknown as Record<string, string | boolean>);
     setSectors(r.sectoral_tags?.map(t => t.sector) || []);
     // Uppercase text fields in JSONB entry arrays too
@@ -2152,7 +2156,14 @@ export default function ResidentsPage() {
                   <FInput label="PWD ID" name="pwd_id" placeholder="e.g. PWD ID" value={f("pwd_id")} onChange={updateForm} />
                   <FDatePicker label="Expiration Date" name="pwd_id_expiry" value={f("pwd_id_expiry")} onChange={updateForm} />
                 </div>
-                <FInput label="Senior Citizen ID" name="senior_citizen_id" placeholder="e.g. SC-XXXX" value={f("senior_citizen_id")} onChange={updateForm} />
+                <div className="rounded-lg border border-border p-3 space-y-2">
+                  <FInput label="Senior Citizen ID" name="senior_citizen_id" placeholder="e.g. SC-XXXX" value={f("senior_citizen_id")} onChange={updateForm} />
+                  <FDatePicker label="Expiration Date" name="senior_citizen_id_expiry" value={f("senior_citizen_id_expiry")} onChange={updateForm} />
+                </div>
+                <div className="rounded-lg border border-border p-3 space-y-2">
+                  <FInput label="Solo Parent ID" name="solo_parent_id" placeholder="e.g. SP-XXXX" value={f("solo_parent_id")} onChange={updateForm} />
+                  <FDatePicker label="Expiration Date" name="solo_parent_id_expiry" value={f("solo_parent_id_expiry")} onChange={updateForm} />
+                </div>
               </div>
 
               {/* Voter & Household */}

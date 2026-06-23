@@ -84,6 +84,9 @@ class Resident extends Model
         'pwd_id_encrypted',
         'pwd_id_expiry',
         'senior_citizen_id_encrypted',
+        'senior_citizen_id_expiry',
+        'solo_parent_id_encrypted',
+        'solo_parent_id_expiry',
 
         // Education & Employment
         'highest_education',
@@ -158,6 +161,8 @@ class Resident extends Model
             'pagibig_expiry' => 'date',
             'tin_expiry' => 'date',
             'pwd_id_expiry' => 'date',
+            'senior_citizen_id_expiry' => 'date',
+            'solo_parent_id_expiry' => 'date',
             'is_voter' => 'boolean',
             'is_resident_voter' => 'boolean',
             'is_head_of_household' => 'boolean',

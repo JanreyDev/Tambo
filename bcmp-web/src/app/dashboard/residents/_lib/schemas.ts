@@ -176,6 +176,9 @@ export const residentSchema = z
     tin_number: optionalString,
     pwd_id: optionalString,
     senior_citizen_id: optionalString,
+    senior_citizen_id_expiry: optionalDate,
+    solo_parent_id: optionalString,
+    solo_parent_id_expiry: optionalDate,
 
     // Voter
     voter_precinct_number: optionalString,
