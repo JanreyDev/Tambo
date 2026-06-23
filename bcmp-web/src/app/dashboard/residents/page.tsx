@@ -43,8 +43,8 @@ import {
   eduFieldRules,
 } from "./_lib/constants";
 import {
-  type EduEntry, type WorkEntry, type BusinessEntry, type Toast,
-  emptyEdu, emptyWork, emptyBusiness,
+  type EduEntry, type WorkEntry, type BusinessEntry, type PetEntry, type Toast,
+  emptyEdu, emptyWork, emptyBusiness, emptyPet,
 } from "./_lib/types";
 import { isValidPHMobile, isValidEmail, formatPHMobile } from "./_lib/validation";
 import { validateResident } from "./_lib/schemas";
@@ -309,11 +309,23 @@ export default function ResidentsPage() {
   }, [fetchResidents]);
   const [form, setForm] = useState<Record<string, string | boolean>>({});
   const [sectors, setSectors] = useState<string[]>([]);
+  interface OpenSectionsState {
+    other: boolean;
+    education: boolean;
+    work: boolean;
+    govinfo: boolean;
+    pets: boolean;
+    emergency: boolean;
+    biometric: boolean;
+  }
+
   const [eduEntries, setEduEntries] = useState<EduEntry[]>([{ ...emptyEdu }]);
   const [workEntries, setWorkEntries] = useState<WorkEntry[]>([{ ...emptyWork }]);
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+  const [petEntries, setPetEntries] = useState<PetEntry[]>([{ ...emptyPet }]);
+  const [openSections, setOpenSections] = useState<OpenSectionsState>({
     other: false,
     education: false, work: false, govinfo: false,
+    pets: false,
     emergency: false, biometric: false,
   });
 
@@ -786,7 +798,7 @@ export default function ResidentsPage() {
     });
   }, [dupDismissed]);
 
-  const toggleSection = (key: string) => setOpenSections((s) => ({ ...s, [key]: !s[key] }));
+  const toggleSection = (key: keyof OpenSectionsState) => setOpenSections((s) => ({ ...s, [key]: !s[key] }));
   const updateForm = (key: string, value: string | boolean) => {
     let v = value;
     // Auto-format Philippine mobile number
@@ -954,6 +966,7 @@ export default function ResidentsPage() {
     payload.education_entries = eduEntries.filter((e) => e.level);
     payload.work_entries = workEntries.filter((e) => e.position);
     payload.business_entries = businessEntries.filter((e) => e.business_name);
+    payload.pet_entries = petEntries.filter((p) => p.name);
 
     // Sectors — always send (even empty) so edit correctly clears removed sector tags
     payload.sectors = sectors;
@@ -1014,7 +1027,8 @@ export default function ResidentsPage() {
     setEduEntries([{ ...emptyEdu }]);
     setWorkEntries([{ ...emptyWork }]);
     setBusinessEntries([]);
-    setOpenSections({ other: false, education: false, work: false, govinfo: false, emergency: false, biometric: false });
+    setPetEntries([{ ...emptyPet }]);
+    setOpenSections({ other: false, education: false, work: false, govinfo: false, pets: false, emergency: false, biometric: false });
     setPhotoPreview(null);
     setPhotoAnalysis(null);
     setDupMatches([]);
@@ -1137,10 +1151,19 @@ export default function ResidentsPage() {
       dti_sec_no: upper(e.dti_sec_no),
       description: upper(e.description),
     });
+    const upperPet = (e: PetEntry): PetEntry => ({
+      ...e,
+      name: upper(e.name),
+      pet_type: upper(e.pet_type),
+      sex: cap(e.sex),
+      date_of_birth: dateOnly(e.date_of_birth),
+      remarks: upper(e.remarks),
+    });
     setEduEntries((r.education_details as EduEntry[])?.length ? (r.education_details as EduEntry[]).map(upperEdu) : [{ ...emptyEdu }]);
     setWorkEntries((r.work_history as WorkEntry[])?.length ? (r.work_history as WorkEntry[]).map(upperWork) : [{ ...emptyWork }]);
     setBusinessEntries(((r.business_details as BusinessEntry[]) || []).map(upperBiz));
-    setOpenSections({ other: true, education: true, work: true, govinfo: true, emergency: true, biometric: true });
+    setPetEntries((r.pet_records as PetEntry[])?.length ? (r.pet_records as PetEntry[]).map(upperPet) : [{ ...emptyPet }]);
+    setOpenSections({ other: true, education: true, work: true, govinfo: true, pets: true, emergency: true, biometric: true });
     // Pre-populate photo preview from existing photo_url so the photo area isn't blank in edit mode
     const existingPhoto = r.photo_url ? resolvePhotoUrl(r.photo_url) : null;
     setPhotoPreview(existingPhoto ?? null);
@@ -2168,7 +2191,42 @@ export default function ResidentsPage() {
             </div>
           </Section>
 
-          {/* 8. Left & Right Thumbmark */}
+          {/* 8. Pets Information */}
+          <Section icon={<PawPrint className="h-4 w-4" />} title="Pets Information"
+            open={openSections.pets} onToggle={() => toggleSection("pets")}>
+            <div className="space-y-4">
+              {petEntries.map((entry, idx) => (
+                <div key={idx} className="relative rounded-lg border border-border p-4 space-y-3 bg-muted/10">
+                  {petEntries.length > 1 && (
+                    <button type="button" onClick={() => setPetEntries((prev) => prev.filter((_, i) => i !== idx))}
+                      className="absolute top-3 right-3 p-1 text-muted-foreground hover:text-red-500 transition-colors">
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <FInput label="Pet Name" name="name" required placeholder="e.g. BANTAY"
+                      value={entry.name} onChange={(_, v) => setPetEntries((prev) => prev.map((x, i) => i === idx ? { ...x, name: String(v) } : x))} />
+                    <FSelect label="Pet Type" name="pet_type" options={["", "Dog", "Cat", "Bird", "Fish", "Rabbit", "Others"]}
+                      value={entry.pet_type} onChange={(_, v) => setPetEntries((prev) => prev.map((x, i) => i === idx ? { ...x, pet_type: String(v) } : x))} />
+                    <FSelect label="Sex" name="sex" options={["", "Male", "Female"]}
+                      value={entry.sex} onChange={(_, v) => setPetEntries((prev) => prev.map((x, i) => i === idx ? { ...x, sex: String(v) } : x))} />
+                    <FInput label="Date of Birth" name="date_of_birth" type="date"
+                      value={entry.date_of_birth} onChange={(_, v) => setPetEntries((prev) => prev.map((x, i) => i === idx ? { ...x, date_of_birth: String(v) } : x))} />
+                  </div>
+                  <div>
+                    <FInput label="Remarks & Vaccinations" name="remarks" placeholder="e.g. FULLY VACCINATED, SPAYED"
+                      value={entry.remarks} onChange={(_, v) => setPetEntries((prev) => prev.map((x, i) => i === idx ? { ...x, remarks: String(v) } : x))} />
+                  </div>
+                </div>
+              ))}
+              <button type="button" onClick={() => setPetEntries((prev) => [...prev, { ...emptyPet }])}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-dashed border-accent-primary text-accent-text hover:bg-accent-bg transition-colors">
+                <Plus className="h-4 w-4" /> Add another pet
+              </button>
+            </div>
+          </Section>
+
+          {/* 9. Left & Right Thumbmark */}
           <Section icon={<Fingerprint className="h-4 w-4" />} title="Left & Right Thumbmark"
             open={openSections.biometric} onToggle={() => toggleSection("biometric")}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

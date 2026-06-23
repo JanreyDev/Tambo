@@ -63,6 +63,22 @@ export const emptyBusiness: BusinessEntry = {
   description: "",
 };
 
+export interface PetEntry {
+  name: string;
+  pet_type: string;
+  sex: string;
+  date_of_birth: string;
+  remarks: string;
+}
+
+export const emptyPet: PetEntry = {
+  name: "",
+  pet_type: "",
+  sex: "",
+  date_of_birth: "",
+  remarks: "",
+};
+
 // ── Toast notification ──────────────────────────────────────────────
 export type ToastType = "success" | "error" | "warning" | "info";
 
