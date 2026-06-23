@@ -1789,7 +1789,7 @@ export default function ResidentsPage() {
             <div className="glass-section rounded-b-xl mt-px px-5 pt-5 pb-4">
             <div className="space-y-4">
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <FInput label="House No. / Blk & Lot / Subdivision / Village" name="house_block_lot" placeholder="E.g. Unit 4B Blk 5 Lot 12, Villa Verde Subd. Phase 2" value={f("house_block_lot")} onChange={updateForm} />
+                <FInput label={isTambo ? "House No. / Subdivision / Village" : "House No. / Blk & Lot / Subdivision / Village"} name="house_block_lot" placeholder={isTambo ? "E.g. Unit 4B, Villa Verde Subd. Phase 2" : "E.g. Unit 4B Blk 5 Lot 12, Villa Verde Subd. Phase 2"} value={f("house_block_lot")} onChange={updateForm} />
                 <FCombobox label={isTambo ? "Block and Lot" : "Purok / Sitio"} name="purok" entries={purokEntries} value={f("purok")}
                   onChange={updateForm} onSubmit={(val) => submitEntry(purokEntries, setPurokEntries, val, "purok")} />
                 <FCombobox label="Street / Road" name="street" entries={streetEntries} value={f("street")}

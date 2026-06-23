@@ -732,7 +732,7 @@ function PersonalInfoTab({
         <Field label="Full Address" value={fullAddress || null} icon={<MapPin className="h-3 w-3" />} wide />
         <Field label={isTambo ? "Block/Lot" : "Purok"} value={r.purok} />
         <Field label="Street" value={r.street} />
-        <Field label="House / Block / Lot / Subdivision / Village" value={r.house_block_lot} />
+        <Field label={isTambo ? "House / Subdivision / Village" : "House / Block / Lot / Subdivision / Village"} value={r.house_block_lot} />
 
         <Field label="Zip Code" value={r.zip_code} />
         <Field label="Coordinates" value={(r.latitude && r.longitude) ? `${r.latitude}, ${r.longitude}` : null} icon={<Globe className="h-3 w-3" />} wide />
