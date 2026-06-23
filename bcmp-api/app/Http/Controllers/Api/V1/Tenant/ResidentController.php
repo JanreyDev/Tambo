@@ -271,6 +271,27 @@ class ResidentController extends Controller
 
         $barangayId = $request->user()->barangay_id;
         $barangay = Barangay::findOrFail($barangayId);
+
+        if ($barangay->name === 'Tambo') {
+            $request->validate([
+                'mobile_number' => ['required', 'string', 'max:20'],
+                'otp_code' => ['required', 'string', 'size:6'],
+            ]);
+
+            $smsService = app(\App\Services\SmsService::class);
+            if (!$smsService->verifyOtp($request->input('mobile_number'), $request->input('otp_code'), 'resident_registration')) {
+                return response()->json([
+                    'message' => 'The given data was invalid.',
+                    'errors' => [
+                        'otp_code' => ['The verification code is invalid or has expired.']
+                    ]
+                ], 422);
+            }
+
+            // Ensure the validated mobile_number matches the verified input
+            $validated['mobile_number'] = $request->input('mobile_number');
+        }
+
         $psgcCode = $barangay->psgc_code;
 
         if (! $psgcCode) {
@@ -637,6 +658,38 @@ class ResidentController extends Controller
             ->paginate($perPage);
 
         return response()->json($logs);
+    }
+
+    /**
+     * Generate and send an OTP code for resident registration (Barangay Tambo only).
+     */
+    public function sendOtp(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'mobile_number' => ['required', 'string', 'max:20'],
+        ]);
+
+        $barangayId = $request->user()->barangay_id;
+        $barangay = Barangay::findOrFail($barangayId);
+
+        if ($barangay->name !== 'Tambo') {
+            return response()->json([
+                'message' => 'OTP verification is only required for Barangay Tambo.',
+            ], 400);
+        }
+
+        $smsService = app(\App\Services\SmsService::class);
+        $otp = $smsService->sendOtp($validated['mobile_number'], 'resident_registration', $barangay);
+
+        if ($otp === null) {
+            return response()->json([
+                'message' => 'Failed to send verification code. Please check SMS balance or try again.',
+            ], 500);
+        }
+
+        return response()->json([
+            'message' => 'Verification code sent successfully.',
+        ]);
     }
 
     /**

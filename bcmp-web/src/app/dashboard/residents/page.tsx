@@ -200,6 +200,13 @@ export default function ResidentsPage() {
   const [archiveTarget, setArchiveTarget] = useState<{ id: string; first_name: string; last_name: string; sex: string; resident_number: string } | null>(null);
   const pageSize = 15;
 
+  // ── OTP State Variables (Barangay Tambo only) ──
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpError, setOtpError] = useState("");
+  const [otpSentPhone, setOtpSentPhone] = useState("");
+
   // ── API List State ──
   const [residents, setResidents] = useState<ResidentSummary[]>([]);
   const [listTotal, setListTotal] = useState(0);
@@ -838,7 +845,8 @@ export default function ResidentsPage() {
   const dupOk = (key: string) => dupChecked && dupMatches.length === 0 && !!f(key);
 
   // ── Submit Handler ──
-  const handleSubmit = async () => {
+  const handleSubmit = async (verifiedOtpCode?: string | React.MouseEvent) => {
+    const actualOtp = typeof verifiedOtpCode === "string" ? verifiedOtpCode : undefined;
     // Run the shared Zod schema first — catches required, format, range, enum.
     // Tested in schemas.test.ts (29 cases). Anything Zod-validated is removed
     // from the inline block below; the remaining checks cover business rules
@@ -881,6 +889,40 @@ export default function ResidentsPage() {
     // Block if duplicate detected and not dismissed (skip in edit mode -- already registered)
     if (mode !== "edit" && dupMatches.length > 0 && !dupDismissed) {
       setDupModal(true);
+      return;
+    }
+
+    // Tambo OTP Verification Interception
+    if (mode === "create" && isTambo && !actualOtp) {
+      const phone = f("mobile_number");
+      if (!phone) {
+        setFormErrors({ ...errors, mobile_number: "Mobile number is required for Barangay Tambo verification." });
+        addToast({
+          type: "error",
+          title: "Validation Failed",
+          message: "Mobile number is required for Barangay Tambo verification.",
+          duration: 5000,
+        });
+        return;
+      }
+
+      setSubmitting(true);
+      try {
+        await api.residents.sendResidentOtp(phone);
+        setOtpSentPhone(phone);
+        setOtpError("");
+        setOtpCode("");
+        setShowOtpModal(true);
+      } catch (err: any) {
+        addToast({
+          type: "error",
+          title: "SMS Sending Failed",
+          message: err?.message || "Failed to send verification code. Please check SMS balance.",
+          duration: 6000,
+        });
+      } finally {
+        setSubmitting(false);
+      }
       return;
     }
 
@@ -971,6 +1013,10 @@ export default function ResidentsPage() {
 
     // Sectors — always send (even empty) so edit correctly clears removed sector tags
     payload.sectors = sectors;
+
+    if (actualOtp) {
+      payload.otp_code = actualOtp;
+    }
 
     try {
       if (mode === "edit") {
@@ -2278,7 +2324,7 @@ export default function ResidentsPage() {
                 className="px-5 py-2.5 text-sm font-medium rounded-xl glass-input hover:shadow-md transition-all">
                 Cancel
               </button>
-              <button onClick={handleSubmit} disabled={submitting}
+              <button onClick={() => handleSubmit()} disabled={submitting}
                 className="group relative px-7 py-2.5 text-sm font-bold rounded-xl text-white transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]"
                 style={{ background: submitting ? "var(--accent-primary)" : "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>
                 {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -3132,6 +3178,94 @@ export default function ResidentsPage() {
         resident={smsModalResident}
         creditBalance={user?.barangay?.sms_credit_balance != null ? parseFloat(String(user.barangay.sms_credit_balance)) : null}
       />
+
+      {/* OTP Verification Modal (Barangay Tambo only) */}
+      <Modal
+        open={showOtpModal}
+        onClose={() => setShowOtpModal(false)}
+        title="Mobile Verification Required"
+        description={`A 6-digit verification code has been sent to ${otpSentPhone}.`}
+        size="sm"
+        footer={
+          <>
+            <ModalButton
+              variant="secondary"
+              onClick={() => setShowOtpModal(false)}
+              disabled={otpLoading}
+            >
+              Cancel
+            </ModalButton>
+            <ModalButton
+              variant="primary"
+              onClick={async () => {
+                if (otpCode.length !== 6) {
+                  setOtpError("Please enter a valid 6-digit code.");
+                  return;
+                }
+                setOtpLoading(true);
+                setOtpError("");
+                try {
+                  // Finalize submission with OTP code parameter
+                  await handleSubmit(otpCode);
+                  setShowOtpModal(false);
+                } catch (err: any) {
+                  setOtpError(err?.message || "Verification failed. Please try again.");
+                } finally {
+                  setOtpLoading(false);
+                }
+              }}
+              disabled={otpLoading || otpCode.length !== 6}
+            >
+              {otpLoading ? "Verifying..." : "Verify & Register"}
+            </ModalButton>
+          </>
+        }
+      >
+        <div className="space-y-4 py-2">
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+              Verification Code
+            </label>
+            <input
+              type="text"
+              maxLength={6}
+              placeholder="123456"
+              value={otpCode}
+              onChange={(e) => {
+                const val = e.target.value.replace(/[^0-9]/g, "");
+                setOtpCode(val);
+                setOtpError("");
+              }}
+              className="w-full text-center text-2xl font-mono tracking-[0.5em] pl-[0.25em] py-3 rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring"
+            />
+            {otpError && (
+              <p className="text-xs text-red-500 mt-2 text-center font-medium">{otpError}</p>
+            )}
+          </div>
+
+          <div className="text-center">
+            <button
+              type="button"
+              disabled={otpLoading}
+              onClick={async () => {
+                setOtpLoading(true);
+                setOtpError("");
+                try {
+                  await api.residents.sendResidentOtp(otpSentPhone);
+                  addToast({ type: "success", title: "Code Resent", message: "A new 6-digit OTP code has been sent." });
+                } catch (err: any) {
+                  setOtpError(err?.message || "Failed to resend code.");
+                } finally {
+                  setOtpLoading(false);
+                }
+              }}
+              className="text-xs text-accent-primary hover:underline font-semibold bg-transparent border-0 cursor-pointer"
+            >
+              Didn't receive the code? Resend SMS
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       <MabiniButton pageContext="You are on the Residents page. This page lists all registered residents of the barangay, with search, filter, and CRUD operations for resident records." />
     </div>

@@ -242,6 +242,7 @@ Route::prefix('v1')->group(function () {
             Route::post('voters/{voter}/unlink', [VoterController::class, 'unlink']);
 
             // ── Records ──
+            Route::post('residents/send-otp', [ResidentController::class, 'sendOtp']);
             Route::post('residents/check-duplicate', [ResidentController::class, 'checkDuplicate']);
             Route::get('residents/export', [ResidentController::class, 'export']);
             Route::post('residents/import/preview', [ResidentController::class, 'importPreview']);

@@ -532,6 +532,9 @@ const api = {
     create: (data: Record<string, unknown>) =>
       api.post<{ message: string; resident: ResidentDetail; resident_number: string }>("/residents", data),
 
+    sendResidentOtp: (mobileNumber: string) =>
+      api.post<{ message: string }>("/residents/send-otp", { mobile_number: mobileNumber }),
+
     update: (id: string, data: Record<string, unknown>) =>
       api.put<{ message: string; resident: ResidentDetail }>(`/residents/${id}`, data),
 
