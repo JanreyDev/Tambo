@@ -234,6 +234,40 @@ class VoterController extends Controller
         }
     }
 
+    // ── Clear Voters ───────────────────────────────────────────────────────
+
+    public function clear(Request $request): JsonResponse
+    {
+        $barangayId = $request->user()->barangay_id;
+
+        DB::transaction(function () use ($barangayId) {
+            // Reset voter flags on residents who were linked
+            Resident::where('barangay_id', $barangayId)
+                ->whereIn('id', function ($q) use ($barangayId) {
+                    $q->select('resident_id')
+                        ->from('voters')
+                        ->where('barangay_id', $barangayId)
+                        ->whereNotNull('resident_id');
+                })
+                ->update([
+                    'is_voter' => false,
+                    'voter_precinct_number' => null,
+                ]);
+
+            // Delete all voters
+            Voter::where('barangay_id', $barangayId)->delete();
+        });
+
+        Log::info('Voters list cleared', [
+            'barangay_id' => $barangayId,
+            'user_id' => $request->user()->id,
+        ]);
+
+        return response()->json([
+            'message' => 'Voters list cleared successfully.',
+        ]);
+    }
+
     // ── Match Suggestions ──────────────────────────────────────────────────
 
     public function suggestions(Request $request, string $id): JsonResponse

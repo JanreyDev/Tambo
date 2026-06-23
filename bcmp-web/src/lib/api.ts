@@ -1154,6 +1154,9 @@ const api = {
       return api.post<import("@/lib/types").VoterImportResult>("/voters/import", form);
     },
 
+    clear: () =>
+      api.delete<{ message: string }>("/voters"),
+
     suggestions: (id: string) =>
       api.get<import("@/lib/types").Resident[]>(`/voters/${id}/suggestions`),
 

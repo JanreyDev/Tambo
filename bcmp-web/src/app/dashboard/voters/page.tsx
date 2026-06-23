@@ -18,6 +18,7 @@ import {
   CheckCircle2,
   Loader2,
   AlertCircle,
+  Trash2,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
@@ -69,6 +70,8 @@ export default function VotersPage() {
   const [searchingResidents, setSearchingResidents] = useState(false);
   const [unmatchedPage, setUnmatchedPage] = useState(1);
   const [loadingUnmatched, setLoadingUnmatched] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const [unmatchedTotal, setUnmatchedTotal] = useState(0);
   const [unmatchedLastPage, setUnmatchedLastPage] = useState(1);
 
@@ -130,6 +133,22 @@ export default function VotersPage() {
 
   // reset page on filter change
   useEffect(() => { setPage(1); }, [debouncedSearch, precinctFilter]);
+
+  // --- Clear Voters List ---
+  const handleClearVoters = async () => {
+    setClearing(true);
+    try {
+      await api.voters.clear();
+      setShowClearConfirm(false);
+      fetchStats();
+      fetchPrecincts();
+      fetchList();
+    } catch (err: any) {
+      alert(err?.message || "Failed to clear voters list.");
+    } finally {
+      setClearing(false);
+    }
+  };
 
   // --- Link/Unlink Handlers ---
   const handleLinkVoter = async (voterId: string, residentId: string) => {
@@ -398,6 +417,15 @@ export default function VotersPage() {
           >
             <Upload className="h-4 w-4" />
           </button>
+          {voters.length > 0 && (
+            <button
+              onClick={() => setShowClearConfirm(true)}
+              className="p-2 rounded-lg border border-red-500/30 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-colors"
+              title="Clear Voters List"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
         </div>
 
         {showFilters && (
@@ -963,6 +991,37 @@ export default function VotersPage() {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Clear Voters Confirmation Modal */}
+      <Modal
+        open={showClearConfirm}
+        onClose={() => setShowClearConfirm(false)}
+        title="Clear Voters List"
+        description="Are you absolutely sure you want to delete the existing voters list?"
+        size="md"
+        footer={
+          <>
+            <ModalButton variant="secondary" onClick={() => setShowClearConfirm(false)} disabled={clearing}>
+              Cancel
+            </ModalButton>
+            <ModalButton variant="danger" onClick={handleClearVoters} disabled={clearing}>
+              {clearing ? "Clearing..." : "Delete All Voters"}
+            </ModalButton>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            This action will permanently delete all parsed voter records for this Barangay.
+          </p>
+          <div className="p-3 bg-amber-500/10 border border-amber-500/20 text-amber-600 rounded-lg text-xs flex gap-2 items-start">
+            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+            <p>
+              <strong>Important:</strong> Deleting this list will also reset the voter status (<code className="bg-amber-500/20 px-1 rounded">is_voter = false</code>) and clear the precinct numbers of all residents who were linked to these voter records.
+            </p>
+          </div>
+        </div>
       </Modal>
 
       <MabiniButton pageContext="You are on the Voters page. This page manages COMELEC voter records imported via PDF for the barangay. Voters are matched to residents by name." />

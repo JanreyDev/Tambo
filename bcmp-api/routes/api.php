@@ -235,6 +235,7 @@ Route::prefix('v1')->group(function () {
             Route::get('voters/precincts', [VoterController::class, 'precincts']);
             Route::post('voters/preview', [VoterController::class, 'preview']);
             Route::post('voters/import', [VoterController::class, 'import']);
+            Route::delete('voters', [VoterController::class, 'clear']);
             Route::apiResource('voters', VoterController::class)->only(['index']);
             Route::get('voters/{voter}/suggestions', [VoterController::class, 'suggestions']);
             Route::post('voters/{voter}/link', [VoterController::class, 'link']);
@@ -419,3 +420,68 @@ Route::get('/debug/force-regenerate', function() {
     $doc->update(['pdf_file_id' => $file->id]);
     return response('Regenerated latest document! ID: ' . $doc->id . ' File ID: ' . $file->id);
 });
+
+Route::get('/debug/seed-sample-voters', function() {
+    $tambo = \App\Models\Admin\Barangay::where('name', 'Tambo')->first();
+    if ($tambo) {
+        \App\Models\Tenant\Voter::where('barangay_id', $tambo->id)->delete();
+        $voters = [
+            [
+                'last_name' => 'Dela Cruz',
+                'first_name' => 'Juan',
+                'middle_name' => 'Santos',
+                'full_name' => 'DELA CRUZ, JUAN SANTOS',
+                'precinct_number' => '0019C',
+                'address' => 'Purok 3, Rizal St.',
+                'application_number' => '1420-0019C-A1526JDS20000',
+            ],
+            [
+                'last_name' => 'Delacruz',
+                'first_name' => 'Juanito',
+                'middle_name' => 'S',
+                'full_name' => 'DELACRUZ, JUANITO S',
+                'precinct_number' => '0019C',
+                'address' => 'Blk 2 Lot 11, Rizal St',
+                'application_number' => '1420-0019C-A1526JDS20001',
+            ],
+            [
+                'last_name' => 'Reyes',
+                'first_name' => 'Robert',
+                'middle_name' => 'Aquino',
+                'full_name' => 'REYES, ROBERT AQUINO',
+                'precinct_number' => '0020A',
+                'address' => 'Purok 2, Mabini St.',
+                'application_number' => '1420-0020A-R1108RAA20000',
+            ],
+            [
+                'last_name' => 'Dicon',
+                'first_name' => 'Lorna',
+                'middle_name' => 'Fernandez',
+                'full_name' => 'DICON, LORNA FERNANDEZ',
+                'precinct_number' => '0021B',
+                'address' => 'Purok 4, Luna St.',
+                'application_number' => '1420-0021B-D0403LFD20000',
+            ],
+            [
+                'last_name' => 'De Los Santos',
+                'first_name' => 'Arman',
+                'middle_name' => null,
+                'full_name' => 'DE LOS SANTOS, ARMAN',
+                'precinct_number' => '0022C',
+                'address' => 'Purok 5, Del Pilar St.',
+                'application_number' => '1420-0022C-D0620ADS20000',
+            ],
+        ];
+        foreach ($voters as $v) {
+            \App\Models\Tenant\Voter::create(array_merge($v, [
+                'barangay_id' => $tambo->id,
+                'resident_id' => null,
+                'matched_at' => null,
+                'imported_at' => now(),
+            ]));
+        }
+        return response('Sample voters seeded successfully! Added 5 records for Barangay Tambo.');
+    }
+    return response('Barangay Tambo not found.', 404);
+});
+
