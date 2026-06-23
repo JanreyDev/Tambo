@@ -384,7 +384,8 @@ class Resident extends Model
      */
     public static function generateResidentNumber(string $barangayId, string $psgcCode): string
     {
-        $lastResident = static::where('barangay_id', $barangayId)
+        $lastResident = static::withTrashed()
+            ->where('barangay_id', $barangayId)
             ->where('resident_number', 'like', "RES-{$psgcCode}-%")
             ->orderBy('resident_number', 'desc')
             ->first();
