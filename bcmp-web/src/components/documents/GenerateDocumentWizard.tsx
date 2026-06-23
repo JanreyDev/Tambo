@@ -31,10 +31,10 @@ const residentAge = (dateOfBirth: string) => {
   return age;
 };
 
-const residentAddress = (resident: ResidentSummary) =>
+const residentAddress = (resident: ResidentSummary, isTambo?: boolean) =>
   [
     resident.house_block_lot,
-    resident.purok ? `Purok ${resident.purok}` : null,
+    resident.purok ? (isTambo ? resident.purok : `Purok ${resident.purok}`) : null,
     resident.street,
   ].filter(Boolean).join(", ") || "Address not available";
 
@@ -89,6 +89,7 @@ export function GenerateDocumentWizard({
 }: Props) {
   const { user } = useAuth();
   const barangay = user?.barangay;
+  const isTambo = barangay?.name?.toLowerCase() === "tambo";
 
   // ── Core wizard state ──
   const [wizardStep, setWizardStep] = useState<WizardStep>("select-type");
@@ -398,7 +399,7 @@ export function GenerateDocumentWizard({
       vals.civil_status = selectedResident.civil_status ?? "";
       vals.address = [
         selectedResident.house_block_lot,
-        selectedResident.purok ? `Purok ${selectedResident.purok}` : null,
+        selectedResident.purok ? (isTambo ? selectedResident.purok : `Purok ${selectedResident.purok}`) : null,
         selectedResident.street,
       ].filter(Boolean).join(", ");
     }
@@ -652,7 +653,7 @@ export function GenerateDocumentWizard({
                         {selectedResident.civil_status && <><span>•</span><span className="capitalize">{selectedResident.civil_status.replace(/_/g, " ")}</span></>}
                       </div>
                       <p className="text-[11px] text-muted-foreground dark:text-slate-400 truncate mt-0.5">
-                        {residentAddress(selectedResident)}
+                        {residentAddress(selectedResident, isTambo)}
                         {selectedResident.mobile_number ? ` • ${selectedResident.mobile_number}` : ""}
                       </p>
                     </div>
@@ -903,7 +904,7 @@ export function GenerateDocumentWizard({
                             {r.resident_number} • {residentAge(r.date_of_birth) ?? "—"} yrs • <span className="capitalize">{r.sex}</span>
                           </p>
                           <p className="text-[11px] text-muted-foreground dark:text-slate-400 truncate mt-0.5">
-                            {residentAddress(r)}
+                            {residentAddress(r, isTambo)}
                             {r.mobile_number ? ` • ${r.mobile_number}` : ""}
                           </p>
                         </div>

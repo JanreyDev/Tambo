@@ -134,7 +134,7 @@ export default function ResidentsPage() {
   // Translate filter "All X" labels while keeping state values in English.
   const filterLabel = (v: string): string => {
     switch (v) {
-      case "All Puroks": return t.residents.filters.allPuroks;
+      case "All Puroks": return isTambo ? "All Blocks/Lots" : t.residents.filters.allPuroks;
       case "All Status": return t.residents.filters.allStatus;
       case "All Civil Status": return t.residents.filters.allCivilStatus;
       case "All Resident Types": return t.residents.filters.allResidentTypes;
@@ -1744,7 +1744,7 @@ export default function ResidentsPage() {
                         </div>
                         <div className="min-w-0">
                           <p className="text-sm font-bold text-foreground truncate">{r.full_name}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">{r.resident_number} &middot; {r.sex} &middot; Age {r.age} &middot; DOB: {r.date_of_birth} &middot; Purok {r.purok || "N/A"}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{r.resident_number} &middot; {r.sex} &middot; Age {r.age} &middot; DOB: {r.date_of_birth} &middot; {isTambo ? "Block/Lot" : "Purok"} {r.purok || "N/A"}</p>
                           {r.mobile_number && <p className="text-xs text-muted-foreground">{r.mobile_number}</p>}
                         </div>
                       </div>
@@ -1790,7 +1790,7 @@ export default function ResidentsPage() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <FInput label="House No. / Blk & Lot / Subdivision / Village" name="house_block_lot" placeholder="E.g. Unit 4B Blk 5 Lot 12, Villa Verde Subd. Phase 2" value={f("house_block_lot")} onChange={updateForm} />
-                <FCombobox label="Purok / Sitio" name="purok" entries={purokEntries} value={f("purok")}
+                <FCombobox label={isTambo ? "Block and Lot" : "Purok / Sitio"} name="purok" entries={purokEntries} value={f("purok")}
                   onChange={updateForm} onSubmit={(val) => submitEntry(purokEntries, setPurokEntries, val, "purok")} />
                 <FCombobox label="Street / Road" name="street" entries={streetEntries} value={f("street")}
                   onChange={updateForm} onSubmit={(val) => submitEntry(streetEntries, setStreetEntries, val, "street")} />
@@ -2636,7 +2636,7 @@ export default function ResidentsPage() {
                 paged.map((r, index) => {
                   const initials = `${(r.first_name || "")[0] || "?"}${(r.last_name || "")[0] || "?"}`;
                   const fullName = `${(r.last_name || "").toUpperCase()}, ${(r.first_name || "").toUpperCase()} ${r.middle_name ? r.middle_name[0].toUpperCase() + "." : ""}${r.extension_name ? " " + r.extension_name : ""}`.trim();
-                  const address = [r.house_block_lot, r.street, r.purok ? `Purok ${r.purok}` : ""].filter(Boolean).join(", ").toUpperCase() || "—";
+                  const address = [r.house_block_lot, r.street, r.purok ? (isTambo ? r.purok : `Purok ${r.purok}`) : ""].filter(Boolean).join(", ").toUpperCase() || "—";
                   const age = r.date_of_birth ? Math.floor((Date.now() - new Date(r.date_of_birth).getTime()) / 31557600000) : null;
                   const daysAgo = Math.floor((Date.now() - new Date(r.created_at).getTime()) / 86400000);
                   const createdLabel = formatTimeSince(daysAgo);
@@ -2783,7 +2783,7 @@ export default function ResidentsPage() {
                               onMouseLeave={() => setHoveredTooltip(null)}
                             >
                                 <p className="text-xs text-slate-400 truncate max-w-[220px] cursor-default">
-                                  {[r.purok ? `Purok ${r.purok}` : null, r.street].filter(Boolean).join(' - ')}
+                                  {[r.purok ? (isTambo ? `Block/Lot ${r.purok}` : `Purok ${r.purok}`) : null, r.street].filter(Boolean).join(' - ')}
                                 </p>
                                 {hoveredTooltip === "addr-" + r.id && (<div className="absolute bottom-full left-0 mb-2 z-[60] pointer-events-none">
                                   <div className="bg-slate-900 text-white rounded-xl shadow-2xl overflow-hidden min-w-[220px]">
@@ -2792,7 +2792,7 @@ export default function ResidentsPage() {
                                     </div>
                                     <div className="px-3 py-2 space-y-1">
                                       {r.house_block_lot && <p className="text-xs text-slate-300"><span className="text-slate-500 mr-1">House/Lot:</span>{r.house_block_lot}</p>}
-                                      {r.purok && <p className="text-xs text-slate-300"><span className="text-slate-500 mr-1">Purok:</span>{r.purok}</p>}
+                                      {r.purok && <p className="text-xs text-slate-300"><span className="text-slate-500 mr-1">{isTambo ? "Block/Lot:" : "Purok:"}</span>{r.purok}</p>}
                                       {r.street && <p className="text-xs text-slate-300"><span className="text-slate-500 mr-1">Street:</span>{r.street}</p>}
                                       {!r.house_block_lot && !r.purok && !r.street && <p className="text-xs text-slate-500 italic">No address on record</p>}
                                     </div>
@@ -3131,7 +3131,7 @@ export default function ResidentsPage() {
                     <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
                     <span className="text-[11px] text-muted-foreground w-14 shrink-0">Address</span>
                     <span className="text-sm font-medium text-foreground leading-snug">
-                      {[viewResident.house_block_lot, viewResident.street, viewResident.purok ? `Purok ${viewResident.purok}` : ""].filter(Boolean).join(", ") || "—"}
+                      {[viewResident.house_block_lot, viewResident.street, viewResident.purok ? (isTambo ? viewResident.purok : `Purok ${viewResident.purok}`) : ""].filter(Boolean).join(", ") || "—"}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">

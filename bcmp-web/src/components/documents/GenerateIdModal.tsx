@@ -327,9 +327,10 @@ function IdCardPreview({ resident, barangay, doc, template, idType }: IdCardPrev
     ? dobDate.toLocaleDateString("en-PH", { month: "short", day: "2-digit", year: "numeric" })
     : "—";
 
+  const isTambo = barangay?.name?.toLowerCase() === "tambo";
   const address = [
     resident.house_block_lot,
-    resident.purok ? `Purok ${resident.purok}` : null,
+    resident.purok ? (isTambo ? resident.purok : `Purok ${resident.purok}`) : null,
     resident.street,
     barangay?.name ? `Barangay ${barangay.name}` : null,
     barangay?.city_municipality,

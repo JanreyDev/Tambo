@@ -666,7 +666,9 @@ function PersonalInfoTab({
   mabini: { content: string; isStreaming: boolean; error: string | null };
 }) {
   const { t } = useLanguage();
-  const fullAddress = [r.house_block_lot, r.street, r.purok ? `Purok ${r.purok}` : null]
+  const { user } = useAuth();
+  const isTambo = user?.barangay?.name?.toLowerCase() === "tambo";
+  const fullAddress = [r.house_block_lot, r.street, r.purok ? (isTambo ? r.purok : `Purok ${r.purok}`) : null]
     .filter(Boolean).join(", ");
 
   return (
@@ -728,7 +730,7 @@ function PersonalInfoTab({
         <Field label="Telephone" value={r.telephone} icon={<Phone className="h-3 w-3" />} />
         <Field label="Email" value={r.email} icon={<Mail className="h-3 w-3" />} />
         <Field label="Full Address" value={fullAddress || null} icon={<MapPin className="h-3 w-3" />} wide />
-        <Field label="Purok" value={r.purok} />
+        <Field label={isTambo ? "Block/Lot" : "Purok"} value={r.purok} />
         <Field label="Street" value={r.street} />
         <Field label="House / Block / Lot / Subdivision / Village" value={r.house_block_lot} />
 
@@ -987,6 +989,7 @@ export default function ResidentDetailPage() {
   const router = useRouter();
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const { t } = useLanguage();
+  const isTambo = user?.barangay?.name?.toLowerCase() === "tambo";
 
   const [resident, setResident] = useState<ResidentDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1276,7 +1279,7 @@ export default function ResidentDetailPage() {
     !resident.mothers_maiden_name && "Mother's Maiden Name",
     // Contact — mobile_number + email are fully optional, not tracked for completeness
     // Address
-    !resident.purok && "Purok / Sitio",
+    !resident.purok && (isTambo ? "Block and Lot" : "Purok / Sitio"),
     !resident.house_block_lot && "House / Block / Lot",
     // Photo
     !resident.photo_file_id && "Profile Photo",
@@ -1400,7 +1403,7 @@ export default function ResidentDetailPage() {
               <div className="flex items-center gap-2 text-xs">
                 <Home className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                 {resident.purok ? (
-                  <span className="text-foreground">Purok {resident.purok}</span>
+                  <span className="text-foreground">{isTambo ? "Block/Lot " + resident.purok : "Purok " + resident.purok}</span>
                 ) : (
                   <span className="text-muted-foreground/50 italic">{t.residents.detail.purokNotIndicated}</span>
                 )}

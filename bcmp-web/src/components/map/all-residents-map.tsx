@@ -13,6 +13,7 @@
  */
 
 import { useEffect, useRef } from "react";
+import { useAuth } from "@/contexts/auth-context";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet.markercluster/dist/MarkerCluster.css";
@@ -206,6 +207,8 @@ export default function AllResidentsMap({
   outsideBoundaryIds,
   onCoordinateHover,
 }: Props) {
+  const { user } = useAuth();
+  const isTambo = user?.barangay?.name?.toLowerCase() === "tambo";
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
@@ -364,7 +367,7 @@ export default function AllResidentsMap({
         `<div style="font-size:12px;line-height:1.5;min-width:180px;">
           <p style="font-weight:700;margin:0 0 2px;font-size:13px;">${r.full_name}</p>
           <p style="margin:0;color:#64748b;font-family:monospace;font-size:10px;">${r.resident_number}</p>
-          ${r.purok ? `<p style="margin:3px 0 0;color:#475569;font-size:11px;">Purok ${r.purok}</p>` : ""}
+          ${r.purok ? `<p style="margin:3px 0 0;color:#475569;font-size:11px;">${isTambo ? "" : "Purok "}${r.purok}</p>` : ""}
           ${isOutside ? `<p style="margin:5px 0 0;padding:4px 6px;border-radius:6px;background:#fef3c7;color:#92400e;font-size:10px;font-weight:600;">⚠ Outside barangay boundary — verify coordinates</p>` : ""}
           <div style="display:flex;align-items:center;gap:6px;margin:6px 0 0;">
             <span style="display:inline-block;padding:2px 8px;border-radius:9999px;font-size:10px;font-weight:600;background:${STATUS_COLOR[r.status ?? ""] ?? "#3b82f6"}22;color:${STATUS_COLOR[r.status ?? ""] ?? "#3b82f6"};text-transform:capitalize;">${r.status ?? "unknown"}</span>
