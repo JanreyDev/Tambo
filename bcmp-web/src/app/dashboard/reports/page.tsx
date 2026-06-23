@@ -40,18 +40,18 @@ interface ReportTemplate {
 }
 
 const reportTemplates: ReportTemplate[] = [
-  { id: "1", name: "Barangay Profile Report", category: "General", description: "Complete demographic profile including population count, household summary, and barangay statistics", icon: Users, frequency: "Quarterly", last_generated: "2026-01-15", dilg_required: true },
-  { id: "2", name: "Resident Master List", category: "Records", description: "Complete list of all registered residents with personal details and household info", icon: Users, frequency: "Monthly", last_generated: "2026-03-01", dilg_required: false },
-  { id: "3", name: "Household Summary Report", category: "Records", description: "Summary of households by purok with member count, income bracket, and household head", icon: Users, frequency: "Quarterly", last_generated: "2026-01-15", dilg_required: true },
-  { id: "4", name: "Voter Statistics Report", category: "Records", description: "Voter registration summary by precinct, age group, and gender", icon: Users, frequency: "As needed", last_generated: "2025-10-01", dilg_required: false },
-  { id: "5", name: "Establishment Master List", category: "Establishments", description: "List of all registered business establishments with permit status and owner details", icon: Building2, frequency: "Annually", last_generated: "2026-01-05", dilg_required: false },
-  { id: "6", name: "KP Case Summary", category: "Judicial", description: "Summary of Katarungang Pambarangay cases filed, settled, and elevated to court", icon: Scale, frequency: "Monthly", last_generated: "2026-03-01", dilg_required: true },
-  { id: "7", name: "Blotter Summary Report", category: "Judicial", description: "Monthly summary of blotter entries by incident type, status, and resolution", icon: Scale, frequency: "Monthly", last_generated: "2026-03-01", dilg_required: true },
-  { id: "8", name: "VAWC Statistical Report", category: "Judicial", description: "Statistical report on VAWC cases (anonymized) for DILG and DSWD submission", icon: Shield, frequency: "Quarterly", last_generated: "2026-01-15", dilg_required: true },
-  { id: "9", name: "Document Issuance Report", category: "Services", description: "Summary of documents issued with revenue collected per document type", icon: FileText, frequency: "Monthly", last_generated: "2026-03-01", dilg_required: false },
-  { id: "10", name: "Revenue Collection Report", category: "Finance", description: "Summary of all collections from document issuances, permits, and fees", icon: Receipt, frequency: "Monthly", last_generated: "2026-03-01", dilg_required: false },
-  { id: "11", name: "Barangay Annual Report", category: "General", description: "Comprehensive annual report covering all barangay operations for DILG submission", icon: BarChart3, frequency: "Annually", last_generated: "2025-12-31", dilg_required: true },
-  { id: "12", name: "Disaster Risk Assessment", category: "Operations", description: "Disaster risk and vulnerability profile of the barangay for DRRM planning", icon: Shield, frequency: "Annually", last_generated: "2025-06-15", dilg_required: true },
+  { id: "1", name: "Barangay Profile Report", category: "General", description: "Complete demographic profile including population count, household summary, and barangay statistics", icon: Users, frequency: "Quarterly", last_generated: "2026-01-15 09:15 AM", dilg_required: true },
+  { id: "2", name: "Resident Master List", category: "Records", description: "Complete list of all registered residents with personal details and household info", icon: Users, frequency: "Monthly", last_generated: "2026-03-01 10:30 AM", dilg_required: false },
+  { id: "3", name: "Household Summary Report", category: "Records", description: "Summary of households by purok with member count, income bracket, and household head", icon: Users, frequency: "Quarterly", last_generated: "2026-01-15 09:15 AM", dilg_required: true },
+  { id: "4", name: "Voter Statistics Report", category: "Records", description: "Voter registration summary by precinct, age group, and gender", icon: Users, frequency: "As needed", last_generated: "2025-10-01 02:45 PM", dilg_required: false },
+  { id: "5", name: "Establishment Master List", category: "Establishments", description: "List of all registered business establishments with permit status and owner details", icon: Building2, frequency: "Annually", last_generated: "2026-01-05 11:20 AM", dilg_required: false },
+  { id: "6", name: "KP Case Summary", category: "Judicial", description: "Summary of Katarungang Pambarangay cases filed, settled, and elevated to court", icon: Scale, frequency: "Monthly", last_generated: "2026-03-01 10:30 AM", dilg_required: true },
+  { id: "7", name: "Blotter Summary Report", category: "Judicial", description: "Monthly summary of blotter entries by incident type, status, and resolution", icon: Scale, frequency: "Monthly", last_generated: "2026-03-01 10:30 AM", dilg_required: true },
+  { id: "8", name: "VAWC Statistical Report", category: "Judicial", description: "Statistical report on VAWC cases (anonymized) for DILG and DSWD submission", icon: Shield, frequency: "Quarterly", last_generated: "2026-01-15 09:15 AM", dilg_required: true },
+  { id: "9", name: "Document Issuance Report", category: "Services", description: "Summary of documents issued with revenue collected per document type", icon: FileText, frequency: "Monthly", last_generated: "2026-03-01 10:30 AM", dilg_required: false },
+  { id: "10", name: "Revenue Collection Report", category: "Finance", description: "Summary of all collections from document issuances, permits, and fees", icon: Receipt, frequency: "Monthly", last_generated: "2026-03-01 10:30 AM", dilg_required: false },
+  { id: "11", name: "Barangay Annual Report", category: "General", description: "Comprehensive annual report covering all barangay operations for DILG submission", icon: BarChart3, frequency: "Annually", last_generated: "2025-12-31 04:00 PM", dilg_required: true },
+  { id: "12", name: "Disaster Risk Assessment", category: "Operations", description: "Disaster risk and vulnerability profile of the barangay for DRRM planning", icon: Shield, frequency: "Annually", last_generated: "2025-06-15 08:00 AM", dilg_required: true },
 ];
 
 const categories = ["All", "General", "Records", "Establishments", "Judicial", "Services", "Finance", "Operations"];
@@ -311,8 +311,8 @@ export default function ReportsPage() {
               <div className="space-y-2">
                 {[
                   { date: viewTarget.last_generated, format: "PDF", size: "245 KB", by: "Kap. Maria Santos" },
-                  { date: "2025-12-01", format: "Excel", size: "180 KB", by: "Sec. Ana Cruz" },
-                  { date: "2025-11-01", format: "PDF", size: "220 KB", by: "Kap. Maria Santos" },
+                  { date: "2025-12-01 11:15 AM", format: "Excel", size: "180 KB", by: "Sec. Ana Cruz" },
+                  { date: "2025-11-01 03:30 PM", format: "PDF", size: "220 KB", by: "Kap. Maria Santos" },
                 ].map((h, i) => (
                   <div key={i} className="flex items-center justify-between p-3 rounded-lg glass-subtle">
                     <div className="flex items-center gap-3">
@@ -483,7 +483,7 @@ export default function ReportsPage() {
                 <span className="text-muted-foreground">Size:</span>
                 <span className="text-foreground font-medium">{genFormat === "pdf" ? "245 KB" : genFormat === "excel" ? "180 KB" : "92 KB"}</span>
                 <span className="text-muted-foreground">Generated:</span>
-                <span className="text-foreground font-medium">{new Date().toLocaleDateString()}</span>
+                <span className="text-foreground font-medium">{new Date().toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" }) + " " + new Date().toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })}</span>
               </div>
             </div>
           </div>
