@@ -893,8 +893,10 @@ export default function ResidentsPage() {
     }
 
     // Tambo OTP Verification Interception
+    console.log("[OTP DEBUG] mode:", mode, "isTambo:", isTambo, "actualOtp:", actualOtp);
     if (mode === "create" && isTambo && !actualOtp) {
       const phone = f("mobile_number");
+      console.log("[OTP DEBUG] Entered OTP block, phone:", phone);
       if (!phone) {
         setFormErrors({ ...errors, mobile_number: "Mobile number is required for Barangay Tambo verification." });
         addToast({
@@ -909,6 +911,7 @@ export default function ResidentsPage() {
       setSubmitting(true);
       try {
         await api.residents.sendResidentOtp(phone);
+        console.log("[OTP DEBUG] OTP sent successfully, opening modal");
         setOtpSentPhone(phone);
         setOtpError("");
         setOtpCode("");
@@ -1425,8 +1428,9 @@ export default function ResidentsPage() {
 
   if (mode === "create" || mode === "edit") {
     return (
-      // Contained-scroll form: height fills from this element to the viewport bottom.
-      // The action bar is a natural shrink-0 sibling — never fixed, never overlaps the map.
+      <>
+      {/* Contained-scroll form: height fills from this element to the viewport bottom.
+         The action bar is a natural shrink-0 sibling — never fixed, never overlaps the map. */}
       <div
         ref={formContainerRef}
         className="flex flex-col -m-6"
@@ -2334,6 +2338,94 @@ export default function ResidentsPage() {
           </div>
         </div>
       </div>
+
+      {/* OTP Verification Modal (Barangay Tambo only) */}
+      <Modal
+        open={showOtpModal}
+        onClose={() => setShowOtpModal(false)}
+        title="Mobile Verification Required"
+        description={`A 6-digit verification code has been sent to ${otpSentPhone}.`}
+        size="sm"
+        footer={
+          <>
+            <ModalButton
+              variant="secondary"
+              onClick={() => setShowOtpModal(false)}
+              disabled={otpLoading}
+            >
+              Cancel
+            </ModalButton>
+            <ModalButton
+              variant="primary"
+              onClick={async () => {
+                if (otpCode.length !== 6) {
+                  setOtpError("Please enter a valid 6-digit code.");
+                  return;
+                }
+                setOtpLoading(true);
+                setOtpError("");
+                try {
+                  await handleSubmit(otpCode);
+                  setShowOtpModal(false);
+                } catch (err: any) {
+                  setOtpError(err?.message || "Verification failed. Please try again.");
+                } finally {
+                  setOtpLoading(false);
+                }
+              }}
+              disabled={otpLoading || otpCode.length !== 6}
+            >
+              {otpLoading ? "Verifying..." : "Verify & Register"}
+            </ModalButton>
+          </>
+        }
+      >
+        <div className="space-y-4 py-2">
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+              Verification Code
+            </label>
+            <input
+              type="text"
+              maxLength={6}
+              placeholder="123456"
+              value={otpCode}
+              onChange={(e) => {
+                const val = e.target.value.replace(/[^0-9]/g, "");
+                setOtpCode(val);
+                setOtpError("");
+              }}
+              className="w-full text-center text-2xl font-mono tracking-[0.5em] pl-[0.25em] py-3 rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring"
+            />
+            {otpError && (
+              <p className="text-xs text-red-500 mt-2 text-center font-medium">{otpError}</p>
+            )}
+          </div>
+
+          <div className="text-center">
+            <button
+              type="button"
+              disabled={otpLoading}
+              onClick={async () => {
+                setOtpLoading(true);
+                setOtpError("");
+                try {
+                  await api.residents.sendResidentOtp(otpSentPhone);
+                  addToast({ type: "success", title: "Code Resent", message: "A new 6-digit OTP code has been sent." });
+                } catch (err: any) {
+                  setOtpError(err?.message || "Failed to resend code.");
+                } finally {
+                  setOtpLoading(false);
+                }
+              }}
+              className="text-xs text-accent-primary hover:underline font-semibold bg-transparent border-0 cursor-pointer"
+            >
+              Didn't receive the code? Resend SMS
+            </button>
+          </div>
+        </div>
+      </Modal>
+      </>
     );
   }
 
