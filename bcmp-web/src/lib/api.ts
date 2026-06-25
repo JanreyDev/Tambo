@@ -574,6 +574,9 @@ const api = {
         { message }
       ),
 
+    sendEmail: (id: string, subject: string, body: string) =>
+      api.post<{ message: string }>(`/residents/${id}/email`, { subject, body }),
+
     smsHistory: (id: string, params?: { page?: number; per_page?: number }) => {
       const query = new URLSearchParams();
       if (params?.page) query.set("page", String(params.page));

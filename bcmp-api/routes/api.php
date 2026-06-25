@@ -253,6 +253,7 @@ Route::prefix('v1')->group(function () {
             Route::get('residents/{resident}/print', [ResidentController::class, 'printRecord']);
             Route::post('residents/{resident}/sms', [ResidentController::class, 'sendSms'])
                 ->middleware('throttle:10,1'); // 10 SMS per minute per user
+            Route::post('residents/{resident}/email', [ResidentController::class, 'sendEmail']);
             Route::get('residents/{resident}/sms-history', [ResidentController::class, 'smsHistory']);
             Route::apiResource('residents', ResidentController::class);
 

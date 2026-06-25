@@ -25,6 +25,7 @@ import ResidentPinMap from "@/components/map/resident-pin-map-dynamic";
 import { GenerateDocumentWizard } from "@/components/documents/GenerateDocumentWizard";
 import { GenerateIdModal } from "@/components/documents/GenerateIdModal";
 import { SendSmsModal, type SmsTargetResident } from "@/components/residents/SendSmsModal";
+import { SendEmailModal, type EmailTargetResident } from "@/components/residents/SendEmailModal";
 
 // ── Local extractions (Phase 1 split) ────────────────────────────────
 import {
@@ -353,6 +354,8 @@ export default function ResidentsPage() {
   const [idModalResidentId, setIdModalResidentId] = useState<string | null>(null);
   const [showSmsModal, setShowSmsModal] = useState(false);
   const [smsModalResident, setSmsModalResident] = useState<SmsTargetResident | null>(null);
+  const [emailModalResident, setEmailModalResident] = useState<EmailTargetResident | null>(null);
+  const [showEmailModal, setShowEmailModal] = useState(false);
   const addToast = useCallback((toast: Omit<Toast, "id">) => {
     const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
     setToasts((prev) => [...prev, { ...toast, id }]);
@@ -510,14 +513,20 @@ export default function ResidentsPage() {
     let totalLum = 0;
     const pixelCount = data.length / 4;
     for (let i = 0; i < data.length; i += 4) {
-      totalLum += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+      const r = data[i] ?? 0;
+      const g = data[i + 1] ?? 0;
+      const b = data[i + 2] ?? 0;
+      totalLum += 0.299 * r + 0.587 * g + 0.114 * b;
     }
     const brightness = totalLum / pixelCount;
 
     // Sharpness: Laplacian variance (measures edge contrast)
     const gray = new Float32Array(pixelCount);
     for (let i = 0; i < pixelCount; i++) {
-      gray[i] = 0.299 * data[i * 4] + 0.587 * data[i * 4 + 1] + 0.114 * data[i * 4 + 2];
+      const r = data[i * 4] ?? 0;
+      const g = data[i * 4 + 1] ?? 0;
+      const b = data[i * 4 + 2] ?? 0;
+      gray[i] = 0.299 * r + 0.587 * g + 0.114 * b;
     }
     let lapSum = 0;
     let lapCount = 0;
@@ -2958,6 +2967,22 @@ export default function ResidentsPage() {
                           >
                             <MessageSquare className="h-3.5 w-3.5 text-muted-foreground group-hover:text-orange-500 transition-colors group-disabled:group-hover:text-muted-foreground" />
                           </button>
+                          {/* Email */}
+                          <button
+                            onClick={() => {
+                              setEmailModalResident({
+                                id: r.id,
+                                name: `${r.last_name}, ${r.first_name}${r.middle_name ? " " + r.middle_name.charAt(0) + "." : ""}${r.extension_name ? " " + r.extension_name : ""}`.trim(),
+                                email: r.email ?? null,
+                              });
+                              setShowEmailModal(true);
+                            }}
+                            disabled={!r.email}
+                            className="group p-1.5 rounded-lg hover:bg-blue-500/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                            title={r.email ? `Send Email to ${r.email}` : "No email registered"}
+                          >
+                            <Mail className="h-3.5 w-3.5 text-muted-foreground group-hover:text-blue-500 transition-colors group-disabled:group-hover:text-muted-foreground" />
+                          </button>
                           {/* More */}
                           <div className="relative">
                             <button
@@ -3121,11 +3146,43 @@ export default function ResidentsPage() {
                     <Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                     <span className="text-[11px] text-muted-foreground w-14 shrink-0">Mobile</span>
                     <span className="text-sm font-medium text-foreground">{viewResident.mobile_number || "—"}</span>
+                    {viewResident.mobile_number && (
+                      <button
+                        onClick={() => {
+                          setSmsModalResident({
+                            id: viewResident.id,
+                            name: `${viewResident.last_name}, ${viewResident.first_name}${viewResident.middle_name ? " " + viewResident.middle_name.charAt(0) + "." : ""}${viewResident.extension_name ? " " + viewResident.extension_name : ""}`.trim(),
+                            mobile_number: viewResident.mobile_number,
+                          });
+                          setShowSmsModal(true);
+                        }}
+                        className="ml-auto p-1 rounded-md hover:bg-muted text-orange-500 hover:text-orange-600 transition-colors"
+                        title="Send SMS"
+                      >
+                        <MessageSquare className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                     <span className="text-[11px] text-muted-foreground w-14 shrink-0">Email</span>
                     <span className="text-sm font-medium text-foreground truncate">{viewResident.email || "—"}</span>
+                    {viewResident.email && (
+                      <button
+                        onClick={() => {
+                          setEmailModalResident({
+                            id: viewResident.id,
+                            name: `${viewResident.last_name}, ${viewResident.first_name}${viewResident.middle_name ? " " + viewResident.middle_name.charAt(0) + "." : ""}${viewResident.extension_name ? " " + viewResident.extension_name : ""}`.trim(),
+                            email: viewResident.email,
+                          });
+                          setShowEmailModal(true);
+                        }}
+                        className="ml-auto p-1 rounded-md hover:bg-muted text-blue-500 hover:text-blue-600 transition-colors"
+                        title="Send Email"
+                      >
+                        <Mail className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </div>
                   <div className="flex items-start gap-2">
                     <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
@@ -3269,6 +3326,11 @@ export default function ResidentsPage() {
         onClose={() => { setShowSmsModal(false); setSmsModalResident(null); }}
         resident={smsModalResident}
         creditBalance={user?.barangay?.sms_credit_balance != null ? parseFloat(String(user.barangay.sms_credit_balance)) : null}
+      />
+      <SendEmailModal
+        open={showEmailModal}
+        onClose={() => { setShowEmailModal(false); setEmailModalResident(null); }}
+        resident={emailModalResident}
       />
 
       {/* OTP Verification Modal (Barangay Tambo only) */}

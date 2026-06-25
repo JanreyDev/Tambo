@@ -1650,6 +1650,58 @@ class ResidentController extends Controller
         return response()->json($logs);
     }
 
+    /**
+     * Send an email to a specific resident via Resend API (or configured mailer).
+     *
+     * POST /api/v1/residents/{resident}/email
+     */
+    public function sendEmail(Request $request, string $id): JsonResponse
+    {
+        $resident = Resident::where('barangay_id', $request->user()->barangay_id)
+            ->findOrFail($id);
+
+        if (empty($resident->email)) {
+            return response()->json([
+                'message' => 'This resident has no registered email address.',
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'subject' => ['required', 'string', 'max:255'],
+            'body' => ['required', 'string', 'max:10000'],
+        ]);
+
+        $subject = trim($validated['subject']);
+        $body = trim($validated['body']);
+
+        try {
+            \Illuminate\Support\Facades\Mail::raw($body, function ($message) use ($resident, $subject) {
+                $message->to($resident->email)
+                    ->subject($subject);
+            });
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to send email to resident', [
+                'resident_id' => $resident->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Failed to send email. Error: ' . $e->getMessage(),
+            ], 500);
+        }
+
+        // Always log to audit so it appears in the Activity tab
+        $this->logAudit($request, 'email_sent', $resident, [
+            'email' => $resident->email,
+            'subject' => $subject,
+            'status' => 'sent',
+        ]);
+
+        return response()->json([
+            'message' => 'Email sent successfully.',
+        ]);
+    }
+
     private function logAudit(Request $request, string $action, Resident $resident, ?array $changes = null): void
     {
         AuditLog::create([

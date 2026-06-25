@@ -151,6 +151,25 @@ class MessageController extends Controller
             ]);
         }
 
+        // Send actual email if an external email address is specified and it is not a draft
+        if (! $isDraft && ! empty($validated['to_address'])) {
+            try {
+                $emailSubject = $validated['subject'];
+                $emailBody = strip_tags($validated['body']); // plain text body
+                $toEmail = $validated['to_address'];
+                
+                \Illuminate\Support\Facades\Mail::raw($emailBody, function ($msg) use ($toEmail, $emailSubject) {
+                    $msg->to($toEmail)
+                        ->subject($emailSubject);
+                });
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('Failed to send message to external address', [
+                    'to_address' => $validated['to_address'],
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
         return response()->json(['message' => $message], 201);
     }
 
