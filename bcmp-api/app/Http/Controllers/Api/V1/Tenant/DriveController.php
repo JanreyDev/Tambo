@@ -14,6 +14,11 @@ use Illuminate\Support\Str;
 
 class DriveController extends Controller
 {
+    private function getStorageDisk(): string
+    {
+        $default = config('filesystems.default', 'do_spaces');
+        return $default === 'local' ? 'public' : $default;
+    }
     // ── Folders ────────────────────────────────────────────────────────
 
     /**
@@ -167,7 +172,8 @@ class DriveController extends Controller
         $storedName = Str::uuid().'.'.$uploadedFile->getClientOriginalExtension();
         $storagePath = "bcmp/{$user->barangay_id}/drive/{$user->id}/{$storedName}";
 
-        Storage::disk('spaces')->put($storagePath, file_get_contents($uploadedFile), 'private');
+        $disk = $this->getStorageDisk();
+        Storage::disk($disk)->put($storagePath, file_get_contents($uploadedFile), 'private');
 
         $file = File::create([
             'barangay_id' => $user->barangay_id,
@@ -176,7 +182,7 @@ class DriveController extends Controller
             'mime_type' => $uploadedFile->getMimeType(),
             'size_bytes' => $uploadedFile->getSize(),
             'storage_path' => $storagePath,
-            'storage_bucket' => 'primex',
+            'storage_bucket' => config("filesystems.disks.{$disk}.bucket", 'local'),
             'uploaded_by' => $user->id,
             'category' => 'attachment',
             'is_public' => false,
@@ -201,7 +207,12 @@ class DriveController extends Controller
             })
             ->findOrFail($id);
 
-        $url = Storage::disk('spaces')->temporaryUrl($file->storage_path, now()->addMinutes(10));
+        $disk = $this->getStorageDisk();
+        if ($disk === 'public') {
+            $url = Storage::disk($disk)->url($file->storage_path);
+        } else {
+            $url = Storage::disk($disk)->temporaryUrl($file->storage_path, now()->addMinutes(10));
+        }
 
         return response()->json(['url' => $url]);
     }
@@ -216,7 +227,7 @@ class DriveController extends Controller
             ->where('drive_owner_id', $user->id)
             ->findOrFail($id);
 
-        Storage::disk('spaces')->delete($file->storage_path);
+        Storage::disk($this->getStorageDisk())->delete($file->storage_path);
         $file->delete();
 
         return response()->json(['message' => 'File deleted.']);
