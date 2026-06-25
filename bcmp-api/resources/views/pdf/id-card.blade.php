@@ -45,9 +45,190 @@
 
         .fl { font-size: 4pt; color: #888; text-transform: uppercase; letter-spacing: 0.2pt; line-height: 1; }
         .fv { font-size: 5.5pt; font-weight: 600; border-bottom: 0.5pt solid #e5e7eb; padding-bottom: 1pt; line-height: 1.2; }
+
+        /* Tambo Custom styles */
+        .tambo-card {
+            position: relative;
+            width: 239.64pt;
+            height: 150.07pt;
+            border: 1.5pt solid #1a3a8c;
+            background: #ffffff;
+            overflow: hidden;
+        }
     </style>
 </head>
 <body>
+@if(strtolower($barangay->name) === 'tambo')
+<div class="tambo-card">
+
+    {{-- HEADER background wave ribbons --}}
+    <div style="position: absolute; top: 0; left: 0; width: 239.64pt; height: 50.5pt; overflow: hidden; z-index: 1;">
+        <svg style="width: 100%; height: 100%;" viewBox="0 0 400 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M-10,45 C60,25 130,65 200,40 C270,15 340,55 410,35" stroke="#5ba3d9" stroke-width="20" fill="none" opacity="0.4" stroke-linecap="round"/>
+            <path d="M-10,60 C70,40 140,75 210,52 C280,30 350,65 410,48" stroke="#3b8fd0" stroke-width="14" fill="none" opacity="0.5" stroke-linecap="round"/>
+            <path d="M-10,72 C80,55 150,85 220,65 C290,45 360,75 410,60" stroke="#2b7cc4" stroke-width="10" fill="none" opacity="0.6" stroke-linecap="round"/>
+        </svg>
+    </div>
+
+    {{-- MAIN LAYOUT TABLE --}}
+    <table style="width: 239.64pt; height: 150.07pt; border-collapse: collapse; table-layout: fixed; position: absolute; top: 0; left: 0; z-index: 2;" cellpadding="0" cellspacing="0">
+        
+        {{-- HEADER Row --}}
+        <tr style="height: 33pt;">
+            <td style="vertical-align: middle; padding: 0;">
+                <table style="width: 100%; border-collapse: collapse;" cellpadding="0" cellspacing="0">
+                    <tr>
+                        <td style="width: 32pt; text-align: center; vertical-align: middle; padding-left: 5pt;">
+                            @if($sealDataUri)
+                                <img src="{{ $sealDataUri }}" style="width: 22pt; height: 22pt; border-radius: 50%; border: 1pt solid rgba(255,255,255,0.85); box-shadow: 0 0.5pt 2pt rgba(0,0,0,0.25);">
+                            @endif
+                        </td>
+                        <td style="text-align: center; vertical-align: middle; line-height: 1.1; padding: 2pt 0 1pt 0;">
+                            <div style="font-size: 5.5pt; font-weight: 600; color: #1a3a6e; text-transform: uppercase; letter-spacing: 0.1pt; font-style: italic;">Republic of the Philippines</div>
+                            <div style="font-size: 6pt; font-weight: 900; color: #0a1e5e; text-transform: uppercase; letter-spacing: 0.2pt; margin: 0.5pt 0 0;">NATIONAL CAPITAL REGION</div>
+                            <div style="font-size: 5.5pt; font-weight: 500; color: #1a3a6e; text-transform: uppercase; letter-spacing: 0.1pt; margin: 0.5pt 0 0;">City/Municipality of PARAÑAQUE</div>
+                            <div style="font-size: 9.5pt; font-weight: 900; color: #0a1050; letter-spacing: 0.3pt; margin: 1pt 0 0;">BARANGAY TAMBO</div>
+                        </td>
+                        <td style="width: 32pt; text-align: center; vertical-align: middle; padding-right: 5pt;">
+                            @if($municipalityLogoUrl)
+                                <img src="{{ $municipalityLogoUrl }}" style="width: 22pt; height: 22pt; border-radius: 50%; border: 1pt solid rgba(255,255,255,0.85); box-shadow: 0 0.5pt 2pt rgba(0,0,0,0.25);">
+                            @elseif($sealDataUri)
+                                <img src="{{ $sealDataUri }}" style="width: 22pt; height: 22pt; border-radius: 50%; border: 1pt solid rgba(255,255,255,0.85); box-shadow: 0 0.5pt 2pt rgba(0,0,0,0.25);">
+                            @endif
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+
+        {{-- PILL Row --}}
+        <tr style="height: 15pt;">
+            <td style="vertical-align: top; padding: 0 12pt;">
+                <div style="background: #0a1d56; border-radius: 9999px; color: #ffffff; font-weight: 900; font-size: 8.5pt; letter-spacing: 2.5pt; text-align: center; line-height: 12pt; height: 12pt; box-shadow: 0 1.5pt 3pt rgba(0,0,0,0.25); margin-top: 1pt;">
+                    BARANGAY I.D.
+                </div>
+            </td>
+        </tr>
+        {{-- BODY Row --}}
+        <tr style="height: 102pt;">
+            <td style="vertical-align: top; padding: 0;">
+                <table style="width: 100%; border-collapse: collapse; table-layout: fixed;" cellpadding="0" cellspacing="0">
+                    <tr>
+                        <!-- Left Column: Photo & Signature -->
+                        <td style="width: 78pt; vertical-align: top; padding-left: 6pt; padding-right: 4pt; padding-top: 2pt;">
+                            <!-- Photo Container -->
+                            <div style="width: 68pt; height: 68pt; border: 1.5pt solid #1a3a8c; background: #ffffff; overflow: hidden; border-radius: 3pt;">
+                                @if($photoDataUri && ($settings['show_photo'] ?? false))
+                                    <img src="{{ $photoDataUri }}" style="width: 100%; height: 100%; object-fit: cover;">
+                                @else
+                                    <div style="font-size: 7pt; color: #ccc; padding-top: 22pt; font-weight: bold; text-align: center; line-height: 1.2;">2x2<br>PHOTO</div>
+                                @endif
+                            </div>
+                            <!-- Signature Container -->
+                            <div style="width: 68pt; text-align: center; margin-top: 8pt;">
+                                <div style="width: 58pt; border-bottom: 0.75pt solid #000; margin: 0 auto; height: 1pt;"></div>
+                                <div style="font-size: 4.5pt; color: #000; font-weight: 500; text-align: center; letter-spacing: 0.1pt; line-height: 1.2; margin-top: 1pt;">Bearers Signature</div>
+                            </div>
+                        </td>
+
+                        <!-- Right Column: Details Box -->
+                        <td style="width: 161.64pt; vertical-align: top; padding-left: 2pt; padding-right: 5.64pt; padding-top: 2pt;">
+                            <!-- ID NO Container -->
+                            <div style="margin-bottom: 3pt; line-height: 12pt; height: 12pt; padding-left: 2pt;">
+                                <span style="background: #1a3a8c; color: #ffffff; font-size: 7pt; font-weight: 900; padding: 1.5pt 4.5pt; border-radius: 2pt; letter-spacing: 0.5pt; display: inline-block; line-height: 1; vertical-align: middle;">I.D. NO.</span>
+                                <span style="font-size: 9.5pt; font-weight: 900; color: #000000; letter-spacing: 0.8pt; margin-left: 3pt; display: inline-block; line-height: 1; vertical-align: middle;">{{ $document->document_number }}</span>
+                            </div>
+                            
+                            <!-- Details Box -->
+                            <div style="width: 154pt; height: 74pt; border: 1.5pt solid #1a3a8c; border-radius: 6pt; background: #ffffff; overflow: hidden; padding-top: 2pt;">
+                                
+                                {{-- Decoupled table rows to replicate React flexbox shrink/grow widths --}}
+                                
+                                {{-- NAME ROW --}}
+                                <table style="width: 100%; border-collapse: collapse; margin-bottom: 3pt;" cellpadding="0" cellspacing="0">
+                                    <tr>
+                                        <td style="width: 30pt; font-size: 6.5pt; font-weight: 900; color: #000; vertical-align: bottom; padding-left: 5pt; white-space: nowrap;">NAME:</td>
+                                        <td style="border-bottom: 0.75pt solid #000; font-size: 6.5pt; font-weight: 700; color: #000; font-style: italic; vertical-align: bottom; padding-bottom: 0.5pt; padding-left: 2pt; padding-right: 5pt; white-space: nowrap;">
+                                            @if($resident)
+                                                {{ $resident->first_name }}{{ $resident->middle_name ? ' '.substr($resident->middle_name, 0, 1).'.' : '' }} {{ $resident->last_name }}{{ $resident->extension_name ? ' '.$resident->extension_name : '' }}
+                                            @else
+                                                {{ $document->constituent_name }}
+                                            @endif
+                                        </td>
+                                    </tr>
+                                </table>
+
+                                {{-- ADDRESS ROW 1 --}}
+                                <table style="width: 100%; border-collapse: collapse; margin-bottom: 3pt;" cellpadding="0" cellspacing="0">
+                                    <tr>
+                                        <td style="width: 30pt; font-size: 6.5pt; font-weight: 900; color: #000; vertical-align: bottom; padding-left: 5pt; white-space: nowrap;">ADDRESS:</td>
+                                        <td style="border-bottom: 0.75pt solid #000; font-size: 6.0pt; font-weight: 700; color: #000; font-style: italic; vertical-align: bottom; padding-bottom: 0.5pt; padding-left: 2pt; padding-right: 5pt; white-space: nowrap;">
+                                            @if($resident)
+                                                {{ implode(' ', array_filter([$resident->house_block_lot ?? null, $resident->purok ?? null, $resident->street ?? null])) ?: '—' }}
+                                            @else
+                                                {{ $mergeValues['address'] ?? '—' }}
+                                            @endif
+                                        </td>
+                                    </tr>
+                                </table>
+
+                                {{-- ADDRESS ROW 2 --}}
+                                <table style="width: 100%; border-collapse: collapse; margin-bottom: 3pt;" cellpadding="0" cellspacing="0">
+                                    <tr>
+                                        <td style="width: 30pt; padding-left: 5pt;"></td>
+                                        <td style="border-bottom: 0.75pt solid #000; font-size: 5.5pt; font-weight: 700; color: #000; font-style: italic; vertical-align: bottom; padding-bottom: 0.5pt; text-align: center; padding-right: 5pt; white-space: nowrap;">
+                                            TAMBO, PARA&Ntilde;QUE CITY
+                                        </td>
+                                    </tr>
+                                </table>
+
+                                {{-- PLACE OF BIRTH ROW --}}
+                                <table style="width: 100%; border-collapse: collapse; margin-bottom: 3pt;" cellpadding="0" cellspacing="0">
+                                    <tr>
+                                        <td style="width: 68pt; font-size: 6.5pt; font-weight: 900; color: #000; vertical-align: bottom; padding-left: 5pt; white-space: nowrap;">PLACE OF BIRTH:</td>
+                                        <td style="border-bottom: 0.75pt solid #000; font-size: 6.0pt; font-weight: 700; color: #000; font-style: italic; vertical-align: bottom; padding-bottom: 0.5pt; padding-left: 2pt; padding-right: 5pt; white-space: nowrap;">
+                                            {{ $mergeValues['place_of_birth'] ?? ($resident->place_of_birth ?? '—') }}
+                                        </td>
+                                    </tr>
+                                </table>
+
+                                {{-- DATE OF BIRTH ROW --}}
+                                <table style="width: 100%; border-collapse: collapse;" cellpadding="0" cellspacing="0">
+                                    <tr>
+                                        <td style="width: 65pt; font-size: 6.5pt; font-weight: 900; color: #000; vertical-align: bottom; padding-left: 5pt; white-space: nowrap;">DATE OF BIRTH:</td>
+                                        <td style="border-bottom: 0.75pt solid #000; font-size: 6.0pt; font-weight: 700; color: #000; font-style: italic; vertical-align: bottom; padding-bottom: 0.5pt; padding-left: 2pt; padding-right: 5pt; white-space: nowrap;">
+                                            @if($resident && $resident->date_of_birth)
+                                                {{ strtoupper($resident->date_of_birth->format('F j, Y')) }}
+                                            @else
+                                                @php
+                                                    $dobRaw = $mergeValues['date_of_birth'] ?? '—';
+                                                    if ($dobRaw !== '—') {
+                                                        try {
+                                                            $dobFormatted = strtoupper(\Carbon\Carbon::parse($dobRaw)->format('F j, Y'));
+                                                        } catch (\Throwable $e) {
+                                                            $dobFormatted = strtoupper($dobRaw);
+                                                        }
+                                                    } else {
+                                                        $dobFormatted = '—';
+                                                    }
+                                                @endphp
+                                                {{ $dobFormatted }}
+                                            @endif
+                                        </td>
+                                    </tr>
+                                </table>
+
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+
+    </table>
+
+</div>
+@else
 <table class="card" cellpadding="0" cellspacing="0">
 
     {{-- ROW 1: HEADER (38pt) --}}
@@ -159,5 +340,6 @@
     </tr>
 
 </table>
+@endif
 </body>
 </html>

@@ -350,6 +350,259 @@ function IdCardPreview({ resident, barangay, doc, template, idType }: IdCardPrev
   const residentPhotoUrl = resolvePhotoUrl(resident.photo_url);
 
   // CR80 aspect ratio: 85.6mm × 54mm
+  if (isTambo) {
+    const dobTamboFormatted = dobDate
+      ? dobDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }).toUpperCase()
+      : "—";
+    const streetAddress = [
+      resident.house_block_lot,
+      resident.purok,
+      resident.street,
+    ].filter(Boolean).join(" ") || "—";
+
+    return (
+      <div
+        className="w-full rounded overflow-hidden border-2 border-[#1a3a8c] shadow-md select-none relative flex flex-col"
+        style={{ aspectRatio: "85.6/54", fontFamily: "'Arial', sans-serif", background: "#ffffff" }}
+      >
+        {/* ═══ HEADER CONTAINER — includes seals, text, waves, and the pill ═══ */}
+        <div
+          className="relative z-20 flex flex-col justify-between shrink-0"
+          style={{
+            height: "33%",
+            paddingTop: "1.5%",
+          }}
+        >
+          {/* Thick flowing blue ribbon wave curves — like the physical card */}
+          <svg
+            className="absolute inset-0 w-full h-full pointer-events-none z-0"
+            preserveAspectRatio="none"
+            viewBox="0 0 400 100"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            {/* Ribbon 1 — widest, lightest, in the middle */}
+            <path
+              d="M-10,45 C60,25 130,65 200,40 C270,15 340,55 410,35"
+              stroke="#5ba3d9"
+              strokeWidth="20"
+              fill="none"
+              opacity="0.4"
+              strokeLinecap="round"
+            />
+            {/* Ribbon 2 — medium, flows through bottom area */}
+            <path
+              d="M-10,60 C70,40 140,75 210,52 C280,30 350,65 410,48"
+              stroke="#3b8fd0"
+              strokeWidth="14"
+              fill="none"
+              opacity="0.5"
+              strokeLinecap="round"
+            />
+            {/* Ribbon 3 — thinner, more saturated, near bottom */}
+            <path
+              d="M-10,72 C80,55 150,85 220,65 C290,45 360,75 410,60"
+              stroke="#2b7cc4"
+              strokeWidth="10"
+              fill="none"
+              opacity="0.6"
+              strokeLinecap="round"
+            />
+          </svg>
+
+          {/* Upper section: Logos and text */}
+          <div className="flex items-center justify-between px-[4%]" style={{ height: "65%" }}>
+            {/* Left Seal */}
+            <div
+              className="relative z-10 shrink-0 rounded-full bg-white flex items-center justify-center overflow-hidden"
+              style={{ width: "13%", aspectRatio: "1/1", boxShadow: "0 1px 3px rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.95)" }}
+            >
+              {barangayLogoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={barangayLogoUrl} alt="Barangay seal" className="w-full h-full object-contain rounded-full" />
+              ) : (
+                <Shield className="w-4 h-4 text-blue-600" />
+              )}
+            </div>
+
+            {/* Header Text */}
+            <div className="relative z-10 flex-1 text-center min-w-0 px-1" style={{ lineHeight: 1.15 }}>
+              <p style={{ fontSize: "5.5px", fontWeight: 600, color: "#1a3a6e", textTransform: "uppercase", letterSpacing: "0.1px", margin: 0, fontStyle: "italic" }}>
+                Republic of the Philippines
+              </p>
+              <p style={{ fontSize: "6px", fontWeight: 900, color: "#0a1e5e", textTransform: "uppercase", letterSpacing: "0.2px", margin: "0.5px 0 0" }}>
+                NATIONAL CAPITAL REGION
+              </p>
+              <p style={{ fontSize: "5.5px", fontWeight: 500, color: "#1a3a6e", textTransform: "uppercase", letterSpacing: "0.1px", margin: "0.5px 0 0" }}>
+                City/Municipality of PARAÑAQUE
+              </p>
+              <p style={{ fontSize: "9.5px", fontWeight: 900, color: "#0a1050", letterSpacing: "0.3px", margin: "1px 0 0" }}>
+                BARANGAY TAMBO
+              </p>
+            </div>
+
+            {/* Right Seal */}
+            <div
+              className="relative z-10 shrink-0 rounded-full bg-white flex items-center justify-center overflow-hidden"
+              style={{ width: "13%", aspectRatio: "1/1", boxShadow: "0 1px 3px rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.95)" }}
+            >
+              {municipalityLogoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={municipalityLogoUrl} alt="Municipality seal" className="w-full h-full object-contain rounded-full" />
+              ) : barangayLogoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={barangayLogoUrl} alt="Barangay seal" className="w-full h-full object-contain rounded-full" />
+              ) : (
+                <Shield className="w-4 h-4 text-blue-600" />
+              )}
+            </div>
+          </div>
+
+          {/* Lower section: BARANGAY I.D. Pill */}
+          <div className="relative z-10 w-full flex items-center justify-center px-[4%] pb-[1.5%]" style={{ height: "28%" }}>
+            <div
+              className="w-full text-center font-black uppercase text-white flex items-center justify-center rounded-full py-[4px] mt-[20px]"
+              style={{
+                background: "#0a1d56",
+                fontSize: "9.5px",
+                letterSpacing: "2.5px",
+                boxShadow: "0 1.5px 3px rgba(0,0,0,0.25)",
+              }}
+            >
+              BARANGAY I.D.
+            </div>
+          </div>
+        </div>
+
+        {/* BODY CONTAINER */}
+        <div
+          className="flex flex-col bg-white px-[4%]"
+          style={{ height: "67%", paddingTop: "20px", paddingBottom: "4px" }}
+        >
+          {/* TOP ROW: Photo + Right Column */}
+          <div className="flex w-full gap-[8px]">
+            {/* LEFT: Photo */}
+            <div
+              className="flex flex-col items-center justify-start shrink-0 p-[2px] bg-white"
+              style={{ width: "32%" }}
+            >
+              {/* Photo box — square, fills column width */}
+              <div
+                className="w-full flex items-center justify-center overflow-hidden bg-white border-[2px] border-[#1a3a8c] rounded-[4px]"
+                style={{ aspectRatio: "1/1" }}
+              >
+                {residentPhotoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={residentPhotoUrl} alt="Resident photo" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="text-slate-300 text-center font-bold" style={{ fontSize: "8px", lineHeight: 1.2 }}>
+                    2x2<br />PHOTO
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* RIGHT COLUMN */}
+            <div className="flex-1 flex flex-col justify-start gap-[4px]">
+              {/* I.D. NO row (Aligned with the top of the photo) */}
+              <div className="flex items-start gap-[4px] pl-[2px] shrink-0 pt-[2px]">
+                <div className="bg-[#1a3a8c] text-white font-black px-[4px] py-[1px] tracking-widest leading-none" style={{ fontSize: "8.5px" }}>
+                  I.D. NO.
+                </div>
+                <span className="font-black text-black tracking-widest leading-none" style={{ fontSize: "10.5px" }}>
+                  {doc.document_number}
+                </span>
+              </div>
+
+              {/* DETAILS OUTLINED BOX (Contains Text Details) */}
+              <div className="border-[2px] border-[#1a3a8c] rounded-[8px] overflow-hidden bg-white flex flex-col justify-start gap-[6px] p-[15px] flex-1">
+                
+                {/* NAME */}
+                <div className="flex items-end w-full">
+                  <span className="font-bold text-black shrink-0 mr-[4px]" style={{ fontSize: "9px" }}>
+                    NAME:
+                  </span>
+                  <div
+                    className="flex-1 border-b-[1px] border-black text-black font-bold italic truncate pl-[2px] pb-[0.5px]"
+                    style={{ fontSize: "10.5px", lineHeight: 1 }}
+                  >
+                    {resident.first_name}{resident.middle_name ? ` ${resident.middle_name.charAt(0)}.` : ""} {resident.last_name}{resident.extension_name ? ` ${resident.extension_name}` : ""}
+                  </div>
+                </div>
+
+                {/* ADDRESS */}
+                <div className="flex flex-col gap-[3px]">
+                  <div className="flex items-end w-full">
+                    <span className="font-bold text-black shrink-0 mr-[4px]" style={{ fontSize: "9px" }}>
+                      ADDRESS:
+                    </span>
+                    <div
+                      className="flex-1 border-b-[1px] border-black text-black font-bold italic truncate pl-[2px] pb-[0.5px]"
+                      style={{ fontSize: "9.5px", lineHeight: 1 }}
+                    >
+                      {streetAddress}
+                    </div>
+                  </div>
+                  <div className="flex items-end w-full" style={{ paddingLeft: "48px" }}>
+                    <div
+                      className="flex-1 border-b-[1px] border-black text-black font-bold italic truncate text-center pb-[0.5px]"
+                      style={{ fontSize: "9.5px", lineHeight: 1 }}
+                    >
+                      TAMBO, PARAÑAQUE CITY
+                    </div>
+                  </div>
+                </div>
+
+                {/* PLACE OF BIRTH */}
+                <div className="flex items-end w-full">
+                  <span className="font-bold text-black shrink-0 mr-[4px]" style={{ fontSize: "9px" }}>
+                    PLACE OF BIRTH:
+                  </span>
+                  <div
+                    className="flex-1 border-b-[1px] border-black text-black font-bold italic truncate pl-[2px] pb-[0.5px]"
+                    style={{ fontSize: "9.5px", lineHeight: 1 }}
+                  >
+                    {resident.place_of_birth || "—"}
+                  </div>
+                </div>
+
+                {/* DATE OF BIRTH */}
+                <div className="flex items-end w-full">
+                  <span className="font-bold text-black shrink-0 mr-[4px]" style={{ fontSize: "9px" }}>
+                    DATE OF BIRTH:
+                  </span>
+                  <div
+                    className="flex-1 border-b-[1px] border-black text-black font-bold italic truncate pl-[2px] pb-[0.5px]"
+                    style={{ fontSize: "9.5px", lineHeight: 1 }}
+                  >
+                    {dobTamboFormatted}
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          {/* BOTTOM ROW: Signature */}
+          <div className="flex w-full gap-[8px]">
+            <div
+              className="flex flex-col items-center justify-start shrink-0 px-[2px]"
+              style={{ width: "32%" }}
+            >
+              {/* Signature line */}
+              <div className="w-full flex flex-col items-center mt-[12px] pb-[2px]">
+                <div style={{ width: "85%", borderBottom: "1px solid #000", height: "1px" }} />
+                <div className="text-black font-medium" style={{ fontSize: "6px", marginTop: "2px", letterSpacing: "0.2px", textAlign: "center" }}>
+                  Bearers Signature
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // CR80 aspect ratio: 85.6mm × 54mm
   return (
     <div
       className="w-full rounded-lg overflow-hidden border-2 border-[#1a3a6e] shadow-md select-none"

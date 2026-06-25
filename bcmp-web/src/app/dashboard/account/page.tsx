@@ -1142,7 +1142,7 @@ export default function AccountPage() {
               </div>
 
               {/* Email 2FA */}
-              <div className="flex items-center justify-between p-3 rounded-lg border border-border">
+              {/* <div className="flex items-center justify-between p-3 rounded-lg border border-border">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
                     <Mail className="w-5 h-5 text-muted-foreground" />
@@ -1165,7 +1165,7 @@ export default function AccountPage() {
                 ) : (
                   <span className="text-[11px] text-emerald-500 font-medium flex items-center gap-1"><Check className="w-3 h-3" /> Ready</span>
                 )}
-              </div>
+              </div> */}
 
               {/* Recovery Codes */}
               {is2FAEnabled && (
@@ -1725,7 +1725,7 @@ export default function AccountPage() {
       {activeTab === "notifications" && (
         <div className="space-y-6">
           {/* Email Notifications */}
-          <div className="glass rounded-xl p-6">
+          {/* <div className="glass rounded-xl p-6">
             <div className="flex items-center gap-2 mb-1">
               <Mail className="w-5 h-5 text-muted-foreground" />
               <h2 className="text-lg font-semibold text-card-foreground">Email Notifications</h2>
@@ -1748,7 +1748,7 @@ export default function AccountPage() {
                 />
               ))}
             </div>
-          </div>
+          </div> */}
 
           {/* SMS Notifications */}
           <div className="glass rounded-xl p-6">

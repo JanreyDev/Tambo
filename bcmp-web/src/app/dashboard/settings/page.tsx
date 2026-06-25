@@ -1589,7 +1589,7 @@ export default function SettingsPage() {
       title: t.settings.groups.compliance,
       items: [
         { id: "vawc", label: t.settings.tabs.vawc, icon: ShieldAlert },
-        { id: "gad", label: t.settings.tabs.gad, icon: Heart },
+        // { id: "gad", label: t.settings.tabs.gad, icon: Heart },
         { id: "kp", label: t.settings.tabs.kp, icon: Scale },
       ],
     },
@@ -4123,7 +4123,7 @@ export default function SettingsPage() {
           )}
 
           {/* GAD (RA 9710) — compliance */}
-          {activeSection === "gad" && (
+          {/* {activeSection === "gad" && (
             <div className="glass rounded-xl p-6">
               <div className="flex items-start gap-3 mb-5">
                 <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: "color-mix(in srgb, var(--accent-primary) 12%, transparent)" }}>
@@ -4154,7 +4154,7 @@ export default function SettingsPage() {
                 </div>
               </div>
             </div>
-          )}
+          )} */}
 
           {/* KP / Lupong Tagapamayapa (RA 7160) — compliance */}
           {activeSection === "kp" && (
