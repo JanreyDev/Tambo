@@ -335,57 +335,90 @@ function FCombobox({
   return (
     <div ref={wRef} className="relative">
       <label className="block text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{label}</label>
-      <div
-        className={cn(
-          "flex items-center w-full overflow-hidden border border-border bg-background transition-all",
-          open ? "rounded-t-xl rounded-b-none border-b-transparent" : "rounded-xl"
-        )}
-        style={open ? { borderColor: "var(--accent-primary)", boxShadow: "0 0 0 3px rgba(37,99,235,0.12)" } : undefined}
+
+      {/* Trigger button — visually identical to Civil Status / FSelect */}
+      <button
+        type="button"
+        onClick={openCb}
+        className="flex items-center w-full rounded-xl glass-input px-3 py-2.5 text-sm text-left transition-all duration-200 focus:outline-none focus-visible:outline-none border border-border"
       >
-        <input
-          type="text"
-          value={open ? query : displayVal}
-          placeholder={value ? undefined : (placeholder || "Type to search...")}
-          className="flex-1 min-w-0 border-0 bg-transparent px-3 py-2 text-sm shadow-none outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
-          style={{ outline: "none", boxShadow: "none", WebkitAppearance: "none", appearance: "none" }}
-          onFocus={openCb}
-          onChange={(e) => { setQuery(uppercase ? e.target.value.toUpperCase() : e.target.value); if (!open) openCb(); }}
-          onKeyDown={(e) => { if (e.key === "Enter" && trimmed) { e.preventDefault(); fuzzyMatch ? handleSelect(fuzzyMatch.canonical) : handleNew(); } }}
-        />
-        {value && !open && (
-          <button type="button" onClick={() => { onChange(name, ""); }} className="px-2 text-muted-foreground hover:text-foreground">
+        <span className={cn("flex-1 truncate uppercase", !value && "text-muted-foreground normal-case")}>
+          {displayVal || placeholder || "Type to search..."}
+        </span>
+        {value && (
+          <span
+            role="button"
+            onClick={(e) => { e.stopPropagation(); onChange(name, ""); }}
+            className="px-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+          >
             <X className="h-3.5 w-3.5" />
-          </button>
+          </span>
         )}
-        <ChevronDown className={cn("h-4 w-4 mr-2 text-muted-foreground transition-transform shrink-0", open && "rotate-180")} />
-      </div>
+        <ChevronDown className={cn("h-4 w-4 ml-1 text-muted-foreground transition-transform shrink-0", open && "rotate-180")} />
+      </button>
+
+      {/* Portal dropdown */}
       {open && typeof window !== "undefined" && createPortal(
         <div
-          ref={dRef}
-          className="fixed z-[10001] rounded-b-xl rounded-t-none shadow-xl max-h-52 overflow-y-auto bg-background border border-border border-t-0"
-          style={{ top: pos.top, left: pos.left, width: pos.width }}>
-          {fuzzyMatch && (
-            <button type="button" onClick={() => handleSelect(fuzzyMatch.canonical)}
-              className="w-full text-left px-3 py-2.5 text-sm bg-amber-50 dark:bg-amber-950/20 border-b border-amber-200 dark:border-amber-900/30 hover:bg-amber-100 transition-colors">
-              <span className="text-amber-600 text-xs font-medium">Did you mean: </span>
-              <span className="font-semibold">{fuzzyMatch.canonical}</span>
-            </button>
-          )}
-          {matched.length === 0 && !trimmed && <div className="px-3 py-2.5 text-sm text-muted-foreground italic">Start typing to search or add...</div>}
-          {matched.map((e) => (
-            <button key={e.canonical} type="button" onClick={() => handleSelect(e.canonical)}
-              className={cn("w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors flex items-center justify-between", e.canonical === value && "font-medium text-accent-text bg-accent-primary/5")}>
-              <span>{e.canonical}</span>
-              <span className="text-[10px] text-muted-foreground/60">{e.count}</span>
-            </button>
-          ))}
-          {trimmed && !exactMatch && (
-            <button type="button" onClick={handleNew}
-              className="w-full text-left px-3 py-2 text-sm border-t border-border text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-950/30 transition-colors flex items-center gap-2 font-medium">
-              <Plus className="h-4 w-4" /> Save &ldquo;{uppercase ? trimmed.toUpperCase() : trimmed}&rdquo; as new entry
-            </button>
-          )}
-        </div>, document.body
+          className="fixed z-[10001] rounded-xl shadow-xl bg-background border border-border overflow-hidden"
+          style={{ top: pos.top + 6, left: pos.left, width: pos.width }}
+        >
+          {/* Search input lives inside the dropdown */}
+          <div className="px-2 py-2 border-b border-border">
+            <input
+              autoFocus
+              type="text"
+              value={query}
+              placeholder="Search..."
+              onChange={(e) => setQuery(uppercase ? e.target.value.toUpperCase() : e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && trimmed) {
+                  e.preventDefault();
+                  if (fuzzyMatch) handleSelect(fuzzyMatch.canonical);
+                  else handleNew();
+                }
+                if (e.key === "Escape") setOpen(false);
+              }}
+              className="w-full px-2 py-1.5 text-sm bg-muted/50 rounded-lg border border-border/50 outline-none focus:outline-none focus-visible:outline-none placeholder:text-muted-foreground/60 uppercase placeholder:normal-case"
+            />
+          </div>
+
+          {/* Options list */}
+          <div ref={dRef} className="max-h-48 overflow-y-auto">
+            {fuzzyMatch && (
+              <button type="button" onClick={() => handleSelect(fuzzyMatch.canonical)}
+                className="w-full text-left px-3 py-2.5 text-sm bg-amber-50 dark:bg-amber-950/20 border-b border-amber-200 dark:border-amber-900/30 hover:bg-amber-100 transition-colors">
+                <span className="text-amber-600 text-xs font-medium">Did you mean: </span>
+                <span className="font-semibold">{fuzzyMatch.canonical}</span>
+              </button>
+            )}
+            {matched.length === 0 && !trimmed && (
+              <div className="px-3 py-2.5 text-sm text-muted-foreground italic">
+                Type above to search or add a new entry.
+              </div>
+            )}
+            {matched.length === 0 && trimmed && !fuzzyMatch && (
+              <div className="px-3 py-2 text-xs text-muted-foreground italic">No matches found</div>
+            )}
+            {matched.map((e) => (
+              <button key={e.canonical} type="button" onClick={() => handleSelect(e.canonical)}
+                className={cn(
+                  "w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors flex items-center justify-between",
+                  e.canonical === value && "font-medium text-accent-text bg-accent-primary/5"
+                )}>
+                <span>{e.canonical}</span>
+                <span className="text-[10px] text-muted-foreground/60">{e.count}</span>
+              </button>
+            ))}
+            {trimmed && !exactMatch && (
+              <button type="button" onClick={handleNew}
+                className="w-full text-left px-3 py-2 text-sm border-t border-border text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-950/30 transition-colors flex items-center gap-2 font-medium">
+                <Plus className="h-4 w-4" /> Save &ldquo;{uppercase ? trimmed.toUpperCase() : trimmed}&rdquo; as new entry
+              </button>
+            )}
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

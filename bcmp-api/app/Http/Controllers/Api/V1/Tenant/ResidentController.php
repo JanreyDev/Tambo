@@ -908,7 +908,7 @@ class ResidentController extends Controller
 
             // Contact
             'email' => ['nullable', 'email', 'max:255'],
-            'mobile_number' => ['nullable', 'string', 'max:20'],
+            'mobile_number' => ['required', 'string', 'max:20'],
 
             // Address
             'purok' => ['nullable', 'string', 'max:100'],
@@ -1054,6 +1054,7 @@ class ResidentController extends Controller
 
         // Make required fields optional for updates
         $rules['first_name'] = ['sometimes', 'string', 'max:100'];
+        $rules['mobile_number'] = ['sometimes', 'string', 'max:20'];
         $rules['last_name'] = ['sometimes', 'string', 'max:100'];
         $rules['date_of_birth'] = ['sometimes', 'date', 'before:today'];
         $rules['place_of_birth'] = ['sometimes', 'string', 'max:255'];

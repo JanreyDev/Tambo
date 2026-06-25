@@ -46,6 +46,15 @@ const phMobile = z
     message: "Must be a valid PH number (09XX XXX XXXX).",
   });
 
+const requiredPhMobile = z
+  .string({ message: "Mobile number is required." })
+  .trim()
+  .min(1, "Mobile number is required.")
+  .transform((v) => v.replace(/\s/g, ""))
+  .refine((v) => PH_MOBILE_RE.test(v), {
+    message: "Must be a valid PH number (09XX XXX XXXX).",
+  });
+
 const email = z
   .string()
   .optional()
@@ -129,7 +138,7 @@ export const residentSchema = z
     nickname: optionalString,
 
     // Contact
-    mobile_number: phMobile,
+    mobile_number: requiredPhMobile,
     email,
     telephone: optionalString,
 

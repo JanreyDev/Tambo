@@ -10,6 +10,7 @@ const validResident = {
   place_of_birth: "Manila",
   civil_status: "Single",
   resident_type: "Permanent",
+  mobile_number: "09171234567",
 };
 
 describe("residentSchema", () => {
@@ -88,9 +89,10 @@ describe("residentSchema", () => {
       expect(result.ok).toBe(false);
     });
 
-    it("treats empty string as unset (optional)", () => {
+    it("rejects empty string (required)", () => {
       const result = validateResident({ ...validResident, mobile_number: "" });
-      expect(result.ok).toBe(true);
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.errors.mobile_number).toBe("Mobile number is required.");
     });
   });
 

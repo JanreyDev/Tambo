@@ -1487,7 +1487,7 @@ export default function ResidentsPage() {
                       <FSelect label="Civil Status" name="civil_status" options={["", ...civilStatuses]} required value={f("civil_status")} onChange={updateForm} error={formErrors.civil_status} />
                     </div>
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                      <FInput label="Contact No." name="mobile_number" type="tel" placeholder="09XX XXX XXXX" value={f("mobile_number")} onChange={updateForm} maxLength={13} error={formErrors.mobile_number} />
+                      <FInput label="Contact No." name="mobile_number" required type="tel" placeholder="09XX XXX XXXX" value={f("mobile_number")} onChange={updateForm} maxLength={13} error={formErrors.mobile_number} />
                       <FInput label="Telephone" name="telephone" type="tel" placeholder="e.g. (02) 8123 4567" value={f("telephone")} onChange={updateForm} />
                       <FInput label="Email Address" name="email" type="email" placeholder="name@example.com" value={f("email")} onChange={updateForm} error={formErrors.email} />
                       <FSelect label="Residence Type" name="resident_type" options={residentTypes} required value={f("resident_type")} onChange={updateForm} error={formErrors.resident_type} />
