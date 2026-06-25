@@ -607,7 +607,6 @@ const api = {
         method: "GET",
         credentials: "include",
         headers: {
-          Authorization: `Bearer ${getToken() || ""}`,
           Accept: "application/pdf",
         },
       });
@@ -629,7 +628,6 @@ const api = {
       return fetch(`${base}/residents/export${qs ? `?${qs}` : ""}`, {
         credentials: "include",
         headers: {
-          Authorization: `Bearer ${getToken() || ""}`,
           Accept: "text/csv",
         },
       });
@@ -643,7 +641,6 @@ const api = {
         method: "POST",
         credentials: "include",
         headers: {
-          Authorization: `Bearer ${getToken() || ""}`,
           Accept: "application/json",
         },
         body: formData,
@@ -671,7 +668,6 @@ const api = {
         method: "POST",
         credentials: "include",
         headers: {
-          Authorization: `Bearer ${getToken() || ""}`,
           Accept: "application/json",
         },
         body: formData,

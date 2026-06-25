@@ -23,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // health: '/up', -- Disabled: exposes diagnostic info. Status page at / is sufficient.
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->redirectGuestsTo('/');
         $middleware->alias([
             'tenant' => SetTenantContext::class,
             'super_admin' => SuperAdminOnly::class,
@@ -69,7 +70,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Without this, Sanctum tries to redirect to a `login` named route which doesn't
         // exist (API-only app), causing a 500 RouteNotFoundException.
         $exceptions->render(function (AuthenticationException $e, Request $request) {
-            if ($request->expectsJson()) {
+            if ($request->expectsJson() || $request->is('api/*')) {
                 return response()->json(['message' => 'Unauthenticated.'], 401);
             }
 
