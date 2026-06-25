@@ -85,7 +85,7 @@ const navGroupDefs: NavGroupDef[] = [
       { labelKey: "mabiniAi", href: "/dashboard/ai", icon: Bot },
       { labelKey: "drive", href: "/dashboard/drive", icon: HardDrive },
       { labelKey: "email", href: "/dashboard/email", icon: Mail },
-      { labelKey: "publicPortal", href: "/dashboard/public-portal", icon: Globe },
+      // { labelKey: "publicPortal", href: "/dashboard/public-portal", icon: Globe },
       { labelKey: "marketplace", href: "/dashboard/marketplace", icon: ShoppingBag },
     ],
   },
@@ -104,7 +104,7 @@ const navGroupDefs: NavGroupDef[] = [
 
 const bottomNavItems: NavItemDef[] = [
   { labelKey: "updates", href: "/dashboard/updates", icon: Sparkles },
-  { labelKey: "supportTickets", href: "/dashboard/support", icon: MessageCircle },
+  // { labelKey: "supportTickets", href: "/dashboard/support", icon: MessageCircle },
   { labelKey: "settings", href: "/dashboard/settings", icon: Settings },
   { labelKey: "helpManual", href: "/dashboard/help", icon: HelpCircle },
 ];
