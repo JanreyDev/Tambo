@@ -8,6 +8,8 @@ interface MabiniButtonProps {
 }
 
 export function MabiniButton({ pageContext }: MabiniButtonProps) {
+  return null;
+  /*
   const router = useRouter();
 
   const handleClick = () => {
@@ -25,4 +27,5 @@ export function MabiniButton({ pageContext }: MabiniButtonProps) {
       <span>Mabini</span>
     </button>
   );
+  */
 }

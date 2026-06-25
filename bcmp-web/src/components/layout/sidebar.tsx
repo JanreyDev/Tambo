@@ -82,7 +82,7 @@ const navGroupDefs: NavGroupDef[] = [
   {
     titleKey: "tools",
     items: [
-      { labelKey: "mabiniAi", href: "/dashboard/ai", icon: Bot },
+      // { labelKey: "mabiniAi", href: "/dashboard/ai", icon: Bot },
       { labelKey: "drive", href: "/dashboard/drive", icon: HardDrive },
       // { labelKey: "email", href: "/dashboard/email", icon: Mail },
       // { labelKey: "publicPortal", href: "/dashboard/public-portal", icon: Globe },

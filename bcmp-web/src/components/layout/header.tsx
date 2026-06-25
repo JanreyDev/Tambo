@@ -149,8 +149,8 @@ export function Header({ onToggleSidebar, onToggleAI }: HeaderProps) {
 
       {/* Right side actions */}
       <div className="flex items-center gap-1">
-        {/* Mabini AI */}
-        <button
+        {/* Mabini AI — Hidden per request */}
+        {/* <button
           onClick={() => router.push("/dashboard/ai")}
           className="relative p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors group"
           aria-label={t.header.mabiniAi}
@@ -158,7 +158,7 @@ export function Header({ onToggleSidebar, onToggleAI }: HeaderProps) {
         >
           <Bot className="w-[18px] h-[18px]" />
           <span className="absolute top-1.5 right-1.5 w-1 h-1 rounded-full bg-emerald-500/70" />
-        </button>
+        </button> */}
 
         {/* Notifications */}
         <div className="relative">

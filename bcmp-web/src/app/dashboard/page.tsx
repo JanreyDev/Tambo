@@ -406,7 +406,7 @@ export default function DashboardPage() {
     { label: t.dashboard.quickActions.fileBlotter, icon: Gavel, color: "#f97316", href: "/dashboard/judicial/blotter" },
     { label: t.dashboard.quickActions.recordPayment, icon: Receipt, color: "#22c55e", href: "/dashboard/finance" },
     { label: t.dashboard.quickActions.sendSms, icon: MessageSquare, color: "#8b5cf6", href: "#" },
-    { label: t.dashboard.quickActions.mabiniAi, icon: Bot, color: "#f59e0b", href: "/dashboard/ai" },
+    // { label: t.dashboard.quickActions.mabiniAi, icon: Bot, color: "#f59e0b", href: "/dashboard/ai" },
   ];
 
   return (
