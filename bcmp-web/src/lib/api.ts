@@ -85,7 +85,7 @@ async function request<T>(
   });
 
   if (res.status === 401) {
-    console.error(`[API Debug] 401 Unauthorized from ${method} ${path}`);
+    console.warn(`[API Debug] 401 Unauthorized from ${method} ${path}`);
     // Temporarily disable auto-logout for /map endpoints to debug the map page issue
     if (!path.startsWith("/map/")) {
       clearToken();
