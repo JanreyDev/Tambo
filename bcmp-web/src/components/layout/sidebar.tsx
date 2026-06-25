@@ -75,7 +75,7 @@ const navGroupDefs: NavGroupDef[] = [
     titleKey: "services",
     items: [
       { labelKey: "documents", href: "/dashboard/documents", icon: FileText },
-      { labelKey: "requests", href: "/dashboard/requests", icon: Receipt },
+      // { labelKey: "requests", href: "/dashboard/requests", icon: Receipt },
       { labelKey: "reports", href: "/dashboard/reports", icon: BarChart3 },
     ],
   },
