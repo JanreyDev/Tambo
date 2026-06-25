@@ -173,7 +173,7 @@ class DriveController extends Controller
         $storagePath = "bcmp/{$user->barangay_id}/drive/{$user->id}/{$storedName}";
 
         $disk = $this->getStorageDisk();
-        Storage::disk($disk)->put($storagePath, file_get_contents($uploadedFile), 'private');
+        Storage::disk($disk)->put($storagePath, file_get_contents($uploadedFile->getRealPath()), 'private');
 
         $file = File::create([
             'barangay_id' => $user->barangay_id,

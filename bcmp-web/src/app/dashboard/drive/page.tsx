@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { MabiniButton } from "@/components/ui/mabini-button";
 import { Modal, ModalButton } from "@/components/ui/modal";
 import { api } from "@/lib/api";
+import { useToast } from "@/components/ui/toast";
 import {
   HardDrive, Upload, FolderPlus, FolderOpen, Search,
   File, FileText, FileImage, Download, Trash2,
@@ -20,6 +21,7 @@ interface DriveFolder {
   color: string | null;
   is_shared_with_barangay: boolean;
   folder_count?: number;
+  children_count?: number;
   children?: DriveFolder[];
   created_at: string;
 }
@@ -69,6 +71,7 @@ function timeAgo(dateStr: string): string {
 const FOLDER_COLORS = ["#6366f1", "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#84cc16"];
 
 export default function DrivePage() {
+  const { toast } = useToast();
   const [stats, setStats] = useState<DriveStats | null>(null);
   const [folders, setFolders] = useState<DriveFolder[]>([]);
   const [files, setFiles] = useState<DriveFile[]>([]);
@@ -150,10 +153,13 @@ export default function DrivePage() {
       formData.append("file", file);
       if (currentFolder) formData.append("folder_id", currentFolder.id);
       await api.post("/drive/files", formData);
+      toast("success", "File Uploaded", `Successfully uploaded ${file.name}`);
       if (currentFolder) fetchFolder(currentFolder);
       else fetchRoot();
       fetchStats();
-    } catch { /* non-critical */ } finally {
+    } catch (err: any) {
+      toast("error", "Upload Failed", err.message || "Failed to upload file");
+    } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
@@ -169,13 +175,16 @@ export default function DrivePage() {
         is_shared_with_barangay: newFolderShared,
         parent_id: currentFolder?.id ?? null,
       });
+      toast("success", "Folder Created", `Successfully created folder "${newFolderName.trim()}"`);
       setShowNewFolder(false);
       setNewFolderName("");
       setNewFolderColor(FOLDER_COLORS[0]);
       setNewFolderShared(false);
       if (currentFolder) fetchFolder(currentFolder);
       else fetchRoot();
-    } catch { /* non-critical */ } finally {
+    } catch (err: any) {
+      toast("error", "Failed to Create Folder", err.message || "Something went wrong");
+    } finally {
       setCreatingFolder(false);
     }
   };
@@ -184,22 +193,30 @@ export default function DrivePage() {
     try {
       const data = await api.get<{ url: string }>(`/drive/files/${file.id}/download`);
       window.open((data as { url: string }).url, "_blank");
-    } catch { /* non-critical */ }
+    } catch (err: any) {
+      toast("error", "Download Failed", err.message || "Failed to get download link");
+    }
   };
 
   const deleteFile = async (file: DriveFile) => {
     try {
       await api.delete(`/drive/files/${file.id}`);
+      toast("success", "File Deleted", `Successfully deleted ${file.original_name}`);
       setFiles(prev => prev.filter(f => f.id !== file.id));
       fetchStats();
-    } catch { /* non-critical */ }
+    } catch (err: any) {
+      toast("error", "Delete Failed", err.message || "Failed to delete file");
+    }
   };
 
   const deleteFolder = async (folder: DriveFolder) => {
     try {
       await api.delete(`/drive/folders/${folder.id}`);
+      toast("success", "Folder Deleted", `Successfully deleted folder "${folder.name}"`);
       setFolders(prev => prev.filter(f => f.id !== folder.id));
-    } catch { /* non-critical */ }
+    } catch (err: any) {
+      toast("error", "Delete Failed", err.message || "Failed to delete folder");
+    }
   };
 
   const handleSearch = (val: string) => {
@@ -361,7 +378,7 @@ export default function DrivePage() {
                   </div>
                   <p className="text-xs font-semibold text-foreground truncate">{folder.name}</p>
                   <p className="text-[10px] text-muted-foreground mt-0.5">
-                    {folder.folder_count ?? 0} items
+                    {folder.folder_count ?? folder.children_count ?? 0} items
                     {folder.is_shared_with_barangay && " · Shared"}
                   </p>
                 </button>
