@@ -23,11 +23,13 @@ import type { GeoJsonFeatureCollection } from "@/lib/types";
 
 export interface MapResident {
   id: string;
-  resident_number: string;
-  full_name: string;
+  resident_number: string;  // household_number
+  full_name: string;         // household_name or head resident's name
   purok: string | null;
   sex: string | null;
   status: string | null;
+  member_count?: number;
+  address?: string | null;
   latitude: number;
   longitude: number;
 }
@@ -86,12 +88,12 @@ interface Props {
   onCoordinateHover?: (lat: number | null, lng: number | null) => void;
 }
 
-// Resident status → pin color
+// Household pin color (single color — households don't have status)
+const HOUSEHOLD_PIN_COLOR = "#3b82f6"; // blue
+
+// Keep STATUS_COLOR for legend compat (only active used now)
 const STATUS_COLOR: Record<string, string> = {
-  active:      "#22c55e",
-  deceased:    "#64748b",
-  transferred: "#f59e0b",
-  archived:    "#ef4444",
+  active: "#3b82f6",
 };
 
 // Hazard severity → color
@@ -123,26 +125,30 @@ const BASE_LAYERS: Record<BaseLayer, { url: string; attribution: string; maxZoom
   },
 };
 
-function residentPinIcon(status: string | null, selected: boolean, outsideBoundary: boolean): L.DivIcon {
-  const color = STATUS_COLOR[status ?? ""] ?? "#3b82f6";
-  const size = selected ? 16 : 12;
+function householdPinIcon(selected: boolean, outsideBoundary: boolean): L.DivIcon {
+  const color = HOUSEHOLD_PIN_COLOR;
+  const size = selected ? 20 : 14;
   const border = selected
-    ? "3px solid #fff"
+    ? "2.5px solid #fff"
     : outsideBoundary
       ? "2px solid #f59e0b"
-      : "2px solid rgba(255,255,255,0.85)";
+      : "2px solid rgba(255,255,255,0.9)";
   const shadow = selected
-    ? `0 0 0 3px ${color}55, 0 2px 6px rgba(0,0,0,0.35)`
+    ? `0 0 0 3px ${color}55, 0 2px 8px rgba(0,0,0,0.4)`
     : outsideBoundary
-      ? "0 0 0 2px rgba(245,158,11,0.35), 0 1px 4px rgba(0,0,0,0.3)"
-      : "0 1px 4px rgba(0,0,0,0.3)";
+      ? "0 0 0 2px rgba(245,158,11,0.4), 0 1px 4px rgba(0,0,0,0.3)"
+      : "0 2px 5px rgba(0,0,0,0.3)";
   const badge = outsideBoundary
     ? `<div style="position:absolute;top:-6px;right:-6px;width:12px;height:12px;border-radius:50%;background:#f59e0b;border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:900;color:#fff;line-height:1;">!</div>`
     : "";
+  // House icon SVG inside the pin
+  const iconSize = Math.round(size * 0.6);
   return L.divIcon({
     className: "",
     html: `<div style="position:relative;width:${size}px;height:${size}px;">
-      <div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};border:${border};box-shadow:${shadow};transition:all 0.15s;cursor:pointer;"></div>
+      <div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};border:${border};box-shadow:${shadow};transition:all 0.15s;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+        <svg width="${iconSize}" height="${iconSize}" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      </div>
       ${badge}
     </div>`,
     iconSize: [size, size],
@@ -361,19 +367,19 @@ export default function AllResidentsMap({
     residents.forEach((r) => {
       const isOutside = outsideBoundaryIds?.has(r.id) ?? false;
       const marker = L.marker([r.latitude, r.longitude], {
-        icon: residentPinIcon(r.status, r.id === selectedId, isOutside),
+        icon: householdPinIcon(r.id === selectedId, isOutside),
       });
+      const memberText = (r.member_count && r.member_count > 0)
+        ? `${r.member_count} member${r.member_count !== 1 ? "s" : ""}`
+        : "";
       marker.bindPopup(
-        `<div style="font-size:12px;line-height:1.5;min-width:180px;">
-          <p style="font-weight:700;margin:0 0 2px;font-size:13px;">${r.full_name}</p>
-          <p style="margin:0;color:#64748b;font-family:monospace;font-size:10px;">${r.resident_number}</p>
-          ${r.purok ? `<p style="margin:3px 0 0;color:#475569;font-size:11px;">${isTambo ? "" : "Purok "}${r.purok}</p>` : ""}
+        `<div style="font-size:12px;line-height:1.5;min-width:190px;">
+          <p style="font-weight:700;margin:0 0 1px;font-size:13px;">${r.full_name}</p>
+          <p style="margin:0;color:#64748b;font-family:monospace;font-size:10px;">HH# ${r.resident_number}</p>
+          ${r.purok ? `<p style="margin:3px 0 0;color:#475569;font-size:11px;">📍 ${isTambo ? "" : "Purok "}${r.purok}</p>` : ""}
+          ${r.address ? `<p style="margin:2px 0 0;color:#64748b;font-size:10px;">${r.address}</p>` : ""}
+          ${memberText ? `<p style="margin:4px 0 0;font-size:11px;color:#3b82f6;font-weight:600;">👥 ${memberText}</p>` : ""}
           ${isOutside ? `<p style="margin:5px 0 0;padding:4px 6px;border-radius:6px;background:#fef3c7;color:#92400e;font-size:10px;font-weight:600;">⚠ Outside barangay boundary — verify coordinates</p>` : ""}
-          <div style="display:flex;align-items:center;gap:6px;margin:6px 0 0;">
-            <span style="display:inline-block;padding:2px 8px;border-radius:9999px;font-size:10px;font-weight:600;background:${STATUS_COLOR[r.status ?? ""] ?? "#3b82f6"}22;color:${STATUS_COLOR[r.status ?? ""] ?? "#3b82f6"};text-transform:capitalize;">${r.status ?? "unknown"}</span>
-            ${r.sex ? `<span style="font-size:10px;color:#94a3b8;">${r.sex === "M" || r.sex === "male" ? "Male" : "Female"}</span>` : ""}
-          </div>
-          <a href="/dashboard/residents/${r.id}" style="display:flex;align-items:center;justify-content:center;gap:4px;margin:8px 0 0;padding:6px 12px;border-radius:8px;background:#3b82f6;color:#fff;font-size:11px;font-weight:600;text-decoration:none;">View Profile</a>
         </div>`,
         { maxWidth: 240, className: "resident-popup" }
       );

@@ -9,7 +9,7 @@ use App\Models\Admin\Barangay;
 use App\Models\Tenant\Disaster\Evacuation;
 use App\Models\Tenant\Disaster\HazardPin;
 use App\Models\Tenant\Records\Establishment;
-use App\Models\Tenant\Resident;
+use App\Models\Tenant\Records\Household;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,57 +19,64 @@ class MapController extends Controller
     /**
      * GET /api/v1/map/residents
      *
-     * Returns all residents that have latitude + longitude set.
-     * Lightweight payload — only fields needed to render a map pin.
+     * Returns all households that have latitude + longitude set.
+     * Each pin represents one household; the head resident's name is used as label.
+     * Response key kept as "residents" for frontend compatibility.
      */
     public function residents(Request $request): JsonResponse
     {
         $barangayId = $request->user()->barangay_id;
 
-        $mapped = Resident::where('barangay_id', $barangayId)
+        $mapped = Household::where('barangay_id', $barangayId)
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')
+            ->whereNull('deleted_at')
             ->select([
-                'id', 'resident_number',
-                'first_name', 'middle_name', 'last_name', 'extension_name',
-                'purok', 'sex', 'status',
+                'id', 'household_number', 'household_name',
+                'head_resident_id', 'purok', 'address', 'member_count',
                 'latitude', 'longitude',
             ])
-            ->orderBy('last_name')
+            ->with(['headResident:id,first_name,middle_name,last_name,extension_name'])
+            ->orderBy('household_number')
             ->get()
-            ->map(fn ($r) => [
-                'id' => $r->id,
-                'resident_number' => $r->resident_number,
-                'full_name' => trim(
-                    $r->last_name.', '.
-                    $r->first_name.
-                    ($r->middle_name ? ' '.mb_substr($r->middle_name, 0, 1).'.' : '').
-                    ($r->extension_name ? ' '.$r->extension_name : '')
-                ),
-                'purok' => $r->purok,
-                'sex' => $r->sex,
-                'status' => $r->status?->value,
-                'latitude' => (float) $r->latitude,
-                'longitude' => (float) $r->longitude,
+            ->map(fn ($h) => [
+                'id'              => $h->id,
+                'resident_number' => $h->household_number,
+                'full_name'       => $h->household_name
+                    ?: ($h->headResident
+                        ? trim(
+                            $h->headResident->last_name.', '.
+                            $h->headResident->first_name.
+                            ($h->headResident->middle_name ? ' '.mb_substr($h->headResident->middle_name, 0, 1).'.' : '').
+                            ($h->headResident->extension_name ? ' '.$h->headResident->extension_name : '')
+                        )
+                        : 'HH-'.$h->household_number),
+                'purok'        => $h->purok,
+                'member_count' => (int) $h->member_count,
+                'address'      => $h->address,
+                'sex'          => null,
+                'status'       => 'active',
+                'latitude'     => (float) $h->latitude,
+                'longitude'    => (float) $h->longitude,
             ]);
 
-        $total = Resident::where('barangay_id', $barangayId)->count();
+        $total = Household::where('barangay_id', $barangayId)->whereNull('deleted_at')->count();
 
         $barangay = Barangay::select(['id', 'name', 'latitude', 'longitude', 'boundary_geojson', 'boundary_fetched_at', 'boundary_source'])
             ->find($barangayId);
 
         return response()->json([
             'residents' => $mapped,
-            'total' => $total,
-            'mapped' => $mapped->count(),
-            'barangay' => $barangay ? [
-                'id' => $barangay->id,
-                'name' => $barangay->name,
-                'latitude' => $barangay->latitude !== null ? (float) $barangay->latitude : null,
-                'longitude' => $barangay->longitude !== null ? (float) $barangay->longitude : null,
-                'boundary_geojson' => $barangay->boundary_geojson,
+            'total'     => $total,
+            'mapped'    => $mapped->count(),
+            'barangay'  => $barangay ? [
+                'id'                  => $barangay->id,
+                'name'                => $barangay->name,
+                'latitude'            => $barangay->latitude !== null ? (float) $barangay->latitude : null,
+                'longitude'           => $barangay->longitude !== null ? (float) $barangay->longitude : null,
+                'boundary_geojson'    => $barangay->boundary_geojson,
                 'boundary_fetched_at' => $barangay->boundary_fetched_at?->toIso8601String(),
-                'boundary_source' => $barangay->boundary_source,
+                'boundary_source'     => $barangay->boundary_source,
             ] : null,
         ]);
     }
@@ -147,23 +154,25 @@ class MapController extends Controller
     /**
      * GET /api/v1/map/stats
      *
-     * Returns aggregate statistics for the map sidebar:
-     * - total / mapped / unmapped counts
+     * Returns aggregate statistics for the map sidebar based on households:
+     * - total / mapped / unmapped household counts
      * - per-purok breakdown (total + mapped)
-     * - per-status breakdown
+     * - by_status kept for interface compat (always active)
      */
     public function stats(Request $request): JsonResponse
     {
         $barangayId = $request->user()->barangay_id;
 
-        $total = Resident::where('barangay_id', $barangayId)->count();
-        $mapped = Resident::where('barangay_id', $barangayId)
+        $total = Household::where('barangay_id', $barangayId)->whereNull('deleted_at')->count();
+        $mapped = Household::where('barangay_id', $barangayId)
+            ->whereNull('deleted_at')
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')
             ->count();
 
-        // Per-purok: total residents + how many are mapped
-        $byPurok = Resident::where('barangay_id', $barangayId)
+        // Per-purok: total households + how many are mapped
+        $byPurok = Household::where('barangay_id', $barangayId)
+            ->whereNull('deleted_at')
             ->select([
                 DB::raw("COALESCE(NULLIF(TRIM(purok), ''), 'Unclassified') as purok_name"),
                 DB::raw('COUNT(*) as total'),
@@ -173,32 +182,18 @@ class MapController extends Controller
             ->orderByDesc('total')
             ->get()
             ->map(fn ($r) => [
-                'purok' => $r->purok_name,
-                'total' => (int) $r->total,
+                'purok'  => $r->purok_name,
+                'total'  => (int) $r->total,
                 'mapped' => (int) $r->mapped,
             ]);
 
-        // Per-status
-        $byStatus = Resident::where('barangay_id', $barangayId)
-            ->select([
-                DB::raw("COALESCE(NULLIF(TRIM(status::text), ''), 'unknown') as status_value"),
-                DB::raw('COUNT(*) as count'),
-            ])
-            ->groupBy('status_value')
-            ->orderByDesc('count')
-            ->get()
-            ->map(fn ($r) => [
-                'status' => $r->status_value,
-                'count' => (int) $r->count,
-            ]);
-
         return response()->json([
-            'total' => $total,
-            'mapped' => $mapped,
-            'unmapped' => $total - $mapped,
-            'coverage' => $total > 0 ? round(($mapped / $total) * 100, 1) : 0,
-            'by_purok' => $byPurok,
-            'by_status' => $byStatus,
+            'total'     => $total,
+            'mapped'    => $mapped,
+            'unmapped'  => $total - $mapped,
+            'coverage'  => $total > 0 ? round(($mapped / $total) * 100, 1) : 0,
+            'by_purok'  => $byPurok,
+            'by_status' => [['status' => 'active', 'count' => $total]],
         ]);
     }
 }

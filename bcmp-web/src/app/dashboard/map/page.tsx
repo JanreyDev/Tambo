@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Map, MapPin, Users, AlertTriangle, Loader2,
-  Navigation, ChevronRight,
-  Activity, BarChart3, Search, X, ExternalLink,
+  Navigation,
+  Activity, BarChart3, Search, X,
   Layers, Building2, Shield,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -226,7 +226,7 @@ export default function MapPage() {
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <PageHeader
         title="Barangay Map"
-        description="Live resident location map — pins from registered coordinates"
+        description="Household location map — one pin per registered household"
         breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "Map" }]}
         className="mb-3 shrink-0"
       />
@@ -243,7 +243,7 @@ export default function MapPage() {
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search residents on map..."
+                placeholder="Search households on map..."
                 className="pl-8 pr-8 py-1.5 text-xs rounded-lg border border-border bg-background/95 backdrop-blur-sm shadow-sm w-56 focus:outline-none focus:ring-2 focus:ring-accent-ring"
               />
               {search && (
@@ -267,9 +267,9 @@ export default function MapPage() {
           {!loadingResidents && (
             <div className="absolute top-3 right-3 z-[1000] flex items-center gap-2">
               <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-background/95 backdrop-blur-sm border border-border text-[11px] shadow-sm">
-                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
                 <span className="font-semibold text-foreground">{filteredResidents.length}</span>
-                <span className="text-muted-foreground">pins visible</span>
+                <span className="text-muted-foreground">households visible</span>
               </div>
               <button
                 onClick={() => setShowLayerPanel((v) => !v)}
@@ -377,28 +377,20 @@ export default function MapPage() {
             </div>
           )}
 
-          {/* Legend overlay */}
+          {/* Legend overlay — household pin */}
           <div className="absolute bottom-3 left-3 z-[1000] p-2.5 rounded-lg bg-background/95 backdrop-blur-sm border border-border shadow-sm">
             <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Legend</p>
-            <div className="space-y-1">
-              {Object.entries(STATUS_COLOR).map(([status, color]) => (
-                <button
-                  key={status}
-                  onClick={() => setActiveStatusFilter(activeStatusFilter === status ? null : status)}
-                  className={cn(
-                    "flex items-center gap-1.5 text-[10px] rounded px-1 py-0.5 transition-colors w-full text-left",
-                    activeStatusFilter === status ? "bg-muted" : "hover:bg-muted/50"
-                  )}
-                >
-                  <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: color }} />
-                  <span className="capitalize text-foreground">{status}</span>
-                  {stats && (
-                    <span className="ml-auto text-muted-foreground">
-                      {stats.by_status.find((s) => s.status === status)?.count ?? 0}
-                    </span>
-                  )}
-                </button>
-              ))}
+            <div className="flex items-center gap-1.5 text-[10px]">
+              <div className="w-3.5 h-3.5 rounded-full bg-blue-500 border-2 border-white shadow-sm flex items-center justify-center">
+                <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              </div>
+              <span className="text-foreground">Household</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-[10px] mt-1">
+              <div className="w-3.5 h-3.5 rounded-full bg-amber-400 border-2 border-white shadow-sm flex items-center justify-center">
+                <span className="text-white font-bold text-[7px]">!</span>
+              </div>
+              <span className="text-muted-foreground">Outside boundary</span>
             </div>
           </div>
 
@@ -454,7 +446,7 @@ export default function MapPage() {
           {/* Quick stats — 2x2 grid */}
           <div className="grid grid-cols-2 gap-2 shrink-0">
             {[
-              { label: "Total Residents", value: loadingStats ? "..." : totalResidents.toLocaleString(), icon: Users, color: "text-blue-600" },
+              { label: "Total Households", value: loadingStats ? "..." : totalResidents.toLocaleString(), icon: Users, color: "text-blue-600" },
               { label: "Mapped", value: loadingStats ? "..." : mappedCount.toLocaleString(), icon: MapPin, color: "text-green-600" },
               { label: "Unmapped", value: loadingStats ? "..." : (totalResidents - mappedCount).toLocaleString(), icon: Navigation, color: "text-amber-600" },
               { label: "Coverage", value: loadingStats ? "..." : coverage + "%", icon: Activity, color: "text-purple-600" },
@@ -472,7 +464,7 @@ export default function MapPage() {
           {/* Coverage bar */}
           <div className="p-3 rounded-xl glass shrink-0">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-semibold text-foreground">Mapping Coverage</p>
+              <p className="text-xs font-semibold text-foreground">Household Coverage</p>
               <span className="text-xs font-bold text-accent-primary">{coverage}%</span>
             </div>
             <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
@@ -511,7 +503,6 @@ export default function MapPage() {
             <div className="flex border-b border-border shrink-0">
               {[
                 { id: "puroks", label: "Puroks", icon: <BarChart3 className="h-3 w-3" /> },
-                { id: "status", label: "Status", icon: <Activity className="h-3 w-3" /> },
                 { id: "resident", label: "Selected", icon: <MapPin className="h-3 w-3" />, disabled: !selectedResident },
               ].map(({ id, label, icon, disabled }) => (
                 <button
@@ -624,13 +615,12 @@ export default function MapPage() {
                 </div>
               )}
 
-              {/* Selected resident tab */}
               {activeTab === "resident" && selectedResident && (
                 <div className="space-y-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="text-sm font-bold text-foreground leading-tight">{selectedResident.full_name}</p>
-                      <p className="text-[11px] text-muted-foreground font-mono mt-0.5">{selectedResident.resident_number}</p>
+                      <p className="text-[11px] text-muted-foreground font-mono mt-0.5">HH# {selectedResident.resident_number}</p>
                     </div>
                     <button onClick={clearResident} className="shrink-0 p-1 rounded-lg hover:bg-muted transition-colors">
                       <X className="h-3.5 w-3.5 text-muted-foreground" />
@@ -640,7 +630,8 @@ export default function MapPage() {
                   <div className="space-y-2 text-xs">
                     {[
                       { label: "Purok", value: selectedResident.purok || "Not indicated" },
-                      { label: "Sex", value: selectedResident.sex ? (selectedResident.sex === "M" ? "Male" : "Female") : "Not indicated" },
+                      ...(selectedResident.member_count ? [{ label: "Members", value: `${selectedResident.member_count} member${selectedResident.member_count !== 1 ? "s" : ""}` }] : []),
+                      ...(selectedResident.address ? [{ label: "Address", value: selectedResident.address }] : []),
                       { label: "Latitude", value: selectedResident.latitude.toFixed(7), mono: true },
                       { label: "Longitude", value: selectedResident.longitude.toFixed(7), mono: true },
                     ].map(({ label, value, mono }) => (
@@ -649,27 +640,7 @@ export default function MapPage() {
                         <span className={cn("font-semibold text-right text-foreground", mono && "font-mono text-[10px]")}>{value}</span>
                       </div>
                     ))}
-
-                    <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
-                      <span className="text-muted-foreground">Status</span>
-                      <span className={cn(
-                        "px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize",
-                        STATUS_BG[selectedResident.status ?? ""] ?? "bg-muted text-muted-foreground"
-                      )}>
-                        {selectedResident.status ?? "unknown"}
-                      </span>
-                    </div>
                   </div>
-
-                  <button
-                    onClick={() => router.push(`/dashboard/residents/${selectedResident.id}`)}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-semibold transition-colors"
-                    style={{ background: "var(--accent-primary)", color: "#fff" }}
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" />
-                    View Full Profile
-                    <ChevronRight className="h-3.5 w-3.5 ml-auto" />
-                  </button>
                 </div>
               )}
 

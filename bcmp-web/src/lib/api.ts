@@ -833,11 +833,13 @@ const api = {
       api.get<{
         residents: Array<{
           id: string;
-          resident_number: string;
-          full_name: string;
+          resident_number: string;  // household_number
+          full_name: string;         // household name or head resident name
           purok: string | null;
           sex: string | null;
           status: string | null;
+          member_count: number;
+          address: string | null;
           latitude: number;
           longitude: number;
         }>;
