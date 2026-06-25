@@ -18,6 +18,7 @@
         "league/flysystem-aws-s3-v3": "^3.32",
         "meilisearch/meilisearch-php": "^1.16",
         "pragmarx/google2fa": "^9.0",
+        "resend/resend-laravel": "^1.4",
         "sentry/sentry-laravel": "^4.21",
         "smalot/pdfparser": "^2.12",
         "spatie/laravel-permission": "^7.2"
