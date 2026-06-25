@@ -84,9 +84,9 @@ const navGroupDefs: NavGroupDef[] = [
     items: [
       { labelKey: "mabiniAi", href: "/dashboard/ai", icon: Bot },
       { labelKey: "drive", href: "/dashboard/drive", icon: HardDrive },
-      { labelKey: "email", href: "/dashboard/email", icon: Mail },
+      // { labelKey: "email", href: "/dashboard/email", icon: Mail },
       // { labelKey: "publicPortal", href: "/dashboard/public-portal", icon: Globe },
-      { labelKey: "marketplace", href: "/dashboard/marketplace", icon: ShoppingBag },
+      // { labelKey: "marketplace", href: "/dashboard/marketplace", icon: ShoppingBag },
     ],
   },
   {
@@ -94,10 +94,10 @@ const navGroupDefs: NavGroupDef[] = [
     items: [
       { labelKey: "tanod", href: "/dashboard/tanod", icon: Shield },
       { labelKey: "finance", href: "/dashboard/finance", icon: Receipt },
-      { labelKey: "hris", href: "/dashboard/hris", icon: UserCog },
-      { labelKey: "inventory", href: "/dashboard/inventory", icon: Package },
+      // { labelKey: "hris", href: "/dashboard/hris", icon: UserCog },
+      // { labelKey: "inventory", href: "/dashboard/inventory", icon: Package },
       { labelKey: "disasterDrrm", href: "/dashboard/disaster", icon: AlertTriangle },
-      { labelKey: "gad", href: "/dashboard/gad", icon: Heart },
+      // { labelKey: "gad", href: "/dashboard/gad", icon: Heart },
     ],
   },
 ];
