@@ -9,8 +9,9 @@ import {
   Mail, Inbox, Send, FileEdit, Star, Trash2, Archive,
   Search, Plus, Paperclip, ChevronRight, Users,
   Reply, Forward, MoreHorizontal, X, RefreshCw,
-  CheckCheck, Clock, AlertCircle, ArrowLeft,
+  CheckCheck, Clock, AlertCircle, ArrowLeft, Loader2,
 } from "lucide-react";
+import type { ResidentSummary } from "@/lib/types";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -95,6 +96,41 @@ export default function EmailPage() {
   });
   const [sending, setSending] = useState(false);
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [residentSearch, setResidentSearch] = useState("");
+  const [residentResults, setResidentResults] = useState<ResidentSummary[]>([]);
+  const [searchingResidents, setSearchingResidents] = useState(false);
+  const [selectedResident, setSelectedResident] = useState<ResidentSummary | null>(null);
+
+  useEffect(() => {
+    if (!residentSearch.trim()) {
+      setResidentResults([]);
+      return;
+    }
+    const delayDebounce = setTimeout(async () => {
+      setSearchingResidents(true);
+      try {
+        const response = await api.residents.list({ search: residentSearch, per_page: 5 });
+        setResidentResults(response.data ?? []);
+      } catch {
+        // ignore
+      } finally {
+        setSearchingResidents(false);
+      }
+    }, 300);
+    return () => clearTimeout(delayDebounce);
+  }, [residentSearch]);
+
+  const handleSelectResident = (res: ResidentSummary) => {
+    setSelectedResident(res);
+    setCompose(c => ({
+      ...c,
+      to_user_id: "",
+      to_address: res.email ?? "",
+    }));
+    setResidentSearch("");
+    setResidentResults([]);
+  };
 
   const fetchMessages = useCallback(async (f: Folder, q?: string) => {
     setState(s => ({ ...s, loading: true, error: null }));
@@ -194,6 +230,7 @@ export default function EmailPage() {
       });
       setShowCompose(false);
       setCompose({ to_user_id: "", to_address: "", cc_addresses: "", subject: "", body: "", is_draft: false });
+      setSelectedResident(null);
       if (!draft) fetchMessages(folder);
     } catch {
       /* show error */
@@ -482,7 +519,12 @@ export default function EmailPage() {
       {/* Compose Modal */}
       <Modal
         open={showCompose}
-        onClose={() => setShowCompose(false)}
+        onClose={() => {
+          setShowCompose(false);
+          setResidentSearch("");
+          setResidentResults([]);
+          setSelectedResident(null);
+        }}
         title="New Message"
         size="lg"
         disableOutsideClick
@@ -502,7 +544,11 @@ export default function EmailPage() {
             <label className="text-xs font-medium text-muted-foreground mb-1 block">To (Staff Member)</label>
             <select
               value={compose.to_user_id}
-              onChange={e => setCompose(c => ({ ...c, to_user_id: e.target.value, to_address: "" }))}
+              onChange={e => {
+                const val = e.target.value;
+                setCompose(c => ({ ...c, to_user_id: val, to_address: val ? "" : c.to_address }));
+                if (val) setSelectedResident(null);
+              }}
               className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-accent-primary"
             >
               <option value="">-- Select staff member --</option>
@@ -511,17 +557,78 @@ export default function EmailPage() {
               ))}
             </select>
           </div>
+
           {!compose.to_user_id && (
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Or Email Address</label>
-              <input
-                type="email"
-                value={compose.to_address}
-                onChange={e => setCompose(c => ({ ...c, to_address: e.target.value }))}
-                placeholder="recipient@example.com"
-                className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-accent-primary"
-              />
-            </div>
+            <>
+              <div className="relative">
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Or Search Resident</label>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                  <input
+                    value={residentSearch}
+                    onChange={e => setResidentSearch(e.target.value)}
+                    placeholder="Type resident name to search..."
+                    className="w-full pl-8 pr-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-accent-primary"
+                  />
+                  {searchingResidents && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
+
+                {residentResults.length > 0 && (
+                  <div className="absolute z-50 mt-1 w-full bg-white dark:bg-slate-800 border border-border rounded-xl shadow-lg max-h-48 overflow-y-auto divide-y divide-border text-xs">
+                    {residentResults.map(r => (
+                      <button
+                        key={r.id}
+                        type="button"
+                        onClick={() => handleSelectResident(r)}
+                        className="w-full px-3 py-2 text-left hover:bg-muted transition-colors flex justify-between items-center text-foreground"
+                      >
+                        <span>{r.last_name}, {r.first_name}</span>
+                        <span className="text-muted-foreground">{r.email || "No email"}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {selectedResident && (
+                <div className="p-2.5 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/30 flex items-center justify-between text-xs">
+                  <div>
+                    <span className="font-semibold text-blue-800 dark:text-blue-300">Selected Resident: </span>
+                    <span className="text-foreground">{selectedResident.first_name} {selectedResident.last_name}</span>
+                    {selectedResident.email ? (
+                      <span className="text-muted-foreground font-mono ml-1.5">({selectedResident.email})</span>
+                    ) : (
+                      <span className="text-red-500 font-medium ml-1.5">(No email address registered)</span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedResident(null); setCompose(c => ({ ...c, to_address: "" })); }}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Or Email Address</label>
+                <input
+                  type="email"
+                  value={compose.to_address}
+                  onChange={e => {
+                    setCompose(c => ({ ...c, to_address: e.target.value }));
+                    setSelectedResident(null);
+                  }}
+                  placeholder="recipient@example.com"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-accent-primary"
+                />
+              </div>
+            </>
           )}
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">CC (comma-separated)</label>
