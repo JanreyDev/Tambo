@@ -127,9 +127,9 @@ export default function ResidentsPage() {
   const isTambo = user?.barangay?.name?.toLowerCase() === "tambo";
   const sectorsList = isTambo
     ? sectorOptions
-        .filter((s) => s !== "Farmer")
-        .concat(["Banca Owners", "SAPRA Registration", "Tahungan"])
-        .sort((a, b) => a.localeCompare(b))
+      .filter((s) => s !== "Farmer")
+      .concat(["Banca Owners", "SAPRA Registration", "Tahungan"])
+      .sort((a, b) => a.localeCompare(b))
     : sectorOptions;
 
   // Translate filter "All X" labels while keeping state values in English.
@@ -293,8 +293,8 @@ export default function ResidentsPage() {
       }
     })();
     return () => { cancelled = true; };
-  // openEdit intentionally excluded — it's stable but defined lower in the file;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // openEdit intentionally excluded — it's stable but defined lower in the file;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
   // Fetch residents + stats on mount and when returning to list mode
@@ -600,8 +600,8 @@ export default function ResidentsPage() {
     // Status based on real quality issues only (not face detection)
     const status: PhotoAnalysis["status"] =
       issues.length === 0 && (faceDetected || !faceSupported) ? "good" :
-      issues.length === 0 ? "fair" : // no quality issues but no face = fair
-      issues.some((i) => i.includes("Too dark") || i.includes("blurry") || i.includes("too small")) ? "poor" : "fair";
+        issues.length === 0 ? "fair" : // no quality issues but no face = fair
+          issues.some((i) => i.includes("Too dark") || i.includes("blurry") || i.includes("too small")) ? "poor" : "fair";
 
     return { status, faceDetected, faceSupported, issues, notes, brightness, sharpness };
   }, []);
@@ -699,7 +699,7 @@ export default function ResidentsPage() {
       setPhotoAnalysis({ status: "fair", faceDetected: false, faceSupported: false, issues: [], notes: [], brightness: 128, sharpness: 100 });
     }
     setPhotoAnalyzing(false);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [analyzePhoto, stampWatermark]);
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1250,7 +1250,7 @@ export default function ResidentsPage() {
     setPrintingId(residentId);
     try {
       const blob = await api.residents.print(residentId);
-      const url  = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(blob);
       window.open(url, "_blank", "noopener,noreferrer");
       // Revoke the object URL after a short delay to free memory
       setTimeout(() => URL.revokeObjectURL(url), 30_000);
@@ -1400,7 +1400,7 @@ export default function ResidentsPage() {
     if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current);
     geocodeTimerRef.current = setTimeout(() => geocodeAddress(address), 1500);
     return () => { if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [f("house_block_lot"), f("street"), f("purok"), mode]);
 
   // Measure form container height whenever mode enters create/edit or window resizes.
@@ -1438,1002 +1438,1002 @@ export default function ResidentsPage() {
   if (mode === "create" || mode === "edit") {
     return (
       <>
-      {/* Contained-scroll form: height fills from this element to the viewport bottom.
+        {/* Contained-scroll form: height fills from this element to the viewport bottom.
          The action bar is a natural shrink-0 sibling — never fixed, never overlaps the map. */}
-      <div
-        ref={formContainerRef}
-        className="flex flex-col -m-6"
-        style={{ height: formContainerHeight ? `${formContainerHeight}px` : "calc(100dvh - 120px)" }}
-      >
-        <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-        {/* Scrollable form body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-5">
-        {/* Header: Back + Title */}
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <button onClick={() => setMode("list")} className="text-xs text-accent-text hover:underline">&larr; Back to list</button>
+        <div
+          ref={formContainerRef}
+          className="flex flex-col -m-6"
+          style={{ height: formContainerHeight ? `${formContainerHeight}px` : "calc(100dvh - 120px)" }}
+        >
+          <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+          {/* Scrollable form body */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-5">
+            {/* Header: Back + Title */}
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <button onClick={() => setMode("list")} className="text-xs text-accent-text hover:underline">&larr; Back to list</button>
+                </div>
+                <h1 className="text-3xl text-foreground leading-tight" style={{ fontFamily: "var(--font-playfair)", letterSpacing: "-0.015em" }}>{mode === "create" ? "Create Resident" : "Edit Resident"}</h1>
+              </div>
+              <div className="text-right text-xs text-muted-foreground space-y-0.5">
+                <div className="font-medium">{new Date().toLocaleDateString(user?.preferred_language === "fil" ? "fil-PH" : "en-PH", { weekday: "short", month: "short", day: "2-digit", year: "numeric" })}</div>
+                <div className="font-medium">{new Date().toLocaleTimeString(user?.preferred_language === "fil" ? "fil-PH" : "en-PH", { hour: "2-digit", minute: "2-digit" })}</div>
+              </div>
             </div>
-            <h1 className="text-3xl text-foreground leading-tight" style={{ fontFamily: "var(--font-playfair)", letterSpacing: "-0.015em" }}>{mode === "create" ? "Create Resident" : "Edit Resident"}</h1>
-          </div>
-          <div className="text-right text-xs text-muted-foreground space-y-0.5">
-            <div className="font-medium">{new Date().toLocaleDateString(user?.preferred_language === "fil" ? "fil-PH" : "en-PH", { weekday: "short", month: "short", day: "2-digit", year: "numeric" })}</div>
-            <div className="font-medium">{new Date().toLocaleTimeString(user?.preferred_language === "fil" ? "fil-PH" : "en-PH", { hour: "2-digit", minute: "2-digit" })}</div>
-          </div>
-        </div>
 
-        {/* Accordion Sections */}
-        <div className="form-gradient-bg rounded-2xl p-6 space-y-3 relative">
-          {/* 1. Personal Information and Photo (always visible, not collapsible) */}
-          <div className="relative z-[1]">
-            <div className="relative w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-foreground glass-accordion">
-              <User className="h-4.5 w-4.5 shrink-0 text-blue-600 dark:text-blue-300" />
-              <span className="flex-1 text-sm font-bold uppercase tracking-wider">Personal Information and Photo</span>
-            </div>
-            <div className="glass-section rounded-b-xl mt-px px-5 pt-5 pb-4">
-              <div className="space-y-5">
-                <div className="flex items-start gap-6">
-                  <div className="flex-1 space-y-4">
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                      <FInput label="First Name" name="first_name" required placeholder="e.g. Juan" value={f("first_name")} onChange={updateForm} valid={dupOk("first_name")} error={formErrors.first_name} />
-                      <FInput label="Middle Name" name="middle_name" placeholder="e.g. Santiago" value={f("middle_name")} onChange={updateForm} valid={dupOk("middle_name")} />
-                      <FInput label="Last Name" name="last_name" required placeholder="e.g. Dela Cruz" value={f("last_name")} onChange={updateForm} valid={dupOk("last_name")} error={formErrors.last_name} />
-                      <FSelect label="Extension" name="extension_name" options={extensions} value={f("extension_name")} onChange={updateForm} />
-                    </div>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                      <FSelect label="Sex / Gender" name="sex" options={["", "Male", "Female", "Lesbian", "Gay", "Bisexual", "Transgender", "Queer", "Intersex", "Other", "Prefer not to say"]} required value={f("sex")} onChange={updateForm} error={formErrors.sex} />
-                      <FDatePicker label="Date of Birth" name="date_of_birth" required value={f("date_of_birth")} onChange={updateForm} valid={dupOk("date_of_birth")} error={formErrors.date_of_birth} />
-                      <FCombobox label="Place of Birth" name="place_of_birth" required entries={placeOfBirthEntries} value={f("place_of_birth")} onChange={updateForm} onSubmit={(val) => submitEntry(placeOfBirthEntries, setPlaceOfBirthEntries, val, "place_of_birth")} />
-                      <FSelect label="Civil Status" name="civil_status" options={["", ...civilStatuses]} required value={f("civil_status")} onChange={updateForm} error={formErrors.civil_status} />
-                    </div>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                      <FInput label="Contact No." name="mobile_number" required type="tel" placeholder="09XX XXX XXXX" value={f("mobile_number")} onChange={updateForm} maxLength={13} error={formErrors.mobile_number} />
-                      <FInput label="Telephone" name="telephone" type="tel" placeholder="e.g. (02) 8123 4567" value={f("telephone")} onChange={updateForm} />
-                      <FInput label="Email Address" name="email" type="email" placeholder="name@example.com" value={f("email")} onChange={updateForm} error={formErrors.email} />
-                      <FSelect label="Residence Type" name="resident_type" options={residentTypes} required value={f("resident_type")} onChange={updateForm} error={formErrors.resident_type} />
-                      <FSelect label="Housing / Settlement Type" name="housing_type" options={["", "Street", "Barracks", "Subdivision", "House / Apartment"]} value={f("housing_type")} onChange={updateForm} error={formErrors.housing_type} />
-                      <FInput label="Date of Occupancy (Length of Stay)" name="date_of_occupancy" type="date" value={f("date_of_occupancy")} onChange={updateForm} error={formErrors.date_of_occupancy} />
-                      <FRadio label="Head of Household?" name="is_head_of_household" value={fb("is_head_of_household") ? "yes" : "no"}
-                        options={[{ value: "yes", label: "Yes" }, { value: "no", label: "No" }]}
-                        onChange={(n, v) => updateForm(n, v === "yes")} />
-                    </div>
+            {/* Accordion Sections */}
+            <div className="form-gradient-bg rounded-2xl p-6 space-y-3 relative">
+              {/* 1. Personal Information and Photo (always visible, not collapsible) */}
+              <div className="relative z-[1]">
+                <div className="relative w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-foreground glass-accordion">
+                  <User className="h-4.5 w-4.5 shrink-0 text-blue-600 dark:text-blue-300" />
+                  <span className="flex-1 text-sm font-bold uppercase tracking-wider">Personal Information and Photo</span>
+                </div>
+                <div className="glass-section rounded-b-xl mt-px px-5 pt-5 pb-4">
+                  <div className="space-y-5">
+                    <div className="flex items-start gap-6">
+                      <div className="flex-1 space-y-4">
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                          <FInput label="First Name" name="first_name" required placeholder="e.g. Juan" value={f("first_name")} onChange={updateForm} valid={dupOk("first_name")} error={formErrors.first_name} />
+                          <FInput label="Middle Name" name="middle_name" placeholder="e.g. Santiago" value={f("middle_name")} onChange={updateForm} valid={dupOk("middle_name")} />
+                          <FInput label="Last Name" name="last_name" required placeholder="e.g. Dela Cruz" value={f("last_name")} onChange={updateForm} valid={dupOk("last_name")} error={formErrors.last_name} />
+                          <FSelect label="Extension" name="extension_name" options={extensions} value={f("extension_name")} onChange={updateForm} />
+                        </div>
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                          <FSelect label="Sex / Gender" name="sex" options={["", "Male", "Female", "Lesbian", "Gay", "Bisexual", "Transgender", "Queer", "Intersex", "Other", "Prefer not to say"]} required value={f("sex")} onChange={updateForm} error={formErrors.sex} />
+                          <FDatePicker label="Date of Birth" name="date_of_birth" required value={f("date_of_birth")} onChange={updateForm} valid={dupOk("date_of_birth")} error={formErrors.date_of_birth} />
+                          <FCombobox label="Place of Birth" name="place_of_birth" required entries={placeOfBirthEntries} value={f("place_of_birth")} onChange={updateForm} onSubmit={(val) => submitEntry(placeOfBirthEntries, setPlaceOfBirthEntries, val, "place_of_birth")} />
+                          <FSelect label="Civil Status" name="civil_status" options={["", ...civilStatuses]} required value={f("civil_status")} onChange={updateForm} error={formErrors.civil_status} />
+                        </div>
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                          <FInput label="Contact No." name="mobile_number" required type="tel" placeholder="09XX XXX XXXX" value={f("mobile_number")} onChange={updateForm} maxLength={13} error={formErrors.mobile_number} />
+                          <FInput label="Telephone" name="telephone" type="tel" placeholder="e.g. (02) 8123 4567" value={f("telephone")} onChange={updateForm} />
+                          <FInput label="Email Address" name="email" type="email" placeholder="name@example.com" value={f("email")} onChange={updateForm} error={formErrors.email} />
+                          <FSelect label="Residence Type" name="resident_type" options={residentTypes} required value={f("resident_type")} onChange={updateForm} error={formErrors.resident_type} />
+                          <FSelect label="Housing / Settlement Type" name="housing_type" options={["", "Street", "Barracks", "Subdivision", "House / Apartment"]} value={f("housing_type")} onChange={updateForm} error={formErrors.housing_type} />
+                          <FInput label="Date of Occupancy (Length of Stay)" name="date_of_occupancy" type="date" value={f("date_of_occupancy")} onChange={updateForm} error={formErrors.date_of_occupancy} />
+                          <FRadio label="Head of Household?" name="is_head_of_household" value={fb("is_head_of_household") ? "yes" : "no"}
+                            options={[{ value: "yes", label: "Yes" }, { value: "no", label: "No" }]}
+                            onChange={(n, v) => updateForm(n, v === "yes")} />
+                        </div>
 
-                    {/* Parent / Guardian Information — only rendered if resident is a minor (<18) */}
-                    {(() => {
-                      const age = getAgeFromDob(f("date_of_birth"));
-                      return age !== null && age < 18;
-                    })() && (
-                      <div className="rounded-xl border border-border bg-blue-50/20 dark:bg-blue-950/5 p-4 space-y-3">
-                        <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Parent / Guardian / Beneficiary Information</p>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <FInput
-                            label="Parent / Guardian Name"
-                            name="guardian_name"
-                            required
-                            placeholder="e.g. Maria Dela Cruz"
-                            value={f("guardian_name")}
-                            onChange={updateForm}
-                            error={formErrors.guardian_name}
-                          />
-                          <FSelect
-                            label="Relationship to Minor"
-                            name="guardian_relationship"
-                            required
-                            options={["", "Mother", "Father", "Grandparent", "Sibling", "Legal Guardian", "Other Relative"]}
-                            value={f("guardian_relationship")}
-                            onChange={updateForm}
-                            error={formErrors.guardian_relationship}
-                          />
-                          <FInput
-                            label="Guardian Contact No."
-                            name="guardian_phone"
-                            type="tel"
-                            placeholder="09XX XXX XXXX"
-                            value={f("guardian_phone")}
-                            onChange={updateForm}
-                            maxLength={13}
-                            error={formErrors.guardian_phone}
-                          />
-                        </div>
-                      </div>
-                    )}
-                    {/* Record Status — edit mode only */}
-                    {mode === "edit" && (
-                      <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 space-y-3">
-                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Record Status</p>
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 items-start">
-                          <div>
-                            <FSelect label="Status" name="status"
-                              options={["active", "inactive", "deceased", "transferred"]}
-                              value={f("status") || "active"}
-                              onChange={updateForm} />
-                            {f("status") === "deceased" && (
-                              <p className="text-[10px] text-red-500 mt-1">Removes from active population count.</p>
-                            )}
-                          </div>
-                          {f("status") === "transferred" && (
-                            <FDatePicker label="Transfer Date" name="transfer_date"
-                              value={f("transfer_date")} onChange={updateForm} />
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  {/* Smart Photo Area */}
-                  <div className="shrink-0 flex flex-col items-center gap-2">
-                    <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoSelect} />
-                    {/* Mobile camera input: capture="environment" opens back camera by default, user can flip to front */}
-                    <input ref={photoCaptureRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoSelect} />
-                    <div className={cn(
-                      "w-36 h-44 rounded-xl bg-muted border-2 flex flex-col items-center justify-center overflow-hidden relative",
-                      photoAnalysis?.status === "good" ? "border-green-400" :
-                      photoAnalysis?.status === "poor" ? "border-red-400" :
-                      photoPreview ? "border-amber-400" : "border-dashed border-border"
-                    )}>
-                      {cameraActive ? (
-                        <>
-                          <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
-                          {/* Face Guide Overlay — oval silhouette */}
-                          <div className="absolute inset-0 pointer-events-none">
-                            <svg viewBox="0 0 144 176" className="w-full h-full" preserveAspectRatio="none">
-                              <defs>
-                                <mask id="face-guide-mask">
-                                  <rect width="144" height="176" fill="white" />
-                                  <ellipse cx="72" cy="78" rx="38" ry="50" fill="black" />
-                                </mask>
-                              </defs>
-                              <rect width="144" height="176" fill="rgba(0,0,0,0.35)" mask="url(#face-guide-mask)" />
-                              <ellipse cx="72" cy="78" rx="38" ry="50" fill="none" stroke="white" strokeWidth="1.5" strokeDasharray="4 3" opacity="0.8" />
-                            </svg>
-                            <span className="absolute bottom-2 left-0 right-0 text-center text-[9px] text-white font-medium drop-shadow-sm">
-                              Align face inside oval
-                            </span>
-                          </div>
-                        </>
-                      ) : photoPreview ? (
-                        <>
-                          <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
-                          {/* Analysis Status Badge */}
-                          {photoAnalyzing && (
-                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                              <Loader2 className="h-5 w-5 text-white animate-spin" />
+                        {/* Parent / Guardian Information — only rendered if resident is a minor (<18) */}
+                        {(() => {
+                          const age = getAgeFromDob(f("date_of_birth"));
+                          return age !== null && age < 18;
+                        })() && (
+                            <div className="rounded-xl border border-border bg-blue-50/20 dark:bg-blue-950/5 p-4 space-y-3">
+                              <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Parent / Guardian / Beneficiary Information</p>
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <FInput
+                                  label="Parent / Guardian Name"
+                                  name="guardian_name"
+                                  required
+                                  placeholder="e.g. Maria Dela Cruz"
+                                  value={f("guardian_name")}
+                                  onChange={updateForm}
+                                  error={formErrors.guardian_name}
+                                />
+                                <FSelect
+                                  label="Relationship to Minor"
+                                  name="guardian_relationship"
+                                  required
+                                  options={["", "Mother", "Father", "Grandparent", "Sibling", "Legal Guardian", "Other Relative"]}
+                                  value={f("guardian_relationship")}
+                                  onChange={updateForm}
+                                  error={formErrors.guardian_relationship}
+                                />
+                                <FInput
+                                  label="Guardian Contact No."
+                                  name="guardian_phone"
+                                  type="tel"
+                                  placeholder="09XX XXX XXXX"
+                                  value={f("guardian_phone")}
+                                  onChange={updateForm}
+                                  maxLength={13}
+                                  error={formErrors.guardian_phone}
+                                />
+                              </div>
                             </div>
                           )}
-                          {photoAnalysis && !photoAnalyzing && (
-                            <div className={cn(
-                              "absolute top-1.5 right-1.5 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold shadow-sm",
-                              photoAnalysis.status === "good" ? "bg-green-500 text-white" :
-                              photoAnalysis.status === "poor" ? "bg-red-500 text-white" :
-                              "bg-amber-500 text-white"
-                            )}>
-                              {photoAnalysis.status === "good" ? <CheckCircle className="h-2.5 w-2.5" /> :
-                               photoAnalysis.status === "poor" ? <AlertTriangle className="h-2.5 w-2.5" /> :
-                               <AlertTriangle className="h-2.5 w-2.5" />}
-                              {photoAnalysis.status === "good" ? "Good" : photoAnalysis.status === "poor" ? "Poor" : "Fair"}
+                        {/* Record Status — edit mode only */}
+                        {mode === "edit" && (
+                          <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 space-y-3">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Record Status</p>
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 items-start">
+                              <div>
+                                <FSelect label="Status" name="status"
+                                  options={["active", "inactive", "deceased", "transferred"]}
+                                  value={f("status") || "active"}
+                                  onChange={updateForm} />
+                                {f("status") === "deceased" && (
+                                  <p className="text-[10px] text-red-500 mt-1">Removes from active population count.</p>
+                                )}
+                              </div>
+                              {f("status") === "transferred" && (
+                                <FDatePicker label="Transfer Date" name="transfer_date"
+                                  value={f("transfer_date")} onChange={updateForm} />
+                              )}
                             </div>
-                          )}
-                        </>
-                      ) : (
-                        <>
-                          {/* BCMP logo watermark */}
-                          <img
-                            src="/kapitanph_logo.png?v=2"
-                            alt=""
-                            aria-hidden="true"
-                            className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
-                            style={{ opacity: 0.18, mixBlendMode: "multiply" }}
-                          />
-                          <User className="w-10 h-10 text-muted-foreground/40 relative z-10" />
-                          <span className="text-[10px] text-muted-foreground mt-1 relative z-10">No photo</span>
-                        </>
-                      )}
-                    </div>
-                    {/* Action Buttons */}
-                    <div className="flex gap-1.5 w-36">
-                      {cameraActive ? (
-                        <>
-                          <button type="button" onClick={capturePhoto}
-                            className="flex-1 px-2 py-1.5 text-[11px] font-semibold rounded-lg border border-blue-500/40 bg-blue-500/10 text-blue-700 dark:text-blue-300 hover:bg-blue-500/15 transition-colors">
-                            Capture
-                          </button>
-                          <button type="button" onClick={stopCamera}
-                            className="px-2 py-1.5 text-[11px] font-medium rounded-lg border border-border hover:bg-muted transition-colors">
-                            Cancel
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          {/* Desktop: getUserMedia webcam | Mobile: hidden (use native capture instead) */}
-                          <button type="button" onClick={startCamera} disabled={cameraLoading}
-                            className="hidden md:flex flex-1 items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-semibold rounded-lg border border-blue-500/40 bg-blue-500/10 text-blue-700 dark:text-blue-300 hover:bg-blue-500/15 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                            {cameraLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
-                            {cameraLoading ? "Opening..." : "Camera"}
-                          </button>
-                          {/* Mobile: opens native camera (back-facing default, user can flip to front) */}
-                          <button type="button" onClick={() => photoCaptureRef.current?.click()}
-                            className="flex md:hidden flex-1 items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-semibold rounded-lg border border-blue-500/40 bg-blue-500/10 text-blue-700 dark:text-blue-300 hover:bg-blue-500/15 transition-colors">
-                            <Camera className="h-4 w-4" /> Take Photo
-                          </button>
-                          <button type="button" onClick={() => photoInputRef.current?.click()}
-                            className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-medium rounded-lg border border-border hover:bg-muted transition-colors">
-                            <Upload className="h-4 w-4" /> Upload
-                          </button>
-                        </>
-                      )}
-                    </div>
-                    {/* Camera Error Message */}
-                    {cameraError && (
-                      <div className="w-36 p-2 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
-                        <p className="text-[10px] text-red-600 dark:text-red-400 leading-tight flex items-start gap-1">
-                          <AlertTriangle className="h-3 w-3 shrink-0 mt-px" />
-                          <span>{cameraError}</span>
-                        </p>
-                        <button type="button" onClick={() => setCameraError(null)}
-                          className="mt-1.5 w-full text-[9px] font-medium text-red-500 hover:text-red-700 dark:hover:text-red-300 transition-colors">
-                          Dismiss
-                        </button>
-                      </div>
-                    )}
-                    {/* Smart Feedback Messages */}
-                    {photoAnalysis && !photoAnalyzing && !cameraActive && (
-                      <div className="w-36 space-y-1">
-                        {/* Quality issues (red/amber) */}
-                        {photoAnalysis.issues.map((issue, i) => (
-                          <p key={i} className={cn(
-                            "text-[10px] flex items-start gap-1",
-                            photoAnalysis.status === "poor" ? "text-red-500" : "text-amber-600 dark:text-amber-400"
-                          )}>
-                            <AlertTriangle className="h-2.5 w-2.5 shrink-0 mt-px" />
-                            <span>{issue}</span>
-                          </p>
-                        ))}
-                        {/* Face detection results */}
-                        {photoAnalysis.faceDetected && (
-                          <p className="text-[10px] text-green-600 dark:text-green-400 flex items-center justify-center gap-1">
-                            <CheckCircle className="h-2.5 w-2.5 shrink-0" /> Face detected, auto-cropped
-                          </p>
+                          </div>
                         )}
-                        {/* No-face note — prominent amber box, NOT a blocker */}
-                        {photoAnalysis.notes.length > 0 && (
-                          <div className="mt-1 px-2 py-1.5 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40">
-                            {photoAnalysis.notes.map((note, i) => (
-                              <p key={i} className="text-[9px] text-amber-700 dark:text-amber-300 leading-tight">
-                                {note}
+                      </div>
+                      {/* Smart Photo Area */}
+                      <div className="shrink-0 flex flex-col items-center gap-2">
+                        <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoSelect} />
+                        {/* Mobile camera input: capture="environment" opens back camera by default, user can flip to front */}
+                        <input ref={photoCaptureRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoSelect} />
+                        <div className={cn(
+                          "w-36 h-44 rounded-xl bg-muted border-2 flex flex-col items-center justify-center overflow-hidden relative",
+                          photoAnalysis?.status === "good" ? "border-green-400" :
+                            photoAnalysis?.status === "poor" ? "border-red-400" :
+                              photoPreview ? "border-amber-400" : "border-dashed border-border"
+                        )}>
+                          {cameraActive ? (
+                            <>
+                              <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+                              {/* Face Guide Overlay — oval silhouette */}
+                              <div className="absolute inset-0 pointer-events-none">
+                                <svg viewBox="0 0 144 176" className="w-full h-full" preserveAspectRatio="none">
+                                  <defs>
+                                    <mask id="face-guide-mask">
+                                      <rect width="144" height="176" fill="white" />
+                                      <ellipse cx="72" cy="78" rx="38" ry="50" fill="black" />
+                                    </mask>
+                                  </defs>
+                                  <rect width="144" height="176" fill="rgba(0,0,0,0.35)" mask="url(#face-guide-mask)" />
+                                  <ellipse cx="72" cy="78" rx="38" ry="50" fill="none" stroke="white" strokeWidth="1.5" strokeDasharray="4 3" opacity="0.8" />
+                                </svg>
+                                <span className="absolute bottom-2 left-0 right-0 text-center text-[9px] text-white font-medium drop-shadow-sm">
+                                  Align face inside oval
+                                </span>
+                              </div>
+                            </>
+                          ) : photoPreview ? (
+                            <>
+                              <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+                              {/* Analysis Status Badge */}
+                              {photoAnalyzing && (
+                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                  <Loader2 className="h-5 w-5 text-white animate-spin" />
+                                </div>
+                              )}
+                              {photoAnalysis && !photoAnalyzing && (
+                                <div className={cn(
+                                  "absolute top-1.5 right-1.5 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold shadow-sm",
+                                  photoAnalysis.status === "good" ? "bg-green-500 text-white" :
+                                    photoAnalysis.status === "poor" ? "bg-red-500 text-white" :
+                                      "bg-amber-500 text-white"
+                                )}>
+                                  {photoAnalysis.status === "good" ? <CheckCircle className="h-2.5 w-2.5" /> :
+                                    photoAnalysis.status === "poor" ? <AlertTriangle className="h-2.5 w-2.5" /> :
+                                      <AlertTriangle className="h-2.5 w-2.5" />}
+                                  {photoAnalysis.status === "good" ? "Good" : photoAnalysis.status === "poor" ? "Poor" : "Fair"}
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              {/* BCMP logo watermark */}
+                              <img
+                                src="/kapitanph_logo.png?v=2"
+                                alt=""
+                                aria-hidden="true"
+                                className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
+                                style={{ opacity: 0.18, mixBlendMode: "multiply" }}
+                              />
+                              <User className="w-10 h-10 text-muted-foreground/40 relative z-10" />
+                              <span className="text-[10px] text-muted-foreground mt-1 relative z-10">No photo</span>
+                            </>
+                          )}
+                        </div>
+                        {/* Action Buttons */}
+                        <div className="flex gap-1.5 w-36">
+                          {cameraActive ? (
+                            <>
+                              <button type="button" onClick={capturePhoto}
+                                className="flex-1 px-2 py-1.5 text-[11px] font-semibold rounded-lg border border-blue-500/40 bg-blue-500/10 text-blue-700 dark:text-blue-300 hover:bg-blue-500/15 transition-colors">
+                                Capture
+                              </button>
+                              <button type="button" onClick={stopCamera}
+                                className="px-2 py-1.5 text-[11px] font-medium rounded-lg border border-border hover:bg-muted transition-colors">
+                                Cancel
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              {/* Desktop: getUserMedia webcam | Mobile: hidden (use native capture instead) */}
+                              <button type="button" onClick={startCamera} disabled={cameraLoading}
+                                className="hidden md:flex flex-1 items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-semibold rounded-lg border border-blue-500/40 bg-blue-500/10 text-blue-700 dark:text-blue-300 hover:bg-blue-500/15 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                {cameraLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+                                {cameraLoading ? "Opening..." : "Camera"}
+                              </button>
+                              {/* Mobile: opens native camera (back-facing default, user can flip to front) */}
+                              <button type="button" onClick={() => photoCaptureRef.current?.click()}
+                                className="flex md:hidden flex-1 items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-semibold rounded-lg border border-blue-500/40 bg-blue-500/10 text-blue-700 dark:text-blue-300 hover:bg-blue-500/15 transition-colors">
+                                <Camera className="h-4 w-4" /> Take Photo
+                              </button>
+                              <button type="button" onClick={() => photoInputRef.current?.click()}
+                                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[11px] font-medium rounded-lg border border-border hover:bg-muted transition-colors">
+                                <Upload className="h-4 w-4" /> Upload
+                              </button>
+                            </>
+                          )}
+                        </div>
+                        {/* Camera Error Message */}
+                        {cameraError && (
+                          <div className="w-36 p-2 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
+                            <p className="text-[10px] text-red-600 dark:text-red-400 leading-tight flex items-start gap-1">
+                              <AlertTriangle className="h-3 w-3 shrink-0 mt-px" />
+                              <span>{cameraError}</span>
+                            </p>
+                            <button type="button" onClick={() => setCameraError(null)}
+                              className="mt-1.5 w-full text-[9px] font-medium text-red-500 hover:text-red-700 dark:hover:text-red-300 transition-colors">
+                              Dismiss
+                            </button>
+                          </div>
+                        )}
+                        {/* Smart Feedback Messages */}
+                        {photoAnalysis && !photoAnalyzing && !cameraActive && (
+                          <div className="w-36 space-y-1">
+                            {/* Quality issues (red/amber) */}
+                            {photoAnalysis.issues.map((issue, i) => (
+                              <p key={i} className={cn(
+                                "text-[10px] flex items-start gap-1",
+                                photoAnalysis.status === "poor" ? "text-red-500" : "text-amber-600 dark:text-amber-400"
+                              )}>
+                                <AlertTriangle className="h-2.5 w-2.5 shrink-0 mt-px" />
+                                <span>{issue}</span>
                               </p>
                             ))}
+                            {/* Face detection results */}
+                            {photoAnalysis.faceDetected && (
+                              <p className="text-[10px] text-green-600 dark:text-green-400 flex items-center justify-center gap-1">
+                                <CheckCircle className="h-2.5 w-2.5 shrink-0" /> Face detected, auto-cropped
+                              </p>
+                            )}
+                            {/* No-face note — prominent amber box, NOT a blocker */}
+                            {photoAnalysis.notes.length > 0 && (
+                              <div className="mt-1 px-2 py-1.5 rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40">
+                                {photoAnalysis.notes.map((note, i) => (
+                                  <p key={i} className="text-[9px] text-amber-700 dark:text-amber-300 leading-tight">
+                                    {note}
+                                  </p>
+                                ))}
+                              </div>
+                            )}
+                            {/* All good message */}
+                            {photoAnalysis.issues.length === 0 && photoAnalysis.notes.length === 0 && (
+                              <p className="text-[10px] text-green-600 dark:text-green-400 flex items-center justify-center gap-1">
+                                <CheckCircle className="h-2.5 w-2.5 shrink-0" /> Photo looks great
+                              </p>
+                            )}
                           </div>
                         )}
-                        {/* All good message */}
-                        {photoAnalysis.issues.length === 0 && photoAnalysis.notes.length === 0 && (
-                          <p className="text-[10px] text-green-600 dark:text-green-400 flex items-center justify-center gap-1">
-                            <CheckCircle className="h-2.5 w-2.5 shrink-0" /> Photo looks great
-                          </p>
+                        {/* Remove Button */}
+                        {photoPreview && !cameraActive && !photoAnalyzing && (
+                          <button type="button" onClick={() => { setPhotoPreview(null); setPhotoAnalysis(null); updateForm("photo_file_id", ""); }}
+                            className="text-[10px] text-red-500 hover:underline">
+                            {photoAnalysis?.status === "poor" ? "Retake Photo" : "Remove"}
+                          </button>
                         )}
                       </div>
-                    )}
-                    {/* Remove Button */}
-                    {photoPreview && !cameraActive && !photoAnalyzing && (
-                      <button type="button" onClick={() => { setPhotoPreview(null); setPhotoAnalysis(null); updateForm("photo_file_id", ""); }}
-                        className="text-[10px] text-red-500 hover:underline">
-                        {photoAnalysis?.status === "poor" ? "Retake Photo" : "Remove"}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Duplicate Match Modal */}
-          <Modal open={dupModal} onClose={() => setDupModal(false)} title="" size="lg">
-            <div className="space-y-5">
-              {/* Header with icon */}
-              <div className="flex items-start gap-4">
-                <div className="shrink-0 w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-950/40 flex items-center justify-center">
-                  <AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-400" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-foreground">Possible Duplicate Detected</h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    We found {dupMatches.length} existing record{dupMatches.length !== 1 ? "s" : ""} with similar information.
-                    Review the match{dupMatches.length !== 1 ? "es" : ""} below before proceeding.
-                  </p>
-                </div>
-              </div>
-
-              {/* Match cards */}
-              <div className="space-y-3 max-h-80 overflow-y-auto">
-                {dupMatches.map((r) => (
-                  <div key={r.id} className="rounded-xl border-2 border-red-300 dark:border-red-800 bg-red-50/50 dark:bg-red-950/20 p-4 transition-colors">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className={cn("w-11 h-11 rounded-xl flex items-center justify-center text-white text-sm font-bold shrink-0",
-                          r.sex === "female" ? "bg-pink-500" : "bg-blue-500")}>
-                          {r.first_name[0]}{r.last_name[0]}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-bold text-foreground truncate">{r.full_name}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">{r.resident_number} &middot; {r.sex} &middot; Age {r.age} &middot; DOB: {r.date_of_birth} &middot; {isTambo ? "Block/Lot" : "Purok"} {r.purok || "N/A"}</p>
-                          {r.mobile_number && <p className="text-xs text-muted-foreground">{r.mobile_number}</p>}
-                        </div>
-                      </div>
-                      <StatusBadge status={r.status} />
-                    </div>
-                    {/* Actions */}
-                    <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/50">
-                      <button onClick={() => { setDupModal(false); setMode("list"); }}
-                        className="px-3 py-1.5 text-xs font-medium rounded-lg text-white transition-colors hover:opacity-90 flex items-center gap-1.5" style={{ background: "var(--accent-primary)" }}>
-                        <Eye className="h-4 w-4" /> View Profile
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Footer actions */}
-              <div className="flex items-center justify-between pt-2 border-t border-border">
-                <p className="text-[11px] text-muted-foreground">
-                  A resident with the same name already exists. In a barangay, one person cannot have multiple records.
-                </p>
-                <div className="flex gap-3">
-                  <button onClick={() => { setDupModal(false); setMode("list"); }}
-                    className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors">
-                    Cancel Registration
-                  </button>
-                  <button onClick={() => { setDupDismissed(true); setDupModal(false); }}
-                    className="px-4 py-2 text-sm font-semibold rounded-lg bg-amber-500 hover:bg-amber-600 text-white transition-colors">
-                    Not the Same Person — Continue
-                  </button>
-                </div>
-              </div>
-            </div>
-          </Modal>
-
-          {/* 2. Current Address (always visible, not collapsible) */}
-          <div className="relative z-[1]">
-            <div className="relative w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-foreground glass-accordion">
-              <MapPin className="h-4.5 w-4.5 shrink-0 text-blue-600 dark:text-blue-300" />
-              <span className="flex-1 text-sm font-bold uppercase tracking-wider">Current Address</span>
-            </div>
-            <div className="glass-section rounded-b-xl mt-px px-5 pt-5 pb-4">
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <FInput label={isTambo ? "House No. / Subdivision / Village" : "House No. / Blk & Lot / Subdivision / Village"} name="house_block_lot" placeholder={isTambo ? "E.g. Unit 4B, Villa Verde Subd. Phase 2" : "E.g. Unit 4B Blk 5 Lot 12, Villa Verde Subd. Phase 2"} value={f("house_block_lot")} onChange={updateForm} />
-                <FCombobox label={isTambo ? "Block and Lot" : "Purok / Sitio"} name="purok" entries={purokEntries} value={f("purok")}
-                  onChange={updateForm} onSubmit={(val) => submitEntry(purokEntries, setPurokEntries, val, "purok")} />
-                <FCombobox label="Street / Road" name="street" entries={streetEntries} value={f("street")}
-                  onChange={updateForm} onSubmit={(val) => submitEntry(streetEntries, setStreetEntries, val, "street")} />
-                <FInput label="Zip Code" name="zip_code" placeholder="e.g. 1230" value={f("zip_code")} onChange={updateForm} maxLength={4} />
-              </div>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Barangay</label>
-                  <input type="text" value={tenantConfig.barangay} readOnly tabIndex={-1}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-muted/50 text-foreground font-medium cursor-default opacity-80" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">City / Municipality</label>
-                  <input type="text" value={tenantConfig.city_municipality} readOnly tabIndex={-1}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-muted/50 text-foreground font-medium cursor-default opacity-80" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Province</label>
-                  <input type="text" value={tenantConfig.province} readOnly tabIndex={-1}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-muted/50 text-foreground font-medium cursor-default opacity-80" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">Barangay Zip</label>
-                  <input type="text" value={tenantConfig.zip_code} readOnly tabIndex={-1}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-muted/50 text-foreground font-medium cursor-default opacity-80" />
-                </div>
-              </div>
-
-              {/* Smart Map — Leaflet (no SDK side-effects, safe to click freely) */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <label className="text-xs font-medium text-muted-foreground">Pin Location on Map</label>
-                    {mapLocating && (
-                      <span className="text-[10px] text-accent-text flex items-center gap-1">
-                        <Loader2 className="h-3 w-3 animate-spin" /> Auto-locating...
-                      </span>
-                    )}
-                  </div>
-                  {f("latitude") && f("longitude") && !mapLocating && (
-                    <span className="text-[10px] text-green-600 dark:text-green-400 flex items-center gap-1">
-                      <CheckCircle className="h-3 w-3" />
-                      {parseFloat(String(f("latitude"))).toFixed(6)}, {parseFloat(String(f("longitude"))).toFixed(6)}
-                    </span>
-                  )}
-                </div>
-                <ResidentPinMap
-                  key={`map-${barangayLat}-${barangayLng}`}
-                  lat={f("latitude") ? parseFloat(String(f("latitude"))) : null}
-                  lng={f("longitude") ? parseFloat(String(f("longitude"))) : null}
-                  centerLat={barangayLat}
-                  centerLng={barangayLng}
-                  boundary={barangayBoundary}
-                  onPin={(lat, lng) => {
-                    updateForm("latitude", lat.toFixed(7));
-                    updateForm("longitude", lng.toFixed(7));
-                  }}
-                />
-                <p className="text-[10px] text-muted-foreground mt-1.5">
-                  Map auto-updates as you fill in the address above. Click the map or drag the pin to adjust the exact location.
-                </p>
-              </div>
-            </div>
-            </div>
-          </div>
-
-          {/* 3. Other Information */}
-          <Section icon={<Globe className="h-4 w-4" />} title="Other Information"
-            open={openSections.other} onToggle={() => toggleSection("other")}>
-            <div className="space-y-5">
-              {/* Identity */}
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Identity</p>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <FCombobox label="Citizenship" name="citizenship" entries={citizenshipEntries} value={f("citizenship")}
-                    onChange={updateForm} onSubmit={(val) => submitEntry(citizenshipEntries, setCitizenshipEntries, val, "citizenship")} />
-                  <FCombobox label="Religion" name="religion" entries={religionEntries} value={f("religion")}
-                    onChange={updateForm} onSubmit={(val) => submitEntry(religionEntries, setReligionEntries, val, "religion")} />
-                  <FCombobox label="Ethnicity" name="ethnicity" entries={ethnicityEntries} value={f("ethnicity")}
-                    onChange={updateForm} onSubmit={(val) => submitEntry(ethnicityEntries, setEthnicityEntries, val, "ethnicity")} />
-                  <FInput label="Mother's Maiden Name" name="mothers_maiden_name" placeholder="e.g. Santos" value={f("mothers_maiden_name")} onChange={updateForm} />
-                </div>
-              </div>
-
-              {/* Physical */}
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Physical</p>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <FSelect label="Blood Type" name="blood_type" options={bloodTypes} value={f("blood_type")} onChange={updateForm} />
-                  <FInput label="Height (cm)" name="height_cm" type="number" placeholder="e.g. 165" value={f("height_cm")} onChange={updateForm} error={formErrors.height_cm} />
-                  <FInput label="Weight (kg)" name="weight_kg" type="number" placeholder="e.g. 60" value={f("weight_kg")} onChange={updateForm} error={formErrors.weight_kg} />
-                  <FSelect label="Complexion" name="complexion" options={complexionOptions} value={f("complexion")} onChange={updateForm} />
-                </div>
-              </div>
-
-              {/* Sector / Organization */}
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Sector / Organization</p>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-y-1.5 gap-x-2">
-                  {sectorsList.map((s) => (
-                    <div key={s}>
-                      <label className="flex items-center gap-2 cursor-pointer group">
-                        <input type="checkbox" checked={sectors.includes(s)} onChange={() => toggleSector(s)}
-                          className="w-4 h-4 rounded border-border text-accent-primary focus:ring-accent-ring" />
-                        <span className={cn("text-sm transition-colors",
-                          sectorWarnings[s] ? "text-amber-600 dark:text-amber-400 font-medium" : "text-foreground group-hover:text-accent-text"
-                        )}>{s}</span>
-                        {sectorWarnings[s] && <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />}
-                      </label>
-                      {sectorWarnings[s] && (
-                        <p className="text-[10px] text-amber-600 dark:text-amber-400 ml-6 mt-0.5 leading-tight">{sectorWarnings[s]}</p>
-                      )}
-                    </div>
-                  ))}
-                  {/* Others with smart combobox */}
-                  <div className="col-span-2 md:col-span-3 lg:col-span-4 mt-1">
-                    <FCombobox label="Others" name="sector_other" value={f("sector_other")}
-                      entries={sectorOtherEntries} onSubmit={(val) => submitEntry(sectorOtherEntries, setSectorOtherEntries, val, "sector_other")}
-                      onChange={updateForm} placeholder="Type to search or add sector/organization..." />
-                  </div>
-                </div>
-                {/* Auto-suggestions from other fields */}
-                {sectorSuggestions.length > 0 && (
-                  <div className="mt-3 rounded-lg border border-blue-200 dark:border-blue-900/40 bg-blue-50/50 dark:bg-blue-950/20 p-3">
-                    <p className="text-[11px] font-semibold text-blue-700 dark:text-blue-300 mb-2">Suggested sectors based on form data:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {sectorSuggestions.map(({ sector, reason }) => (
-                        <button key={sector} type="button" onClick={() => toggleSector(sector)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-blue-300 dark:border-blue-700 bg-white dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors">
-                          <Plus className="h-4 w-4" /> {sector} <span className="text-blue-500 dark:text-blue-400">({reason})</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <div className="mt-3">
-                  <FRadio label="Organ Donor?" name="is_organ_donor" value={fb("is_organ_donor") ? "yes" : "no"}
-                    options={[{ value: "yes", label: "Yes" }, { value: "no", label: "No" }]}
-                    onChange={(n, v) => updateForm(n, v === "yes")} />
-                </div>
-              </div>
-
-              {/* Health & Skills */}
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Health & Skills</p>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground mb-1.5">Health History</label>
-                      <textarea value={f("health_history")} onChange={(e) => updateForm("health_history", e.target.value.toUpperCase())} placeholder="e.g. Past illnesses, allergies, disabilities"
-                        className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-20 uppercase" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-muted-foreground mb-1.5">Skills</label>
-                      <textarea value={f("skills")} onChange={(e) => updateForm("skills", e.target.value.toUpperCase())} placeholder="e.g. Carpentry, Cooking, Sewing, Driving"
-                        className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-20 uppercase" />
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Remarks */}
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5">Other Remarks</label>
-                <textarea value={f("other_remarks")} onChange={(e) => updateForm("other_remarks", e.target.value.toUpperCase())} placeholder="e.g. Any additional notes about this resident"
-                  className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-16 uppercase" />
-              </div>
-            </div>
-          </Section>
-
-          {/* 4. Educational Attainment */}
-          <Section icon={<GraduationCap className="h-4 w-4" />} title="Educational Attainment"
-            open={openSections.education} onToggle={() => toggleSection("education")}>
-            <div className="space-y-4">
-              {eduEntries.map((entry, idx) => {
-                const { allDisabled, courseDisabled } = eduFieldRules(entry.level);
-                return (
-                  <div key={idx} className="relative rounded-lg border border-border p-4 space-y-3">
-                    {eduEntries.length > 1 && (
-                      <button type="button" onClick={() => setEduEntries((e) => e.filter((_, i) => i !== idx))}
-                        className="absolute top-3 right-3 p-1 text-muted-foreground hover:text-red-500 transition-colors"><X className="h-4 w-4" /></button>
-                    )}
-                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                      <FSelect label="Level" name="level" options={educationLevels}
-                        value={entry.level} onChange={(_, v) => setEduEntries((e) => e.map((x, i) => i === idx ? { ...x, level: String(v) } : x))} />
-                      <FCombobox label="Course / Program" name="course" entries={courseEntries} value={entry.course}
-                        onChange={(_, v) => setEduEntries((e) => e.map((x, i) => i === idx ? { ...x, course: String(v) } : x))}
-                        onSubmit={(val) => submitEntry(courseEntries, setCourseEntries, val, "course")} disabled={courseDisabled} />
-                      <FCombobox label="School / Institution" name="school" entries={schoolEntries} value={entry.school}
-                        onChange={(_, v) => setEduEntries((e) => e.map((x, i) => i === idx ? { ...x, school: String(v) } : x))}
-                        onSubmit={(val) => submitEntry(schoolEntries, setSchoolEntries, val, "school")} disabled={allDisabled} />
-                    </div>
-                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                      <FSelect label="Start Year" name="start_year" options={yearOptions}
-                        value={entry.start_year}
-                        onChange={(_, v) => setEduEntries((e) => e.map((x, i) => i === idx ? { ...x, start_year: String(v) } : x))}
-                        disabled={allDisabled} />
-                      <FSelect label="End Year" name="end_year" options={yearOptions}
-                        value={entry.end_year}
-                        onChange={(_, v) => setEduEntries((e) => e.map((x, i) => i === idx ? { ...x, end_year: String(v) } : x))}
-                        disabled={allDisabled || entry.currently_studying} />
-                      <div className={`pt-6 ${allDisabled ? "opacity-40 pointer-events-none" : ""}`}>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input type="checkbox" checked={entry.currently_studying}
-                            onChange={(e) => setEduEntries((es) => es.map((x, i) => i === idx ? { ...x, currently_studying: e.target.checked } : x))}
-                            disabled={allDisabled}
-                            className="w-4 h-4 rounded border-border text-accent-primary focus:ring-accent-ring" />
-                          <span className="text-sm text-foreground">Currently studying?</span>
-                        </label>
-                      </div>
-                    </div>
-                    {allDisabled && (
-                      <p className="text-xs text-muted-foreground italic">No fields to fill — no formal education selected.</p>
-                    )}
-                  </div>
-                );
-              })}
-              <button type="button" onClick={() => setEduEntries((e) => [...e, { ...emptyEdu }])}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-dashed border-accent-primary text-accent-text hover:bg-accent-bg transition-colors">
-                <Plus className="h-4 w-4" /> Add another educational attainment
-              </button>
-            </div>
-          </Section>
-
-          {/* 5. Livelihood & Employment */}
-          <Section icon={<Briefcase className="h-4 w-4" />} title="Livelihood & Employment"
-            open={openSections.work} onToggle={() => toggleSection("work")}>
-            <div className="space-y-5">
-              {/* Livelihood Type — always visible */}
-              <div className="max-w-xs">
-                <FSelect label="Livelihood Type" name="livelihood_type" options={livelihoodTypes} value={f("livelihood_type")} onChange={updateForm} />
-              </div>
-
-              {/* ── EMPLOYED: occupation + income + skills + work records ── */}
-              {f("livelihood_type") === "Employed" && (
+              {/* Duplicate Match Modal */}
+              <Modal open={dupModal} onClose={() => setDupModal(false)} title="" size="lg">
                 <div className="space-y-5">
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                    <FCombobox label="Current Occupation" name="occupation" value={f("occupation")}
-                      entries={occupationEntries} onSubmit={(val) => submitEntry(occupationEntries, setOccupationEntries, val, "occupation")}
-                      onChange={updateForm} placeholder="Type to search or add occupation..." />
-                    <FSelect label="Monthly Income Range" name="monthly_income_range" options={incomeRanges} value={f("monthly_income_range")} onChange={updateForm} />
-                    <FCombobox label="Skills / Specialization" name="skills" value={f("skills")}
-                      entries={skillEntries} onSubmit={(val) => submitEntry(skillEntries, setSkillEntries, val, "skill")}
-                      onChange={updateForm} placeholder="Type to search or add skill..." />
+                  {/* Header with icon */}
+                  <div className="flex items-start gap-4">
+                    <div className="shrink-0 w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-950/40 flex items-center justify-center">
+                      <AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-foreground">Possible Duplicate Detected</h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        We found {dupMatches.length} existing record{dupMatches.length !== 1 ? "s" : ""} with similar information.
+                        Review the match{dupMatches.length !== 1 ? "es" : ""} below before proceeding.
+                      </p>
+                    </div>
                   </div>
-                  <div className="space-y-3">
-                    <h4 className="text-xs font-semibold text-accent-text uppercase tracking-wider">Employment Records</h4>
-                    {workEntries.map((entry, idx) => (
-                      <div key={idx} className="relative rounded-lg border border-border p-4 space-y-3">
-                        {workEntries.length > 1 && (
-                          <button type="button" onClick={() => setWorkEntries((e) => e.filter((_, i) => i !== idx))}
-                            className="absolute top-3 right-3 p-1 text-muted-foreground hover:text-red-500 transition-colors"><X className="h-4 w-4" /></button>
-                        )}
-                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                          <FCombobox label="Position / Job Title" name="position"
-                            value={entry.position} entries={positionEntries} onSubmit={(val) => submitEntry(positionEntries, setPositionEntries, val, "position")}
-                            onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, position: String(v) } : x))}
-                            placeholder="Type to search or add position..." />
-                          <FCombobox label="Company / Employer" name="company"
-                            value={entry.company} entries={employerEntries} onSubmit={(val) => submitEntry(employerEntries, setEmployerEntries, val, "employer")}
-                            onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, company: String(v) } : x))}
-                            placeholder="Type to search or add employer..." />
-                          <FSelect label="Type of Employment" name="employment_type" options={employmentTypeOptions}
-                            value={entry.employment_type} onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, employment_type: String(v) } : x))} />
+
+                  {/* Match cards */}
+                  <div className="space-y-3 max-h-80 overflow-y-auto">
+                    {dupMatches.map((r) => (
+                      <div key={r.id} className="rounded-xl border-2 border-red-300 dark:border-red-800 bg-red-50/50 dark:bg-red-950/20 p-4 transition-colors">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className={cn("w-11 h-11 rounded-xl flex items-center justify-center text-white text-sm font-bold shrink-0",
+                              r.sex === "female" ? "bg-pink-500" : "bg-blue-500")}>
+                              {r.first_name[0]}{r.last_name[0]}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-bold text-foreground truncate">{r.full_name}</p>
+                              <p className="text-xs text-muted-foreground mt-0.5">{r.resident_number} &middot; {r.sex} &middot; Age {r.age} &middot; DOB: {r.date_of_birth} &middot; {isTambo ? "Block/Lot" : "Purok"} {r.purok || "N/A"}</p>
+                              {r.mobile_number && <p className="text-xs text-muted-foreground">{r.mobile_number}</p>}
+                            </div>
+                          </div>
+                          <StatusBadge status={r.status} />
                         </div>
-                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                          <FSelect label="Start Year" name="start_year" options={yearOptions}
-                            value={entry.start_year} onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, start_year: String(v) } : x))} />
-                          <FSelect label="End Year (blank = current)" name="end_year" options={yearOptions}
-                            value={entry.end_year} onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, end_year: String(v) } : x))} />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-muted-foreground mb-1.5">Job Description</label>
-                          <textarea value={entry.description} onChange={(e) => setWorkEntries((es) => es.map((x, i) => i === idx ? { ...x, description: e.target.value.toUpperCase() } : x))}
-                            placeholder="Brief summary of responsibilities and achievements"
-                            className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-16 uppercase" />
+                        {/* Actions */}
+                        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/50">
+                          <button onClick={() => { setDupModal(false); setMode("list"); }}
+                            className="px-3 py-1.5 text-xs font-medium rounded-lg text-white transition-colors hover:opacity-90 flex items-center gap-1.5" style={{ background: "var(--accent-primary)" }}>
+                            <Eye className="h-4 w-4" /> View Profile
+                          </button>
                         </div>
                       </div>
                     ))}
-                    <button type="button" onClick={() => setWorkEntries((e) => [...e, { ...emptyWork }])}
-                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-dashed border-accent-primary text-accent-text hover:bg-accent-bg transition-colors">
-                      <Plus className="h-4 w-4" /> Add employment record
-                    </button>
+                  </div>
+
+                  {/* Footer actions */}
+                  <div className="flex items-center justify-between pt-2 border-t border-border">
+                    <p className="text-[11px] text-muted-foreground">
+                      A resident with the same name already exists. In a barangay, one person cannot have multiple records.
+                    </p>
+                    <div className="flex gap-3">
+                      <button onClick={() => { setDupModal(false); setMode("list"); }}
+                        className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors">
+                        Cancel Registration
+                      </button>
+                      <button onClick={() => { setDupDismissed(true); setDupModal(false); }}
+                        className="px-4 py-2 text-sm font-semibold rounded-lg bg-amber-500 hover:bg-amber-600 text-white transition-colors">
+                        Not the Same Person — Continue
+                      </button>
+                    </div>
                   </div>
                 </div>
-              )}
+              </Modal>
 
-              {/* ── OFW: work records only (no occupation/income/skills) ── */}
-              {f("livelihood_type") === "OFW" && (
-                <div className="space-y-3">
-                  <h4 className="text-xs font-semibold text-accent-text uppercase tracking-wider">Employment Records (OFW)</h4>
-                  {workEntries.map((entry, idx) => (
-                    <div key={idx} className="relative rounded-lg border border-border p-4 space-y-3">
-                      {workEntries.length > 1 && (
-                        <button type="button" onClick={() => setWorkEntries((e) => e.filter((_, i) => i !== idx))}
-                          className="absolute top-3 right-3 p-1 text-muted-foreground hover:text-red-500 transition-colors"><X className="h-4 w-4" /></button>
-                      )}
-                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                        <FCombobox label="Position / Job Title" name="position"
-                          value={entry.position} entries={positionEntries} onSubmit={(val) => submitEntry(positionEntries, setPositionEntries, val, "position")}
-                          onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, position: String(v) } : x))}
-                          placeholder="Type to search or add position..." />
-                        <FCombobox label="Company / Employer" name="company"
-                          value={entry.company} entries={employerEntries} onSubmit={(val) => submitEntry(employerEntries, setEmployerEntries, val, "employer")}
-                          onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, company: String(v) } : x))}
-                          placeholder="Type to search or add employer..." />
-                        <FSelect label="Country of Work" name="employment_type" options={["", "Saudi Arabia", "UAE", "Qatar", "Kuwait", "Bahrain", "Hong Kong", "Singapore", "Taiwan", "Japan", "South Korea", "Italy", "UK", "USA", "Canada", "Australia", "Other"]}
-                          value={entry.employment_type} onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, employment_type: String(v) } : x))} />
-                      </div>
-                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                        <FSelect label="Start Year" name="start_year" options={yearOptions}
-                          value={entry.start_year} onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, start_year: String(v) } : x))} />
-                        <FSelect label="End Year (blank = currently abroad)" name="end_year" options={yearOptions}
-                          value={entry.end_year} onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, end_year: String(v) } : x))} />
-                      </div>
-                    </div>
-                  ))}
-                  <button type="button" onClick={() => setWorkEntries((e) => [...e, { ...emptyWork }])}
-                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-dashed border-accent-primary text-accent-text hover:bg-accent-bg transition-colors">
-                    <Plus className="h-4 w-4" /> Add employment record
-                  </button>
+              {/* 2. Current Address (always visible, not collapsible) */}
+              <div className="relative z-[1]">
+                <div className="relative w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-foreground glass-accordion">
+                  <MapPin className="h-4.5 w-4.5 shrink-0 text-blue-600 dark:text-blue-300" />
+                  <span className="flex-1 text-sm font-bold uppercase tracking-wider">Current Address</span>
                 </div>
-              )}
-
-              {/* ── SELF-EMPLOYED / BUSINESS OWNER: business records only ── */}
-              {f("livelihood_type") === "Self-Employed / Business Owner" && (
-                <div className="space-y-3">
-                  <h4 className="text-xs font-semibold text-accent-text uppercase tracking-wider">Business / Self-Employment Records</h4>
-                  {(businessEntries.length === 0 ? [{ ...emptyBusiness }] : businessEntries).map((entry, idx) => (
-                    <div key={idx} className="relative rounded-lg border border-border p-4 space-y-3">
-                      {businessEntries.length > 1 && (
-                        <button type="button" onClick={() => setBusinessEntries((e) => e.filter((_, i) => i !== idx))}
-                          className="absolute top-3 right-3 p-1 text-muted-foreground hover:text-red-500 transition-colors"><X className="h-4 w-4" /></button>
-                      )}
-                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                        <FInput label="Business Name" name="business_name" placeholder="e.g. Maria's Sari-Sari Store"
-                          value={entry.business_name} onChange={(_, v) => setBusinessEntries((e) => { const arr = e.length === 0 ? [{ ...emptyBusiness }] : [...e]; return arr.map((x, i) => i === idx ? { ...x, business_name: String(v) } : x); })} />
-                        <FCombobox label="Business Type" name="business_type"
-                          value={entry.business_type}
-                          entries={businessTypeEntries} onSubmit={(val) => submitEntry(businessTypeEntries, setBusinessTypeEntries, val, "business_type")}
-                          onChange={(_, v) => setBusinessEntries((e) => { const arr = e.length === 0 ? [{ ...emptyBusiness }] : [...e]; return arr.map((x, i) => i === idx ? { ...x, business_type: String(v) } : x); })}
-                          placeholder="Type to search or add business type..." />
-                        <FSelect label="Status" name="business_status" options={businessStatuses}
-                          value={entry.status} onChange={(_, v) => setBusinessEntries((e) => { const arr = e.length === 0 ? [{ ...emptyBusiness }] : [...e]; return arr.map((x, i) => i === idx ? { ...x, status: String(v) } : x); })} />
-                      </div>
-                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                        <FInput label="Business Address" name="business_address" placeholder="e.g. 123 Rizal St., Purok Sampaguita"
-                          value={entry.business_address} onChange={(_, v) => setBusinessEntries((e) => { const arr = e.length === 0 ? [{ ...emptyBusiness }] : [...e]; return arr.map((x, i) => i === idx ? { ...x, business_address: String(v) } : x); })} />
-                        <FInput label="Business Permit No." name="business_permit_no" placeholder="e.g. BP-2026-001"
-                          value={entry.business_permit_no} onChange={(_, v) => setBusinessEntries((e) => { const arr = e.length === 0 ? [{ ...emptyBusiness }] : [...e]; return arr.map((x, i) => i === idx ? { ...x, business_permit_no: String(v) } : x); })} />
-                        <FInput label="DTI / SEC Registration" name="dti_sec_no" placeholder="e.g. DTI-2026-12345"
-                          value={entry.dti_sec_no} onChange={(_, v) => setBusinessEntries((e) => { const arr = e.length === 0 ? [{ ...emptyBusiness }] : [...e]; return arr.map((x, i) => i === idx ? { ...x, dti_sec_no: String(v) } : x); })} />
-                      </div>
-                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                        <FSelect label="Est. Monthly Income" name="business_monthly_income" options={incomeRanges}
-                          value={entry.monthly_income} onChange={(_, v) => setBusinessEntries((e) => { const arr = e.length === 0 ? [{ ...emptyBusiness }] : [...e]; return arr.map((x, i) => i === idx ? { ...x, monthly_income: String(v) } : x); })} />
-                        <FSelect label="Started" name="business_start_year" options={yearOptions}
-                          value={entry.start_year} onChange={(_, v) => setBusinessEntries((e) => { const arr = e.length === 0 ? [{ ...emptyBusiness }] : [...e]; return arr.map((x, i) => i === idx ? { ...x, start_year: String(v) } : x); })} />
+                <div className="glass-section rounded-b-xl mt-px px-5 pt-5 pb-4">
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                      <FInput label={isTambo ? "House No. / Subdivision / Village" : "House No. / Blk & Lot / Subdivision / Village"} name="house_block_lot" placeholder={isTambo ? "E.g. Unit 4B, Villa Verde Subd. Phase 2" : "E.g. Unit 4B Blk 5 Lot 12, Villa Verde Subd. Phase 2"} value={f("house_block_lot")} onChange={updateForm} />
+                      <FCombobox label={isTambo ? "Block and Lot" : "Purok / Sitio"} name="purok" entries={purokEntries} value={f("purok")}
+                        onChange={updateForm} onSubmit={(val) => submitEntry(purokEntries, setPurokEntries, val, "purok")} />
+                      <FCombobox label="Street / Road" name="street" entries={streetEntries} value={f("street")}
+                        onChange={updateForm} onSubmit={(val) => submitEntry(streetEntries, setStreetEntries, val, "street")} />
+                      <FInput label="Zip Code" name="zip_code" placeholder="e.g. 1230" value={f("zip_code")} onChange={updateForm} maxLength={4} />
+                    </div>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-muted-foreground mb-1.5">Barangay</label>
+                        <input type="text" value={tenantConfig.barangay} readOnly tabIndex={-1}
+                          className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-muted/50 text-foreground font-medium cursor-default opacity-80" />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-muted-foreground mb-1.5">Description / Notes</label>
-                        <textarea value={entry.description} onChange={(e) => setBusinessEntries((es) => { const arr = es.length === 0 ? [{ ...emptyBusiness }] : [...es]; return arr.map((x, i) => i === idx ? { ...x, description: e.target.value.toUpperCase() } : x); })}
-                          placeholder="e.g. Operates daily, 2 employees, sells snacks and household items"
-                          className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-16 uppercase" />
+                        <label className="block text-xs font-medium text-muted-foreground mb-1.5">City / Municipality</label>
+                        <input type="text" value={tenantConfig.city_municipality} readOnly tabIndex={-1}
+                          className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-muted/50 text-foreground font-medium cursor-default opacity-80" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-muted-foreground mb-1.5">Province</label>
+                        <input type="text" value={tenantConfig.province} readOnly tabIndex={-1}
+                          className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-muted/50 text-foreground font-medium cursor-default opacity-80" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-muted-foreground mb-1.5">Barangay Zip</label>
+                        <input type="text" value={tenantConfig.zip_code} readOnly tabIndex={-1}
+                          className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-muted/50 text-foreground font-medium cursor-default opacity-80" />
+                      </div>
+                    </div>
+
+                    {/* Smart Map — Leaflet (no SDK side-effects, safe to click freely) */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <label className="text-xs font-medium text-muted-foreground">Pin Location on Map</label>
+                          {mapLocating && (
+                            <span className="text-[10px] text-accent-text flex items-center gap-1">
+                              <Loader2 className="h-3 w-3 animate-spin" /> Auto-locating...
+                            </span>
+                          )}
+                        </div>
+                        {f("latitude") && f("longitude") && !mapLocating && (
+                          <span className="text-[10px] text-green-600 dark:text-green-400 flex items-center gap-1">
+                            <CheckCircle className="h-3 w-3" />
+                            {parseFloat(String(f("latitude"))).toFixed(6)}, {parseFloat(String(f("longitude"))).toFixed(6)}
+                          </span>
+                        )}
+                      </div>
+                      <ResidentPinMap
+                        key={`map-${barangayLat}-${barangayLng}`}
+                        lat={f("latitude") ? parseFloat(String(f("latitude"))) : null}
+                        lng={f("longitude") ? parseFloat(String(f("longitude"))) : null}
+                        centerLat={barangayLat}
+                        centerLng={barangayLng}
+                        boundary={barangayBoundary}
+                        onPin={(lat, lng) => {
+                          updateForm("latitude", lat.toFixed(7));
+                          updateForm("longitude", lng.toFixed(7));
+                        }}
+                      />
+                      <p className="text-[10px] text-muted-foreground mt-1.5">
+                        Map auto-updates as you fill in the address above. Click the map or drag the pin to adjust the exact location.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Other Information */}
+              <Section icon={<Globe className="h-4 w-4" />} title="Other Information"
+                open={openSections.other} onToggle={() => toggleSection("other")}>
+                <div className="space-y-5">
+                  {/* Identity */}
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Identity</p>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                      <FCombobox label="Citizenship" name="citizenship" entries={citizenshipEntries} value={f("citizenship")}
+                        onChange={updateForm} onSubmit={(val) => submitEntry(citizenshipEntries, setCitizenshipEntries, val, "citizenship")} />
+                      <FCombobox label="Religion" name="religion" entries={religionEntries} value={f("religion")}
+                        onChange={updateForm} onSubmit={(val) => submitEntry(religionEntries, setReligionEntries, val, "religion")} />
+                      <FCombobox label="Ethnicity" name="ethnicity" entries={ethnicityEntries} value={f("ethnicity")}
+                        onChange={updateForm} onSubmit={(val) => submitEntry(ethnicityEntries, setEthnicityEntries, val, "ethnicity")} />
+                      <FInput label="Mother's Maiden Name" name="mothers_maiden_name" placeholder="e.g. Santos" value={f("mothers_maiden_name")} onChange={updateForm} />
+                    </div>
+                  </div>
+
+                  {/* Physical */}
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Physical</p>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                      <FSelect label="Blood Type" name="blood_type" options={bloodTypes} value={f("blood_type")} onChange={updateForm} />
+                      <FInput label="Height (cm)" name="height_cm" type="number" placeholder="e.g. 165" value={f("height_cm")} onChange={updateForm} error={formErrors.height_cm} />
+                      <FInput label="Weight (kg)" name="weight_kg" type="number" placeholder="e.g. 60" value={f("weight_kg")} onChange={updateForm} error={formErrors.weight_kg} />
+                      <FSelect label="Complexion" name="complexion" options={complexionOptions} value={f("complexion")} onChange={updateForm} />
+                    </div>
+                  </div>
+
+                  {/* Sector / Organization */}
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Sector / Organization</p>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-y-1.5 gap-x-2">
+                      {sectorsList.map((s) => (
+                        <div key={s}>
+                          <label className="flex items-center gap-2 cursor-pointer group">
+                            <input type="checkbox" checked={sectors.includes(s)} onChange={() => toggleSector(s)}
+                              className="w-4 h-4 rounded border-border text-accent-primary focus:ring-accent-ring" />
+                            <span className={cn("text-sm transition-colors",
+                              sectorWarnings[s] ? "text-amber-600 dark:text-amber-400 font-medium" : "text-foreground group-hover:text-accent-text"
+                            )}>{s}</span>
+                            {sectorWarnings[s] && <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />}
+                          </label>
+                          {sectorWarnings[s] && (
+                            <p className="text-[10px] text-amber-600 dark:text-amber-400 ml-6 mt-0.5 leading-tight">{sectorWarnings[s]}</p>
+                          )}
+                        </div>
+                      ))}
+                      {/* Others with smart combobox */}
+                      <div className="col-span-2 md:col-span-3 lg:col-span-4 mt-1">
+                        <FCombobox label="Others" name="sector_other" value={f("sector_other")}
+                          entries={sectorOtherEntries} onSubmit={(val) => submitEntry(sectorOtherEntries, setSectorOtherEntries, val, "sector_other")}
+                          onChange={updateForm} placeholder="Type to search or add sector/organization..." />
+                      </div>
+                    </div>
+                    {/* Auto-suggestions from other fields */}
+                    {sectorSuggestions.length > 0 && (
+                      <div className="mt-3 rounded-lg border border-blue-200 dark:border-blue-900/40 bg-blue-50/50 dark:bg-blue-950/20 p-3">
+                        <p className="text-[11px] font-semibold text-blue-700 dark:text-blue-300 mb-2">Suggested sectors based on form data:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {sectorSuggestions.map(({ sector, reason }) => (
+                            <button key={sector} type="button" onClick={() => toggleSector(sector)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-blue-300 dark:border-blue-700 bg-white dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors">
+                              <Plus className="h-4 w-4" /> {sector} <span className="text-blue-500 dark:text-blue-400">({reason})</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <div className="mt-3">
+                      <FRadio label="Organ Donor?" name="is_organ_donor" value={fb("is_organ_donor") ? "yes" : "no"}
+                        options={[{ value: "yes", label: "Yes" }, { value: "no", label: "No" }]}
+                        onChange={(n, v) => updateForm(n, v === "yes")} />
+                    </div>
+                  </div>
+
+                  {/* Health & Skills */}
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Health & Skills</p>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-medium text-muted-foreground mb-1.5">Health History</label>
+                          <textarea value={f("health_history")} onChange={(e) => updateForm("health_history", e.target.value.toUpperCase())} placeholder="e.g. Past illnesses, allergies, disabilities"
+                            className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-20 uppercase" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-muted-foreground mb-1.5">Skills</label>
+                          <textarea value={f("skills")} onChange={(e) => updateForm("skills", e.target.value.toUpperCase())} placeholder="e.g. Carpentry, Cooking, Sewing, Driving"
+                            className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-20 uppercase" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Remarks */}
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1.5">Other Remarks</label>
+                    <textarea value={f("other_remarks")} onChange={(e) => updateForm("other_remarks", e.target.value.toUpperCase())} placeholder="e.g. Any additional notes about this resident"
+                      className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-16 uppercase" />
+                  </div>
+                </div>
+              </Section>
+
+              {/* 4. Educational Attainment */}
+              <Section icon={<GraduationCap className="h-4 w-4" />} title="Educational Attainment"
+                open={openSections.education} onToggle={() => toggleSection("education")}>
+                <div className="space-y-4">
+                  {eduEntries.map((entry, idx) => {
+                    const { allDisabled, courseDisabled } = eduFieldRules(entry.level);
+                    return (
+                      <div key={idx} className="relative rounded-lg border border-border p-4 space-y-3">
+                        {eduEntries.length > 1 && (
+                          <button type="button" onClick={() => setEduEntries((e) => e.filter((_, i) => i !== idx))}
+                            className="absolute top-3 right-3 p-1 text-muted-foreground hover:text-red-500 transition-colors"><X className="h-4 w-4" /></button>
+                        )}
+                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                          <FSelect label="Level" name="level" options={educationLevels}
+                            value={entry.level} onChange={(_, v) => setEduEntries((e) => e.map((x, i) => i === idx ? { ...x, level: String(v) } : x))} />
+                          <FCombobox label="Course / Program" name="course" entries={courseEntries} value={entry.course}
+                            onChange={(_, v) => setEduEntries((e) => e.map((x, i) => i === idx ? { ...x, course: String(v) } : x))}
+                            onSubmit={(val) => submitEntry(courseEntries, setCourseEntries, val, "course")} disabled={courseDisabled} />
+                          <FCombobox label="School / Institution" name="school" entries={schoolEntries} value={entry.school}
+                            onChange={(_, v) => setEduEntries((e) => e.map((x, i) => i === idx ? { ...x, school: String(v) } : x))}
+                            onSubmit={(val) => submitEntry(schoolEntries, setSchoolEntries, val, "school")} disabled={allDisabled} />
+                        </div>
+                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                          <FSelect label="Start Year" name="start_year" options={yearOptions}
+                            value={entry.start_year}
+                            onChange={(_, v) => setEduEntries((e) => e.map((x, i) => i === idx ? { ...x, start_year: String(v) } : x))}
+                            disabled={allDisabled} />
+                          <FSelect label="End Year" name="end_year" options={yearOptions}
+                            value={entry.end_year}
+                            onChange={(_, v) => setEduEntries((e) => e.map((x, i) => i === idx ? { ...x, end_year: String(v) } : x))}
+                            disabled={allDisabled || entry.currently_studying} />
+                          <div className={`pt-6 ${allDisabled ? "opacity-40 pointer-events-none" : ""}`}>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input type="checkbox" checked={entry.currently_studying}
+                                onChange={(e) => setEduEntries((es) => es.map((x, i) => i === idx ? { ...x, currently_studying: e.target.checked } : x))}
+                                disabled={allDisabled}
+                                className="w-4 h-4 rounded border-border text-accent-primary focus:ring-accent-ring" />
+                              <span className="text-sm text-foreground">Currently studying?</span>
+                            </label>
+                          </div>
+                        </div>
+                        {allDisabled && (
+                          <p className="text-xs text-muted-foreground italic">No fields to fill — no formal education selected.</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                  <button type="button" onClick={() => setEduEntries((e) => [...e, { ...emptyEdu }])}
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-dashed border-accent-primary text-accent-text hover:bg-accent-bg transition-colors">
+                    <Plus className="h-4 w-4" /> Add another educational attainment
+                  </button>
+                </div>
+              </Section>
+
+              {/* 5. Livelihood & Employment */}
+              <Section icon={<Briefcase className="h-4 w-4" />} title="Livelihood & Employment"
+                open={openSections.work} onToggle={() => toggleSection("work")}>
+                <div className="space-y-5">
+                  {/* Livelihood Type — always visible */}
+                  <div className="max-w-xs">
+                    <FSelect label="Livelihood Type" name="livelihood_type" options={livelihoodTypes} value={f("livelihood_type")} onChange={updateForm} />
+                  </div>
+
+                  {/* ── EMPLOYED: occupation + income + skills + work records ── */}
+                  {f("livelihood_type") === "Employed" && (
+                    <div className="space-y-5">
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                        <FCombobox label="Current Occupation" name="occupation" value={f("occupation")}
+                          entries={occupationEntries} onSubmit={(val) => submitEntry(occupationEntries, setOccupationEntries, val, "occupation")}
+                          onChange={updateForm} placeholder="Type to search or add occupation..." />
+                        <FSelect label="Monthly Income Range" name="monthly_income_range" options={incomeRanges} value={f("monthly_income_range")} onChange={updateForm} />
+                        <FCombobox label="Skills / Specialization" name="skills" value={f("skills")}
+                          entries={skillEntries} onSubmit={(val) => submitEntry(skillEntries, setSkillEntries, val, "skill")}
+                          onChange={updateForm} placeholder="Type to search or add skill..." />
+                      </div>
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-semibold text-accent-text uppercase tracking-wider">Employment Records</h4>
+                        {workEntries.map((entry, idx) => (
+                          <div key={idx} className="relative rounded-lg border border-border p-4 space-y-3">
+                            {workEntries.length > 1 && (
+                              <button type="button" onClick={() => setWorkEntries((e) => e.filter((_, i) => i !== idx))}
+                                className="absolute top-3 right-3 p-1 text-muted-foreground hover:text-red-500 transition-colors"><X className="h-4 w-4" /></button>
+                            )}
+                            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                              <FCombobox label="Position / Job Title" name="position"
+                                value={entry.position} entries={positionEntries} onSubmit={(val) => submitEntry(positionEntries, setPositionEntries, val, "position")}
+                                onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, position: String(v) } : x))}
+                                placeholder="Type to search or add position..." />
+                              <FCombobox label="Company / Employer" name="company"
+                                value={entry.company} entries={employerEntries} onSubmit={(val) => submitEntry(employerEntries, setEmployerEntries, val, "employer")}
+                                onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, company: String(v) } : x))}
+                                placeholder="Type to search or add employer..." />
+                              <FSelect label="Type of Employment" name="employment_type" options={employmentTypeOptions}
+                                value={entry.employment_type} onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, employment_type: String(v) } : x))} />
+                            </div>
+                            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                              <FSelect label="Start Year" name="start_year" options={yearOptions}
+                                value={entry.start_year} onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, start_year: String(v) } : x))} />
+                              <FSelect label="End Year (blank = current)" name="end_year" options={yearOptions}
+                                value={entry.end_year} onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, end_year: String(v) } : x))} />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-muted-foreground mb-1.5">Job Description</label>
+                              <textarea value={entry.description} onChange={(e) => setWorkEntries((es) => es.map((x, i) => i === idx ? { ...x, description: e.target.value.toUpperCase() } : x))}
+                                placeholder="Brief summary of responsibilities and achievements"
+                                className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-16 uppercase" />
+                            </div>
+                          </div>
+                        ))}
+                        <button type="button" onClick={() => setWorkEntries((e) => [...e, { ...emptyWork }])}
+                          className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-dashed border-accent-primary text-accent-text hover:bg-accent-bg transition-colors">
+                          <Plus className="h-4 w-4" /> Add employment record
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── OFW: work records only (no occupation/income/skills) ── */}
+                  {f("livelihood_type") === "OFW" && (
+                    <div className="space-y-3">
+                      <h4 className="text-xs font-semibold text-accent-text uppercase tracking-wider">Employment Records (OFW)</h4>
+                      {workEntries.map((entry, idx) => (
+                        <div key={idx} className="relative rounded-lg border border-border p-4 space-y-3">
+                          {workEntries.length > 1 && (
+                            <button type="button" onClick={() => setWorkEntries((e) => e.filter((_, i) => i !== idx))}
+                              className="absolute top-3 right-3 p-1 text-muted-foreground hover:text-red-500 transition-colors"><X className="h-4 w-4" /></button>
+                          )}
+                          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                            <FCombobox label="Position / Job Title" name="position"
+                              value={entry.position} entries={positionEntries} onSubmit={(val) => submitEntry(positionEntries, setPositionEntries, val, "position")}
+                              onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, position: String(v) } : x))}
+                              placeholder="Type to search or add position..." />
+                            <FCombobox label="Company / Employer" name="company"
+                              value={entry.company} entries={employerEntries} onSubmit={(val) => submitEntry(employerEntries, setEmployerEntries, val, "employer")}
+                              onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, company: String(v) } : x))}
+                              placeholder="Type to search or add employer..." />
+                            <FSelect label="Country of Work" name="employment_type" options={["", "Saudi Arabia", "UAE", "Qatar", "Kuwait", "Bahrain", "Hong Kong", "Singapore", "Taiwan", "Japan", "South Korea", "Italy", "UK", "USA", "Canada", "Australia", "Other"]}
+                              value={entry.employment_type} onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, employment_type: String(v) } : x))} />
+                          </div>
+                          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                            <FSelect label="Start Year" name="start_year" options={yearOptions}
+                              value={entry.start_year} onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, start_year: String(v) } : x))} />
+                            <FSelect label="End Year (blank = currently abroad)" name="end_year" options={yearOptions}
+                              value={entry.end_year} onChange={(_, v) => setWorkEntries((e) => e.map((x, i) => i === idx ? { ...x, end_year: String(v) } : x))} />
+                          </div>
+                        </div>
+                      ))}
+                      <button type="button" onClick={() => setWorkEntries((e) => [...e, { ...emptyWork }])}
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-dashed border-accent-primary text-accent-text hover:bg-accent-bg transition-colors">
+                        <Plus className="h-4 w-4" /> Add employment record
+                      </button>
+                    </div>
+                  )}
+
+                  {/* ── SELF-EMPLOYED / BUSINESS OWNER: business records only ── */}
+                  {f("livelihood_type") === "Self-Employed / Business Owner" && (
+                    <div className="space-y-3">
+                      <h4 className="text-xs font-semibold text-accent-text uppercase tracking-wider">Business / Self-Employment Records</h4>
+                      {(businessEntries.length === 0 ? [{ ...emptyBusiness }] : businessEntries).map((entry, idx) => (
+                        <div key={idx} className="relative rounded-lg border border-border p-4 space-y-3">
+                          {businessEntries.length > 1 && (
+                            <button type="button" onClick={() => setBusinessEntries((e) => e.filter((_, i) => i !== idx))}
+                              className="absolute top-3 right-3 p-1 text-muted-foreground hover:text-red-500 transition-colors"><X className="h-4 w-4" /></button>
+                          )}
+                          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                            <FInput label="Business Name" name="business_name" placeholder="e.g. Maria's Sari-Sari Store"
+                              value={entry.business_name} onChange={(_, v) => setBusinessEntries((e) => { const arr = e.length === 0 ? [{ ...emptyBusiness }] : [...e]; return arr.map((x, i) => i === idx ? { ...x, business_name: String(v) } : x); })} />
+                            <FCombobox label="Business Type" name="business_type"
+                              value={entry.business_type}
+                              entries={businessTypeEntries} onSubmit={(val) => submitEntry(businessTypeEntries, setBusinessTypeEntries, val, "business_type")}
+                              onChange={(_, v) => setBusinessEntries((e) => { const arr = e.length === 0 ? [{ ...emptyBusiness }] : [...e]; return arr.map((x, i) => i === idx ? { ...x, business_type: String(v) } : x); })}
+                              placeholder="Type to search or add business type..." />
+                            <FSelect label="Status" name="business_status" options={businessStatuses}
+                              value={entry.status} onChange={(_, v) => setBusinessEntries((e) => { const arr = e.length === 0 ? [{ ...emptyBusiness }] : [...e]; return arr.map((x, i) => i === idx ? { ...x, status: String(v) } : x); })} />
+                          </div>
+                          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                            <FInput label="Business Address" name="business_address" placeholder="e.g. 123 Rizal St., Purok Sampaguita"
+                              value={entry.business_address} onChange={(_, v) => setBusinessEntries((e) => { const arr = e.length === 0 ? [{ ...emptyBusiness }] : [...e]; return arr.map((x, i) => i === idx ? { ...x, business_address: String(v) } : x); })} />
+                            <FInput label="Business Permit No." name="business_permit_no" placeholder="e.g. BP-2026-001"
+                              value={entry.business_permit_no} onChange={(_, v) => setBusinessEntries((e) => { const arr = e.length === 0 ? [{ ...emptyBusiness }] : [...e]; return arr.map((x, i) => i === idx ? { ...x, business_permit_no: String(v) } : x); })} />
+                            <FInput label="DTI / SEC Registration" name="dti_sec_no" placeholder="e.g. DTI-2026-12345"
+                              value={entry.dti_sec_no} onChange={(_, v) => setBusinessEntries((e) => { const arr = e.length === 0 ? [{ ...emptyBusiness }] : [...e]; return arr.map((x, i) => i === idx ? { ...x, dti_sec_no: String(v) } : x); })} />
+                          </div>
+                          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                            <FSelect label="Est. Monthly Income" name="business_monthly_income" options={incomeRanges}
+                              value={entry.monthly_income} onChange={(_, v) => setBusinessEntries((e) => { const arr = e.length === 0 ? [{ ...emptyBusiness }] : [...e]; return arr.map((x, i) => i === idx ? { ...x, monthly_income: String(v) } : x); })} />
+                            <FSelect label="Started" name="business_start_year" options={yearOptions}
+                              value={entry.start_year} onChange={(_, v) => setBusinessEntries((e) => { const arr = e.length === 0 ? [{ ...emptyBusiness }] : [...e]; return arr.map((x, i) => i === idx ? { ...x, start_year: String(v) } : x); })} />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-muted-foreground mb-1.5">Description / Notes</label>
+                            <textarea value={entry.description} onChange={(e) => setBusinessEntries((es) => { const arr = es.length === 0 ? [{ ...emptyBusiness }] : [...es]; return arr.map((x, i) => i === idx ? { ...x, description: e.target.value.toUpperCase() } : x); })}
+                              placeholder="e.g. Operates daily, 2 employees, sells snacks and household items"
+                              className="w-full px-3 py-2 text-sm rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring resize-none h-16 uppercase" />
+                          </div>
+                        </div>
+                      ))}
+                      <button type="button" onClick={() => setBusinessEntries((e) => [...(e.length === 0 ? [{ ...emptyBusiness }] : e), { ...emptyBusiness }])}
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-dashed border-accent-primary text-accent-text hover:bg-accent-bg transition-colors">
+                        <Plus className="h-4 w-4" /> Add another business
+                      </button>
+                    </div>
+                  )}
+
+                  {/* ── UNEMPLOYED / RETIRED / STUDENT: no additional fields ── */}
+                  {(f("livelihood_type") === "Unemployed" || f("livelihood_type") === "Retired" || f("livelihood_type") === "Student") && (
+                    <p className="text-xs text-muted-foreground italic px-1">No additional fields needed for this livelihood type.</p>
+                  )}
+
+                  {/* ── No selection hint ── */}
+                  {!f("livelihood_type") && (
+                    <p className="text-xs text-muted-foreground italic px-1">Select a livelihood type above to show relevant fields.</p>
+                  )}
+                </div>
+              </Section>
+
+              {/* 6. Government Related Info */}
+              <Section icon={<IdCard className="h-4 w-4" />} title="Government Related Info"
+                open={openSections.govinfo} onToggle={() => toggleSection("govinfo")}>
+                <div className="space-y-5">
+                  {/* Government IDs */}
+                  <h4 className="text-xs font-semibold text-accent-text uppercase tracking-wider">Government IDs</h4>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="rounded-lg border border-border p-3 space-y-2">
+                      <FInput label="GSIS/SSS No." name="sss_gsis_number" placeholder="e.g. GSIS/SSS No." value={f("sss_gsis_number")} onChange={updateForm} error={formErrors.sss_gsis_number} />
+                      <FDatePicker label="Expiration Date" name="sss_gsis_expiry" value={f("sss_gsis_expiry")} onChange={updateForm} />
+                    </div>
+                    <div className="rounded-lg border border-border p-3 space-y-2">
+                      <FInput label="PhilHealth No." name="philhealth_number" placeholder="e.g. PhilHealth No." value={f("philhealth_number")} onChange={updateForm} error={formErrors.philhealth_number} />
+                      <FDatePicker label="Expiration Date" name="philhealth_expiry" value={f("philhealth_expiry")} onChange={updateForm} />
+                    </div>
+                    <div className="rounded-lg border border-border p-3 space-y-2">
+                      <FInput label="Pag-IBIG No." name="pagibig_number" placeholder="e.g. Pag-IBIG No." value={f("pagibig_number")} onChange={updateForm} />
+                      <FDatePicker label="Expiration Date" name="pagibig_expiry" value={f("pagibig_expiry")} onChange={updateForm} />
+                    </div>
+                    <div className="rounded-lg border border-border p-3 space-y-2">
+                      <FInput label="TIN No." name="tin_number" placeholder="e.g. TIN No." value={f("tin_number")} onChange={updateForm} error={formErrors.tin_number} />
+                      <FDatePicker label="Expiration Date" name="tin_expiry" value={f("tin_expiry")} onChange={updateForm} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="rounded-lg border border-border p-3 space-y-2">
+                      <FInput label="PWD ID" name="pwd_id" placeholder="e.g. PWD ID" value={f("pwd_id")} onChange={updateForm} />
+                      <FDatePicker label="Expiration Date" name="pwd_id_expiry" value={f("pwd_id_expiry")} onChange={updateForm} />
+                    </div>
+                    <div className="rounded-lg border border-border p-3 space-y-2">
+                      <FInput label="Senior Citizen ID" name="senior_citizen_id" placeholder="e.g. SC-XXXX" value={f("senior_citizen_id")} onChange={updateForm} />
+                      <FDatePicker label="Expiration Date" name="senior_citizen_id_expiry" value={f("senior_citizen_id_expiry")} onChange={updateForm} />
+                    </div>
+                    <div className="rounded-lg border border-border p-3 space-y-2">
+                      <FInput label="Solo Parent ID" name="solo_parent_id" placeholder="e.g. SP-XXXX" value={f("solo_parent_id")} onChange={updateForm} />
+                      <FDatePicker label="Expiration Date" name="solo_parent_id_expiry" value={f("solo_parent_id_expiry")} onChange={updateForm} />
+                    </div>
+                  </div>
+
+                  {/* Voter & Household */}
+                  <h4 className="text-xs font-semibold text-accent-text uppercase tracking-wider pt-2">Voter & Household</h4>
+                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                    <FRadio label="Registered Voter?" name="is_voter" value={fb("is_voter") ? "yes" : "no"}
+                      options={[{ value: "yes", label: "Yes" }, { value: "no", label: "No" }]}
+                      onChange={(n, v) => updateForm(n, v === "yes")} />
+                    <FInput label="Voter Precinct Number" name="voter_precinct_number" placeholder="e.g. 0045A" value={f("voter_precinct_number")} onChange={updateForm} />
+                    <FSelect label="Last Voted Year" name="last_voted_year" options={["", ...Array.from({ length: 10 }, (_, i) => String(new Date().getFullYear() - i))]} value={f("last_voted_year")} onChange={updateForm} />
+                  </div>
+                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                    <FSelect label="Relationship to Head" name="relationship_to_head" options={["", ...relationships]} value={f("relationship_to_head")} onChange={updateForm} />
+                  </div>
+
+                  {/* Barangay Role */}
+                  <h4 className="text-xs font-semibold text-accent-text uppercase tracking-wider pt-2">Barangay Role (if applicable)</h4>
+                  <p className="text-[11px] text-muted-foreground -mt-1">Is this person a Barangay employee or staff? Fill out the details below if yes.</p>
+                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                    <FInput label="Barangay Position" name="barangay_position" placeholder="e.g. Staff, Kagawad" value={f("barangay_position")} onChange={updateForm} />
+                    <FDatePicker label="Start Date" name="barangay_role_start" value={f("barangay_role_start")} onChange={updateForm} />
+                    <FDatePicker label="End Date" name="barangay_role_end" value={f("barangay_role_end")} onChange={updateForm} />
+                  </div>
+                </div>
+              </Section>
+
+              {/* 7. In Case of Emergency */}
+              <Section icon={<Contact className="h-4 w-4" />} title="In Case of Emergency"
+                open={openSections.emergency} onToggle={() => toggleSection("emergency")}>
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                  <FInput label="Full Name" name="emergency_contact_name" placeholder="e.g. Juan Dela Cruz" value={f("emergency_contact_name")} onChange={updateForm} />
+                  <FInput label="Contact No." name="emergency_contact_phone" placeholder="09XX XXX XXXX" value={f("emergency_contact_phone")} onChange={updateForm} />
+                  <FInput label="Address" name="emergency_contact_address" placeholder="e.g. #10 Aguinaldo St., East Tapinac, Olongapo City" value={f("emergency_contact_address")} onChange={updateForm} />
+                  <FCombobox label="Relationship" name="emergency_contact_relationship" entries={emergencyRelEntries} value={f("emergency_contact_relationship")}
+                    onChange={updateForm} onSubmit={(val) => submitEntry(emergencyRelEntries, setEmergencyRelEntries, val, "emergency_rel")} />
+                </div>
+              </Section>
+
+              {/* 8. Pets Information */}
+              <Section icon={<PawPrint className="h-4 w-4" />} title="Pets Information"
+                open={openSections.pets} onToggle={() => toggleSection("pets")}>
+                <div className="space-y-4">
+                  {petEntries.map((entry, idx) => (
+                    <div key={idx} className="relative rounded-lg border border-border p-4 space-y-3 bg-muted/10">
+                      {petEntries.length > 1 && (
+                        <button type="button" onClick={() => setPetEntries((prev) => prev.filter((_, i) => i !== idx))}
+                          className="absolute top-3 right-3 p-1 text-muted-foreground hover:text-red-500 transition-colors">
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        <FInput label="Pet Name" name="name" required placeholder="e.g. BANTAY"
+                          value={entry.name} onChange={(_, v) => setPetEntries((prev) => prev.map((x, i) => i === idx ? { ...x, name: String(v) } : x))} />
+                        <FSelect label="Pet Type" name="pet_type" options={["", "Dog", "Cat", "Bird", "Fish", "Rabbit", "Others"]}
+                          value={entry.pet_type} onChange={(_, v) => setPetEntries((prev) => prev.map((x, i) => i === idx ? { ...x, pet_type: String(v) } : x))} />
+                        <FSelect label="Sex" name="sex" options={["", "Male", "Female"]}
+                          value={entry.sex} onChange={(_, v) => setPetEntries((prev) => prev.map((x, i) => i === idx ? { ...x, sex: String(v) } : x))} />
+                        <FInput label="Date of Birth" name="date_of_birth" type="date"
+                          value={entry.date_of_birth} onChange={(_, v) => setPetEntries((prev) => prev.map((x, i) => i === idx ? { ...x, date_of_birth: String(v) } : x))} />
+                      </div>
+                      <div>
+                        <FInput label="Remarks & Vaccinations" name="remarks" placeholder="e.g. FULLY VACCINATED, SPAYED"
+                          value={entry.remarks} onChange={(_, v) => setPetEntries((prev) => prev.map((x, i) => i === idx ? { ...x, remarks: String(v) } : x))} />
                       </div>
                     </div>
                   ))}
-                  <button type="button" onClick={() => setBusinessEntries((e) => [...(e.length === 0 ? [{ ...emptyBusiness }] : e), { ...emptyBusiness }])}
+                  <button type="button" onClick={() => setPetEntries((prev) => [...prev, { ...emptyPet }])}
                     className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-dashed border-accent-primary text-accent-text hover:bg-accent-bg transition-colors">
-                    <Plus className="h-4 w-4" /> Add another business
+                    <Plus className="h-4 w-4" /> Add another pet
                   </button>
                 </div>
-              )}
+              </Section>
 
-              {/* ── UNEMPLOYED / RETIRED / STUDENT: no additional fields ── */}
-              {(f("livelihood_type") === "Unemployed" || f("livelihood_type") === "Retired" || f("livelihood_type") === "Student") && (
-                <p className="text-xs text-muted-foreground italic px-1">No additional fields needed for this livelihood type.</p>
-              )}
-
-              {/* ── No selection hint ── */}
-              {!f("livelihood_type") && (
-                <p className="text-xs text-muted-foreground italic px-1">Select a livelihood type above to show relevant fields.</p>
-              )}
-            </div>
-          </Section>
-
-          {/* 6. Government Related Info */}
-          <Section icon={<IdCard className="h-4 w-4" />} title="Government Related Info"
-            open={openSections.govinfo} onToggle={() => toggleSection("govinfo")}>
-            <div className="space-y-5">
-              {/* Government IDs */}
-              <h4 className="text-xs font-semibold text-accent-text uppercase tracking-wider">Government IDs</h4>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="rounded-lg border border-border p-3 space-y-2">
-                  <FInput label="GSIS/SSS No." name="sss_gsis_number" placeholder="e.g. GSIS/SSS No." value={f("sss_gsis_number")} onChange={updateForm} error={formErrors.sss_gsis_number} />
-                  <FDatePicker label="Expiration Date" name="sss_gsis_expiry" value={f("sss_gsis_expiry")} onChange={updateForm} />
-                </div>
-                <div className="rounded-lg border border-border p-3 space-y-2">
-                  <FInput label="PhilHealth No." name="philhealth_number" placeholder="e.g. PhilHealth No." value={f("philhealth_number")} onChange={updateForm} error={formErrors.philhealth_number} />
-                  <FDatePicker label="Expiration Date" name="philhealth_expiry" value={f("philhealth_expiry")} onChange={updateForm} />
-                </div>
-                <div className="rounded-lg border border-border p-3 space-y-2">
-                  <FInput label="Pag-IBIG No." name="pagibig_number" placeholder="e.g. Pag-IBIG No." value={f("pagibig_number")} onChange={updateForm} />
-                  <FDatePicker label="Expiration Date" name="pagibig_expiry" value={f("pagibig_expiry")} onChange={updateForm} />
-                </div>
-                <div className="rounded-lg border border-border p-3 space-y-2">
-                  <FInput label="TIN No." name="tin_number" placeholder="e.g. TIN No." value={f("tin_number")} onChange={updateForm} error={formErrors.tin_number} />
-                  <FDatePicker label="Expiration Date" name="tin_expiry" value={f("tin_expiry")} onChange={updateForm} />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="rounded-lg border border-border p-3 space-y-2">
-                  <FInput label="PWD ID" name="pwd_id" placeholder="e.g. PWD ID" value={f("pwd_id")} onChange={updateForm} />
-                  <FDatePicker label="Expiration Date" name="pwd_id_expiry" value={f("pwd_id_expiry")} onChange={updateForm} />
-                </div>
-                <div className="rounded-lg border border-border p-3 space-y-2">
-                  <FInput label="Senior Citizen ID" name="senior_citizen_id" placeholder="e.g. SC-XXXX" value={f("senior_citizen_id")} onChange={updateForm} />
-                  <FDatePicker label="Expiration Date" name="senior_citizen_id_expiry" value={f("senior_citizen_id_expiry")} onChange={updateForm} />
-                </div>
-                <div className="rounded-lg border border-border p-3 space-y-2">
-                  <FInput label="Solo Parent ID" name="solo_parent_id" placeholder="e.g. SP-XXXX" value={f("solo_parent_id")} onChange={updateForm} />
-                  <FDatePicker label="Expiration Date" name="solo_parent_id_expiry" value={f("solo_parent_id_expiry")} onChange={updateForm} />
-                </div>
-              </div>
-
-              {/* Voter & Household */}
-              <h4 className="text-xs font-semibold text-accent-text uppercase tracking-wider pt-2">Voter & Household</h4>
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                <FRadio label="Registered Voter?" name="is_voter" value={fb("is_voter") ? "yes" : "no"}
-                  options={[{ value: "yes", label: "Yes" }, { value: "no", label: "No" }]}
-                  onChange={(n, v) => updateForm(n, v === "yes")} />
-                <FInput label="Voter Precinct Number" name="voter_precinct_number" placeholder="e.g. 0045A" value={f("voter_precinct_number")} onChange={updateForm} />
-                <FSelect label="Last Voted Year" name="last_voted_year" options={["", ...Array.from({ length: 10 }, (_, i) => String(new Date().getFullYear() - i))]} value={f("last_voted_year")} onChange={updateForm} />
-              </div>
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                <FSelect label="Relationship to Head" name="relationship_to_head" options={["", ...relationships]} value={f("relationship_to_head")} onChange={updateForm} />
-              </div>
-
-              {/* Barangay Role */}
-              <h4 className="text-xs font-semibold text-accent-text uppercase tracking-wider pt-2">Barangay Role (if applicable)</h4>
-              <p className="text-[11px] text-muted-foreground -mt-1">Is this person a Barangay employee or staff? Fill out the details below if yes.</p>
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                <FInput label="Barangay Position" name="barangay_position" placeholder="e.g. Staff, Kagawad" value={f("barangay_position")} onChange={updateForm} />
-                <FDatePicker label="Start Date" name="barangay_role_start" value={f("barangay_role_start")} onChange={updateForm} />
-                <FDatePicker label="End Date" name="barangay_role_end" value={f("barangay_role_end")} onChange={updateForm} />
-              </div>
-            </div>
-          </Section>
-
-          {/* 7. In Case of Emergency */}
-          <Section icon={<Contact className="h-4 w-4" />} title="In Case of Emergency"
-            open={openSections.emergency} onToggle={() => toggleSection("emergency")}>
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-              <FInput label="Full Name" name="emergency_contact_name" placeholder="e.g. Juan Dela Cruz" value={f("emergency_contact_name")} onChange={updateForm} />
-              <FInput label="Contact No." name="emergency_contact_phone" placeholder="09XX XXX XXXX" value={f("emergency_contact_phone")} onChange={updateForm} />
-              <FInput label="Address" name="emergency_contact_address" placeholder="e.g. #10 Aguinaldo St., East Tapinac, Olongapo City" value={f("emergency_contact_address")} onChange={updateForm} />
-              <FCombobox label="Relationship" name="emergency_contact_relationship" entries={emergencyRelEntries} value={f("emergency_contact_relationship")}
-                onChange={updateForm} onSubmit={(val) => submitEntry(emergencyRelEntries, setEmergencyRelEntries, val, "emergency_rel")} />
-            </div>
-          </Section>
-
-          {/* 8. Pets Information */}
-          <Section icon={<PawPrint className="h-4 w-4" />} title="Pets Information"
-            open={openSections.pets} onToggle={() => toggleSection("pets")}>
-            <div className="space-y-4">
-              {petEntries.map((entry, idx) => (
-                <div key={idx} className="relative rounded-lg border border-border p-4 space-y-3 bg-muted/10">
-                  {petEntries.length > 1 && (
-                    <button type="button" onClick={() => setPetEntries((prev) => prev.filter((_, i) => i !== idx))}
-                      className="absolute top-3 right-3 p-1 text-muted-foreground hover:text-red-500 transition-colors">
-                      <X className="h-4 w-4" />
+              {/* 9. Left & Right Thumbmark */}
+              <Section icon={<Fingerprint className="h-4 w-4" />} title="Left & Right Thumbmark"
+                open={openSections.biometric} onToggle={() => toggleSection("biometric")}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="rounded-lg border-2 border-dashed border-border p-6 text-center">
+                    <div className="w-20 h-20 mx-auto rounded-full bg-muted flex items-center justify-center mb-3">
+                      <Fingerprint className="w-8 h-8 text-muted-foreground" />
+                    </div>
+                    <p className="text-sm font-medium text-foreground mb-1">Scan Left Thumbmark</p>
+                    <p className="text-[11px] text-muted-foreground mb-3">Scanner preview</p>
+                    <button className="px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}>
+                      Scan Left Thumb
                     </button>
-                  )}
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    <FInput label="Pet Name" name="name" required placeholder="e.g. BANTAY"
-                      value={entry.name} onChange={(_, v) => setPetEntries((prev) => prev.map((x, i) => i === idx ? { ...x, name: String(v) } : x))} />
-                    <FSelect label="Pet Type" name="pet_type" options={["", "Dog", "Cat", "Bird", "Fish", "Rabbit", "Others"]}
-                      value={entry.pet_type} onChange={(_, v) => setPetEntries((prev) => prev.map((x, i) => i === idx ? { ...x, pet_type: String(v) } : x))} />
-                    <FSelect label="Sex" name="sex" options={["", "Male", "Female"]}
-                      value={entry.sex} onChange={(_, v) => setPetEntries((prev) => prev.map((x, i) => i === idx ? { ...x, sex: String(v) } : x))} />
-                    <FInput label="Date of Birth" name="date_of_birth" type="date"
-                      value={entry.date_of_birth} onChange={(_, v) => setPetEntries((prev) => prev.map((x, i) => i === idx ? { ...x, date_of_birth: String(v) } : x))} />
                   </div>
-                  <div>
-                    <FInput label="Remarks & Vaccinations" name="remarks" placeholder="e.g. FULLY VACCINATED, SPAYED"
-                      value={entry.remarks} onChange={(_, v) => setPetEntries((prev) => prev.map((x, i) => i === idx ? { ...x, remarks: String(v) } : x))} />
+                  <div className="rounded-lg border-2 border-dashed border-border p-6 text-center">
+                    <div className="w-20 h-20 mx-auto rounded-full bg-muted flex items-center justify-center mb-3">
+                      <Fingerprint className="w-8 h-8 text-muted-foreground" />
+                    </div>
+                    <p className="text-sm font-medium text-foreground mb-1">Scan Right Thumbmark</p>
+                    <p className="text-[11px] text-muted-foreground mb-3">Scanner preview</p>
+                    <button className="px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}>
+                      Scan Right Thumb
+                    </button>
                   </div>
                 </div>
-              ))}
-              <button type="button" onClick={() => setPetEntries((prev) => [...prev, { ...emptyPet }])}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-dashed border-accent-primary text-accent-text hover:bg-accent-bg transition-colors">
-                <Plus className="h-4 w-4" /> Add another pet
-              </button>
+              </Section>
             </div>
-          </Section>
+          </div>{/* end scrollable content */}
 
-          {/* 9. Left & Right Thumbmark */}
-          <Section icon={<Fingerprint className="h-4 w-4" />} title="Left & Right Thumbmark"
-            open={openSections.biometric} onToggle={() => toggleSection("biometric")}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="rounded-lg border-2 border-dashed border-border p-6 text-center">
-                <div className="w-20 h-20 mx-auto rounded-full bg-muted flex items-center justify-center mb-3">
-                  <Fingerprint className="w-8 h-8 text-muted-foreground" />
-                </div>
-                <p className="text-sm font-medium text-foreground mb-1">Scan Left Thumbmark</p>
-                <p className="text-[11px] text-muted-foreground mb-3">Scanner preview</p>
-                <button className="px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}>
-                  Scan Left Thumb
-                </button>
-              </div>
-              <div className="rounded-lg border-2 border-dashed border-border p-6 text-center">
-                <div className="w-20 h-20 mx-auto rounded-full bg-muted flex items-center justify-center mb-3">
-                  <Fingerprint className="w-8 h-8 text-muted-foreground" />
-                </div>
-                <p className="text-sm font-medium text-foreground mb-1">Scan Right Thumbmark</p>
-                <p className="text-[11px] text-muted-foreground mb-3">Scanner preview</p>
-                <button className="px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}>
-                  Scan Right Thumb
-                </button>
-              </div>
-            </div>
-          </Section>
-        </div>
-        </div>{/* end scrollable content */}
-
-        {/* Action Bar — shrink-0, sits naturally below the scroll area.
+          {/* Action Bar — shrink-0, sits naturally below the scroll area.
             NO position:fixed — the map can never scroll under this bar. */}
-        <div className="shrink-0 px-6 py-4 glass-header backdrop-blur-xl border-t border-border/40 shadow-[0_-4px_24px_rgba(0,0,0,0.08)] dark:shadow-[0_-4px_24px_rgba(0,0,0,0.3)]">
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-muted-foreground">
-              <span className="text-red-500">*</span> Required fields must be filled before submitting
-            </p>
-            <div className="flex items-center gap-3">
-              <button onClick={() => setMode("list")}
-                className="px-5 py-2.5 text-sm font-medium rounded-xl glass-input hover:shadow-md transition-all">
-                Cancel
-              </button>
-              <button onClick={() => handleSubmit()} disabled={submitting}
-                className="group relative px-7 py-2.5 text-sm font-bold rounded-xl text-white transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]"
-                style={{ background: submitting ? "var(--accent-primary)" : "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>
-                {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                {submitting ? (mode === "edit" ? "Saving..." : "Registering...") : (mode === "edit" ? "Save Changes" : "Register Resident")}
-              </button>
+          <div className="shrink-0 px-6 py-4 glass-header backdrop-blur-xl border-t border-border/40 shadow-[0_-4px_24px_rgba(0,0,0,0.08)] dark:shadow-[0_-4px_24px_rgba(0,0,0,0.3)]">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                <span className="text-red-500">*</span> Required fields must be filled before submitting
+              </p>
+              <div className="flex items-center gap-3">
+                <button onClick={() => setMode("list")}
+                  className="px-5 py-2.5 text-sm font-medium rounded-xl glass-input hover:shadow-md transition-all">
+                  Cancel
+                </button>
+                <button onClick={() => handleSubmit()} disabled={submitting}
+                  className="group relative px-7 py-2.5 text-sm font-bold rounded-xl text-white transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]"
+                  style={{ background: submitting ? "var(--accent-primary)" : "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>
+                  {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {submitting ? (mode === "edit" ? "Saving..." : "Registering...") : (mode === "edit" ? "Save Changes" : "Register Resident")}
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* OTP Verification Modal (Barangay Tambo only) */}
-      <Modal
-        open={showOtpModal}
-        onClose={() => setShowOtpModal(false)}
-        title="Mobile Verification Required"
-        description={`A 6-digit verification code has been sent to ${otpSentPhone}.`}
-        size="sm"
-        footer={
-          <>
-            <ModalButton
-              variant="secondary"
-              onClick={() => setShowOtpModal(false)}
-              disabled={otpLoading}
-            >
-              Cancel
-            </ModalButton>
-            <ModalButton
-              variant="primary"
-              onClick={async () => {
-                if (otpCode.length !== 6) {
-                  setOtpError("Please enter a valid 6-digit code.");
-                  return;
-                }
-                setOtpLoading(true);
-                setOtpError("");
-                try {
-                  await handleSubmit(otpCode);
-                  setShowOtpModal(false);
-                } catch (err: any) {
-                  setOtpError(err?.message || "Verification failed. Please try again.");
-                } finally {
-                  setOtpLoading(false);
-                }
-              }}
-              disabled={otpLoading || otpCode.length !== 6}
-            >
-              {otpLoading ? "Verifying..." : "Verify & Register"}
-            </ModalButton>
-          </>
-        }
-      >
-        <div className="space-y-4 py-2">
-          <div>
-            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-              Verification Code
-            </label>
-            <input
-              type="text"
-              maxLength={6}
-              placeholder="123456"
-              value={otpCode}
-              onChange={(e) => {
-                const val = e.target.value.replace(/[^0-9]/g, "");
-                setOtpCode(val);
-                setOtpError("");
-              }}
-              className="w-full text-center text-2xl font-mono tracking-[0.5em] pl-[0.25em] py-3 rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring"
-            />
-            {otpError && (
-              <p className="text-xs text-red-500 mt-2 text-center font-medium">{otpError}</p>
-            )}
-          </div>
+        {/* OTP Verification Modal (Barangay Tambo only) */}
+        <Modal
+          open={showOtpModal}
+          onClose={() => setShowOtpModal(false)}
+          title="Mobile Verification Required"
+          description={`A 6-digit verification code has been sent to ${otpSentPhone}.`}
+          size="sm"
+          footer={
+            <>
+              <ModalButton
+                variant="secondary"
+                onClick={() => setShowOtpModal(false)}
+                disabled={otpLoading}
+              >
+                Cancel
+              </ModalButton>
+              <ModalButton
+                variant="primary"
+                onClick={async () => {
+                  if (otpCode.length !== 6) {
+                    setOtpError("Please enter a valid 6-digit code.");
+                    return;
+                  }
+                  setOtpLoading(true);
+                  setOtpError("");
+                  try {
+                    await handleSubmit(otpCode);
+                    setShowOtpModal(false);
+                  } catch (err: any) {
+                    setOtpError(err?.message || "Verification failed. Please try again.");
+                  } finally {
+                    setOtpLoading(false);
+                  }
+                }}
+                disabled={otpLoading || otpCode.length !== 6}
+              >
+                {otpLoading ? "Verifying..." : "Verify & Register"}
+              </ModalButton>
+            </>
+          }
+        >
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                Verification Code
+              </label>
+              <input
+                type="text"
+                maxLength={6}
+                placeholder="123456"
+                value={otpCode}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[^0-9]/g, "");
+                  setOtpCode(val);
+                  setOtpError("");
+                }}
+                className="w-full text-center text-2xl font-mono tracking-[0.5em] pl-[0.25em] py-3 rounded-xl glass-input focus:outline-none focus:ring-2 focus:ring-accent-ring"
+              />
+              {otpError && (
+                <p className="text-xs text-red-500 mt-2 text-center font-medium">{otpError}</p>
+              )}
+            </div>
 
-          <div className="text-center">
-            <button
-              type="button"
-              disabled={otpLoading}
-              onClick={async () => {
-                setOtpLoading(true);
-                setOtpError("");
-                try {
-                  await api.residents.sendResidentOtp(otpSentPhone);
-                  addToast({ type: "success", title: "Code Resent", message: "A new 6-digit OTP code has been sent." });
-                } catch (err: any) {
-                  setOtpError(err?.message || "Failed to resend code.");
-                } finally {
-                  setOtpLoading(false);
-                }
-              }}
-              className="text-xs text-accent-primary hover:underline font-semibold bg-transparent border-0 cursor-pointer"
-            >
-              Didn't receive the code? Resend SMS
-            </button>
+            <div className="text-center">
+              <button
+                type="button"
+                disabled={otpLoading}
+                onClick={async () => {
+                  setOtpLoading(true);
+                  setOtpError("");
+                  try {
+                    await api.residents.sendResidentOtp(otpSentPhone);
+                    addToast({ type: "success", title: "Code Resent", message: "A new 6-digit OTP code has been sent." });
+                  } catch (err: any) {
+                    setOtpError(err?.message || "Failed to resend code.");
+                  } finally {
+                    setOtpLoading(false);
+                  }
+                }}
+                className="text-xs text-accent-primary hover:underline font-semibold bg-transparent border-0 cursor-pointer"
+              >
+                Didn't receive the code? Resend SMS
+              </button>
+            </div>
           </div>
-        </div>
-      </Modal>
+        </Modal>
       </>
     );
   }
@@ -2685,7 +2685,7 @@ export default function ResidentsPage() {
 
                             {/* Red flag tooltip — sibling of badge, positioned relative to avatar container */}
                             {hasRedFlag && hoveredTooltip === "red-" + r.id && (
-                              <div className="absolute bottom-full left-0 mb-3 z-[9999] pointer-events-none" style={{width: "260px"}}>
+                              <div className="absolute bottom-full left-0 mb-3 z-[9999] pointer-events-none" style={{ width: "260px" }}>
                                 <div className="bg-red-950 border border-red-800 text-white rounded-xl shadow-2xl overflow-hidden">
                                   <div className="px-3 py-2 bg-red-900/60 border-b border-red-800 flex items-center justify-between">
                                     <div className="flex items-center gap-1.5">
@@ -2740,7 +2740,7 @@ export default function ResidentsPage() {
 
                             {/* Grey flag tooltip — sibling of badge, positioned relative to avatar container */}
                             {hasGreyFlag && !hasRedFlag && hoveredTooltip === "gray-" + r.id && (
-                              <div className="absolute bottom-full right-0 mb-3 z-[9999] pointer-events-none" style={{width: "240px"}}>
+                              <div className="absolute bottom-full right-0 mb-3 z-[9999] pointer-events-none" style={{ width: "240px" }}>
                                 <div className="bg-slate-900 border border-slate-700 text-white rounded-xl shadow-2xl overflow-hidden">
                                   <div className="px-3 py-2 bg-slate-800 border-b border-slate-700 flex items-center gap-1.5">
                                     <Flag className="h-3 w-3 text-slate-400" />
@@ -2768,29 +2768,29 @@ export default function ResidentsPage() {
                             <div className="flex items-center gap-1.5">
                               <p className="text-sm font-semibold text-foreground truncate">{fullName}</p>
                               {r.is_head_of_household && (
-                              <span
-                                className="relative shrink-0"
-                                onMouseEnter={(e) => { e.stopPropagation(); setHoveredTooltip("hoh-" + r.id); }}
-                                onMouseLeave={() => setHoveredTooltip(null)}
-                              >
-                                <Home className="h-4 w-4 text-amber-500 cursor-default" />
-                                {hoveredTooltip === "hoh-" + r.id && (
-                                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-[60] pointer-events-none whitespace-nowrap">
-                                    <div className="bg-amber-900 text-amber-100 text-xs font-semibold rounded-lg px-3 py-1.5 shadow-2xl">
-                                      {t.residents.tooltips.headOfHousehold}
+                                <span
+                                  className="relative shrink-0"
+                                  onMouseEnter={(e) => { e.stopPropagation(); setHoveredTooltip("hoh-" + r.id); }}
+                                  onMouseLeave={() => setHoveredTooltip(null)}
+                                >
+                                  <Home className="h-4 w-4 text-amber-500 cursor-default" />
+                                  {hoveredTooltip === "hoh-" + r.id && (
+                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-[60] pointer-events-none whitespace-nowrap">
+                                      <div className="bg-amber-900 text-amber-100 text-xs font-semibold rounded-lg px-3 py-1.5 shadow-2xl">
+                                        {t.residents.tooltips.headOfHousehold}
+                                      </div>
+                                      <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-amber-900"></div>
                                     </div>
-                                    <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-amber-900"></div>
-                                  </div>
-                                )}
-                              </span>
-                            )}
+                                  )}
+                                </span>
+                              )}
                             </div>
                             {(r.purok || r.street) && (
                               <div
-                              className="relative"
-                              onMouseEnter={(e) => { e.stopPropagation(); setHoveredTooltip("addr-" + r.id); }}
-                              onMouseLeave={() => setHoveredTooltip(null)}
-                            >
+                                className="relative"
+                                onMouseEnter={(e) => { e.stopPropagation(); setHoveredTooltip("addr-" + r.id); }}
+                                onMouseLeave={() => setHoveredTooltip(null)}
+                              >
                                 <p className="text-xs text-slate-400 truncate max-w-[220px] cursor-default">
                                   {[r.purok ? (isTambo ? `Block/Lot ${r.purok}` : `Purok ${r.purok}`) : null, r.street].filter(Boolean).join(' - ')}
                                 </p>
@@ -2808,7 +2808,7 @@ export default function ResidentsPage() {
                                   </div>
                                   <div className="absolute top-full left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-slate-900"></div>
                                 </div>)}
-                            </div>
+                              </div>
                             )}
                             <p
                               className="text-[10px] text-muted-foreground/70 cursor-default"
@@ -2817,7 +2817,7 @@ export default function ResidentsPage() {
                             >
                               {t.residents.table.lastTransaction}: {createdLabel}
                               {hoveredTooltip === "lt-" + r.id && (
-                                <span className="absolute left-0 bottom-full mb-2 z-[60] pointer-events-none" style={{width: "250px"}}>
+                                <span className="absolute left-0 bottom-full mb-2 z-[60] pointer-events-none" style={{ width: "250px" }}>
                                   <span className="block bg-slate-900 border border-slate-700 text-white rounded-xl shadow-2xl overflow-hidden">
                                     <span className="block px-3 py-2 bg-slate-800 border-b border-slate-700">
                                       <span className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400">Last Transaction</span>
@@ -2896,7 +2896,7 @@ export default function ResidentsPage() {
                               {t.residents.table.voterYes}
                             </span>
                             {hoveredTooltip === "voter-" + r.id && (
-                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-[60] pointer-events-none" style={{width: "220px"}}>
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-[60] pointer-events-none" style={{ width: "220px" }}>
                                 <div className="bg-emerald-950 border border-emerald-800 text-white rounded-xl shadow-2xl overflow-hidden">
                                   <div className="px-3 py-2 bg-emerald-900/60 border-b border-emerald-800 flex items-center gap-1.5">
                                     <Vote className="h-3 w-3 text-emerald-400" />
@@ -3212,7 +3212,7 @@ export default function ResidentsPage() {
                     <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                     <span className="text-[11px] text-muted-foreground w-14 shrink-0">Occupancy</span>
                     <span className="text-sm font-medium text-foreground truncate">
-                      {viewResident.date_of_occupancy 
+                      {viewResident.date_of_occupancy
                         ? `${new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'short', day: 'numeric' }).format(new Date(viewResident.date_of_occupancy))} (${lengthOfStay(viewResident.date_of_occupancy)})`
                         : "—"}
                     </span>
@@ -3226,24 +3226,24 @@ export default function ResidentsPage() {
               const age = getAgeFromDob(viewResident.date_of_birth);
               return age !== null && age < 18;
             })() && (
-              <div className="mt-3 p-3.5 rounded-xl bg-muted/40 dark:bg-slate-800/40 space-y-2.5">
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Parent / Guardian Information</p>
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <span className="text-[10px] text-muted-foreground block">Guardian Name</span>
-                    <span className="text-sm font-semibold text-foreground truncate block">{viewResident.guardian_name || "—"}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-muted-foreground block">Relationship</span>
-                    <span className="text-sm font-semibold text-foreground truncate block capitalize">{viewResident.guardian_relationship || "—"}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-muted-foreground block">Contact Number</span>
-                    <span className="text-sm font-semibold text-foreground truncate block">{viewResident.guardian_phone || "—"}</span>
+                <div className="mt-3 p-3.5 rounded-xl bg-muted/40 dark:bg-slate-800/40 space-y-2.5">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Parent / Guardian Information</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <span className="text-[10px] text-muted-foreground block">Guardian Name</span>
+                      <span className="text-sm font-semibold text-foreground truncate block">{viewResident.guardian_name || "—"}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-muted-foreground block">Relationship</span>
+                      <span className="text-sm font-semibold text-foreground truncate block capitalize">{viewResident.guardian_relationship || "—"}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-muted-foreground block">Contact Number</span>
+                      <span className="text-sm font-semibold text-foreground truncate block">{viewResident.guardian_phone || "—"}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
             {/* Sectoral tags */}
             {(viewResident.sectoral_tags?.length ?? 0) > 0 && (

@@ -219,7 +219,25 @@ export default function MapPage() {
     setActiveTab("puroks");
   };
 
-  const coverage = totalResidents > 0 ? Math.round((mappedCount / totalResidents) * 100) : 0;
+  // Dynamic stats based on active purok filter
+  const currentStats = useMemo(() => {
+    if (activePurokFilter && stats?.by_purok) {
+      const pStat = stats.by_purok.find((p) => p.purok === activePurokFilter);
+      if (pStat) {
+        const total = pStat.total;
+        const mapped = pStat.mapped;
+        const unmapped = total - mapped;
+        const coverage = total > 0 ? Math.round((mapped / total) * 100) : 0;
+        return { total, mapped, unmapped, coverage };
+      }
+    }
+    return {
+      total: totalResidents,
+      mapped: mappedCount,
+      unmapped: totalResidents - mappedCount,
+      coverage: totalResidents > 0 ? Math.round((mappedCount / totalResidents) * 100) : 0,
+    };
+  }, [activePurokFilter, stats, totalResidents, mappedCount]);
 
   return (
     <div className="flex flex-col h-[calc(100vh-80px)] gap-0 p-4 lg:p-6 -mt-1">
@@ -399,8 +417,8 @@ export default function MapPage() {
             <div className="absolute inset-0 flex items-center justify-center bg-muted/20">
               <div className="text-center">
                 <Loader2 className="h-8 w-8 animate-spin mx-auto mb-3 text-accent-primary" />
-                <p className="text-sm font-medium text-foreground">Loading resident locations...</p>
-                <p className="text-xs text-muted-foreground mt-1">Fetching {totalResidents || "..."} residents</p>
+                <p className="text-sm font-medium text-foreground">Loading household locations...</p>
+                <p className="text-xs text-muted-foreground mt-1">Fetching {totalResidents || "..."} households</p>
               </div>
             </div>
           ) : residentsError ? (
@@ -446,10 +464,10 @@ export default function MapPage() {
           {/* Quick stats — 2x2 grid */}
           <div className="grid grid-cols-2 gap-2 shrink-0">
             {[
-              { label: "Total Households", value: loadingStats ? "..." : totalResidents.toLocaleString(), icon: Users, color: "text-blue-600" },
-              { label: "Mapped", value: loadingStats ? "..." : mappedCount.toLocaleString(), icon: MapPin, color: "text-green-600" },
-              { label: "Unmapped", value: loadingStats ? "..." : (totalResidents - mappedCount).toLocaleString(), icon: Navigation, color: "text-amber-600" },
-              { label: "Coverage", value: loadingStats ? "..." : coverage + "%", icon: Activity, color: "text-purple-600" },
+              { label: "Total Households", value: loadingStats ? "..." : currentStats.total.toLocaleString(), icon: Users, color: "text-blue-600" },
+              { label: "Mapped", value: loadingStats ? "..." : currentStats.mapped.toLocaleString(), icon: MapPin, color: "text-green-600" },
+              { label: "Unmapped", value: loadingStats ? "..." : currentStats.unmapped.toLocaleString(), icon: Navigation, color: "text-amber-600" },
+              { label: "Coverage", value: loadingStats ? "..." : currentStats.coverage + "%", icon: Activity, color: "text-purple-600" },
             ].map(({ label, value, icon: Icon, color }) => (
               <div key={label} className="p-3 rounded-xl glass">
                 <div className="flex items-center gap-1.5 mb-1">
@@ -464,20 +482,22 @@ export default function MapPage() {
           {/* Coverage bar */}
           <div className="p-3 rounded-xl glass shrink-0">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-semibold text-foreground">Household Coverage</p>
-              <span className="text-xs font-bold text-accent-primary">{coverage}%</span>
+              <p className="text-xs font-semibold text-foreground">
+                {activePurokFilter ? `${activePurokFilter} Coverage` : "Household Coverage"}
+              </p>
+              <span className="text-xs font-bold text-accent-primary">{currentStats.coverage}%</span>
             </div>
             <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
               <div
                 className="h-full rounded-full transition-all duration-700"
                 style={{
-                  width: `${coverage}%`,
-                  background: coverage >= 80 ? "#22c55e" : coverage >= 50 ? "#f59e0b" : "#ef4444",
+                  width: `${currentStats.coverage}%`,
+                  background: currentStats.coverage >= 80 ? "#22c55e" : currentStats.coverage >= 50 ? "#f59e0b" : "#ef4444",
                 }}
               />
             </div>
             <p className="text-[10px] text-muted-foreground mt-1.5">
-              {coverage >= 80 ? "Excellent coverage" : coverage >= 50 ? "Moderate coverage — add more pins" : "Low coverage — many residents need location data"}
+              {currentStats.coverage >= 80 ? "Excellent coverage" : currentStats.coverage >= 50 ? "Moderate coverage — add more pins" : "Low coverage — many households need location data"}
             </p>
           </div>
 
@@ -546,7 +566,7 @@ export default function MapPage() {
                         >
                           <div className="flex items-start justify-between gap-1 mb-1.5">
                             <p className="text-xs font-semibold text-foreground leading-tight">{p.purok}</p>
-                            <span className="text-[10px] text-muted-foreground shrink-0">{p.total} res.</span>
+                            <span className="text-[10px] text-muted-foreground shrink-0">{p.total} {p.total === 1 ? "household" : "households"}</span>
                           </div>
                           <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden mb-1">
                             <div

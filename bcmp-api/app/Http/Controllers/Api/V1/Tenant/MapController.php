@@ -19,17 +19,19 @@ class MapController extends Controller
     /**
      * GET /api/v1/map/residents
      *
-     * Returns all households that have latitude + longitude set.
-     * Each pin represents one household; the head resident's name is used as label.
+     * Returns one pin per household that has a locatable position.
+     * Location priority:
+     *   1. household.latitude / longitude  (set via household form)
+     *   2. Any member resident's latitude / longitude where resident.household_id = household.id
+     *
      * Response key kept as "residents" for frontend compatibility.
      */
     public function residents(Request $request): JsonResponse
     {
         $barangayId = $request->user()->barangay_id;
 
-        $mapped = Household::where('barangay_id', $barangayId)
-            ->whereNotNull('latitude')
-            ->whereNotNull('longitude')
+        // Pull all households + their own coords
+        $households = Household::where('barangay_id', $barangayId)
             ->whereNull('deleted_at')
             ->select([
                 'id', 'household_number', 'household_name',
@@ -38,8 +40,42 @@ class MapController extends Controller
             ])
             ->with(['headResident:id,first_name,middle_name,last_name,extension_name'])
             ->orderBy('household_number')
-            ->get()
-            ->map(fn ($h) => [
+            ->get();
+
+        // For households without own coords, find the first member who has coords
+        // Keyed by household_id → {lat, lng}
+        $householdIds = $households->whereNull('latitude')->pluck('id');
+        $memberCoords = [];
+        if ($householdIds->isNotEmpty()) {
+            \App\Models\Tenant\Resident::whereIn('household_id', $householdIds)
+                ->whereNotNull('latitude')
+                ->whereNotNull('longitude')
+                ->select(['household_id', 'latitude', 'longitude'])
+                ->orderBy('household_id')
+                ->get()
+                ->each(function ($r) use (&$memberCoords) {
+                    // Keep only the first coord found per household
+                    if (!isset($memberCoords[$r->household_id])) {
+                        $memberCoords[$r->household_id] = [
+                            'lat' => (float) $r->latitude,
+                            'lng' => (float) $r->longitude,
+                        ];
+                    }
+                });
+        }
+
+        // Build pin list — only households that have a location
+        $mapped = $households->filter(function ($h) use ($memberCoords) {
+            return $h->latitude !== null || isset($memberCoords[$h->id]);
+        })->map(function ($h) use ($memberCoords) {
+            $lat = $h->latitude !== null
+                ? (float) $h->latitude
+                : $memberCoords[$h->id]['lat'];
+            $lng = $h->longitude !== null
+                ? (float) $h->longitude
+                : $memberCoords[$h->id]['lng'];
+
+            return [
                 'id'              => $h->id,
                 'resident_number' => $h->household_number,
                 'full_name'       => $h->household_name
@@ -56,11 +92,12 @@ class MapController extends Controller
                 'address'      => $h->address,
                 'sex'          => null,
                 'status'       => 'active',
-                'latitude'     => (float) $h->latitude,
-                'longitude'    => (float) $h->longitude,
-            ]);
+                'latitude'     => $lat,
+                'longitude'    => $lng,
+            ];
+        })->values();
 
-        $total = Household::where('barangay_id', $barangayId)->whereNull('deleted_at')->count();
+        $total = $households->count();
 
         $barangay = Barangay::select(['id', 'name', 'latitude', 'longitude', 'boundary_geojson', 'boundary_fetched_at', 'boundary_source'])
             ->find($barangayId);
@@ -156,6 +193,8 @@ class MapController extends Controller
      *
      * Returns aggregate statistics for the map sidebar based on households:
      * - total / mapped / unmapped household counts
+     *   A household counts as "mapped" if it has its own lat/lng OR its head
+     *   resident has lat/lng.
      * - per-purok breakdown (total + mapped)
      * - by_status kept for interface compat (always active)
      */
@@ -164,19 +203,25 @@ class MapController extends Controller
         $barangayId = $request->user()->barangay_id;
 
         $total = Household::where('barangay_id', $barangayId)->whereNull('deleted_at')->count();
-        $mapped = Household::where('barangay_id', $barangayId)
-            ->whereNull('deleted_at')
-            ->whereNotNull('latitude')
-            ->whereNotNull('longitude')
+
+        // Count as mapped: household has own coords OR its head resident has coords
+        $mapped = Household::where('households.barangay_id', $barangayId)
+            ->whereNull('households.deleted_at')
+            ->leftJoin('residents as hr', 'hr.id', '=', 'households.head_resident_id')
+            ->where(function ($q) {
+                $q->whereNotNull('households.latitude')
+                  ->orWhereNotNull('hr.latitude');
+            })
             ->count();
 
-        // Per-purok: total households + how many are mapped
-        $byPurok = Household::where('barangay_id', $barangayId)
-            ->whereNull('deleted_at')
+        // Per-purok: total households + how many are mapped (own or head resident coords)
+        $byPurok = Household::where('households.barangay_id', $barangayId)
+            ->whereNull('households.deleted_at')
+            ->leftJoin('residents as hr2', 'hr2.id', '=', 'households.head_resident_id')
             ->select([
-                DB::raw("COALESCE(NULLIF(TRIM(purok), ''), 'Unclassified') as purok_name"),
+                DB::raw("COALESCE(NULLIF(TRIM(households.purok), ''), 'Unclassified') as purok_name"),
                 DB::raw('COUNT(*) as total'),
-                DB::raw('COUNT(latitude) as mapped'),
+                DB::raw('COUNT(CASE WHEN households.latitude IS NOT NULL OR hr2.latitude IS NOT NULL THEN 1 END) as mapped'),
             ])
             ->groupBy('purok_name')
             ->orderByDesc('total')
