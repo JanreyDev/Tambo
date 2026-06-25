@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { useLanguage } from "@/contexts/language-context";
 import { persistThemePreference } from "@/hooks/use-theme-store";
-import { cn } from "@/lib/utils";
+import { cn, resolvePhotoUrl } from "@/lib/utils";
 
 const emptySubscribe = () => () => {};
 
@@ -285,7 +285,7 @@ export function Header({ onToggleSidebar, onToggleAI }: HeaderProps) {
           >
             {user?.photo_url ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={user.photo_url} alt="" className="w-8 h-8 rounded-full object-cover ring-2 ring-border" />
+              <img src={resolvePhotoUrl(user.photo_url) || ""} alt="" className="w-8 h-8 rounded-full object-cover ring-2 ring-border" />
             ) : (
               <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ring-2 ring-border" style={{ background: "var(--accent-primary)" }}>
                 {initials}
@@ -304,7 +304,7 @@ export function Header({ onToggleSidebar, onToggleAI }: HeaderProps) {
                   <div className="relative flex items-center gap-3">
                     {user?.photo_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={user.photo_url} alt="" className="w-11 h-11 rounded-xl object-cover shrink-0 ring-2 ring-white/20 shadow-sm" />
+                      <img src={resolvePhotoUrl(user.photo_url) || ""} alt="" className="w-11 h-11 rounded-xl object-cover shrink-0 ring-2 ring-white/20 shadow-sm" />
                     ) : (
                       <div className="w-11 h-11 rounded-xl flex items-center justify-center text-white text-sm font-bold shrink-0 shadow-sm" style={{ background: "var(--accent-primary)" }}>
                         {initials}

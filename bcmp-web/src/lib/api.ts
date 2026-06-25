@@ -311,7 +311,7 @@ const api = {
     getProfile: () =>
       api.get<Record<string, unknown>>("/account/profile"),
 
-    updateProfile: (data: { first_name?: string; last_name?: string; middle_name?: string; extension_name?: string; email?: string; phone?: string }) =>
+    updateProfile: (data: { first_name?: string; last_name?: string; middle_name?: string | null; extension_name?: string | null; email?: string; phone?: string | null }) =>
       api.patch<{ message: string }>("/account/profile", data),
 
     updateUsername: (username: string) =>

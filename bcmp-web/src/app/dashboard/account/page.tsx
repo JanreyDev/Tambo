@@ -10,7 +10,7 @@ import {
   persistThemePreference,
   type AccentColor,
 } from "@/hooks/use-theme-store";
-import { cn } from "@/lib/utils";
+import { cn, resolvePhotoUrl } from "@/lib/utils";
 import { PageHeader } from "@/components/ui/page-header";
 import {
   Camera,
@@ -358,7 +358,7 @@ export default function AccountPage() {
   const handleSaveProfile = async () => {
     setProfileStatus("loading");
     try {
-      await api.account.updateProfile({ first_name: firstName, last_name: lastName, middle_name: middleName || undefined, extension_name: extensionName || undefined });
+      await api.account.updateProfile({ first_name: firstName, last_name: lastName, middle_name: middleName || null, extension_name: extensionName || null });
       setProfileStatus("success");
       refreshUser();
       setTimeout(() => setProfileStatus("idle"), 2000);
@@ -371,7 +371,7 @@ export default function AccountPage() {
   const handleSaveContact = async () => {
     setContactStatus("loading");
     try {
-      await api.account.updateProfile({ email, phone: phone || undefined });
+      await api.account.updateProfile({ email, phone: phone || null });
       setContactStatus("success");
       refreshUser();
       setTimeout(() => setContactStatus("idle"), 2000);
@@ -742,7 +742,7 @@ export default function AccountPage() {
                 {user?.photo_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={user.photo_url}
+                    src={resolvePhotoUrl(user.photo_url) || ""}
                     alt="Profile photo"
                     className="w-24 h-24 rounded-full object-cover border-2 border-border"
                   />
