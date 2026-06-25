@@ -1428,9 +1428,12 @@ export default function SettingsPage() {
 
   // Current tab's dirty diff
   const currentTabSnapshot = tabFieldSnapshot[activeSection] || {};
-  const changedFieldKeys = Object.keys(currentTabSnapshot).filter((key) => {
-    return JSON.stringify(currentTabSnapshot[key]) !== JSON.stringify(originalsRef.current[key]);
-  });
+  const changedFieldKeys = loading
+    ? []
+    : Object.keys(currentTabSnapshot).filter((key) => {
+        if (!(key in originalsRef.current)) return false;
+        return JSON.stringify(currentTabSnapshot[key]) !== JSON.stringify(originalsRef.current[key]);
+      });
   const isCurrentTabDirty = changedFieldKeys.length > 0;
   const shouldShowSaveBar = SAVE_BAR_TABS.includes(activeSection) && isCurrentTabDirty;
 
@@ -1466,14 +1469,14 @@ export default function SettingsPage() {
 
   // Warn user about unsaved changes when navigating away
   useEffect(() => {
-    if (!isCurrentTabDirty) return;
+    if (loading || !isCurrentTabDirty) return;
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       e.returnValue = "";
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
-  }, [isCurrentTabDirty]);
+  }, [loading, isCurrentTabDirty]);
 
   // Fetch the current kapitan from Officials when Barangay Info tab opens
   useEffect(() => {
