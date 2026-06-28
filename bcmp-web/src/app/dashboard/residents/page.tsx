@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  Home, MapPin, Filter, Upload, MoreHorizontal,
+  Home, MapPin, Filter, Upload, Download, MoreHorizontal,
   Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X, Flag,
   AlertTriangle, Phone, Mail, Calendar, User, Heart, FileText, Edit,
   Camera, Printer, Eye, ChevronDown, Plus, Fingerprint, CheckCircle, Loader2,
@@ -123,6 +123,14 @@ export default function ResidentsPage() {
   const { t } = useLanguage();
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  // ── Toast Notifications ──
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const addToast = useCallback((toast: Omit<Toast, "id">) => {
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+    setToasts((prev) => [...prev, { ...toast, id }]);
+  }, []);
+  const dismissToast = useCallback((id: string) => setToasts((prev) => prev.filter((t) => t.id !== id)), []);
 
   const isTambo = user?.barangay?.name?.toLowerCase() === "tambo";
   const sectorsList = isTambo
@@ -272,6 +280,73 @@ export default function ResidentsPage() {
     }
   }, [page, search, purokFilter, statusFilter, sexFilter, voterFilter, civilStatusFilter, residentTypeFilter, hohFilter, citizenshipFilter, religionFilter, ethnicityFilter, sectorFilter, residentView, sortKey, sortDir]);
 
+  // ── Export State & Handler ──
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = useCallback(async () => {
+    setExporting(true);
+    addToast({
+      type: "success",
+      title: t.residents.search.export || "Export CSV",
+      message: "Generating export file..."
+    });
+
+    try {
+      const params: Record<string, string> = {};
+      const q = search;
+      if (q) params.search = q;
+      if (purokFilter !== "All Puroks") params.purok = purokFilter;
+      if (statusFilter !== "All Status") params.status = statusFilter.toLowerCase();
+      if (sexFilter !== "All") params.sex = sexFilter.toLowerCase();
+      if (voterFilter === "voter") params.is_voter = "1";
+      if (voterFilter === "non-voter") params.is_voter = "0";
+      if (civilStatusFilter !== "All Civil Status") params.civil_status = civilStatusFilter.toLowerCase();
+      if (residentTypeFilter !== "All Resident Types") params.resident_type = residentTypeFilter.toLowerCase();
+      if (hohFilter === "hoh") params.is_head_of_household = "1";
+      if (hohFilter === "non-hoh") params.is_head_of_household = "0";
+      if (citizenshipFilter !== "All Citizenship") params.citizenship = citizenshipFilter;
+      if (religionFilter !== "All Religion") params.religion = religionFilter;
+      if (ethnicityFilter !== "All Ethnicity") params.ethnicity = ethnicityFilter;
+      if (sectorFilter !== "All Sectors") params.sector = sectorFilter;
+      if (residentView === "archived") params.archived_only = "true";
+
+      const res = await api.residents.exportCsv(params);
+      if (!res.ok) {
+        throw new Error("Failed to export database");
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+
+      // Extract filename from Content-Disposition if present
+      const disposition = res.headers.get("content-disposition");
+      let filename = `residents-${new Date().toISOString().split("T")[0]}.csv`;
+      if (disposition && disposition.includes("attachment")) {
+        const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+        const matches = filenameRegex.exec(disposition);
+        if (matches != null && matches[1]) {
+          filename = matches[1].replace(/['"]/g, "");
+        }
+      }
+
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      addToast({
+        type: "error",
+        title: "Export Failed",
+        message: err instanceof Error ? err.message : "Failed to download CSV export."
+      });
+    } finally {
+      setExporting(false);
+    }
+  }, [search, purokFilter, statusFilter, sexFilter, voterFilter, civilStatusFilter, residentTypeFilter, hohFilter, citizenshipFilter, religionFilter, ethnicityFilter, sectorFilter, residentView, addToast, t]);
+
   // ── Form State ──
   const [mode, setMode] = useState<"list" | "create" | "edit">("list");
 
@@ -341,8 +416,7 @@ export default function ResidentsPage() {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
-  // ── Toast Notifications ──
-  const [toasts, setToasts] = useState<Toast[]>([]);
+
 
   // ── Document wizard (opened from resident row action buttons) ──
   const [showDocWizard, setShowDocWizard] = useState(false);
@@ -356,11 +430,7 @@ export default function ResidentsPage() {
   const [smsModalResident, setSmsModalResident] = useState<SmsTargetResident | null>(null);
   const [emailModalResident, setEmailModalResident] = useState<EmailTargetResident | null>(null);
   const [showEmailModal, setShowEmailModal] = useState(false);
-  const addToast = useCallback((toast: Omit<Toast, "id">) => {
-    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
-    setToasts((prev) => [...prev, { ...toast, id }]);
-  }, []);
-  const dismissToast = useCallback((id: string) => setToasts((prev) => prev.filter((t) => t.id !== id)), []);
+
 
   // ── Smart Address Entries (per-barangay learned values) ──────────────
   // Seeded with sensible Philippine defaults; hydrated from the
@@ -2518,11 +2588,25 @@ export default function ResidentsPage() {
               </kbd>
             </div>
           </div>
-          {residentView === "active" && (
-            <button onClick={openCreate} className="inline-flex items-center gap-2 h-10 px-5 text-sm font-semibold rounded-xl text-white shadow-sm transition-all hover:opacity-90 hover:shadow-lg active:scale-[0.98] hover:-translate-y-0.5 duration-200" style={{ background: "var(--accent-primary)" }}>
-              <Plus className="h-4 w-4" /> {t.residents.search.newResident}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleExport}
+              disabled={exporting}
+              className="inline-flex items-center gap-2 h-10 px-4 text-sm font-semibold rounded-xl border border-border bg-background hover:bg-muted text-foreground transition-all duration-200 disabled:opacity-50"
+            >
+              {exporting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              <span>{t.residents.search.export || "Export CSV"}</span>
             </button>
-          )}
+            {residentView === "active" && (
+              <button onClick={openCreate} className="inline-flex items-center gap-2 h-10 px-5 text-sm font-semibold rounded-xl text-white shadow-sm transition-all hover:opacity-90 hover:shadow-lg active:scale-[0.98] hover:-translate-y-0.5 duration-200" style={{ background: "var(--accent-primary)" }}>
+                <Plus className="h-4 w-4" /> {t.residents.search.newResident}
+              </button>
+            )}
+          </div>
         </div>
         {/* Filter chips row */}
         {showFilters && (

@@ -1157,7 +1157,7 @@ class ResidentController extends Controller
                         $r->middle_name,
                         $r->date_of_birth?->format('m/d/Y'),
                         ucfirst($r->sex ?? ''),
-                        $r->civil_status,
+                        $r->civil_status?->value,
                         $r->purok,
                         $r->street,
                         $r->house_block_lot,

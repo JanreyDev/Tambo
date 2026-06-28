@@ -378,6 +378,7 @@ export const fil: Translations = {
       placeholder: "Maghanap ng residente...",
       filtersTitle: "Mga Filter",
       newResident: "Bagong Residente",
+      export: "I-export",
       activeTab: "Aktibo",
       archivedTab: "Naka-archive",
       clearAll: "I-clear lahat",

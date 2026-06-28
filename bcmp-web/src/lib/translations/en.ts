@@ -378,6 +378,7 @@ export const en = {
       placeholder: "Search residents...",
       filtersTitle: "Filters",
       newResident: "New Resident",
+      export: "Export CSV",
       activeTab: "Active",
       archivedTab: "Archived",
       clearAll: "Clear all",
