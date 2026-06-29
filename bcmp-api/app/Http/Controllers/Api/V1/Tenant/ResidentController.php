@@ -1077,7 +1077,7 @@ class ResidentController extends Controller
         $barangayId = $request->user()->barangay_id;
         $barangay = Barangay::findOrFail($barangayId);
 
-        $query = Resident::where('barangay_id', $barangayId);
+        $query = Resident::where('barangay_id', $barangayId)->with(['sectoralTags', 'household']);
 
         // Apply same filters as index
         if ($search = $request->get('search')) {
@@ -1129,10 +1129,117 @@ class ResidentController extends Controller
 
         $headers = [
             'Resident Number',
-            'Last Name', 'First Name', 'Middle Name',
-            'Date of Birth', 'Sex', 'Civil Status',
-            'Purok', 'Street', 'House/Block/Lot',
-            'Mobile Number', 'Email',
+            'Status',
+            'Registration Date',
+            'Registration Source',
+            'Resident Type',
+            'Housing Type',
+            'Date of Occupancy',
+            'Transfer Date',
+            'Profile Completion %',
+
+            // Personal
+            'Last Name',
+            'First Name',
+            'Middle Name',
+            'Extension Name',
+            'Mothers Maiden Name',
+            'Date of Birth',
+            'Place of Birth',
+            'Sex',
+            'Civil Status',
+            'Citizenship',
+            'Blood Type',
+            'Height (cm)',
+            'Weight (kg)',
+            'Complexion',
+            'Religion',
+            'Ethnicity',
+
+            // Contact
+            'Mobile Number',
+            'Email',
+            'Telephone',
+
+            // Address
+            'Purok/Block & Lot',
+            'Sitio',
+            'House/Block/Lot',
+            'Street',
+            'Zip Code',
+            'Latitude',
+            'Longitude',
+
+            // Voter
+            'Is Voter',
+            'Is Resident Voter',
+            'Voter Precinct Number',
+            'Last Voted Year',
+
+            // Government IDs
+            'PhilHealth Number',
+            'PhilHealth Expiry',
+            'SSS/GSIS Number',
+            'SSS/GSIS Expiry',
+            'Pag-IBIG Number',
+            'Pag-IBIG Expiry',
+            'TIN',
+            'TIN Expiry',
+            'PWD ID',
+            'PWD ID Expiry',
+            'Senior Citizen ID',
+            'Senior Citizen ID Expiry',
+            'Solo Parent ID',
+            'Solo Parent ID Expiry',
+
+            // Education & Employment
+            'Highest Education',
+            'Education Details',
+            'Occupation',
+            'Employer',
+            'Monthly Income Range',
+            'Source of Income',
+            'Livelihood Type',
+            'Skills',
+            'Work History',
+            'Business Details',
+
+            // Health
+            'Health History',
+            'Is Organ Donor',
+
+            // Sectoral Tags
+            'Sectoral Tags',
+            'Sector Other',
+            'Other Remarks',
+
+            // Emergency
+            'Emergency Contact Name',
+            'Emergency Contact Phone',
+            'Emergency Contact Address',
+            'Emergency Contact Relationship',
+
+            // Guardian
+            'Guardian Name',
+            'Guardian Relationship',
+            'Guardian Phone',
+
+            // Household
+            'Is Head of Household',
+            'Household ID',
+            'Relationship to Head',
+
+            // Structured JSONB
+            'Pet Records',
+            'Assistance History',
+            'Relative Links',
+
+            // Meta & System Audits
+            'Import Batch ID',
+            'Approved At',
+            'Approved By',
+            'Created At',
+            'Updated At',
         ];
 
         $filename = Str::slug($barangay->name).'-residents-'.now()->format('Y-m-d').'.csv';
@@ -1148,21 +1255,160 @@ class ResidentController extends Controller
             fwrite($handle, "\xEF\xBB\xBF"); // UTF-8 BOM for Excel
             fputcsv($handle, $headers);
 
-            $query->chunk(500, function ($residents) use ($handle) {
+            $decrypt = function ($encryptedValue) {
+                if (empty($encryptedValue)) {
+                    return '';
+                }
+                try {
+                    return decrypt($encryptedValue);
+                } catch (\Throwable) {
+                    return $encryptedValue;
+                }
+            };
+
+            $formatYesNo = function ($val) {
+                if ($val === null) {
+                    return '';
+                }
+                return $val ? 'Yes' : 'No';
+            };
+
+            $query->chunk(500, function ($residents) use ($handle, $decrypt, $formatYesNo) {
                 foreach ($residents as $r) {
+                    // Extract sectoral tags as comma separated string
+                    $sectoralTags = $r->sectoralTags->pluck('sector')->implode(', ');
+
+                    // Format pet records if present
+                    $petRecords = '';
+                    if (!empty($r->pet_records)) {
+                        $petRecords = is_array($r->pet_records) ? json_encode($r->pet_records) : $r->pet_records;
+                    }
+
+                    // Format assistance history if present
+                    $assistanceHistory = '';
+                    if (!empty($r->assistance_history)) {
+                        $assistanceHistory = is_array($r->assistance_history) ? json_encode($r->assistance_history) : $r->assistance_history;
+                    }
+
+                    // Format relative links if present
+                    $relativeLinks = '';
+                    if (!empty($r->relative_links)) {
+                        $relativeLinks = is_array($r->relative_links) ? json_encode($r->relative_links) : $r->relative_links;
+                    }
+
                     fputcsv($handle, [
                         $r->resident_number,
+                        $r->status?->value ?? $r->status,
+                        $r->registration_date?->format('m/d/Y'),
+                        $r->registration_source,
+                        $r->resident_type,
+                        $r->housing_type,
+                        $r->date_of_occupancy,
+                        $r->transfer_date?->format('m/d/Y'),
+                        $r->profile_completion_pct,
+
+                        // Personal
                         $r->last_name,
                         $r->first_name,
                         $r->middle_name,
+                        $r->extension_name,
+                        $r->mothers_maiden_name,
                         $r->date_of_birth?->format('m/d/Y'),
+                        $r->place_of_birth,
                         ucfirst($r->sex ?? ''),
-                        $r->civil_status?->value,
-                        $r->purok,
-                        $r->street,
-                        $r->house_block_lot,
+                        $r->civil_status?->value ?? $r->civil_status,
+                        $r->citizenship,
+                        $r->blood_type,
+                        $r->height_cm,
+                        $r->weight_kg,
+                        $r->complexion,
+                        $r->religion,
+                        $r->ethnicity,
+
+                        // Contact
                         $r->mobile_number,
                         $r->email,
+                        $r->telephone,
+
+                        // Address
+                        $r->purok,
+                        $r->sitio,
+                        $r->house_block_lot,
+                        $r->street,
+                        $r->zip_code,
+                        $r->latitude,
+                        $r->longitude,
+
+                        // Voter
+                        $formatYesNo($r->is_voter),
+                        $formatYesNo($r->is_resident_voter),
+                        $r->voter_precinct_number,
+                        $r->last_voted_year,
+
+                        // Government IDs
+                        $decrypt($r->philhealth_number_encrypted),
+                        $r->philhealth_expiry?->format('m/d/Y'),
+                        $decrypt($r->sss_gsis_number_encrypted),
+                        $r->sss_gsis_expiry?->format('m/d/Y'),
+                        $decrypt($r->pagibig_number_encrypted),
+                        $r->pagibig_expiry?->format('m/d/Y'),
+                        $decrypt($r->tin_number_encrypted),
+                        $r->tin_expiry?->format('m/d/Y'),
+                        $decrypt($r->pwd_id_encrypted),
+                        $r->pwd_id_expiry?->format('m/d/Y'),
+                        $decrypt($r->senior_citizen_id_encrypted),
+                        $r->senior_citizen_id_expiry?->format('m/d/Y'),
+                        $decrypt($r->solo_parent_id_encrypted),
+                        $r->solo_parent_id_expiry?->format('m/d/Y'),
+
+                        // Education & Employment
+                        $r->highest_education,
+                        $r->education_details,
+                        $r->occupation,
+                        $r->employer,
+                        $r->monthly_income_range,
+                        $r->source_of_income,
+                        $r->livelihood_type,
+                        $r->skills,
+                        $r->work_history,
+                        $r->business_details,
+
+                        // Health
+                        $r->health_history,
+                        $formatYesNo($r->is_organ_donor),
+
+                        // Sectoral Tags
+                        $sectoralTags,
+                        $r->sector_other,
+                        $r->other_remarks,
+
+                        // Emergency
+                        $r->emergency_contact_name,
+                        $r->emergency_contact_phone,
+                        $r->emergency_contact_address,
+                        $r->emergency_contact_relationship,
+
+                        // Guardian
+                        $r->guardian_name,
+                        $r->guardian_relationship,
+                        $r->guardian_phone,
+
+                        // Household
+                        $formatYesNo($r->is_head_of_household),
+                        $r->household_id,
+                        $r->relationship_to_head,
+
+                        // Structured JSONB
+                        $petRecords,
+                        $assistanceHistory,
+                        $relativeLinks,
+
+                        // Meta & System Audits
+                        $r->import_batch_id,
+                        $r->approved_at?->format('m/d/Y H:i:s'),
+                        $r->approved_by,
+                        $r->created_at?->format('m/d/Y H:i:s'),
+                        $r->updated_at?->format('m/d/Y H:i:s'),
                     ]);
                 }
             });
