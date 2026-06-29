@@ -1273,7 +1273,18 @@ class ResidentController extends Controller
                 return $val ? 'Yes' : 'No';
             };
 
-            $query->chunk(500, function ($residents) use ($handle, $decrypt, $formatYesNo) {
+            $formatDate = function ($val, $format = 'm/d/Y') {
+                if (empty($val)) {
+                    return '';
+                }
+                try {
+                    return \Illuminate\Support\Carbon::parse($val)->format($format);
+                } catch (\Throwable) {
+                    return (string) $val;
+                }
+            };
+
+            $query->chunk(500, function ($residents) use ($handle, $decrypt, $formatYesNo, $formatDate) {
                 foreach ($residents as $r) {
                     // Extract sectoral tags as comma separated string
                     $sectoralTags = $r->sectoralTags->pluck('sector')->implode(', ');
@@ -1299,12 +1310,12 @@ class ResidentController extends Controller
                     fputcsv($handle, [
                         $r->resident_number,
                         $r->status?->value ?? $r->status,
-                        $r->registration_date?->format('m/d/Y'),
+                        $formatDate($r->registration_date),
                         $r->registration_source,
                         $r->resident_type,
                         $r->housing_type,
                         $r->date_of_occupancy,
-                        $r->transfer_date?->format('m/d/Y'),
+                        $formatDate($r->transfer_date),
                         $r->profile_completion_pct,
 
                         // Personal
@@ -1313,7 +1324,7 @@ class ResidentController extends Controller
                         $r->middle_name,
                         $r->extension_name,
                         $r->mothers_maiden_name,
-                        $r->date_of_birth?->format('m/d/Y'),
+                        $formatDate($r->date_of_birth),
                         $r->place_of_birth,
                         ucfirst($r->sex ?? ''),
                         $r->civil_status?->value ?? $r->civil_status,
@@ -1347,19 +1358,19 @@ class ResidentController extends Controller
 
                         // Government IDs
                         $decrypt($r->philhealth_number_encrypted),
-                        $r->philhealth_expiry?->format('m/d/Y'),
+                        $formatDate($r->philhealth_expiry),
                         $decrypt($r->sss_gsis_number_encrypted),
-                        $r->sss_gsis_expiry?->format('m/d/Y'),
+                        $formatDate($r->sss_gsis_expiry),
                         $decrypt($r->pagibig_number_encrypted),
-                        $r->pagibig_expiry?->format('m/d/Y'),
+                        $formatDate($r->pagibig_expiry),
                         $decrypt($r->tin_number_encrypted),
-                        $r->tin_expiry?->format('m/d/Y'),
+                        $formatDate($r->tin_expiry),
                         $decrypt($r->pwd_id_encrypted),
-                        $r->pwd_id_expiry?->format('m/d/Y'),
+                        $formatDate($r->pwd_id_expiry),
                         $decrypt($r->senior_citizen_id_encrypted),
-                        $r->senior_citizen_id_expiry?->format('m/d/Y'),
+                        $formatDate($r->senior_citizen_id_expiry),
                         $decrypt($r->solo_parent_id_encrypted),
-                        $r->solo_parent_id_expiry?->format('m/d/Y'),
+                        $formatDate($r->solo_parent_id_expiry),
 
                         // Education & Employment
                         $r->highest_education,
@@ -1405,10 +1416,10 @@ class ResidentController extends Controller
 
                         // Meta & System Audits
                         $r->import_batch_id,
-                        $r->approved_at?->format('m/d/Y H:i:s'),
+                        $formatDate($r->approved_at, 'm/d/Y H:i:s'),
                         $r->approved_by,
-                        $r->created_at?->format('m/d/Y H:i:s'),
-                        $r->updated_at?->format('m/d/Y H:i:s'),
+                        $formatDate($r->created_at, 'm/d/Y H:i:s'),
+                        $formatDate($r->updated_at, 'm/d/Y H:i:s'),
                     ]);
                 }
             });
