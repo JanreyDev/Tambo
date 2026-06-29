@@ -1307,6 +1307,24 @@ class ResidentController extends Controller
                         $relativeLinks = is_array($r->relative_links) ? json_encode($r->relative_links) : $r->relative_links;
                     }
 
+                    // Format education details if present
+                    $educationDetails = '';
+                    if (!empty($r->education_details)) {
+                        $educationDetails = is_array($r->education_details) ? json_encode($r->education_details) : $r->education_details;
+                    }
+
+                    // Format work history if present
+                    $workHistory = '';
+                    if (!empty($r->work_history)) {
+                        $workHistory = is_array($r->work_history) ? json_encode($r->work_history) : $r->work_history;
+                    }
+
+                    // Format business details if present
+                    $businessDetails = '';
+                    if (!empty($r->business_details)) {
+                        $businessDetails = is_array($r->business_details) ? json_encode($r->business_details) : $r->business_details;
+                    }
+
                     fputcsv($handle, [
                         $r->resident_number,
                         $r->status?->value ?? $r->status,
@@ -1374,15 +1392,15 @@ class ResidentController extends Controller
 
                         // Education & Employment
                         $r->highest_education,
-                        $r->education_details,
+                        $educationDetails,
                         $r->occupation,
                         $r->employer,
                         $r->monthly_income_range,
                         $r->source_of_income,
                         $r->livelihood_type,
                         $r->skills,
-                        $r->work_history,
-                        $r->business_details,
+                        $workHistory,
+                        $businessDetails,
 
                         // Health
                         $r->health_history,
