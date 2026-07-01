@@ -692,6 +692,18 @@ const api = {
       formData.append("category", "photo");
       return uploadFile<{ message: string; file: { id: string; url: string | null; is_public: boolean } }>("/files", formData);
     },
+    uploadSignature: (file: File | Blob) => {
+      const formData = new FormData();
+      formData.append("file", file, "signature.png");
+      formData.append("category", "signature");
+      return uploadFile<{ message: string; file: { id: string; url: string | null; is_public: boolean } }>("/files", formData);
+    },
+    uploadVerificationId: (file: File | Blob) => {
+      const formData = new FormData();
+      formData.append("file", file, file instanceof File ? file.name : "id_doc.jpg");
+      formData.append("category", "document");
+      return uploadFile<{ message: string; file: { id: string; url: string | null; is_public: boolean } }>("/files", formData);
+    },
   },
 
   documentTemplates: {

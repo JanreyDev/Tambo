@@ -120,6 +120,7 @@ class Resident extends Model
 
         // Biometric file references
         'photo_file_id',
+        'valid_id_file_id',
         'signature_file_id',
         'left_thumbmark_file_id',
         'right_thumbmark_file_id',
@@ -223,6 +224,16 @@ class Resident extends Model
     public function photoFile(): BelongsTo
     {
         return $this->belongsTo(File::class, 'photo_file_id');
+    }
+
+    public function validIdFile(): BelongsTo
+    {
+        return $this->belongsTo(File::class, 'valid_id_file_id');
+    }
+
+    public function signatureFile(): BelongsTo
+    {
+        return $this->belongsTo(File::class, 'signature_file_id');
     }
 
     // ── Meilisearch ──

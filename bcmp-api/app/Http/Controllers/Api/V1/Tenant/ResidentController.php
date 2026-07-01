@@ -215,11 +215,19 @@ class ResidentController extends Controller
     {
         $resident = Resident::withTrashed()
             ->where('barangay_id', $request->user()->barangay_id)
-            ->with(['household', 'sectoralTags', 'crossBarangayFlags', 'photoFile'])
+            ->with(['household', 'sectoralTags', 'crossBarangayFlags', 'photoFile', 'validIdFile', 'signatureFile'])
             ->findOrFail($id);
 
         $resident->photo_url = $resident->photoFile?->is_public
             ? $this->fileUploadService->getPublicUrl($resident->photoFile)
+            : null;
+
+        $resident->valid_id_url = $resident->validIdFile?->is_public
+            ? $this->fileUploadService->getPublicUrl($resident->validIdFile)
+            : null;
+
+        $resident->signature_url = $resident->signatureFile?->is_public
+            ? $this->fileUploadService->getPublicUrl($resident->signatureFile)
             : null;
 
         // Decrypt government IDs for display (stored encrypted, returned plain)
@@ -234,6 +242,8 @@ class ResidentController extends Controller
         ];
 
         $data = $resident->toArray();
+        $data['valid_id_url'] = $resident->valid_id_url;
+        $data['signature_url'] = $resident->signature_url;
         foreach ($govIdMap as $plainField => $encryptedField) {
             $data[$plainField] = null;
             if (! empty($data[$encryptedField])) {
@@ -1042,6 +1052,7 @@ class ResidentController extends Controller
 
             // Biometric file references (upload via POST /api/v1/files first)
             'photo_file_id' => ['nullable', 'uuid', 'exists:files,id'],
+            'valid_id_file_id' => ['nullable', 'uuid', 'exists:files,id'],
             'signature_file_id' => ['nullable', 'uuid', 'exists:files,id'],
             'left_thumbmark_file_id' => ['nullable', 'uuid', 'exists:files,id'],
             'right_thumbmark_file_id' => ['nullable', 'uuid', 'exists:files,id'],

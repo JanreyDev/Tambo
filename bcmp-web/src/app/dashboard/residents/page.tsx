@@ -566,6 +566,14 @@ export default function ResidentsPage() {
   const streamRef = useRef<MediaStream | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
+  const [signaturePreview, setSignaturePreview] = useState<string | null>(null);
+  const [signatureUploading, setSignatureUploading] = useState(false);
+  const signatureInputRef = useRef<HTMLInputElement>(null);
+
+  const [validIdPreview, setValidIdPreview] = useState<string | null>(null);
+  const [validIdUploading, setValidIdUploading] = useState(false);
+  const validIdInputRef = useRef<HTMLInputElement>(null);
+
   // ── Photo Analysis (runs entirely in browser — zero cost) ──
   const analyzePhoto = useCallback(async (imageDataUrl: string): Promise<PhotoAnalysis> => {
     const img = new globalThis.Image();
@@ -792,6 +800,36 @@ export default function ResidentsPage() {
     reader.onload = (ev) => { processPhoto(ev.target?.result as string); stopCamera(); };
     reader.onerror = () => { setCameraError("Failed to read the file. Please try again or use a different image."); };
     reader.readAsDataURL(file);
+  };
+
+  const handleSignatureSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSignatureUploading(true);
+    try {
+      const uploaded = await api.files.uploadSignature(file);
+      updateForm("signature_file_id", uploaded.file.id);
+      setSignaturePreview(uploaded.file.url || URL.createObjectURL(file));
+    } catch (err) {
+      console.warn("[Signature upload]", err);
+    } finally {
+      setSignatureUploading(false);
+    }
+  };
+
+  const handleValidIdSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setValidIdUploading(true);
+    try {
+      const uploaded = await api.files.uploadVerificationId(file);
+      updateForm("valid_id_file_id", uploaded.file.id);
+      setValidIdPreview(uploaded.file.url || URL.createObjectURL(file));
+    } catch (err) {
+      console.warn("[Valid ID upload]", err);
+    } finally {
+      setValidIdUploading(false);
+    }
   };
 
   const startCamera = async () => {
@@ -1162,6 +1200,8 @@ export default function ResidentsPage() {
     setOpenSections({ other: false, education: false, work: false, govinfo: false, pets: false, emergency: false, biometric: false });
     setPhotoPreview(null);
     setPhotoAnalysis(null);
+    setSignaturePreview(null);
+    setValidIdPreview(null);
     setDupMatches([]);
     setDupChecked(false);
     setDupModal(false);
@@ -1302,6 +1342,12 @@ export default function ResidentsPage() {
     const existingPhoto = r.photo_url ? resolvePhotoUrl(r.photo_url) : null;
     setPhotoPreview(existingPhoto ?? null);
     setPhotoAnalysis(null);
+
+    const existingSignature = r.signature_url ? resolvePhotoUrl(r.signature_url) : null;
+    setSignaturePreview(existingSignature ?? null);
+
+    const existingValidId = (r as any).valid_id_url ? resolvePhotoUrl((r as any).valid_id_url) : null;
+    setValidIdPreview(existingValidId ?? null);
     // Clear any stale duplicate detection state from previous form session
     setDupMatches([]);
     setDupChecked(false);
@@ -2368,29 +2414,104 @@ export default function ResidentsPage() {
                 </div>
               </Section>
 
-              {/* 9. Left & Right Thumbmark */}
-              <Section icon={<Fingerprint className="h-4 w-4" />} title="Left & Right Thumbmark"
+              {/* 9. Signature, ID Verification & Biometrics */}
+              <Section icon={<Fingerprint className="h-4 w-4" />} title="Signature, ID Verification & Biometrics"
                 open={openSections.biometric} onToggle={() => toggleSection("biometric")}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="rounded-lg border-2 border-dashed border-border p-6 text-center">
-                    <div className="w-20 h-20 mx-auto rounded-full bg-muted flex items-center justify-center mb-3">
-                      <Fingerprint className="w-8 h-8 text-muted-foreground" />
+                <div className="space-y-6">
+                  {/* Row 1: Signature & ID Photo Uploads */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Bearer's Signature */}
+                    <div className="rounded-lg border-2 border-dashed border-border p-6 text-center flex flex-col items-center justify-center min-h-[200px]">
+                      <input ref={signatureInputRef} type="file" accept="image/*" className="hidden" onChange={handleSignatureSelect} />
+                      {signaturePreview ? (
+                        <div className="w-full max-w-[200px] h-28 bg-white border border-border rounded-xl flex items-center justify-center p-2 relative overflow-hidden">
+                          <img src={signaturePreview} alt="Signature Preview" className="max-w-full max-h-full object-contain" />
+                          <button type="button" onClick={() => { setSignaturePreview(null); updateForm("signature_file_id", ""); }}
+                            className="absolute top-1.5 right-1.5 p-1 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+                            {signatureUploading ? (
+                              <Loader2 className="w-7 h-7 text-accent-primary animate-spin" style={{ color: "var(--accent-primary)" }} />
+                            ) : (
+                              <ScrollText className="w-7 h-7 text-muted-foreground" />
+                            )}
+                          </div>
+                          <p className="text-sm font-semibold text-foreground">Bearer's Signature</p>
+                          <p className="text-[11px] text-muted-foreground">Upload signature image file</p>
+                          <button type="button" onClick={() => signatureInputRef.current?.click()}
+                            disabled={signatureUploading}
+                            className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-border hover:bg-muted text-foreground transition-all duration-200">
+                            Select Signature
+                          </button>
+                        </div>
+                      )}
                     </div>
-                    <p className="text-sm font-medium text-foreground mb-1">Scan Left Thumbmark</p>
-                    <p className="text-[11px] text-muted-foreground mb-3">Scanner preview</p>
-                    <button className="px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}>
-                      Scan Left Thumb
-                    </button>
+
+                    {/* Valid ID Verification Document */}
+                    <div className="rounded-lg border-2 border-dashed border-border p-6 text-center flex flex-col items-center justify-center min-h-[200px]">
+                      <input ref={validIdInputRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={handleValidIdSelect} />
+                      {validIdPreview ? (
+                        <div className="w-full max-w-[200px] h-28 bg-white border border-border rounded-xl flex items-center justify-center p-2 relative overflow-hidden">
+                          {validIdPreview.includes(".pdf") || validIdPreview.startsWith("blob:") && validIdInputRef.current?.files?.[0]?.type === "application/pdf" ? (
+                            <div className="flex flex-col items-center gap-1">
+                              <ScrollText className="w-8 h-8 text-red-500" />
+                              <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">PDF ID Document</span>
+                            </div>
+                          ) : (
+                            <img src={validIdPreview} alt="Valid ID Preview" className="max-w-full max-h-full object-contain" />
+                          )}
+                          <button type="button" onClick={() => { setValidIdPreview(null); updateForm("valid_id_file_id", ""); }}
+                            className="absolute top-1.5 right-1.5 p-1 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+                            {validIdUploading ? (
+                              <Loader2 className="w-7 h-7 text-accent-primary animate-spin" style={{ color: "var(--accent-primary)" }} />
+                            ) : (
+                              <IdCard className="w-7 h-7 text-muted-foreground" />
+                            )}
+                          </div>
+                          <p className="text-sm font-semibold text-foreground">Valid ID Verification Photo</p>
+                          <p className="text-[11px] text-muted-foreground">Upload photo or PDF of valid ID</p>
+                          <button type="button" onClick={() => validIdInputRef.current?.click()}
+                            disabled={validIdUploading}
+                            className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-border hover:bg-muted text-foreground transition-all duration-200">
+                            Select ID Photo
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="rounded-lg border-2 border-dashed border-border p-6 text-center">
-                    <div className="w-20 h-20 mx-auto rounded-full bg-muted flex items-center justify-center mb-3">
-                      <Fingerprint className="w-8 h-8 text-muted-foreground" />
+
+                  {/* Row 2: Left & Right Thumbmark Scanner Mocks */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-border/40">
+                    <div className="rounded-lg border-2 border-dashed border-border p-6 text-center">
+                      <div className="w-20 h-20 mx-auto rounded-full bg-muted flex items-center justify-center mb-3">
+                        <Fingerprint className="w-8 h-8 text-muted-foreground" />
+                      </div>
+                      <p className="text-sm font-medium text-foreground mb-1">Scan Left Thumbmark</p>
+                      <p className="text-[11px] text-muted-foreground mb-3">Scanner preview</p>
+                      <button type="button" className="px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}>
+                        Scan Left Thumb
+                      </button>
                     </div>
-                    <p className="text-sm font-medium text-foreground mb-1">Scan Right Thumbmark</p>
-                    <p className="text-[11px] text-muted-foreground mb-3">Scanner preview</p>
-                    <button className="px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}>
-                      Scan Right Thumb
-                    </button>
+                    <div className="rounded-lg border-2 border-dashed border-border p-6 text-center">
+                      <div className="w-20 h-20 mx-auto rounded-full bg-muted flex items-center justify-center mb-3">
+                        <Fingerprint className="w-8 h-8 text-muted-foreground" />
+                      </div>
+                      <p className="text-sm font-medium text-foreground mb-1">Scan Right Thumbmark</p>
+                      <p className="text-[11px] text-muted-foreground mb-3">Scanner preview</p>
+                      <button type="button" className="px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors" style={{ background: "var(--accent-primary)" }}>
+                        Scan Right Thumb
+                      </button>
+                    </div>
                   </div>
                 </div>
               </Section>
