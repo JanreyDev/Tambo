@@ -26,6 +26,7 @@ import { GenerateDocumentWizard } from "@/components/documents/GenerateDocumentW
 import { GenerateIdModal } from "@/components/documents/GenerateIdModal";
 import { SendSmsModal, type SmsTargetResident } from "@/components/residents/SendSmsModal";
 import { SendEmailModal, type EmailTargetResident } from "@/components/residents/SendEmailModal";
+import { ImportResidentsModal } from "@/components/residents/ImportResidentsModal";
 
 // ── Local extractions (Phase 1 split) ────────────────────────────────
 import {
@@ -430,6 +431,7 @@ export default function ResidentsPage() {
   const [smsModalResident, setSmsModalResident] = useState<SmsTargetResident | null>(null);
   const [emailModalResident, setEmailModalResident] = useState<EmailTargetResident | null>(null);
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
 
 
   // ── Smart Address Entries (per-barangay learned values) ──────────────
@@ -2602,9 +2604,18 @@ export default function ResidentsPage() {
               <span>{t.residents.search.export || "Export CSV"}</span>
             </button>
             {residentView === "active" && (
-              <button onClick={openCreate} className="inline-flex items-center gap-2 h-10 px-5 text-sm font-semibold rounded-xl text-white shadow-sm transition-all hover:opacity-90 hover:shadow-lg active:scale-[0.98] hover:-translate-y-0.5 duration-200" style={{ background: "var(--accent-primary)" }}>
-                <Plus className="h-4 w-4" /> {t.residents.search.newResident}
-              </button>
+              <>
+                <button
+                  onClick={() => setShowImportModal(true)}
+                  className="inline-flex items-center gap-2 h-10 px-4 text-sm font-semibold rounded-xl border border-border bg-background hover:bg-muted text-foreground transition-all duration-200"
+                >
+                  <Upload className="h-4 w-4" />
+                  <span>Import CSV</span>
+                </button>
+                <button onClick={openCreate} className="inline-flex items-center gap-2 h-10 px-5 text-sm font-semibold rounded-xl text-white shadow-sm transition-all hover:opacity-90 hover:shadow-lg active:scale-[0.98] hover:-translate-y-0.5 duration-200" style={{ background: "var(--accent-primary)" }}>
+                  <Plus className="h-4 w-4" /> {t.residents.search.newResident}
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -3415,6 +3426,14 @@ export default function ResidentsPage() {
         open={showEmailModal}
         onClose={() => { setShowEmailModal(false); setEmailModalResident(null); }}
         resident={emailModalResident}
+      />
+      <ImportResidentsModal
+        open={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onSuccess={() => {
+          fetchResidents();
+          fetchResidentStats();
+        }}
       />
 
       {/* OTP Verification Modal (Barangay Tambo only) */}
