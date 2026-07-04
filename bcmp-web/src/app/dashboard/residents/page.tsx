@@ -184,6 +184,7 @@ export default function ResidentsPage() {
   const [statusFilter, setStatusFilter] = useState("All Status");
   const [sexFilter, setSexFilter] = useState("All");
   const [voterFilter, setVoterFilter] = useState("all");
+  const [villageFilter, setVillageFilter] = useState("all");
   const [civilStatusFilter, setCivilStatusFilter] = useState("All Civil Status");
   const [residentTypeFilter, setResidentTypeFilter] = useState("All Resident Types");
   const [hohFilter, setHohFilter] = useState("all");
@@ -240,6 +241,16 @@ export default function ResidentsPage() {
     }
   }, []);
 
+  // Keep pagination and search synchronous with route transitions
+  useEffect(() => {
+    fetchResidents();
+  }, [page, purokFilter, statusFilter, sexFilter, voterFilter, villageFilter, civilStatusFilter, residentTypeFilter, hohFilter, citizenshipFilter, religionFilter, ethnicityFilter, sectorFilter, residentView, sortKey, sortDir]);
+
+  // Handle push/refresh list when needed
+  const refreshList = useCallback(() => {
+    fetchResidents();
+  }, [page, search, purokFilter, statusFilter, sexFilter, voterFilter, villageFilter, civilStatusFilter, residentTypeFilter, hohFilter, citizenshipFilter, religionFilter, ethnicityFilter, sectorFilter, residentView, sortKey, sortDir]);
+
   const fetchResidents = useCallback(async (opts?: { searchOverride?: string; pageOverride?: number }) => {
     setListLoading(true);
     try {
@@ -254,6 +265,8 @@ export default function ResidentsPage() {
       if (sexFilter !== "All") params.sex = sexFilter.toLowerCase();
       if (voterFilter === "voter") params.is_voter = true;
       if (voterFilter === "non-voter") params.is_voter = false;
+      if (villageFilter === "village") params.is_village_condo = true;
+      if (villageFilter === "official") params.is_village_condo = false;
       if (civilStatusFilter !== "All Civil Status") params.civil_status = civilStatusFilter.toLowerCase();
       if (residentTypeFilter !== "All Resident Types") params.resident_type = residentTypeFilter.toLowerCase();
       if (hohFilter === "hoh") params.is_head_of_household = true;
@@ -279,7 +292,7 @@ export default function ResidentsPage() {
     } finally {
       setListLoading(false);
     }
-  }, [page, search, purokFilter, statusFilter, sexFilter, voterFilter, civilStatusFilter, residentTypeFilter, hohFilter, citizenshipFilter, religionFilter, ethnicityFilter, sectorFilter, residentView, sortKey, sortDir]);
+  }, [page, search, purokFilter, statusFilter, sexFilter, voterFilter, villageFilter, civilStatusFilter, residentTypeFilter, hohFilter, citizenshipFilter, religionFilter, ethnicityFilter, sectorFilter, residentView, sortKey, sortDir]);
 
   // ── Export State & Handler ──
   const [exporting, setExporting] = useState(false);
@@ -301,6 +314,8 @@ export default function ResidentsPage() {
       if (sexFilter !== "All") params.sex = sexFilter.toLowerCase();
       if (voterFilter === "voter") params.is_voter = "1";
       if (voterFilter === "non-voter") params.is_voter = "0";
+      if (villageFilter === "village") params.is_village_condo = "1";
+      if (villageFilter === "official") params.is_village_condo = "0";
       if (civilStatusFilter !== "All Civil Status") params.civil_status = civilStatusFilter.toLowerCase();
       if (residentTypeFilter !== "All Resident Types") params.resident_type = residentTypeFilter.toLowerCase();
       if (hohFilter === "hoh") params.is_head_of_household = "1";
@@ -346,7 +361,7 @@ export default function ResidentsPage() {
     } finally {
       setExporting(false);
     }
-  }, [search, purokFilter, statusFilter, sexFilter, voterFilter, civilStatusFilter, residentTypeFilter, hohFilter, citizenshipFilter, religionFilter, ethnicityFilter, sectorFilter, residentView, addToast, t]);
+  }, [search, purokFilter, statusFilter, sexFilter, voterFilter, villageFilter, civilStatusFilter, residentTypeFilter, hohFilter, citizenshipFilter, religionFilter, ethnicityFilter, sectorFilter, residentView, addToast, t]);
 
   // ── Form State ──
   const [mode, setMode] = useState<"list" | "create" | "edit">("list");
@@ -1109,6 +1124,7 @@ export default function ResidentsPage() {
     // so they arrive as actual booleans. is_organ_donor FRadio also stores as boolean via onChange.
     if (form.is_voter !== undefined) payload.is_voter = !!form.is_voter;
     if (form.is_resident_voter !== undefined) payload.is_resident_voter = !!form.is_resident_voter;
+    if (form.is_village_condo !== undefined) payload.is_village_condo = !!form.is_village_condo;
     if (form.is_head_of_household !== undefined) payload.is_head_of_household = !!form.is_head_of_household;
     if (form.is_organ_donor !== undefined) payload.is_organ_donor = !!form.is_organ_donor;
 
@@ -2388,6 +2404,9 @@ export default function ResidentsPage() {
                   </div>
                   <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                     <FSelect label="Relationship to Head" name="relationship_to_head" options={["", ...relationships]} value={f("relationship_to_head")} onChange={updateForm} />
+                    <FRadio label="Village / Condo Resident?" name="is_village_condo" value={fb("is_village_condo") ? "yes" : "no"}
+                      options={[{ value: "yes", label: "Yes" }, { value: "no", label: "No" }]}
+                      onChange={(n, v) => updateForm(n, v === "yes")} />
                   </div>
 
                   {/* Barangay Role */}
@@ -2662,7 +2681,7 @@ export default function ResidentsPage() {
               >
                 <Filter className="h-3 w-3" />
                 <span>{t.residents.search.filtersTitle}</span>
-                {(purokFilter !== "All Puroks" || statusFilter !== "All Status" || sexFilter !== "All" || voterFilter !== "all" || civilStatusFilter !== "All Civil Status" || residentTypeFilter !== "All Resident Types" || hohFilter !== "all" || citizenshipFilter !== "All Citizenship" || religionFilter !== "All Religion" || ethnicityFilter !== "All Ethnicity" || sectorFilter !== "All Sectors") && (
+                {(purokFilter !== "All Puroks" || statusFilter !== "All Status" || sexFilter !== "All" || voterFilter !== "all" || villageFilter !== "all" || civilStatusFilter !== "All Civil Status" || residentTypeFilter !== "All Resident Types" || hohFilter !== "all" || citizenshipFilter !== "All Citizenship" || religionFilter !== "All Religion" || ethnicityFilter !== "All Ethnicity" || sectorFilter !== "All Sectors") && (
                   <span className="w-1.5 h-1.5 rounded-full bg-current" />
                 )}
               </button>
@@ -2705,7 +2724,7 @@ export default function ResidentsPage() {
         {showFilters && (
           <div className="flex flex-wrap items-center gap-2 px-1">
             <span className="inline-flex items-center h-8 px-3 text-xs font-semibold rounded-full bg-muted text-foreground tabular-nums">
-              {(purokFilter !== "All Puroks" || statusFilter !== "All Status" || sexFilter !== "All" || voterFilter !== "all" || civilStatusFilter !== "All Civil Status" || residentTypeFilter !== "All Resident Types" || hohFilter !== "all" || citizenshipFilter !== "All Citizenship" || religionFilter !== "All Religion" || ethnicityFilter !== "All Ethnicity" || sectorFilter !== "All Sectors" || search)
+              {(purokFilter !== "All Puroks" || statusFilter !== "All Status" || sexFilter !== "All" || voterFilter !== "all" || villageFilter !== "all" || civilStatusFilter !== "All Civil Status" || residentTypeFilter !== "All Resident Types" || hohFilter !== "all" || citizenshipFilter !== "All Citizenship" || religionFilter !== "All Religion" || ethnicityFilter !== "All Ethnicity" || sectorFilter !== "All Sectors" || search)
                 ? <>{listTotal.toLocaleString()} {t.residents.search.foundOf} <span className="text-muted-foreground font-normal ml-1">{(residentStats?.total_residents ?? listTotal).toLocaleString()} {t.residents.search.total}</span></>
                 : <>{(residentStats?.total_residents ?? listTotal).toLocaleString()} {t.residents.search.residentsCount}</>
               }
@@ -2736,6 +2755,12 @@ export default function ResidentsPage() {
               <option value="voter">{t.residents.filters.registeredVoter}</option>
               <option value="non-voter">{t.residents.filters.nonVoter}</option>
             </select>
+            <select value={villageFilter} onChange={(e) => { setVillageFilter(e.target.value); setPage(1); }}
+              className="h-8 px-3 text-xs font-medium rounded-full border border-border bg-background hover:bg-muted focus:outline-none focus:ring-2 focus:ring-accent-ring cursor-pointer transition-colors">
+              <option value="all">All Resident Types (Tambo/Village)</option>
+              <option value="official">Official Tambo Resident</option>
+              <option value="village">Village/Condo Resident</option>
+            </select>
             <select value={hohFilter} onChange={(e) => { setHohFilter(e.target.value); setPage(1); }}
               className="h-8 px-3 text-xs font-medium rounded-full border border-border bg-background hover:bg-muted focus:outline-none focus:ring-2 focus:ring-accent-ring cursor-pointer transition-colors">
               <option value="all">{t.residents.filters.allHouseholds}</option>
@@ -2758,8 +2783,8 @@ export default function ResidentsPage() {
               className="h-8 px-3 text-xs font-medium rounded-full border border-border bg-background hover:bg-muted focus:outline-none focus:ring-2 focus:ring-accent-ring cursor-pointer transition-colors">
               {["All Sectors", ...sectorsList].map((s) => <option key={s} value={s}>{filterLabel(s)}</option>)}
             </select>
-            {(purokFilter !== "All Puroks" || statusFilter !== "All Status" || sexFilter !== "All" || voterFilter !== "all" || civilStatusFilter !== "All Civil Status" || residentTypeFilter !== "All Resident Types" || hohFilter !== "all" || citizenshipFilter !== "All Citizenship" || religionFilter !== "All Religion" || ethnicityFilter !== "All Ethnicity" || sectorFilter !== "All Sectors") && (
-              <button onClick={() => { setPurokFilter("All Puroks"); setStatusFilter("All Status"); setSexFilter("All"); setVoterFilter("all"); setCivilStatusFilter("All Civil Status"); setResidentTypeFilter("All Resident Types"); setHohFilter("all"); setCitizenshipFilter("All Citizenship"); setReligionFilter("All Religion"); setEthnicityFilter("All Ethnicity"); setSectorFilter("All Sectors"); }}
+            {(purokFilter !== "All Puroks" || statusFilter !== "All Status" || sexFilter !== "All" || voterFilter !== "all" || villageFilter !== "all" || civilStatusFilter !== "All Civil Status" || residentTypeFilter !== "All Resident Types" || hohFilter !== "all" || citizenshipFilter !== "All Citizenship" || religionFilter !== "All Religion" || ethnicityFilter !== "All Ethnicity" || sectorFilter !== "All Sectors") && (
+              <button onClick={() => { setPurokFilter("All Puroks"); setStatusFilter("All Status"); setSexFilter("All"); setVoterFilter("all"); setVillageFilter("all"); setCivilStatusFilter("All Civil Status"); setResidentTypeFilter("All Resident Types"); setHohFilter("all"); setCitizenshipFilter("All Citizenship"); setReligionFilter("All Religion"); setEthnicityFilter("All Ethnicity"); setSectorFilter("All Sectors"); }}
                 className="inline-flex items-center gap-1 h-8 px-3 text-xs font-medium rounded-full text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/50 transition-colors">
                 <X className="h-4 w-4" /> {t.residents.search.clearAll}
               </button>
@@ -2959,6 +2984,11 @@ export default function ResidentsPage() {
                                       <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-amber-900"></div>
                                     </div>
                                   )}
+                                </span>
+                              )}
+                              {r.is_village_condo && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 shrink-0">
+                                  Condo/Village
                                 </span>
                               )}
                             </div>
@@ -3261,6 +3291,7 @@ export default function ResidentsPage() {
                 <div className="flex items-center gap-2 mt-2 flex-wrap">
                   <StatusBadge status={viewResident.status} />
                   {viewResident.is_voter && <Badge variant="success" dot>{t.residents.quickView.registeredVoter}</Badge>}
+                  {viewResident.is_village_condo && <Badge variant="info" dot>Condo/Village</Badge>}
                   {viewResident.is_head_of_household && <Badge variant="warning" dot>{t.residents.quickView.headOfHousehold}</Badge>}
                 </div>
               </div>

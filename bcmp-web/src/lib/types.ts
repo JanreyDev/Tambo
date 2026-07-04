@@ -208,6 +208,7 @@ export interface Resident {
   street: string | null;
   house_block_lot: string | null;
   is_voter: boolean;
+  is_village_condo?: boolean;
   occupation: string | null;
   highest_education: string | null;
   status: "active" | "inactive" | "deceased" | "transferred";

@@ -69,6 +69,7 @@ class Resident extends Model
         // Voter
         'is_voter',
         'is_resident_voter',
+        'is_village_condo',
         'voter_precinct_number',
         'last_voted_year',
 
@@ -166,6 +167,7 @@ class Resident extends Model
             'solo_parent_id_expiry' => 'date',
             'is_voter' => 'boolean',
             'is_resident_voter' => 'boolean',
+            'is_village_condo' => 'boolean',
             'is_head_of_household' => 'boolean',
             'is_organ_donor' => 'boolean',
             'height_cm' => 'decimal:1',

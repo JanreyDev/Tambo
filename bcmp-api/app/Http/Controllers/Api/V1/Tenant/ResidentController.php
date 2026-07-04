@@ -74,6 +74,10 @@ class ResidentController extends Controller
             $query->where('is_voter', $request->boolean('is_voter'));
         }
 
+        if ($request->has('is_village_condo')) {
+            $query->where('is_village_condo', $request->boolean('is_village_condo'));
+        }
+
         if ($civilStatus = $request->get('civil_status')) {
             $query->where('civil_status', $civilStatus);
         }
@@ -932,6 +936,7 @@ class ResidentController extends Controller
             // Voter
             'is_voter' => ['nullable', 'boolean'],
             'is_resident_voter' => ['nullable', 'boolean'],
+            'is_village_condo' => ['nullable', 'boolean'],
             'voter_precinct_number' => ['nullable', 'string', 'max:50'],
             'last_voted_year' => ['nullable', 'integer', 'min:1990', 'max:'.date('Y')],
 
@@ -1111,6 +1116,9 @@ class ResidentController extends Controller
         }
         if ($request->has('is_voter')) {
             $query->where('is_voter', $request->boolean('is_voter'));
+        }
+        if ($request->has('is_village_condo')) {
+            $query->where('is_village_condo', $request->boolean('is_village_condo'));
         }
         if ($civilStatus = $request->get('civil_status')) {
             $query->where('civil_status', $civilStatus);
