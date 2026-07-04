@@ -1344,8 +1344,7 @@ export default function ResidentsPage() {
     setPhotoPreview(existingPhoto ?? null);
     setPhotoAnalysis(null);
 
-    const existingSignature = r.signature_url ? resolvePhotoUrl(r.signature_url) : null;
-    setSignaturePreview(existingSignature ?? null);
+
 
     const existingValidId = (r as any).valid_id_url ? resolvePhotoUrl((r as any).valid_id_url) : null;
     setValidIdPreview(existingValidId ?? null);
@@ -1615,6 +1614,40 @@ export default function ResidentsPage() {
                           <FRadio label="Head of Household?" name="is_head_of_household" value={fb("is_head_of_household") ? "yes" : "no"}
                             options={[{ value: "yes", label: "Yes" }, { value: "no", label: "No" }]}
                             onChange={(n, v) => updateForm(n, v === "yes")} />
+                          {/* Valid ID Verification File */}
+                          <div>
+                            <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+                              Valid ID (for Verification)
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => validIdInputRef.current?.click()}
+                              disabled={validIdUploading}
+                              className="w-full flex items-center gap-2 px-3 py-2.5 text-sm rounded-xl text-left focus:outline-none transition-all duration-200 glass-input relative"
+                            >
+                              <input ref={validIdInputRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={handleValidIdSelect} />
+                              {validIdUploading ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 text-muted-foreground shrink-0 animate-spin" />
+                                  <span className="flex-1 text-muted-foreground truncate text-sm">Uploading...</span>
+                                </>
+                              ) : validIdPreview ? (
+                                <>
+                                  <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
+                                  <span className="flex-1 text-green-600 dark:text-green-400 font-semibold truncate text-sm">ID Attached</span>
+                                  <button type="button" onClick={(e) => { e.stopPropagation(); setValidIdPreview(null); updateForm("valid_id_file_id", ""); }}
+                                    className="p-1 rounded-md hover:bg-muted text-red-500 hover:text-red-600 transition-colors shrink-0">
+                                    <X className="h-3.5 w-3.5" />
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <Upload className="h-4 w-4 text-muted-foreground shrink-0" />
+                                  <span className="flex-1 text-muted-foreground truncate text-sm">Upload ID</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
                         </div>
 
                         {/* Parent / Guardian Information — only rendered if resident is a minor (<18) */}
@@ -2415,82 +2448,9 @@ export default function ResidentsPage() {
                 </div>
               </Section>
 
-              {/* 9. Signature & ID Verification */}
-              <Section icon={<IdCard className="h-4 w-4" />} title="Signature & ID Verification"
-                open={openSections.verification} onToggle={() => toggleSection("verification")}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Bearer's Signature */}
-                  <div className="rounded-lg border-2 border-dashed border-border p-6 text-center flex flex-col items-center justify-center min-h-[200px]">
-                    <input ref={signatureInputRef} type="file" accept="image/*" className="hidden" onChange={handleSignatureSelect} />
-                    {signaturePreview ? (
-                      <div className="w-full max-w-[200px] h-28 bg-white border border-border rounded-xl flex items-center justify-center p-2 relative overflow-hidden">
-                        <img src={signaturePreview} alt="Signature Preview" className="max-w-full max-h-full object-contain" />
-                        <button type="button" onClick={() => { setSignaturePreview(null); updateForm("signature_file_id", ""); }}
-                          className="absolute top-1.5 right-1.5 p-1 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors">
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-                          {signatureUploading ? (
-                            <Loader2 className="w-7 h-7 text-accent-primary animate-spin" style={{ color: "var(--accent-primary)" }} />
-                          ) : (
-                            <ScrollText className="w-7 h-7 text-muted-foreground" />
-                          )}
-                        </div>
-                        <p className="text-sm font-semibold text-foreground">Bearer's Signature</p>
-                        <p className="text-[11px] text-muted-foreground">Upload signature image file</p>
-                        <button type="button" onClick={() => signatureInputRef.current?.click()}
-                          disabled={signatureUploading}
-                          className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-border hover:bg-muted text-foreground transition-all duration-200">
-                          Select Signature
-                        </button>
-                      </div>
-                    )}
-                  </div>
 
-                  {/* Valid ID Verification Document */}
-                  <div className="rounded-lg border-2 border-dashed border-border p-6 text-center flex flex-col items-center justify-center min-h-[200px]">
-                    <input ref={validIdInputRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={handleValidIdSelect} />
-                    {validIdPreview ? (
-                      <div className="w-full max-w-[200px] h-28 bg-white border border-border rounded-xl flex items-center justify-center p-2 relative overflow-hidden">
-                        {validIdPreview.includes(".pdf") || validIdPreview.startsWith("blob:") && validIdInputRef.current?.files?.[0]?.type === "application/pdf" ? (
-                          <div className="flex flex-col items-center gap-1">
-                            <ScrollText className="w-8 h-8 text-red-500" />
-                            <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">PDF ID Document</span>
-                          </div>
-                        ) : (
-                          <img src={validIdPreview} alt="Valid ID Preview" className="max-w-full max-h-full object-contain" />
-                        )}
-                        <button type="button" onClick={() => { setValidIdPreview(null); updateForm("valid_id_file_id", ""); }}
-                          className="absolute top-1.5 right-1.5 p-1 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors">
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-                          {validIdUploading ? (
-                            <Loader2 className="w-7 h-7 text-accent-primary animate-spin" style={{ color: "var(--accent-primary)" }} />
-                          ) : (
-                            <IdCard className="w-7 h-7 text-muted-foreground" />
-                          )}
-                        </div>
-                        <p className="text-sm font-semibold text-foreground">Valid ID Verification Photo</p>
-                        <p className="text-[11px] text-muted-foreground">Upload photo or PDF of valid ID</p>
-                        <button type="button" onClick={() => validIdInputRef.current?.click()}
-                          disabled={validIdUploading}
-                          className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-border hover:bg-muted text-foreground transition-all duration-200">
-                          Select ID Photo
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </Section>
 
-              {/* 10. Left & Right Thumbmark */}
+              {/* 9. Left & Right Thumbmark */}
               <Section icon={<Fingerprint className="h-4 w-4" />} title="Left & Right Thumbmark"
                 open={openSections.biometric} onToggle={() => toggleSection("biometric")}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
