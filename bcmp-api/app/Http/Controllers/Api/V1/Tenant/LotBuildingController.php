@@ -13,6 +13,9 @@ use App\Services\SmsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+use Illuminate\Support\Facades\Log;
 
 class LotBuildingController extends Controller
 {
@@ -516,5 +519,392 @@ class LotBuildingController extends Controller
             'user_agent' => $request->userAgent(),
             'module' => 'lots_buildings',
         ]);
+    }
+
+    public function export(Request $request): StreamedResponse
+    {
+        $barangayId = $request->user()->barangay_id;
+        $barangay = Barangay::findOrFail($barangayId);
+
+        $query = LotBuilding::where('barangay_id', $barangayId);
+
+        if ($search = $request->get('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('owner_name', 'ilike', "%{$search}%")
+                    ->orWhere('lot_building_number', 'ilike', "%{$search}%")
+                    ->orWhere('exact_address', 'ilike', "%{$search}%");
+            });
+        }
+        if ($classification = $request->get('classification')) {
+            $query->where('classification', $classification);
+        }
+        if ($propertyClassification = $request->get('property_classification')) {
+            $query->where('property_classification', $propertyClassification);
+        }
+        if ($status = $request->get('status')) {
+            $query->where('status', $status);
+        }
+
+        $query->orderBy('lot_building_number');
+
+        $headers = [
+            'Lot/Building Number',
+            'Classification',
+            'Property Classification',
+            'Owner Name',
+            'Owner Contact',
+            'Owner Email',
+            'Owner Address',
+            'Size',
+            'MRI',
+            'Purok',
+            'Street',
+            'Exact Address',
+            'Lot Number',
+            'Block Number',
+            'Boundary North',
+            'Boundary South',
+            'Boundary East',
+            'Boundary West',
+            'Tax Declaration Number',
+            'Registration Date',
+            'Number of Floors',
+            'Building Material',
+            'Year Constructed',
+            'Assessed Value',
+            'Market Value',
+            'Status',
+            'Latitude',
+            'Longitude',
+        ];
+
+        $filename = Str::slug($barangay->name).'-lots-buildings-'.now()->format('Y-m-d').'.csv';
+
+        return response()->streamDownload(function () use ($query, $headers) {
+            $handle = fopen('php://output', 'w');
+            fwrite($handle, "\xEF\xBB\xBF");
+            fputcsv($handle, $headers);
+
+            $query->chunk(500, function ($records) use ($handle) {
+                foreach ($records as $r) {
+                    fputcsv($handle, [
+                        $r->lot_building_number,
+                        $r->classification,
+                        $r->property_classification,
+                        $r->owner_name,
+                        $r->owner_contact,
+                        $r->owner_email,
+                        $r->owner_address,
+                        $r->size,
+                        $r->mri,
+                        $r->purok,
+                        $r->street,
+                        $r->exact_address,
+                        $r->lot_number,
+                        $r->block_number,
+                        $r->boundary_north,
+                        $r->boundary_south,
+                        $r->boundary_east,
+                        $r->boundary_west,
+                        $r->tax_declaration_number,
+                        $r->registration_date ? $r->registration_date->format('Y-m-d') : '',
+                        $r->number_of_floors,
+                        $r->building_material,
+                        $r->year_constructed,
+                        $r->assessed_value,
+                        $r->market_value,
+                        $r->status,
+                        $r->latitude,
+                        $r->longitude,
+                    ]);
+                }
+            });
+
+            fclose($handle);
+        }, $filename, ['Content-Type' => 'text/csv']);
+    }
+
+    public function importPreview(Request $request): JsonResponse
+    {
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:csv,txt', 'max:10240'],
+        ]);
+
+        $file = $request->file('file');
+        $handle = fopen($file->getPathname(), 'r');
+        if (!$handle) {
+            return response()->json(['message' => 'Failed to read file.'], 422);
+        }
+
+        $rawHeaders = fgetcsv($handle);
+        if (!$rawHeaders || count($rawHeaders) < 2) {
+            fclose($handle);
+            return response()->json(['message' => 'Invalid CSV. Must have at least 2 columns.'], 422);
+        }
+
+        $rawHeaders[0] = preg_replace('/^\x{FEFF}/u', '', $rawHeaders[0]);
+
+        $sampleRows = [];
+        $totalRows = 0;
+        while (($row = fgetcsv($handle)) !== false) {
+            if (!array_filter($row)) continue;
+            $totalRows++;
+            if (count($sampleRows) < 5) {
+                $sampleRows[] = $row;
+            }
+        }
+        fclose($handle);
+
+        $autoMap = $this->autoDetectMapping($rawHeaders);
+
+        return response()->json([
+            'headers' => $rawHeaders,
+            'sample_rows' => $sampleRows,
+            'total_rows' => $totalRows,
+            'auto_mapping' => $autoMap,
+            'required_fields' => ['classification', 'owner_name'],
+            'optional_fields' => ['property_classification', 'owner_contact', 'exact_address', 'purok', 'street', 'tax_declaration_number'],
+        ]);
+    }
+
+    public function import(Request $request): JsonResponse
+    {
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:csv,txt', 'max:10240'],
+            'mapping' => ['required', 'array'],
+            'mapping.classification' => ['required', 'integer', 'min:0'],
+            'mapping.owner_name' => ['required', 'integer', 'min:0'],
+            'mapping.property_classification' => ['nullable', 'integer', 'min:0'],
+            'mapping.owner_contact' => ['nullable', 'integer', 'min:0'],
+            'mapping.owner_email' => ['nullable', 'integer', 'min:0'],
+            'mapping.owner_address' => ['nullable', 'integer', 'min:0'],
+            'mapping.size' => ['nullable', 'integer', 'min:0'],
+            'mapping.mri' => ['nullable', 'integer', 'min:0'],
+            'mapping.purok' => ['nullable', 'integer', 'min:0'],
+            'mapping.street' => ['nullable', 'integer', 'min:0'],
+            'mapping.exact_address' => ['nullable', 'integer', 'min:0'],
+            'mapping.lot_number' => ['nullable', 'integer', 'min:0'],
+            'mapping.block_number' => ['nullable', 'integer', 'min:0'],
+            'mapping.boundary_north' => ['nullable', 'integer', 'min:0'],
+            'mapping.boundary_south' => ['nullable', 'integer', 'min:0'],
+            'mapping.boundary_east' => ['nullable', 'integer', 'min:0'],
+            'mapping.boundary_west' => ['nullable', 'integer', 'min:0'],
+            'mapping.tax_declaration_number' => ['nullable', 'integer', 'min:0'],
+            'mapping.registration_date' => ['nullable', 'integer', 'min:0'],
+            'mapping.number_of_floors' => ['nullable', 'integer', 'min:0'],
+            'mapping.building_material' => ['nullable', 'integer', 'min:0'],
+            'mapping.year_constructed' => ['nullable', 'integer', 'min:0'],
+            'mapping.assessed_value' => ['nullable', 'integer', 'min:0'],
+            'mapping.market_value' => ['nullable', 'integer', 'min:0'],
+            'mapping.status' => ['nullable', 'integer', 'min:0'],
+            'mapping.latitude' => ['nullable', 'integer', 'min:0'],
+            'mapping.longitude' => ['nullable', 'integer', 'min:0'],
+        ]);
+
+        $barangayId = $request->user()->barangay_id;
+        $barangay = Barangay::findOrFail($barangayId);
+        $psgcCode = $barangay->psgc_code;
+
+        if (!$psgcCode) {
+            return response()->json(['message' => 'Barangay PSGC code is not configured.'], 422);
+        }
+
+        $mapping = $request->input('mapping');
+        $file = $request->file('file');
+        $handle = fopen($file->getPathname(), 'r');
+        if (!$handle) {
+            return response()->json(['message' => 'Failed to read file.'], 422);
+        }
+
+        $rawHeaders = fgetcsv($handle);
+        if ($rawHeaders) {
+            $rawHeaders[0] = preg_replace('/^\x{FEFF}/u', '', $rawHeaders[0]);
+        }
+
+        $imported = 0;
+        $skipped = 0;
+        $errors = [];
+        $rowNum = 1;
+
+        $prefix = "LND-{$psgcCode}-";
+        $sequenceOrderSql = DB::connection()->getDriverName() === 'sqlite'
+            ? 'CAST(SUBSTR(lot_building_number, '.(strlen($prefix) + 1).') AS INTEGER) DESC'
+            : "CAST(SPLIT_PART(lot_building_number, '-', 3) AS INTEGER) DESC";
+        $lastSeq = LotBuilding::where('barangay_id', $barangayId)
+            ->where('lot_building_number', 'like', "{$prefix}%")
+            ->orderByRaw($sequenceOrderSql)
+            ->value('lot_building_number');
+
+        $nextSeq = $lastSeq
+            ? (int) explode('-', $lastSeq)[3] + 1
+            : 1;
+
+        DB::beginTransaction();
+        try {
+            while (($row = fgetcsv($handle)) !== false) {
+                $rowNum++;
+                if (!array_filter($row)) continue;
+
+                $classification = isset($mapping['classification']) ? trim($row[$mapping['classification']] ?? '') : '';
+                $ownerName = isset($mapping['owner_name']) ? trim($row[$mapping['owner_name']] ?? '') : '';
+                $propertyClassification = isset($mapping['property_classification']) ? trim($row[$mapping['property_classification']] ?? '') : '';
+                $ownerContact = isset($mapping['owner_contact']) ? trim($row[$mapping['owner_contact']] ?? '') : '';
+                $ownerEmail = isset($mapping['owner_email']) ? trim($row[$mapping['owner_email']] ?? '') : '';
+                $ownerAddress = isset($mapping['owner_address']) ? trim($row[$mapping['owner_address']] ?? '') : '';
+                $size = isset($mapping['size']) ? trim($row[$mapping['size']] ?? '') : '';
+                $mri = isset($mapping['mri']) ? trim($row[$mapping['mri']] ?? '') : '';
+                $purok = isset($mapping['purok']) ? trim($row[$mapping['purok']] ?? '') : '';
+                $street = isset($mapping['street']) ? trim($row[$mapping['street']] ?? '') : '';
+                $exactAddress = isset($mapping['exact_address']) ? trim($row[$mapping['exact_address']] ?? '') : '';
+                $lotNumber = isset($mapping['lot_number']) ? trim($row[$mapping['lot_number']] ?? '') : '';
+                $blockNumber = isset($mapping['block_number']) ? trim($row[$mapping['block_number']] ?? '') : '';
+                $boundaryNorth = isset($mapping['boundary_north']) ? trim($row[$mapping['boundary_north']] ?? '') : '';
+                $boundarySouth = isset($mapping['boundary_south']) ? trim($row[$mapping['boundary_south']] ?? '') : '';
+                $boundaryEast = isset($mapping['boundary_east']) ? trim($row[$mapping['boundary_east']] ?? '') : '';
+                $boundaryWest = isset($mapping['boundary_west']) ? trim($row[$mapping['boundary_west']] ?? '') : '';
+                $taxDeclNumber = isset($mapping['tax_declaration_number']) ? trim($row[$mapping['tax_declaration_number']] ?? '') : '';
+                $regDateRaw = isset($mapping['registration_date']) ? trim($row[$mapping['registration_date']] ?? '') : '';
+                $numFloors = isset($mapping['number_of_floors']) ? trim($row[$mapping['number_of_floors']] ?? '') : null;
+                $buildMaterial = isset($mapping['building_material']) ? trim($row[$mapping['building_material']] ?? '') : '';
+                $yearConstructed = isset($mapping['year_constructed']) ? trim($row[$mapping['year_constructed']] ?? '') : null;
+                $assessedValue = isset($mapping['assessed_value']) ? trim($row[$mapping['assessed_value']] ?? '') : null;
+                $marketValue = isset($mapping['market_value']) ? trim($row[$mapping['market_value']] ?? '') : null;
+                $status = isset($mapping['status']) ? trim($row[$mapping['status']] ?? '') : '';
+                $latitude = isset($mapping['latitude']) ? trim($row[$mapping['latitude']] ?? '') : null;
+                $longitude = isset($mapping['longitude']) ? trim($row[$mapping['longitude']] ?? '') : null;
+
+                if (!$classification || !$ownerName) {
+                    $skipped++;
+                    $errors[] = "Row {$rowNum}: Missing classification or owner name.";
+                    continue;
+                }
+
+                // Map classification values
+                $classificationNormalized = strtolower(str_replace(' ', '_', trim($classification)));
+                if (!in_array($classificationNormalized, ['lot_only', 'building_only', 'lot_and_building'], true)) {
+                    $skipped++;
+                    $errors[] = "Row {$rowNum}: Invalid classification '{$classification}'. Must be lot_only, building_only, or lot_and_building.";
+                    continue;
+                }
+
+                // Safeguard Tax Declaration (unique per barangay)
+                if ($taxDeclNumber) {
+                    $tdnExists = LotBuilding::where('barangay_id', $barangayId)
+                        ->where('tax_declaration_number', strtoupper(trim($taxDeclNumber)))
+                        ->exists();
+                    if ($tdnExists) {
+                        $skipped++;
+                        $errors[] = "Row {$rowNum}: Tax Declaration # {$taxDeclNumber} already exists.";
+                        continue;
+                    }
+                }
+
+                $regDate = null;
+                if ($regDateRaw) {
+                    try {
+                        $regDate = \Carbon\Carbon::parse($regDateRaw)->format('Y-m-d');
+                    } catch (\Throwable) {}
+                }
+
+                $lotBuildNum = $prefix.str_pad((string) $nextSeq, 4, '0', STR_PAD_LEFT);
+                $nextSeq++;
+
+                LotBuilding::create([
+                    'barangay_id' => $barangayId,
+                    'lot_building_number' => $lotBuildNum,
+                    'classification' => $classificationNormalized,
+                    'property_classification' => $propertyClassification ? strtolower(trim($propertyClassification)) : null,
+                    'owner_name' => mb_strtoupper($ownerName),
+                    'owner_contact' => $ownerContact,
+                    'owner_email' => $ownerEmail,
+                    'owner_address' => $ownerAddress ? mb_strtoupper($ownerAddress) : null,
+                    'size' => $size,
+                    'mri' => $mri,
+                    'purok' => $purok ? mb_strtoupper($purok) : null,
+                    'street' => $street ? mb_strtoupper($street) : null,
+                    'exact_address' => $exactAddress ? mb_strtoupper($exactAddress) : null,
+                    'lot_number' => $lotNumber,
+                    'block_number' => $blockNumber,
+                    'boundary_north' => $boundaryNorth ? mb_strtoupper($boundaryNorth) : null,
+                    'boundary_south' => $boundarySouth ? mb_strtoupper($boundarySouth) : null,
+                    'boundary_east' => $boundaryEast ? mb_strtoupper($boundaryEast) : null,
+                    'boundary_west' => $boundaryWest ? mb_strtoupper($boundaryWest) : null,
+                    'tax_declaration_number' => $taxDeclNumber ? strtoupper(trim($taxDeclNumber)) : null,
+                    'registration_date' => $regDate,
+                    'number_of_floors' => $numFloors ? (int) $numFloors : null,
+                    'building_material' => $buildMaterial,
+                    'year_constructed' => $yearConstructed ? (int) $yearConstructed : null,
+                    'assessed_value' => $assessedValue,
+                    'market_value' => $marketValue,
+                    'status' => $status ? strtolower($status) : 'active',
+                    'latitude' => $latitude,
+                    'longitude' => $longitude,
+                    'created_by' => $request->user()->id,
+                ]);
+
+                $imported++;
+            }
+
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('Lot/Building CSV import failed', ['exception' => $e]);
+            return response()->json(['message' => 'Import failed: ' . $e->getMessage()], 500);
+        }
+
+        fclose($handle);
+
+        return response()->json([
+            'message' => 'Import completed.',
+            'imported' => $imported,
+            'skipped' => $skipped,
+            'errors' => $errors,
+        ]);
+    }
+
+    private function autoDetectMapping(array $headers): array
+    {
+        $mapping = [];
+        $fields = [
+            'classification' => ['classification', 'type', 'lot_only', 'building_only'],
+            'property_classification' => ['property classification', 'property_classification', 'property type', 'use'],
+            'owner_name' => ['owner name', 'owner_name', 'owner', 'proprietor', 'registered owner'],
+            'owner_contact' => ['owner contact', 'contact', 'phone', 'telephone', 'mobile'],
+            'owner_email' => ['owner email', 'email', 'email address'],
+            'owner_address' => ['owner address', 'owner_address'],
+            'size' => ['size', 'area', 'lot area'],
+            'mri' => ['mri'],
+            'purok' => ['purok', 'zone'],
+            'street' => ['street'],
+            'exact_address' => ['exact address', 'address', 'location'],
+            'lot_number' => ['lot number', 'lot_number', 'lot #', 'lot'],
+            'block_number' => ['block number', 'block_number', 'block #', 'block'],
+            'boundary_north' => ['boundary north', 'boundary_north', 'north boundary', 'north'],
+            'boundary_south' => ['boundary south', 'boundary_south', 'south boundary', 'south'],
+            'boundary_east' => ['boundary east', 'boundary_east', 'east boundary', 'east'],
+            'boundary_west' => ['boundary west', 'boundary_west', 'west boundary', 'west'],
+            'tax_declaration_number' => ['tax declaration number', 'tax_declaration_number', 'tax decl #', 'tax declaration', 'tdn'],
+            'registration_date' => ['registration date', 'registration_date'],
+            'number_of_floors' => ['number of floors', 'number_of_floors', 'floors'],
+            'building_material' => ['building material', 'building_material', 'material'],
+            'year_constructed' => ['year constructed', 'year_constructed', 'year'],
+            'assessed_value' => ['assessed value', 'assessed_value', 'assessed'],
+            'market_value' => ['market value', 'market_value', 'market'],
+            'status' => ['status'],
+            'latitude' => ['latitude', 'lat'],
+            'longitude' => ['longitude', 'lng', 'lon'],
+        ];
+
+        foreach ($headers as $idx => $header) {
+            $normalized = strtolower(trim($header));
+            foreach ($fields as $field => $keywords) {
+                if (in_array($normalized, $keywords, true)) {
+                    $mapping[$field] = $idx;
+                    break;
+                }
+            }
+        }
+
+        return $mapping;
     }
 }

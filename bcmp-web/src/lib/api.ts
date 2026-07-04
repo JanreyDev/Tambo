@@ -980,6 +980,59 @@ const api = {
         total_documents: number;
         current_year: number;
       }>("/establishments/stats"),
+
+    exportCsv: (params?: Record<string, string>) => {
+      const query = new URLSearchParams();
+      if (params) {
+        Object.entries(params).forEach(([k, v]) => { if (v) query.set(k, v); });
+      }
+      const qs = query.toString();
+      const base = typeof window !== "undefined" ? "/api/v1" : "";
+      return fetch(`${base}/establishments/export${qs ? `?${qs}` : ""}`, {
+        credentials: "include",
+        headers: { Accept: "text/csv" },
+      });
+    },
+
+    importPreview: async (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      const base = typeof window !== "undefined" ? "/api/v1" : "";
+      const res = await fetch(`${base}/establishments/import/preview`, {
+        method: "POST",
+        credentials: "include",
+        headers: { Accept: "application/json" },
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw { message: data.message || "Preview failed", ...data };
+      return data as {
+        headers: string[];
+        sample_rows: string[][];
+        total_rows: number;
+        auto_mapping: Record<string, number>;
+        required_fields: string[];
+        optional_fields: string[];
+      };
+    },
+
+    importCsv: async (file: File, mapping: Record<string, number>) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      Object.entries(mapping).forEach(([k, v]) => {
+        formData.append(`mapping[${k}]`, String(v));
+      });
+      const base = typeof window !== "undefined" ? "/api/v1" : "";
+      const res = await fetch(`${base}/establishments/import`, {
+        method: "POST",
+        credentials: "include",
+        headers: { Accept: "application/json" },
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw { message: data.message || "Import failed", ...data };
+      return data as { message: string; imported: number; skipped: number; errors: string[] };
+    },
   },
 
   lotsBuildings: {
@@ -1067,6 +1120,59 @@ const api = {
       api.get<{ data: Array<{
         id: string; recipient_phone: string; message: string; status: string; credit_cost: number; created_at: string;
       }> }>(`/lots-buildings/${id}/sms-history`),
+
+    exportCsv: (params?: Record<string, string>) => {
+      const query = new URLSearchParams();
+      if (params) {
+        Object.entries(params).forEach(([k, v]) => { if (v) query.set(k, v); });
+      }
+      const qs = query.toString();
+      const base = typeof window !== "undefined" ? "/api/v1" : "";
+      return fetch(`${base}/lots-buildings/export${qs ? `?${qs}` : ""}`, {
+        credentials: "include",
+        headers: { Accept: "text/csv" },
+      });
+    },
+
+    importPreview: async (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      const base = typeof window !== "undefined" ? "/api/v1" : "";
+      const res = await fetch(`${base}/lots-buildings/import/preview`, {
+        method: "POST",
+        credentials: "include",
+        headers: { Accept: "application/json" },
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw { message: data.message || "Preview failed", ...data };
+      return data as {
+        headers: string[];
+        sample_rows: string[][];
+        total_rows: number;
+        auto_mapping: Record<string, number>;
+        required_fields: string[];
+        optional_fields: string[];
+      };
+    },
+
+    importCsv: async (file: File, mapping: Record<string, number>) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      Object.entries(mapping).forEach(([k, v]) => {
+        formData.append(`mapping[${k}]`, String(v));
+      });
+      const base = typeof window !== "undefined" ? "/api/v1" : "";
+      const res = await fetch(`${base}/lots-buildings/import`, {
+        method: "POST",
+        credentials: "include",
+        headers: { Accept: "application/json" },
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw { message: data.message || "Import failed", ...data };
+      return data as { message: string; imported: number; skipped: number; errors: string[] };
+    },
   },
 
   platformUpdates: {

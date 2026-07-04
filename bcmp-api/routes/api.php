@@ -267,6 +267,9 @@ Route::prefix('v1')->group(function () {
                 Route::get('stats', [MapController::class, 'stats']);
                 Route::get('layers', [MapController::class, 'layers']);
             });
+            Route::get('establishments/export', [EstablishmentController::class, 'export']);
+            Route::post('establishments/import/preview', [EstablishmentController::class, 'importPreview']);
+            Route::post('establishments/import', [EstablishmentController::class, 'import']);
             Route::get('establishments/stats', [EstablishmentController::class, 'stats']);
             Route::post('establishments/check-duplicate', [EstablishmentController::class, 'checkDuplicate']);
             Route::post('establishments/{id}/permit', [EstablishmentController::class, 'permit']);
@@ -277,6 +280,10 @@ Route::prefix('v1')->group(function () {
             Route::get('establishments/{id}/sms-history', [EstablishmentController::class, 'smsHistory']);
             Route::get('establishments/{id}/activity', [EstablishmentController::class, 'activity']);
             Route::apiResource('establishments', EstablishmentController::class);
+
+            Route::get('lots-buildings/export', [LotBuildingController::class, 'export']);
+            Route::post('lots-buildings/import/preview', [LotBuildingController::class, 'importPreview']);
+            Route::post('lots-buildings/import', [LotBuildingController::class, 'import']);
             Route::get('lots-buildings/stats', [LotBuildingController::class, 'stats']);
             Route::post('lots-buildings/check-duplicate', [LotBuildingController::class, 'checkDuplicate']);
             Route::post('lots-buildings/{id}/clearance', [LotBuildingController::class, 'clearance']);

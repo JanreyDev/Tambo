@@ -8,11 +8,12 @@ import {
   ChevronsRight, X, Store, Wrench, ShoppingBag, UtensilsCrossed, Pill, Wifi,
   Droplets, Scissors, Hammer, Eye, Edit, Bot, CheckCircle2,
   AlertTriangle, Loader2, ChevronDown, CalendarDays, RefreshCw, XCircle,
-  BadgeCheck, Calendar, Printer, MessageSquare, Trash2,
+  BadgeCheck, Calendar, Printer, MessageSquare, Trash2, Upload, Download,
 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { DocumentLivePreview } from "@/components/settings/DocumentLivePreview";
 import { SendSmsModal } from "@/components/residents/SendSmsModal";
+import { ImportEstablishmentsModal } from "@/components/establishments/ImportEstablishmentsModal";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge, StatusBadge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/stat-card";
@@ -989,6 +990,54 @@ export default function EstablishmentsPage() {
   const [smsTarget, setSmsTarget] = useState<Establishment | null>(null);
   const [showSmsModal, setShowSmsModal] = useState(false);
 
+  // Import / Export
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  const handleExportCsv = async () => {
+    setExporting(true);
+    try {
+      const params: Record<string, string> = {};
+      if (search) params.search = search;
+      if (typeFilter !== "All Types") params.type = typeFilter;
+      if (statusFilter !== "All Status") params.status = statusFilter;
+
+      const res = await api.establishments.exportCsv(params);
+      if (!res.ok) {
+        throw new Error("Failed to export database");
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+
+      const disposition = res.headers.get("content-disposition");
+      let filename = `establishments-${new Date().toISOString().split("T")[0]}.csv`;
+      if (disposition && disposition.includes("attachment")) {
+        const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+        const matches = filenameRegex.exec(disposition);
+        if (matches != null && matches[1]) {
+          filename = matches[1].replace(/['"]/g, "");
+        }
+      }
+
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      addToast({
+        type: "error",
+        title: "Export Failed",
+        message: err instanceof Error ? err.message : "Failed to download CSV export."
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   // SMS history in view modal
   const [viewSmsHistory, setViewSmsHistory] = useState<Array<{
     id: string; recipient_phone: string; message: string; status: string; credit_cost: number; created_at: string;
@@ -1585,6 +1634,29 @@ export default function EstablishmentsPage() {
               {(typeFilter !== "All Types" || statusFilter !== "All Status") && (
                 <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-accent-primary" />
               )}
+            </button>
+            {/* Export CSV */}
+            <button
+              onClick={handleExportCsv}
+              disabled={exporting}
+              className="inline-flex items-center gap-1.5 h-10 px-4 text-xs font-semibold rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all disabled:opacity-50"
+              title="Export to CSV"
+            >
+              {exporting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              Export CSV
+            </button>
+            {/* Import CSV */}
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="inline-flex items-center gap-1.5 h-10 px-4 text-xs font-semibold rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
+              title="Import from CSV"
+            >
+              <Upload className="h-4 w-4" />
+              Import CSV
             </button>
             {/* New Establishment */}
             <button
@@ -2332,11 +2404,21 @@ export default function EstablishmentsPage() {
                 {dupTarget.registration_type && (
                   <div><span className="text-muted-foreground">Registration: </span><span className={cn("font-semibold", dupTarget.registration_type === "DTI" ? "text-blue-600" : "text-purple-600")}>{dupTarget.registration_type}</span></div>
                 )}
-              </div>
             </div>
           </div>
-        )}
-      </Modal>
+        </div>
+      )}
+    </Modal>
+
+      <ImportEstablishmentsModal
+        open={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onSuccess={() => {
+          fetchList();
+          fetchStats();
+          fetchComboboxData();
+        }}
+      />
 
       {/* ── Create / Edit Drawer ───────────────────────────────────────── */}
       {/* Backdrop */}

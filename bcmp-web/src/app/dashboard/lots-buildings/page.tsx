@@ -8,8 +8,9 @@ import {
   X, Home, Building2, LandPlot, Ruler, Hash, FileText, Compass, Eye,
   Edit, Trash2, Bot, CheckCircle2, AlertTriangle, Loader2, Clock,
   HardHat, Hammer, Paintbrush, Grid3X3, MessageSquare, Send,
-  Receipt, Activity, Info, Calendar,
+  Receipt, Activity, Info, Calendar, Upload, Download,
 } from "lucide-react";
+import { ImportLotBuildingsModal } from "@/components/lots-buildings/ImportLotBuildingsModal";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge, StatusBadge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/stat-card";
@@ -1231,6 +1232,55 @@ export default function LotsBuildingsPage() {
   const [smsTarget, setSmsTarget] = useState<LotBuilding | null>(null);
   const [showSmsModal, setShowSmsModal] = useState(false);
 
+  // Import / Export
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  const handleExportCsv = async () => {
+    setExporting(true);
+    try {
+      const params: Record<string, string> = {};
+      if (search) params.search = search;
+      if (classFilter) params.classification = classFilter;
+      if (propClassFilter) params.property_classification = propClassFilter;
+      if (statusFilter) params.status = statusFilter;
+
+      const res = await api.lotsBuildings.exportCsv(params);
+      if (!res.ok) {
+        throw new Error("Failed to export database");
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+
+      const disposition = res.headers.get("content-disposition");
+      let filename = `lots-buildings-${new Date().toISOString().split("T")[0]}.csv`;
+      if (disposition && disposition.includes("attachment")) {
+        const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+        const matches = filenameRegex.exec(disposition);
+        if (matches != null && matches[1]) {
+          filename = matches[1].replace(/['"]/g, "");
+        }
+      }
+
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      addToast({
+        type: "error",
+        title: "Export Failed",
+        message: err instanceof Error ? err.message : "Failed to download CSV export."
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
+
 
   // ── Action menu ──
   const [actionMenu, setActionMenu] = useState<string | null>(null);
@@ -1676,6 +1726,29 @@ export default function LotsBuildingsPage() {
             )}
           >
             <Filter className="h-4 w-4" />
+          </button>
+          {/* Export CSV */}
+          <button
+            onClick={handleExportCsv}
+            disabled={exporting}
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all disabled:opacity-50"
+            title="Export to CSV"
+          >
+            {exporting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
+            Export CSV
+          </button>
+          {/* Import CSV */}
+          <button
+            onClick={() => setShowImportModal(true)}
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
+            title="Import from CSV"
+          >
+            <Upload className="h-4 w-4" />
+            Import CSV
           </button>
           <button
             onClick={openCreate}
@@ -2481,6 +2554,14 @@ export default function LotsBuildingsPage() {
         onSent={() => {
           addToast({ type: "success", title: "SMS Sent" });
           if (viewRecord && smsTarget && viewRecord.id === smsTarget.id) fetchViewData(viewRecord.id);
+        }}
+      />
+      <ImportLotBuildingsModal
+        open={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onSuccess={() => {
+          fetchList();
+          fetchStats();
         }}
       />
 
