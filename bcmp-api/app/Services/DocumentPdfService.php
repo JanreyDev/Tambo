@@ -246,6 +246,10 @@ class DocumentPdfService
 
         // Issuance-specific edits must override the reusable template content.
         $content = $document->custom_content ?? $template->content ?? '';
+        // Issuance-specific title override (set when user edits the title in live preview)
+        if (!empty($document->custom_title)) {
+            $template->title = $document->custom_title;
+        }
         $renderedContent = $this->renderContent($content, $mergeValues);
         $renderedSalutation = $this->renderContent($template->salutation ?? '', $mergeValues);
 

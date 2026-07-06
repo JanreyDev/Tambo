@@ -38,6 +38,7 @@ class IssuedDocument extends Model
         'valid_until',
         'custom_field_values',
         'custom_content',
+        'custom_title',
         'approved_by_left',
         'approved_by_right',
         'qr_code_url',

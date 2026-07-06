@@ -132,6 +132,7 @@ export function GenerateDocumentWizard({
     manualContentRef.current = content;
     setManualContent(content);
   }, []);
+  const [manualTitle, setManualTitle] = useState<string | null>(null);
 
   // ── Barangay settings (signatory, layout) ──
   const [barangaySettings, setBarangaySettings] = useState<BarangaySettings | null>(null);
@@ -311,6 +312,7 @@ export function GenerateDocumentWizard({
     }]);
     setMabiniInput("");
     updateManualContent(null);
+    setManualTitle(null);
     setPreviewMode("preview");
   }, [updateManualContent]);
 
@@ -460,6 +462,7 @@ export function GenerateDocumentWizard({
         issued_date: issuedDate || undefined,
         custom_field_values: Object.keys(customFields).length > 0 ? customFields : undefined,
         custom_content: manualContentRef.current ?? manualContent ?? editableIssuanceContent,
+        custom_title: manualTitle ?? undefined,
       };
       if (selectedTemplate.settings?.show_expiry && selectedTemplate.settings?.expiry_months) {
         const issued = new Date(issuedDate || Date.now());
@@ -1137,11 +1140,12 @@ export function GenerateDocumentWizard({
                         signatoryTitle={selectedTemplate.approval_config?.right?.position || barangaySettings?.settings?.default_signatory_title}
                         hideChrome={true}
                         fitToContainer={true}
-                        contentTitle={customSettings.custom_title ?? selectedTemplate.title ?? selectedTemplate.name}
+                        contentTitle={manualTitle ?? customSettings.custom_title ?? selectedTemplate.title ?? selectedTemplate.name}
                         contentSalutation={customSettings.custom_salutation ?? selectedTemplate.salutation}
                         contentBodyHtml={renderedIssuanceContent}
                         rawContent={editableIssuanceContent}
                         onContentChange={updateManualContent}
+                        onTitleChange={(val) => setManualTitle(val)}
                         contentRequestedBy={selectedResident ? residentFullName(selectedResident) : ""}
                         contentPurpose={purpose}
                         contentControlNo="(assigned on save)"

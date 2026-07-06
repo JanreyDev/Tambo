@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useRef, memo } from "react";
+import { useMemo, useState, useRef, useEffect, memo } from "react";
 import { QrCode, Plus } from "lucide-react";
 
 type Layout = "klasiko" | "elegante" | "moderno" | "digital";
@@ -282,6 +282,50 @@ const EditorArea = memo(({ initialHtml, onInput, onBlur, className, style, inner
 }, () => true);
 
 // Reusable inline click-to-edit text component
+function EditableTextInner({
+  initialValue,
+  onChange,
+  onBlur,
+  className,
+  style,
+}: {
+  initialValue: string;
+  onChange: (v: string) => void;
+  onBlur: () => void;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Set the text once on mount — never update it so React leaves the cursor alone
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.innerText = initialValue;
+      // Move cursor to end
+      const range = document.createRange();
+      const sel = window.getSelection();
+      range.selectNodeContents(ref.current);
+      range.collapse(false);
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+      ref.current.focus();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      contentEditable
+      suppressContentEditableWarning
+      onInput={(e) => onChange(e.currentTarget.innerText)}
+      onBlur={onBlur}
+      className={`${className} outline-none ring-[1.5px] ring-[var(--accent-primary)] rounded-sm font-inherit text-black shadow-inner cursor-text relative z-10 bg-white px-2`}
+      style={style}
+    />
+  );
+}
+
 function EditableText({
   value,
   onChange,
@@ -300,22 +344,17 @@ function EditableText({
   title?: string;
 }) {
   const [isEditing, setIsEditing] = useState(false);
-  const editorRef = useRef<HTMLDivElement>(null);
+  const snapshotRef = useRef(value);
 
   if (isEditing && onChange) {
     return (
-      <div
-        ref={editorRef}
-        contentEditable
-        suppressContentEditableWarning
-        autoFocus
-        onInput={(e) => onChange(e.currentTarget.innerText)}
+      <EditableTextInner
+        initialValue={snapshotRef.current}
+        onChange={onChange}
         onBlur={() => setIsEditing(false)}
-        className={`${className} outline-none ring-[1.5px] ring-[var(--accent-primary)] rounded-sm font-inherit text-black shadow-inner cursor-text relative z-10 bg-white px-2`}
+        className={className}
         style={style}
-      >
-        {value}
-      </div>
+      />
     );
   }
 
@@ -327,6 +366,7 @@ function EditableText({
       style={style}
       onClick={() => {
         if (onChange) {
+          snapshotRef.current = value;
           setIsEditing(true);
         }
       }}
@@ -817,9 +857,9 @@ function ModernoBody(props: BodyProps) {
         <div className="h-px w-16 mx-auto mt-1.5" style={{ background: c.primary }} />
       </div>
 
-      <main className="flex-1 px-8 pt-2 pb-3 relative">
+      <main className="flex-1 px-8 pt-2 pb-16 relative flex flex-col">
         <Watermark c={c} />
-        <div className="relative">
+        <div className="relative flex-1">
           <EditableText
             tag="h2"
             value={title}
@@ -844,27 +884,12 @@ function ModernoBody(props: BodyProps) {
             className="text-[8px] text-justify leading-relaxed text-gray-800 whitespace-pre-line" 
             bodyHtml={props.bodyHtml} rawContent={props.rawContent} onContentChange={props.onContentChange} 
           />
+        </div>
+        {/* Signature pinned to bottom */}
+        <div className="mt-auto pt-4">
           <SignatureLine c={c} name={signName} title={signTitle} />
         </div>
       </main>
-
-      {/* Footer: officials grid + QR */}
-      <div className="px-5 py-2 border-t" style={{ borderColor: c.primary + "22" }}>
-        <div className="grid grid-cols-[1fr_auto] gap-3 items-end">
-          <div>
-            <p className="text-[7px] font-bold uppercase tracking-wider mb-1" style={{ color: c.primary }}>Sangguniang Barangay</p>
-            <div className="grid grid-cols-3 gap-x-3 gap-y-0.5 text-[6px] leading-tight">
-              {props.officials.slice(0, 9).map((o) => (
-                <div key={o.name}>
-                  <p className="font-semibold text-gray-800 truncate">{o.name}</p>
-                  <p className="text-gray-500 truncate">{o.position}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-          <QrAndControl c={c} controlNo={controlNo} dateLabel={issuedDate} />
-        </div>
-      </div>
     </div>
   );
 }

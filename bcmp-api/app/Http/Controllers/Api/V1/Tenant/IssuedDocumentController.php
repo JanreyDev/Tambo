@@ -126,6 +126,7 @@ class IssuedDocumentController extends Controller
             'approved_by_left' => ['nullable', 'string', 'max:255'],
             'approved_by_right' => ['nullable', 'string', 'max:255'],
             'custom_content' => ['nullable', 'string', 'max:50000'],
+            'custom_title'   => ['nullable', 'string', 'max:500'],
         ]);
 
         $barangayId = $request->user()->barangay_id;

@@ -17,7 +17,10 @@
 
 
         .page-container {
-            margin: 40px 40px 180px 40px; /* Instead of absolute positioning, just use margins on body/container to leave space for the fixed header/footer */
+            position: relative;
+            min-height: 90vh;
+            margin: 40px 40px 40px 40px;
+            padding-bottom: 120px;
         }
 
         /* ── Watermark ── */
@@ -120,9 +123,11 @@
         }
 
         .signature-block {
+            position: absolute;
+            bottom: 60px;
+            left: 0;
+            right: 0;
             text-align: center;
-            margin-top: 60px;
-            margin-bottom: 30px;
         }
         .signature-name {
             font-size: 12pt;
@@ -357,51 +362,7 @@
 
     </div>
 
-    {{-- ── OFFICIALS GRID & FOOTER (Bottom) ── --}}
-    <div class="officials-section">
-        <table class="officials-table" cellpadding="0" cellspacing="0">
-            <tr>
-                <td class="officials-left">
-                    <div class="officials-title">SANGGUNIANG BARANGAY</div>
-                    <table class="officials-grid" cellpadding="0" cellspacing="0">
-                        @php
-                            $chunks = $officials->chunk(3);
-                        @endphp
-                        @foreach($chunks as $row)
-                        <tr>
-                            @foreach($row as $official)
-                            <td class="official-cell" width="33.3%">
-                                <div class="official-name">HON. {{ strtoupper($official->name) }}</div>
-                                <div class="official-pos">{{ $official->position }}</div>
-                            </td>
-                            @endforeach
-                            {{-- Fill empty cells --}}
-                            @for($i = $row->count(); $i < 3; $i++)
-                            <td width="33.3%"></td>
-                            @endfor
-                        </tr>
-                        @endforeach
-                    </table>
-                </td>
-                <td class="footer-qr">
-                    <table style="width: 100%;" cellpadding="0" cellspacing="0">
-                        <tr>
-                            <td align="right" valign="middle" style="padding-right: 10px;">
-                                @if($qrDataUri)
-                                <img src="{{ $qrDataUri }}" width="45" height="45" style="border: 2px solid {{ $themePrimary }}; padding: 2px; display: inline-block;">
-                                @endif
-                            </td>
-                            <td align="left" valign="middle">
-                                <div style="font-size: 8pt; font-weight: bold; color: {{ $themePrimary }}; letter-spacing: 1px;">CONTROL NO.</div>
-                                <div style="font-size: 7.5pt; color: #555;">{{ $document->document_number }}</div>
-                                <div style="font-size: 6.5pt; color: #888; margin-top: 2px;">Issued: {{ $document->issued_date?->format('M d, Y') ?? '—' }}</div>
-                            </td>
-                        </tr>
-                    </table>
-                </td>
-            </tr>
-        </table>
-    </div>
+
 
 </div>
 

@@ -632,6 +632,8 @@ export interface IssueDocumentPayload {
   approved_by_right?: string;
   /** Manual content override — replaces template body for custom documents or edited previews */
   custom_content?: string;
+  /** Manual title override — replaces template title for this issuance only */
+  custom_title?: string;
 }
 
 // ── Establishment Types ───────────────────────────────────────────────────
