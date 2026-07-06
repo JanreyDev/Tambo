@@ -168,7 +168,7 @@ function orderStatusStyle(status: string): string {
     red:    "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400",
     slate:  "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
   };
-  return map[s.color] ?? map.slate;
+  return map[s.color] ?? "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300";
 }
 
 function paymentStatusStyle(status: string): string {
@@ -180,7 +180,7 @@ function paymentStatusStyle(status: string): string {
     green: "bg-green-100 text-green-700 dark:bg-green-950/50 dark:text-green-400",
     slate: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
   };
-  return map[s.color] ?? map.slate;
+  return map[s.color] ?? "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300";
 }
 
 // ── API calls ─────────────────────────────────────────────────────────────────

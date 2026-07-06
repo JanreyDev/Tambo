@@ -327,7 +327,7 @@ function TemplateCard({
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const s = STATUS_CFG[template.status] ?? STATUS_CFG.active;
+  const s = STATUS_CFG[template.status] ?? STATUS_CFG.active ?? { label: "Active", color: "text-emerald-600", bg: "bg-emerald-100" };
 
   return (
     <div className="bg-card border border-border rounded-xl p-4 hover:border-orange-300/50 transition-all group">

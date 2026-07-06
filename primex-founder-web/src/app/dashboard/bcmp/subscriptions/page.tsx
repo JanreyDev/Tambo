@@ -138,12 +138,12 @@ export default function BcmpSubscriptionsPage() {
   async function handleSavePricing(key: string) {
     setSavingKey(key);
     try {
-      await bcmpApi.subscriptions.updatePricing(key, parseFloat(editPricing[key]));
+      await bcmpApi.subscriptions.updatePricing(key, parseFloat(editPricing[key] ?? "0"));
       setPricing((prev) => (prev ? { ...prev, [key]: editPricing[key] } : prev));
       toast.success("Pricing updated");
     } catch {
       toast.error("Failed to update pricing");
-      if (pricing) setEditPricing((prev) => ({ ...prev, [key]: (pricing as unknown as Record<string, string>)[key] }));
+      if (pricing) setEditPricing((prev) => ({ ...prev, [key]: (pricing as unknown as Record<string, string>)[key] ?? "" }));
     } finally {
       setSavingKey(null);
     }

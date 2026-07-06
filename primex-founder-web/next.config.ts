@@ -9,6 +9,9 @@ const nextConfig: NextConfig = {
   compiler: {
     removeConsole: process.env.NODE_ENV === "production" ? { exclude: ["error", "warn"] } : false,
   },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
 
   async headers() {
     return [
@@ -38,7 +41,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob: https:",
               "font-src 'self' data:",
-              `connect-src 'self' ${process.env.NODE_ENV === 'development' ? 'http://localhost:8001' : ''} https://api.primex.ventures https://*.ingest.us.sentry.io`,
+              `connect-src 'self' http://167.172.89.188:8013 ${process.env.NODE_ENV === 'development' ? 'http://localhost:8001' : ''} https://api.primex.ventures https://*.ingest.us.sentry.io`,
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",

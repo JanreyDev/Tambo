@@ -47,7 +47,7 @@ function CustomTooltip({
 }
 
 export function RevenueChart({ data, className }: RevenueChartProps) {
-  const currentTotal = data.length > 0 ? data[data.length - 1].total : 0;
+  const currentTotal = data.length > 0 ? (data[data.length - 1]?.total ?? 0) : 0;
 
   return (
     <div

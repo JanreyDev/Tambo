@@ -582,7 +582,7 @@ function buildSections(): Section[] {
 
 export default function HelpPage() {
   const sections = useMemo(() => buildSections(), []);
-  const [activeId, setActiveId] = useState(sections[0].id);
+  const [activeId, setActiveId] = useState(sections[0]?.id ?? "");
   const [searchQuery, setSearchQuery] = useState("");
   const [showBackToTop, setShowBackToTop] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -597,7 +597,7 @@ export default function HelpPage() {
       setShowBackToTop(container.scrollTop > 400);
 
       const headings = container.querySelectorAll<HTMLElement>("[data-section-id]");
-      let current = sections[0].id;
+      let current = sections[0]?.id ?? "";
       for (const heading of headings) {
         if (heading.offsetTop - container.scrollTop <= 120) {
           current = heading.dataset.sectionId ?? current;
