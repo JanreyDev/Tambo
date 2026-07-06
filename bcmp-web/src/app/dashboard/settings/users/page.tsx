@@ -95,6 +95,8 @@ export default function UsersPage() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Resident linking state
   const [residentSearchQuery, setResidentSearchQuery] = useState("");
@@ -193,6 +195,8 @@ export default function UsersPage() {
     setEmail("");
     setPhone("");
     setPassword("");
+    setConfirmPassword("");
+    setShowConfirmPassword(false);
     setSelectedRole("staff");
     setUserStatus("active");
     setCheckedPermissions(ROLE_DEFAULT_PERMISSIONS["staff"] || []);
@@ -214,6 +218,8 @@ export default function UsersPage() {
     setEmail(user.email);
     setPhone(user.phone || "");
     setPassword(""); // Leave password empty by default
+    setConfirmPassword("");
+    setShowConfirmPassword(false);
     setSelectedRole(user.role);
     setUserStatus(user.status);
     setCheckedPermissions(user.custom_permissions || []);
@@ -238,6 +244,11 @@ export default function UsersPage() {
 
     if (!editingUser && !password.trim()) {
       toast("error", "Password is required for new accounts.");
+      return;
+    }
+
+    if (password && password !== confirmPassword) {
+      toast("error", "Passwords do not match.");
       return;
     }
 
@@ -616,8 +627,8 @@ export default function UsersPage() {
                       </div>
                     </div>
 
-                    {/* Row 2: Username & Password */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Row 2: Username */}
+                    <div className="grid grid-cols-1 gap-4">
                       {/* Username */}
                       <div>
                         <label className="block text-xs font-semibold text-muted-foreground mb-1">Username *</label>
@@ -629,7 +640,10 @@ export default function UsersPage() {
                           className="w-full bg-input-bg border border-input-border rounded-lg px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-accent"
                         />
                       </div>
+                    </div>
 
+                    {/* Row 3: Password & Confirm Password */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {/* Password */}
                       <div>
                         <label className="block text-xs font-semibold text-muted-foreground mb-1">
@@ -649,6 +663,29 @@ export default function UsersPage() {
                             className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                           >
                             {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Confirm Password */}
+                      <div>
+                        <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                          {editingUser ? "Confirm New Password" : "Confirm Password *"}
+                        </label>
+                        <div className="relative">
+                          <input
+                            type={showConfirmPassword ? "text" : "password"}
+                            required={!editingUser ? true : !!password}
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            className="w-full bg-input-bg border border-input-border rounded-lg pl-3 pr-10 py-2 text-sm text-foreground focus:outline-none focus:border-accent"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          >
+                            {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                           </button>
                         </div>
                       </div>
