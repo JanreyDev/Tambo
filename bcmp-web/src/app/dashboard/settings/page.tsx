@@ -798,8 +798,10 @@ export default function SettingsPage() {
   const [notifDaily, setNotifDaily] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [municipalityLogoUrl, setMunicipalityLogoUrl] = useState<string | null>(null);
+  const [nationalLogoUrl, setNationalLogoUrl] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingMunicipalityLogo, setUploadingMunicipalityLogo] = useState(false);
+  const [uploadingNationalLogo, setUploadingNationalLogo] = useState(false);
   // Fees & signatory (stored in settings JSONB)
   const [certValidityDays, setCertValidityDays] = useState("180");
   const [clearanceFee, setClearanceFee] = useState("0");
@@ -1020,6 +1022,7 @@ export default function SettingsPage() {
         setNotifDaily(data.notification_preferences?.daily_summary || false);
         setLogoUrl(data.logo_url);
         setMunicipalityLogoUrl(data.municipality_logo_url);
+        setNationalLogoUrl(data.national_logo_url);
         // Fees & signatory from settings JSONB — reuses `s` declared above for originals capture
         setCertValidityDays(String(s.certificate_validity_days ?? 180));
         setClearanceFee(String(s.clearance_fee ?? 0));
@@ -1567,6 +1570,21 @@ export default function SettingsPage() {
     }
   };
 
+  const handleNationalLogoUpload = async (file: File) => {
+    setUploadingNationalLogo(true);
+    try {
+      const res = await api.settings.uploadNationalLogo(file);
+      setNationalLogoUrl(res.url);
+      addToast("National / Philippine logo uploaded successfully");
+      refreshUser();
+    } catch (e) {
+      const err = e as ApiError;
+      addToast(err.message || "National logo upload failed", "error");
+    } finally {
+      setUploadingNationalLogo(false);
+    }
+  };
+
   const sectionGroups = [
     {
       title: t.settings.groups.foundation,
@@ -2062,16 +2080,18 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {/* Tab 3: Branding — Barangay Logo + City/Municipality Logo */}
+          {/* Tab 3: Branding — Barangay Logo + City/Municipality Logo + National Logo */}
           {activeSection === "branding" && (
             <div className="glass rounded-xl p-6">
               <h2 className="text-lg font-semibold text-foreground mb-1">{t.settings.branding.title}</h2>
               <p className="text-sm text-muted-foreground mb-5">{t.settings.branding.description}</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <ImageUpload label="Barangay Logo" hint="The official logo of this barangay. Appears on documents, certificates, the public portal, and the right circle of the sidebar identity. Recommended: square 512×512px."
                   currentUrl={resolvePhotoUrl(logoUrl)} onUpload={handleLogoUpload} uploading={uploadingLogo} />
                 <ImageUpload label="City / Municipality Logo" hint="The official logo of your city or municipality (e.g. Paranaque City). Appears on document letterheads and the left circle of the sidebar identity."
                   currentUrl={resolvePhotoUrl(municipalityLogoUrl)} onUpload={handleMunicipalityLogoUpload} uploading={uploadingMunicipalityLogo} />
+                <ImageUpload label="National / Philippine Logo" hint="The national emblem or official seal of the Republic of the Philippines. Appears on formal document headers and official clearances."
+                  currentUrl={resolvePhotoUrl(nationalLogoUrl)} onUpload={handleNationalLogoUpload} uploading={uploadingNationalLogo} />
               </div>
             </div>
           )}

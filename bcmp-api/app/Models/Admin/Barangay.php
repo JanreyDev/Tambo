@@ -30,6 +30,7 @@ class Barangay extends Model
         'logo_url',
         'seal_url',
         'municipality_logo_url',
+        'national_logo_url',
         'contact_phone',
         'contact_email',
         'website_url',

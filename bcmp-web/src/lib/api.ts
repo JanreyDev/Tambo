@@ -454,6 +454,12 @@ const api = {
       return uploadFile<{ message: string; url: string; file_id: string }>("/settings/municipality-logo", formData);
     },
 
+    uploadNationalLogo: (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      return uploadFile<{ message: string; url: string; file_id: string }>("/settings/national-logo", formData);
+    },
+
     getUsage: () =>
       api.get<{ data: BarangayUsage }>("/settings/usage").then(r => r.data),
   },

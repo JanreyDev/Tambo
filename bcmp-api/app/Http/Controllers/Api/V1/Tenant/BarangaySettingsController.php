@@ -235,6 +235,14 @@ class BarangaySettingsController extends Controller
     }
 
     /**
+     * Upload national/Philippine logo.
+     */
+    public function uploadNationalLogo(Request $request): JsonResponse
+    {
+        return $this->handleImageUpload($request, 'national-logo', 'national_logo_url');
+    }
+
+    /**
      * POST /api/v1/settings/boundary/refresh
      * Re-fetches the OSM boundary polygon for the current barangay.
      * Idempotent — admin can call as often as needed.
@@ -487,6 +495,7 @@ class BarangaySettingsController extends Controller
             'logo_url' => $barangay->logo_url,
             'seal_url' => $barangay->seal_url,
             'municipality_logo_url' => $barangay->municipality_logo_url,
+            'national_logo_url' => $barangay->national_logo_url,
             'contact_phone' => $barangay->contact_phone,
             'contact_email' => $barangay->contact_email,
             'website_url' => $barangay->website_url,

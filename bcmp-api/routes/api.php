@@ -192,6 +192,7 @@ Route::prefix('v1')->group(function () {
                 Route::post('/logo', [BarangaySettingsController::class, 'uploadLogo'])->middleware('throttle:10,1');
                 Route::post('/seal', [BarangaySettingsController::class, 'uploadSeal'])->middleware('throttle:10,1');
                 Route::post('/municipality-logo', [BarangaySettingsController::class, 'uploadMunicipalityLogo'])->middleware('throttle:10,1');
+                Route::post('/national-logo', [BarangaySettingsController::class, 'uploadNationalLogo'])->middleware('throttle:10,1');
                 Route::get('/boundary', [BarangaySettingsController::class, 'showBoundary']);
                 Route::post('/boundary/refresh', [BarangaySettingsController::class, 'refreshBoundary'])->middleware('throttle:6,1');
             });
