@@ -247,23 +247,38 @@ Route::prefix('v1')->group(function () {
             Route::post('voters/{voter}/link', [VoterController::class, 'link']);
             Route::post('voters/{voter}/unlink', [VoterController::class, 'unlink']);
 
-            // ── Records ──
-            Route::post('residents/send-otp', [ResidentController::class, 'sendOtp']);
-            Route::post('residents/check-duplicate', [ResidentController::class, 'checkDuplicate']);
-            Route::get('residents/export', [ResidentController::class, 'export']);
-            Route::post('residents/import/preview', [ResidentController::class, 'importPreview']);
-            Route::post('residents/import', [ResidentController::class, 'import']);
-            Route::get('residents/import/batches', [ResidentController::class, 'importBatches']);
-            Route::delete('residents/import/batches/{batchId}', [ResidentController::class, 'rollbackImport']);
-            Route::get('residents/{resident}/activity', [ResidentController::class, 'activity']);
-            Route::get('residents/{resident}/print', [ResidentController::class, 'printRecord']);
-            Route::post('residents/{resident}/sms', [ResidentController::class, 'sendSms'])
-                ->middleware('throttle:10,1'); // 10 SMS per minute per user
-            Route::post('residents/{resident}/email', [ResidentController::class, 'sendEmail']);
-            Route::get('residents/{resident}/sms-history', [ResidentController::class, 'smsHistory']);
-            Route::post('residents/{resident}/restore', [ResidentController::class, 'restore']);
-            Route::delete('residents/{resident}/force', [ResidentController::class, 'forceDelete']);
-            Route::apiResource('residents', ResidentController::class);
+            // ── Records (Residents) ──
+            Route::middleware('permission:residents.view')->group(function () {
+                Route::get('residents', [ResidentController::class, 'index']);
+                Route::get('residents/export', [ResidentController::class, 'export']);
+                Route::get('residents/{resident}', [ResidentController::class, 'show']);
+                Route::get('residents/{resident}/activity', [ResidentController::class, 'activity']);
+                Route::get('residents/{resident}/print', [ResidentController::class, 'printRecord']);
+                Route::get('residents/{resident}/sms-history', [ResidentController::class, 'smsHistory']);
+            });
+
+            Route::middleware('permission:residents.create')->group(function () {
+                Route::post('residents', [ResidentController::class, 'store']);
+                Route::post('residents/send-otp', [ResidentController::class, 'sendOtp']);
+                Route::post('residents/check-duplicate', [ResidentController::class, 'checkDuplicate']);
+                Route::post('residents/import/preview', [ResidentController::class, 'importPreview']);
+                Route::post('residents/import', [ResidentController::class, 'import']);
+                Route::get('residents/import/batches', [ResidentController::class, 'importBatches']);
+                Route::delete('residents/import/batches/{batchId}', [ResidentController::class, 'rollbackImport']);
+            });
+
+            Route::middleware('permission:residents.edit')->group(function () {
+                Route::match(['put', 'patch'], 'residents/{resident}', [ResidentController::class, 'update']);
+                Route::post('residents/{resident}/sms', [ResidentController::class, 'sendSms'])
+                    ->middleware('throttle:10,1');
+                Route::post('residents/{resident}/email', [ResidentController::class, 'sendEmail']);
+            });
+
+            Route::middleware('permission:residents.delete')->group(function () {
+                Route::delete('residents/{resident}', [ResidentController::class, 'destroy']);
+                Route::post('residents/{resident}/restore', [ResidentController::class, 'restore']);
+                Route::delete('residents/{resident}/force', [ResidentController::class, 'forceDelete']);
+            });
 
             // ── Address Entries (Smart combobox learned values per barangay) ──
             Route::get('address-entries', [AddressEntryController::class, 'index']);

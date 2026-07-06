@@ -134,6 +134,9 @@ export default function ResidentsPage() {
   const dismissToast = useCallback((id: string) => setToasts((prev) => prev.filter((t) => t.id !== id)), []);
 
   const isTambo = user?.barangay?.name?.toLowerCase() === "tambo";
+  const canCreate = user?.is_super_admin || user?.roles?.includes("kapitan") || user?.permissions?.includes("residents.create");
+  const canEdit = user?.is_super_admin || user?.roles?.includes("kapitan") || user?.permissions?.includes("residents.edit");
+  const canDelete = user?.is_super_admin || user?.roles?.includes("kapitan") || user?.permissions?.includes("residents.delete");
   const sectorsList = isTambo
     ? sectorOptions
       .filter((s) => s !== "Farmer")
@@ -2745,7 +2748,7 @@ export default function ResidentsPage() {
               )}
               <span>{t.residents.search.export || "Export CSV"}</span>
             </button>
-            {residentView === "active" && (
+            {residentView === "active" && canCreate && (
               <>
                 <button
                   onClick={() => setShowImportModal(true)}
@@ -2876,7 +2879,7 @@ export default function ResidentsPage() {
                               : t.residents.table.registerOrImport}
                         </p>
                       </div>
-                      {residentView === "active" && !search && purokFilter === "All Puroks" && statusFilter === "All Status" && (
+                      {residentView === "active" && canCreate && !search && purokFilter === "All Puroks" && statusFilter === "All Status" && (
                         <button onClick={openCreate} className="mt-1 px-4 py-2 text-xs font-semibold rounded-lg text-white transition-all hover:opacity-90" style={{ background: "linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-hover) 100%)" }}>
                           + {t.residents.search.newResident}
                         </button>
@@ -3200,37 +3203,41 @@ export default function ResidentsPage() {
                             <IdCard className="h-3.5 w-3.5 text-muted-foreground group-hover:text-violet-500 transition-colors" />
                           </button>
                           {/* SMS */}
-                          <button
-                            onClick={() => {
-                              setSmsModalResident({
-                                id: r.id,
-                                name: `${r.last_name}, ${r.first_name}${r.middle_name ? " " + r.middle_name.charAt(0) + "." : ""}${r.extension_name ? " " + r.extension_name : ""}`.trim(),
-                                mobile_number: r.mobile_number ?? null,
-                              });
-                              setShowSmsModal(true);
-                            }}
-                            disabled={!r.mobile_number}
-                            className="group p-1.5 rounded-lg hover:bg-orange-500/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                            title={r.mobile_number ? `${t.residents.actions.sendSmsTo} ${r.mobile_number}` : t.residents.actions.noMobileNumber}
-                          >
-                            <MessageSquare className="h-3.5 w-3.5 text-muted-foreground group-hover:text-orange-500 transition-colors group-disabled:group-hover:text-muted-foreground" />
-                          </button>
+                          {canEdit && (
+                            <button
+                              onClick={() => {
+                                setSmsModalResident({
+                                  id: r.id,
+                                  name: `${r.last_name}, ${r.first_name}${r.middle_name ? " " + r.middle_name.charAt(0) + "." : ""}${r.extension_name ? " " + r.extension_name : ""}`.trim(),
+                                  mobile_number: r.mobile_number ?? null,
+                                });
+                                setShowSmsModal(true);
+                              }}
+                              disabled={!r.mobile_number}
+                              className="group p-1.5 rounded-lg hover:bg-orange-500/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                              title={r.mobile_number ? `${t.residents.actions.sendSmsTo} ${r.mobile_number}` : t.residents.actions.noMobileNumber}
+                            >
+                              <MessageSquare className="h-3.5 w-3.5 text-muted-foreground group-hover:text-orange-500 transition-colors group-disabled:group-hover:text-muted-foreground" />
+                            </button>
+                          )}
                           {/* Email */}
-                          <button
-                            onClick={() => {
-                              setEmailModalResident({
-                                id: r.id,
-                                name: `${r.last_name}, ${r.first_name}${r.middle_name ? " " + r.middle_name.charAt(0) + "." : ""}${r.extension_name ? " " + r.extension_name : ""}`.trim(),
-                                email: r.email ?? null,
-                              });
-                              setShowEmailModal(true);
-                            }}
-                            disabled={!r.email}
-                            className="group p-1.5 rounded-lg hover:bg-blue-500/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                            title={r.email ? `Send Email to ${r.email}` : "No email registered"}
-                          >
-                            <Mail className="h-3.5 w-3.5 text-muted-foreground group-hover:text-blue-500 transition-colors group-disabled:group-hover:text-muted-foreground" />
-                          </button>
+                          {canEdit && (
+                            <button
+                              onClick={() => {
+                                setEmailModalResident({
+                                  id: r.id,
+                                  name: `${r.last_name}, ${r.first_name}${r.middle_name ? " " + r.middle_name.charAt(0) + "." : ""}${r.extension_name ? " " + r.extension_name : ""}`.trim(),
+                                  email: r.email ?? null,
+                                });
+                                setShowEmailModal(true);
+                              }}
+                              disabled={!r.email}
+                              className="group p-1.5 rounded-lg hover:bg-blue-500/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                              title={r.email ? `Send Email to ${r.email}` : "No email registered"}
+                            >
+                              <Mail className="h-3.5 w-3.5 text-muted-foreground group-hover:text-blue-500 transition-colors group-disabled:group-hover:text-muted-foreground" />
+                            </button>
+                          )}
                           {/* More */}
                           <div className="relative">
                             <button
@@ -3245,7 +3252,9 @@ export default function ResidentsPage() {
                                 "absolute right-0 z-50 w-44 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-xl shadow-lg py-1.5",
                                 index >= paged.length - 2 ? "bottom-8" : "top-8"
                               )}>
-                                <button onClick={async () => { setActionMenu(null); try { const detail = await api.residents.get(r.id); openEdit(detail); } catch { addToast({ type: "error", title: t.residents.actions.failedToLoad }); } }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-800 dark:text-gray-100 text-left transition-colors"><Edit className="h-4 w-4 text-gray-500 dark:text-gray-400" /> {t.residents.actions.editProfile}</button>
+                                {canEdit && (
+                                  <button onClick={async () => { setActionMenu(null); try { const detail = await api.residents.get(r.id); openEdit(detail); } catch { addToast({ type: "error", title: t.residents.actions.failedToLoad }); } }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-800 dark:text-gray-100 text-left transition-colors"><Edit className="h-4 w-4 text-gray-500 dark:text-gray-400" /> {t.residents.actions.editProfile}</button>
+                                )}
                                 <button
                                   onClick={() => { setActionMenu(null); handlePrint(r.id); }}
                                   disabled={printingId === r.id}
@@ -3255,14 +3264,20 @@ export default function ResidentsPage() {
                                     : <Printer className="h-4 w-4 text-gray-500 dark:text-gray-400" />}
                                   {printingId === r.id ? t.residents.actions.generatingPdf : t.residents.actions.printRecord}
                                 </button>
-                                <div className="border-t border-gray-200 dark:border-slate-600 my-1" />
-                                {residentView === "active" && (
+                                {(canEdit || canDelete) && (
+                                  <div className="border-t border-gray-200 dark:border-slate-600 my-1" />
+                                )}
+                                {residentView === "active" && canDelete && (
                                   <button onClick={() => { setActionMenu(null); setArchiveTarget({ id: r.id, first_name: r.first_name, last_name: r.last_name, sex: r.sex, resident_number: r.resident_number }); setArchiveModal(true); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-amber-50 dark:hover:bg-amber-950/20 text-left text-amber-600 dark:text-amber-400 transition-colors"><Archive className="h-4 w-4" /> {t.residents.actions.archiveRecord}</button>
                                 )}
                                 {residentView === "archived" && (
                                   <>
-                                    <button onClick={() => { setActionMenu(null); handleRestore(r.id, `${r.first_name} ${r.last_name}`); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-emerald-50 dark:hover:bg-emerald-950/20 text-left text-emerald-600 dark:text-emerald-400 transition-colors"><CheckCircle className="h-4 w-4" /> Restore Profile</button>
-                                    <button onClick={() => { setActionMenu(null); setDeleteTarget({ id: r.id, name: `${r.first_name} ${r.last_name}` }); setDeleteModal(true); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-red-50 dark:hover:bg-red-950/20 text-left text-red-600 dark:text-red-400 transition-colors"><Trash2 className="h-4 w-4" /> Delete Permanently</button>
+                                    {canEdit && (
+                                      <button onClick={() => { setActionMenu(null); handleRestore(r.id, `${r.first_name} ${r.last_name}`); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-emerald-50 dark:hover:bg-emerald-950/20 text-left text-emerald-600 dark:text-emerald-400 transition-colors"><CheckCircle className="h-4 w-4" /> Restore Profile</button>
+                                    )}
+                                    {canDelete && (
+                                      <button onClick={() => { setActionMenu(null); setDeleteTarget({ id: r.id, name: `${r.first_name} ${r.last_name}` }); setDeleteModal(true); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-red-50 dark:hover:bg-red-950/20 text-left text-red-600 dark:text-red-400 transition-colors"><Trash2 className="h-4 w-4" /> Delete Permanently</button>
+                                    )}
                                   </>
                                 )}
                               </div>
