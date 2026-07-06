@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: primex-postgres
+    restart: unless-stopped
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: primex
+      POSTGRES_USER: primex
+      POSTGRES_PASSWORD: primex_dev_2026
+    volumes:
+      - primex_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U primex -d primex"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    container_name: primex-redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    volumes:
+      - primex_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  primex_postgres_data:
+    driver: local
+  primex_redis_data:
+    driver: local
