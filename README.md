@@ -1,11 +1,13 @@
 # Tambo
 
-This is the Tambo monorepo containing both the backend API and the web application.
+This is the Tambo monorepo containing the backend APIs and web applications.
 
 ## Repository Structure
 
-- [bcmp-api/](file:///c:/Users/primex-janrey/Primex/KapitanPH/bcmp-api) - Laravel API Backend
-- [bcmp-web/](file:///c:/Users/primex-janrey/Primex/KapitanPH/bcmp-web) - Next.js/PNPM Web Frontend
+- [admin-api/](file:///c:/Users/Primex-Janrey/Primex/BCMP/Tambo/admin-api) - Laravel API Backend (Admin)
+- [bcmp-api/](file:///c:/Users/Primex-Janrey/Primex/BCMP/Tambo/bcmp-api) - Laravel API Backend (BCMP)
+- [bcmp-web/](file:///c:/Users/Primex-Janrey/Primex/BCMP/Tambo/bcmp-web) - Next.js/PNPM Web Frontend (BCMP)
+- [primex-founder-web/](file:///c:/Users/Primex-Janrey/Primex/BCMP/Tambo/primex-founder-web) - Next.js/PNPM Web Frontend (Founder Web)
 
 ## Getting Started
 
