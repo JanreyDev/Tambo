@@ -789,6 +789,7 @@ If the user only wants to change one field, keep the other field unchanged. Alwa
                   province={settings?.province}
                   logoUrl={resolvePhotoUrl(settings?.logo_url) || undefined}
                   municipalityLogoUrl={resolvePhotoUrl(settings?.municipality_logo_url) || undefined}
+                  nationalLogoUrl={resolvePhotoUrl(settings?.national_logo_url) || undefined}
                   signatoryName={barangayDocumentSettings.default_signatory_name || settings?.captain_name || "JUAN DELA CRUZ"}
                   signatoryTitle={barangayDocumentSettings.default_signatory_title || "PUNONG BARANGAY"}
                   contentTitle={docTitle}

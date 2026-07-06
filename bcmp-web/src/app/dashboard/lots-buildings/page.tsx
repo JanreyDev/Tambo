@@ -799,6 +799,7 @@ If the user only wants to change one field, keep the other field unchanged. Alwa
             province={settings?.province}
             logoUrl={resolvePhotoUrl(settings?.logo_url)}
             municipalityLogoUrl={resolvePhotoUrl(settings?.municipality_logo_url)}
+            nationalLogoUrl={resolvePhotoUrl(settings?.national_logo_url)}
             signatoryName={(documentSettings.default_signatory_name as string) || settings?.captain_name}
             signatoryTitle={(documentSettings.default_signatory_title as string) || "PUNONG BARANGAY"}
             contentTitle={template?.title || cfg.title}

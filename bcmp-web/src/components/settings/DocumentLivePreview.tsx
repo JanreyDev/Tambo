@@ -26,6 +26,7 @@ interface Props {
   province?: string | null;
   logoUrl?: string | null;
   municipalityLogoUrl?: string | null;
+  nationalLogoUrl?: string | null;
   signatoryName?: string | null;
   signatoryTitle?: string | null;
   hideChrome?: boolean;
@@ -120,7 +121,7 @@ const SAMPLE_OFFICIALS = [
 
 export function DocumentLivePreview({
   layout, paperSize, font, colorTheme, designPattern,
-  barangayName, municipality, province, logoUrl, municipalityLogoUrl,
+  barangayName, municipality, province, logoUrl, municipalityLogoUrl, nationalLogoUrl,
   signatoryName, signatoryTitle, hideChrome, fitToContainer, fitScale = 1,
   contentTitle, contentSalutation, contentBodyHtml, rawContent, onContentChange, contentControlNo, contentIssuedDate,
   contentValidUntil, contentRequestedBy, contentPurpose, officials
@@ -142,6 +143,7 @@ export function DocumentLivePreview({
     province: province || SAMPLE.province,
     logoUrl: logoUrl || null,
     municipalityLogoUrl: municipalityLogoUrl || null,
+    nationalLogoUrl: nationalLogoUrl || null,
     signName: signatoryName || SAMPLE.signName,
     signTitle: signatoryTitle || SAMPLE.signTitle,
     title: displayTitle,
@@ -232,6 +234,7 @@ interface BodyProps {
   province: string;
   logoUrl: string | null;
   municipalityLogoUrl: string | null;
+  nationalLogoUrl: string | null;
   signName: string;
   signTitle: string;
   title: string;
@@ -707,12 +710,20 @@ function ModernoBody(props: BodyProps) {
       {/* Compact centered header */}
       <div className="px-4 pt-5 pb-3 text-center">
         <div className="flex items-center justify-center gap-3 mb-1.5">
-          <Seal url={props.municipalityLogoUrl} size={36} fallbackLabel="LGU" c={c} />
           <Seal url={props.logoUrl} size={36} fallbackLabel="BRGY" c={c} />
+          {props.nationalLogoUrl && <Seal url={props.nationalLogoUrl} size={36} fallbackLabel="PH" c={c} />}
+          <Seal url={props.municipalityLogoUrl} size={36} fallbackLabel="LGU" c={c} />
         </div>
-        <p className="text-[7px] tracking-[0.22em] text-gray-500 uppercase">Republic of the Philippines</p>
-        <p className="text-[8px] text-gray-600">{props.province} · {props.municipality}</p>
-        <p className="font-bold uppercase tracking-wide mt-1" style={{ color: c.primary, fontSize: 13 }}>{props.barangay}</p>
+        <p className="text-[6.5px] tracking-[0.22em] text-gray-500 uppercase">Republic of the Philippines</p>
+        <p className="text-[8.5px] font-bold text-gray-800 uppercase tracking-wide mt-0.5">
+          {props.municipality?.toUpperCase().startsWith("CITY") || props.municipality?.toUpperCase().startsWith("MUNICIPALITY") 
+            ? props.municipality.toUpperCase() 
+            : `CITY OF ${props.municipality?.toUpperCase()}`}
+        </p>
+        <p className="text-[6.5px] tracking-[0.15em] text-gray-500 uppercase mt-0.5">{props.province}</p>
+        <p className="font-medium text-gray-800 text-[9.5px] tracking-wide mt-1">
+          Office of {props.barangay.replace(/^(brgy\.?\s*|barangay\s*)/i, "")} Barangay Council
+        </p>
         <div className="h-px w-16 mx-auto mt-1.5" style={{ background: c.primary }} />
       </div>
 

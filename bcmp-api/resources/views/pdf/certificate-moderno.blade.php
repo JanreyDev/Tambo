@@ -278,16 +278,28 @@
     {{-- ── HEADER ── --}}
     <div class="header-wrapper">
         <div class="header-logos">
-            @if(isset($municipalityLogoUrl) && $municipalityLogoUrl)
-                <img src="{{ $municipalityLogoUrl }}" alt="LGU Logo">
-            @endif
             @if($sealDataUri)
                 <img src="{{ $sealDataUri }}" alt="Seal">
             @endif
+            @if(isset($nationalLogoUrl) && $nationalLogoUrl)
+                <img src="{{ $nationalLogoUrl }}" alt="National Logo">
+            @endif
+            @if(isset($municipalityLogoUrl) && $municipalityLogoUrl)
+                <img src="{{ $municipalityLogoUrl }}" alt="LGU Logo">
+            @endif
         </div>
-        <div class="republic-text">Republic of the Philippines</div>
-        <div class="province-text">{{ $barangay->province ?? 'Metro Manila' }} - {{ $barangay->city_municipality ?? 'City' }}</div>
-        <div class="barangay-name">{{ $barangay->name ?? 'BARANGAY' }}</div>
+        <div class="republic-text" style="font-size: 8pt; color: #666; letter-spacing: 2px; text-transform: uppercase;">Republic of the Philippines</div>
+        <div class="province-text" style="font-size: 11pt; font-weight: bold; color: #111; text-transform: uppercase; margin-top: 3px;">
+            @if(str_starts_with(strtoupper($barangay->city_municipality), 'CITY') || str_starts_with(strtoupper($barangay->city_municipality), 'MUNICIPALITY'))
+                {{ strtoupper($barangay->city_municipality) }}
+            @else
+                CITY OF {{ strtoupper($barangay->city_municipality) }}
+            @endif
+        </div>
+        <div class="republic-text" style="font-size: 8pt; color: #666; letter-spacing: 1px; text-transform: uppercase; margin-top: 2px;">{{ $barangay->province ?? 'METRO MANILA' }}</div>
+        <div class="barangay-name" style="font-size: 13pt; font-weight: 500; color: #111; text-transform: none; letter-spacing: normal; margin-top: 6px;">
+            Office of {{ preg_replace('/^(brgy\.?\s*|barangay\s*)/i', '', $barangay->name) }} Barangay Council
+        </div>
         <div class="header-line"></div>
     </div>
 

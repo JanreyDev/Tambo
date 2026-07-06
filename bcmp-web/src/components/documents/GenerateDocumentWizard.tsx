@@ -1132,6 +1132,7 @@ export function GenerateDocumentWizard({
                         province={barangaySettings?.province}
                         logoUrl={resolvePhotoUrl(barangaySettings?.logo_url)}
                         municipalityLogoUrl={resolvePhotoUrl(barangaySettings?.municipality_logo_url)}
+                        nationalLogoUrl={resolvePhotoUrl(barangaySettings?.national_logo_url)}
                         signatoryName={approvedByRight || selectedTemplate.approval_config?.right?.label || barangaySettings?.settings?.default_signatory_name}
                         signatoryTitle={selectedTemplate.approval_config?.right?.position || barangaySettings?.settings?.default_signatory_title}
                         hideChrome={true}

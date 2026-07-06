@@ -365,6 +365,7 @@ class DocumentPdfService
             'photoDataUri' => $photoDataUri,
             'sealDataUri' => $sealDataUri,
             'municipalityLogoUrl' => $this->getImageDataUri($barangay->municipality_logo_url),
+            'nationalLogoUrl' => $this->getImageDataUri($barangay->national_logo_url),
             'qrDataUri' => $qrDataUri,
             'issuedByName' => $issuedByName,
             'issuedAt' => now()->setTimezone('Asia/Manila')->format('F d, Y'),

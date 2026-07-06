@@ -632,7 +632,7 @@ function DesignPatternDropdown({ value, options, onChange }: { value: string, op
 }
 
 // --- Responsive Thumbnail Component for perfectly scaling miniature previews ---
-function ResponsiveThumbnail({ layout, docPaperSize, docFont, docColorTheme, docDesignPattern, settings, logoUrl, municipalityLogoUrl, signatoryName, signatoryTitle }: any) {
+function ResponsiveThumbnail({ layout, docPaperSize, docFont, docColorTheme, docDesignPattern, settings, logoUrl, municipalityLogoUrl, nationalLogoUrl, signatoryName, signatoryTitle }: any) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.3);
 
@@ -661,6 +661,7 @@ function ResponsiveThumbnail({ layout, docPaperSize, docFont, docColorTheme, doc
           province={settings?.province ?? null}
           logoUrl={logoUrl}
           municipalityLogoUrl={municipalityLogoUrl}
+          nationalLogoUrl={nationalLogoUrl}
           signatoryName={signatoryName}
           signatoryTitle={signatoryTitle}
           hideChrome={true}
@@ -2345,6 +2346,7 @@ export default function SettingsPage() {
                                       settings={settings}
                                       logoUrl={resolvePhotoUrl(logoUrl)}
                                       municipalityLogoUrl={resolvePhotoUrl(municipalityLogoUrl)}
+                                      nationalLogoUrl={resolvePhotoUrl(nationalLogoUrl)}
                                       signatoryName={signatoryName}
                                       signatoryTitle={signatoryTitle}
                                     />
@@ -2500,6 +2502,7 @@ export default function SettingsPage() {
                             province={settings?.province ?? null}
                             logoUrl={resolvePhotoUrl(logoUrl)}
                             municipalityLogoUrl={resolvePhotoUrl(municipalityLogoUrl)}
+                            nationalLogoUrl={resolvePhotoUrl(nationalLogoUrl)}
                             signatoryName={previewSignatoryName}
                             signatoryTitle={previewSignatoryTitle}
                             contentTitle={customizeTab === "editor" ? ((dbTemplates || []).find(c => c.id === selectedCertType)?.title || "PREVIEW") : undefined}
@@ -4034,6 +4037,7 @@ export default function SettingsPage() {
                 province={settings?.province ?? null}
                 logoUrl={resolvePhotoUrl(logoUrl)}
                 municipalityLogoUrl={resolvePhotoUrl(municipalityLogoUrl)}
+                nationalLogoUrl={resolvePhotoUrl(nationalLogoUrl)}
                 signatoryName={signatoryName}
                 signatoryTitle={signatoryTitle}
               />
@@ -4373,6 +4377,7 @@ export default function SettingsPage() {
                     province={settings?.province || "Metro Manila"}
                     logoUrl={resolvePhotoUrl(settings?.logo_url)}
                     municipalityLogoUrl={resolvePhotoUrl(settings?.municipality_logo_url)}
+                    nationalLogoUrl={resolvePhotoUrl(settings?.national_logo_url)}
                     signatoryName={previewSignatoryName}
                     signatoryTitle={previewSignatoryTitle}
                     contentTitle={dbTemp?.title || dbTemp?.name || "CERTIFICATE PREVIEW"}

@@ -81,6 +81,7 @@ export interface BarangaySettings {
   logo_url: string | null;
   seal_url: string | null;
   municipality_logo_url: string | null;
+  national_logo_url: string | null;
   contact_phone: string | null;
   contact_email: string | null;
   website_url: string | null;
