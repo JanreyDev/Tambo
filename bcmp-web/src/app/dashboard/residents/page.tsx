@@ -9,7 +9,7 @@ import {
   Camera, Printer, Eye, ChevronDown, Plus, Fingerprint, CheckCircle, Loader2,
   GraduationCap, Briefcase, Contact, Globe,
   IdCard, Vote, MessageSquare, ScrollText, Archive,
-  PawPrint, HandHeart, Link2, Paperclip, Image, Users,
+  PawPrint, HandHeart, Link2, Paperclip, Image, Users, Trash2,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge, StatusBadge } from "@/components/ui/badge";
@@ -209,6 +209,11 @@ export default function ResidentsPage() {
   const [archiveModal, setArchiveModal] = useState(false);
   const [archiveReason, setArchiveReason] = useState("");
   const [archiveTarget, setArchiveTarget] = useState<{ id: string; first_name: string; last_name: string; sex: string; resident_number: string } | null>(null);
+
+  // Custom Delete Modal state (Permanent Delete)
+  const [deleteModal, setDeleteModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const pageSize = 15;
 
   // ── OTP State Variables (Barangay Tambo only) ──
@@ -250,6 +255,42 @@ export default function ResidentsPage() {
   const refreshList = useCallback(() => {
     fetchResidents();
   }, [page, search, purokFilter, statusFilter, sexFilter, voterFilter, villageFilter, civilStatusFilter, residentTypeFilter, hohFilter, citizenshipFilter, religionFilter, ethnicityFilter, sectorFilter, residentView, sortKey, sortDir]);
+
+  const handleRestore = async (id: string, name: string) => {
+    try {
+      await api.residents.restore(id);
+      addToast({
+        type: "success",
+        title: "Resident Restored",
+        message: `${name} has been restored to active list successfully.`
+      });
+      fetchResidents();
+    } catch (err: any) {
+      const msg = err.message || "Failed to restore resident";
+      addToast({ type: "error", title: "Restore failed", message: msg });
+    }
+  };
+
+  const confirmDeletePermanently = async () => {
+    if (!deleteTarget) return;
+    try {
+      setDeleting(true);
+      await api.residents.forceDelete(deleteTarget.id);
+      addToast({
+        type: "success",
+        title: "Permanently Deleted",
+        message: `${deleteTarget.name} has been permanently deleted from database.`
+      });
+      setDeleteModal(false);
+      setDeleteTarget(null);
+      fetchResidents();
+    } catch (err: any) {
+      const msg = err.message || "Failed to permanently delete resident";
+      addToast({ type: "error", title: "Deletion failed", message: msg });
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const fetchResidents = useCallback(async (opts?: { searchOverride?: string; pageOverride?: number }) => {
     setListLoading(true);
@@ -3200,7 +3241,10 @@ export default function ResidentsPage() {
                               <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
                             </button>
                             {actionMenu === r.id && (
-                              <div className="absolute right-0 top-8 z-50 w-44 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-xl shadow-lg py-1.5">
+                              <div className={cn(
+                                "absolute right-0 z-50 w-44 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-xl shadow-lg py-1.5",
+                                index >= paged.length - 2 ? "bottom-8" : "top-8"
+                              )}>
                                 <button onClick={async () => { setActionMenu(null); try { const detail = await api.residents.get(r.id); openEdit(detail); } catch { addToast({ type: "error", title: t.residents.actions.failedToLoad }); } }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-800 dark:text-gray-100 text-left transition-colors"><Edit className="h-4 w-4 text-gray-500 dark:text-gray-400" /> {t.residents.actions.editProfile}</button>
                                 <button
                                   onClick={() => { setActionMenu(null); handlePrint(r.id); }}
@@ -3214,6 +3258,12 @@ export default function ResidentsPage() {
                                 <div className="border-t border-gray-200 dark:border-slate-600 my-1" />
                                 {residentView === "active" && (
                                   <button onClick={() => { setActionMenu(null); setArchiveTarget({ id: r.id, first_name: r.first_name, last_name: r.last_name, sex: r.sex, resident_number: r.resident_number }); setArchiveModal(true); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-amber-50 dark:hover:bg-amber-950/20 text-left text-amber-600 dark:text-amber-400 transition-colors"><Archive className="h-4 w-4" /> {t.residents.actions.archiveRecord}</button>
+                                )}
+                                {residentView === "archived" && (
+                                  <>
+                                    <button onClick={() => { setActionMenu(null); handleRestore(r.id, `${r.first_name} ${r.last_name}`); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-emerald-50 dark:hover:bg-emerald-950/20 text-left text-emerald-600 dark:text-emerald-400 transition-colors"><CheckCircle className="h-4 w-4" /> Restore Profile</button>
+                                    <button onClick={() => { setActionMenu(null); setDeleteTarget({ id: r.id, name: `${r.first_name} ${r.last_name}` }); setDeleteModal(true); }} className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-red-50 dark:hover:bg-red-950/20 text-left text-red-600 dark:text-red-400 transition-colors"><Trash2 className="h-4 w-4" /> Delete Permanently</button>
+                                  </>
                                 )}
                               </div>
                             )}
@@ -3518,6 +3568,38 @@ export default function ResidentsPage() {
           </div>
         </div>
       </Modal>
+
+      {/* Delete Confirmation Modal (Permanent Delete) */}
+      <Modal
+        open={deleteModal}
+        onClose={() => { if (!deleting) { setDeleteModal(false); setDeleteTarget(null); } }}
+        title="Permanently Delete Resident"
+        size="sm"
+        footer={
+          <>
+            <ModalButton variant="secondary" disabled={deleting} onClick={() => { setDeleteModal(false); setDeleteTarget(null); }}>
+              Cancel
+            </ModalButton>
+            <ModalButton variant="danger" disabled={deleting} onClick={confirmDeletePermanently}>
+              <span className="flex items-center gap-1.5">
+                {deleting ? <Loader2 className="h-4 w-4 animate-spin shrink-0" /> : <Trash2 className="h-4 w-4 shrink-0" />}
+                Delete Permanently
+              </span>
+            </ModalButton>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900">
+            <AlertTriangle className="h-5 w-5 text-red-500 shrink-0" />
+            <p className="text-sm text-red-700 dark:text-red-400">
+              Are you sure you want to permanently delete the profile for{" "}
+              <strong className="text-red-800 dark:text-red-200">{deleteTarget?.name}</strong>? This will wipe all their records, address entries, and transaction history. <strong>This action cannot be undone.</strong>
+            </p>
+          </div>
+        </div>
+      </Modal>
+
       <GenerateDocumentWizard
         open={showDocWizard}
         onClose={() => { setShowDocWizard(false); setDocWizardResidentId(null); setDocWizardCategory(null); }}

@@ -43,6 +43,7 @@ use App\Http\Controllers\Api\V1\Tenant\AddressEntryController;
 use App\Http\Controllers\Api\V1\Tenant\MapController;
 use App\Http\Controllers\Api\V1\Tenant\MarketplaceController;
 use App\Http\Controllers\Api\V1\Tenant\MessageController;
+use App\Http\Controllers\Api\V1\Tenant\UserController;
 use App\Http\Controllers\Api\V1\Tenant\OfficeController;
 use App\Http\Controllers\Api\V1\Tenant\OfficialController;
 use App\Http\Controllers\Api\V1\Tenant\PaymentController;
@@ -195,6 +196,11 @@ Route::prefix('v1')->group(function () {
                 Route::post('/boundary/refresh', [BarangaySettingsController::class, 'refreshBoundary'])->middleware('throttle:6,1');
             });
 
+            // ── Staff User Management ──
+            Route::get('roles', [UserController::class, 'roles']);
+            Route::get('permissions', [UserController::class, 'permissions']);
+            Route::apiResource('users', UserController::class);
+
             // Dashboard
             Route::prefix('dashboard')->group(function () {
                 Route::get('stats', [DashboardController::class, 'stats']);
@@ -255,6 +261,8 @@ Route::prefix('v1')->group(function () {
                 ->middleware('throttle:10,1'); // 10 SMS per minute per user
             Route::post('residents/{resident}/email', [ResidentController::class, 'sendEmail']);
             Route::get('residents/{resident}/sms-history', [ResidentController::class, 'smsHistory']);
+            Route::post('residents/{resident}/restore', [ResidentController::class, 'restore']);
+            Route::delete('residents/{resident}/force', [ResidentController::class, 'forceDelete']);
             Route::apiResource('residents', ResidentController::class);
 
             // ── Address Entries (Smart combobox learned values per barangay) ──

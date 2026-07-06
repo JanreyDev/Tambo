@@ -484,6 +484,38 @@ const api = {
       api.delete<{ message: string }>(`/officials/${id}`),
   },
 
+  users: {
+    list: () =>
+      api.get<Array<{
+        id: string;
+        first_name: string;
+        middle_name: string | null;
+        last_name: string;
+        extension_name: string | null;
+        username: string;
+        email: string;
+        phone: string | null;
+        status: "active" | "suspended";
+        role: string;
+        custom_permissions: string[];
+      }>>("/users"),
+
+    roles: () =>
+      api.get<string[]>("/roles"),
+
+    permissions: () =>
+      api.get<Record<string, Record<string, string>>>("/permissions"),
+
+    create: (data: any) =>
+      api.post<any>("/users", data),
+
+    update: (id: string, data: any) =>
+      api.put<any>(`/users/${id}`, data),
+
+    delete: (id: string) =>
+      api.delete<any>(`/users/${id}`),
+  },
+
   residents: {
     list: (params?: {
       page?: number;
@@ -540,6 +572,12 @@ const api = {
 
     delete: (id: string) =>
       api.delete<{ message: string }>(`/residents/${id}`),
+
+    restore: (id: string) =>
+      api.post<{ message: string; resident: any }>(`/residents/${id}/restore`),
+
+    forceDelete: (id: string) =>
+      api.delete<{ message: string }>(`/residents/${id}/force`),
 
     activity: (id: string, params?: { page?: number; per_page?: number }) => {
       const query = new URLSearchParams();

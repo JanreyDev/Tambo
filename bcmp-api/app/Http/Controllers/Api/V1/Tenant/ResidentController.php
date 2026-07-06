@@ -656,6 +656,49 @@ class ResidentController extends Controller
     }
 
     /**
+     * Restore a soft-deleted resident.
+     */
+    public function restore(Request $request, string $id): JsonResponse
+    {
+        $resident = Resident::onlyTrashed()
+            ->where('barangay_id', $request->user()->barangay_id)
+            ->findOrFail($id);
+
+        $resident->restore();
+
+        $this->logAudit($request, 'restored', $resident, [
+            'description' => 'Resident record restored from archive',
+            'resident_number' => $resident->resident_number,
+            'name' => trim($resident->first_name.' '.$resident->last_name),
+        ]);
+
+        return response()->json([
+            'message' => 'Resident restored successfully.',
+            'resident' => $resident->fresh()->load('sectoralTags'),
+        ]);
+    }
+
+    /**
+     * Permanently delete a resident.
+     */
+    public function forceDelete(Request $request, string $id): JsonResponse
+    {
+        $resident = Resident::onlyTrashed()
+            ->where('barangay_id', $request->user()->barangay_id)
+            ->findOrFail($id);
+
+        $resident->forceDelete();
+
+        $this->logAudit($request, 'force_deleted', $resident, [
+            'description' => 'Resident record permanently deleted',
+            'resident_number' => $resident->resident_number,
+            'name' => trim($resident->first_name.' '.$resident->last_name),
+        ]);
+
+        return response()->json(['message' => 'Resident permanently deleted.']);
+    }
+
+    /**
      * Get activity/audit log for a specific resident.
      */
     public function activity(Request $request, string $id): JsonResponse

@@ -35,6 +35,7 @@ export const fil: Translations = {
     gad: "GAD",
     hris: "HRIS",
     updates: "Mga Bagong Update",
+    staff: "Mga Account ng Staff",
     settings: "Mga Setting",
     helpManual: "Tulong at Manual",
   },

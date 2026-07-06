@@ -33,6 +33,7 @@ export const en = {
     gad: "GAD",
     hris: "HRIS",
     updates: "What's New",
+    staff: "Staff Accounts",
     settings: "Settings",
     helpManual: "Help & Manual",
   },

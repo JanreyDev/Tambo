@@ -39,6 +39,7 @@ interface NavItemDef {
   href: string;
   icon: React.ElementType;
   badge?: number;
+  permission?: string;
 }
 
 interface NavGroupDef {
@@ -57,26 +58,26 @@ const navGroupDefs: NavGroupDef[] = [
   {
     titleKey: "records",
     items: [
-      { labelKey: "residents", href: "/dashboard/residents", icon: Users },
-      { labelKey: "establishments", href: "/dashboard/establishments", icon: Building2 },
-      { labelKey: "lotsBuildings", href: "/dashboard/lots-buildings", icon: MapPin },
-      { labelKey: "voters", href: "/dashboard/voters", icon: ClipboardList },
+      { labelKey: "residents", href: "/dashboard/residents", icon: Users, permission: "residents.view" },
+      { labelKey: "establishments", href: "/dashboard/establishments", icon: Building2, permission: "establishments.view" },
+      { labelKey: "lotsBuildings", href: "/dashboard/lots-buildings", icon: MapPin, permission: "lots-buildings.view" },
+      { labelKey: "voters", href: "/dashboard/voters", icon: ClipboardList, permission: "residents.view" },
     ],
   },
   {
     titleKey: "judicial",
     items: [
-      { labelKey: "caseRecords", href: "/dashboard/judicial/kp-cases", icon: Scale },
-      { labelKey: "blotterRecords", href: "/dashboard/judicial/blotter", icon: Gavel },
-      { labelKey: "vawcRecords", href: "/dashboard/vawc", icon: Shield },
+      { labelKey: "caseRecords", href: "/dashboard/judicial/kp-cases", icon: Scale, permission: "kp-cases.view" },
+      { labelKey: "blotterRecords", href: "/dashboard/judicial/blotter", icon: Gavel, permission: "blotters.view" },
+      { labelKey: "vawcRecords", href: "/dashboard/vawc", icon: Shield, permission: "vawc.view" },
     ],
   },
   {
     titleKey: "services",
     items: [
-      { labelKey: "documents", href: "/dashboard/documents", icon: FileText },
+      { labelKey: "documents", href: "/dashboard/documents", icon: FileText, permission: "documents.view" },
       // { labelKey: "requests", href: "/dashboard/requests", icon: Receipt },
-      { labelKey: "reports", href: "/dashboard/reports", icon: BarChart3 },
+      { labelKey: "reports", href: "/dashboard/reports", icon: BarChart3, permission: "reports.view" },
     ],
   },
   {
@@ -92,8 +93,8 @@ const navGroupDefs: NavGroupDef[] = [
   {
     titleKey: "operations",
     items: [
-      { labelKey: "tanod", href: "/dashboard/tanod", icon: Shield },
-      { labelKey: "finance", href: "/dashboard/finance", icon: Receipt },
+      { labelKey: "tanod", href: "/dashboard/tanod", icon: Shield, permission: "officials.view" },
+      { labelKey: "finance", href: "/dashboard/finance", icon: Receipt, permission: "finance.view" },
       // { labelKey: "hris", href: "/dashboard/hris", icon: UserCog },
       // { labelKey: "inventory", href: "/dashboard/inventory", icon: Package },
       { labelKey: "disasterDrrm", href: "/dashboard/disaster", icon: AlertTriangle },
@@ -105,6 +106,7 @@ const navGroupDefs: NavGroupDef[] = [
 const bottomNavItems: NavItemDef[] = [
   { labelKey: "updates", href: "/dashboard/updates", icon: Sparkles },
   // { labelKey: "supportTickets", href: "/dashboard/support", icon: MessageCircle },
+  { labelKey: "staff", href: "/dashboard/settings/users", icon: Users },
   { labelKey: "settings", href: "/dashboard/settings", icon: Settings },
   { labelKey: "helpManual", href: "/dashboard/help", icon: HelpCircle },
 ];
@@ -201,18 +203,31 @@ export function Sidebar() {
 
       {/* Navigation — fills remaining space, scrolls when content overflows */}
       <nav className="flex-1 min-h-0 overflow-y-auto px-2 mt-2 pb-3">
-        {navGroupDefs.map((group, gi) => {
+        {navGroupDefs.map((group) => {
+          const hasAccess = (item: NavItemDef) => {
+            if (user?.is_super_admin || user?.roles?.includes("kapitan")) {
+              return true;
+            }
+            if (!item.permission) {
+              return true;
+            }
+            return user?.permissions?.includes(item.permission) || false;
+          };
+
+          const accessibleItems = group.items.filter(hasAccess);
+          if (accessibleItems.length === 0) return null;
+
           const groupTitle = group.titleKey ? navLabel(group.titleKey) : "";
 
           return (
-            <div key={gi} className="mb-2 last:mb-0">
+            <div key={group.titleKey} className="mb-2 last:mb-0">
               {groupTitle && (
                 <p className="px-2.5 py-1 mb-1 text-[10px] font-semibold text-muted-foreground/50 tracking-[0.18em] uppercase">
                   {groupTitle}
                 </p>
               )}
               <div className="space-y-px">
-                {group.items.map((item) => {
+                {accessibleItems.map((item) => {
                     const Icon = item.icon;
                     const active = isActive(item.href);
                     const label = navLabel(item.labelKey);
@@ -262,7 +277,12 @@ export function Sidebar() {
       {/* Bottom — Updates, Support, Settings, Help pinned */}
       <div className="px-2 pt-2 border-t border-border/40 shrink-0">
         <div className="space-y-px">
-          {bottomNavItems.map((item) => {
+          {bottomNavItems.filter((item) => {
+            if (item.labelKey === "settings" || item.labelKey === "staff") {
+              return user?.is_super_admin || user?.roles?.includes("kapitan") || user?.permissions?.includes("settings.manage");
+            }
+            return true;
+          }).map((item) => {
             const Icon = item.icon;
             const active = isActive(item.href);
             const label = navLabel(item.labelKey);
