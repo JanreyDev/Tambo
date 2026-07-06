@@ -42,9 +42,10 @@
             margin-bottom: 10px;
         }
         .header-logos img {
-            width: 80px; height: 80px;
-            margin: 0 5px;
+            width: 120px; height: 120px;
+            margin: 0 8px;
             vertical-align: middle;
+            border-radius: 50%;
         }
 
         .republic-text {

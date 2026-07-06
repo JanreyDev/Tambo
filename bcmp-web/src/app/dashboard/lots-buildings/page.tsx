@@ -802,8 +802,8 @@ If the user only wants to change one field, keep the other field unchanged. Alwa
             nationalLogoUrl={resolvePhotoUrl(settings?.national_logo_url)}
             signatoryName={(documentSettings.default_signatory_name as string) || settings?.captain_name}
             signatoryTitle={(documentSettings.default_signatory_title as string) || "PUNONG BARANGAY"}
-            contentTitle={template?.title || cfg.title}
-            contentSalutation={template?.salutation}
+            contentTitle={(design.custom_title as string) || template?.title || cfg.title}
+            contentSalutation={(design.custom_salutation as string) || template?.salutation}
             contentBodyHtml={issuanceContent}
             rawContent={issuanceContent}
             onContentChange={setIssuanceContent}

@@ -813,6 +813,8 @@ export default function SettingsPage() {
   const [signatoryTitle, setSignatoryTitle] = useState("PUNONG BARANGAY");
   const [docLayout, setDocLayout] = useState<"klasiko" | "moderno" | "elegante" | "digital">("klasiko");
   const [docCustomContent, setDocCustomContent] = useState<string>("");
+  const [docCustomTitle, setDocCustomTitle] = useState<string>("");
+  const [docCustomSalutation, setDocCustomSalutation] = useState<string>("");
   const [docColorTheme, setDocColorTheme] = useState<
     | "plain" | "blue" | "red" | "green" | "yellow"
     | "combo-flag" | "combo-festive" | "combo-earth" | "combo-gov"
@@ -1199,6 +1201,8 @@ export default function SettingsPage() {
             document_design_pattern: docDesignPattern,
             document_paper_size: docPaperSize,
             custom_content: docCustomContent,
+            custom_title: docCustomTitle,
+            custom_salutation: docCustomSalutation,
           }
         };
         
@@ -2505,11 +2509,13 @@ export default function SettingsPage() {
                             nationalLogoUrl={resolvePhotoUrl(nationalLogoUrl)}
                             signatoryName={previewSignatoryName}
                             signatoryTitle={previewSignatoryTitle}
-                            contentTitle={customizeTab === "editor" ? ((dbTemplates || []).find(c => c.id === selectedCertType)?.title || "PREVIEW") : undefined}
-                            contentSalutation={customizeTab === "editor" ? ((dbTemplates || []).find(c => c.id === selectedCertType)?.salutation) : undefined}
-                            contentBodyHtml={customizeTab === "editor" ? (docCustomContent || (dbTemplates || []).find(c => c.id === selectedCertType)?.content) : undefined}
-                            rawContent={customizeTab === "editor" ? (docCustomContent || (dbTemplates || []).find(c => c.id === selectedCertType)?.content) : undefined}
+                            contentTitle={customizeTab === "editor" ? docCustomTitle : undefined}
+                            contentSalutation={customizeTab === "editor" ? docCustomSalutation : undefined}
+                            contentBodyHtml={customizeTab === "editor" ? docCustomContent : undefined}
+                            rawContent={customizeTab === "editor" ? docCustomContent : undefined}
                             onContentChange={customizeTab === "editor" ? setDocCustomContent : undefined}
+                            onTitleChange={customizeTab === "editor" ? setDocCustomTitle : undefined}
+                            onSalutationChange={customizeTab === "editor" ? setDocCustomSalutation : undefined}
                             fitToContainer={true}
                           />
                         </div>
@@ -2835,7 +2841,12 @@ export default function SettingsPage() {
                                         setDocDesignPattern((existing.design_settings.document_design_pattern as any) || "wave");
                                         setDocPaperSize((existing.design_settings.document_paper_size as any) || "a4");
                                         setDocCustomContent(existing.design_settings.custom_content || "");
+                                        setDocCustomTitle(existing.design_settings.custom_title || existing.title || option?.title || option?.name || "");
+                                        setDocCustomSalutation(existing.design_settings.custom_salutation || existing.salutation || option?.salutation || "");
                                       } else {
+                                        setDocCustomContent(option?.content || "");
+                                        setDocCustomTitle(option?.title || option?.name || "");
+                                        setDocCustomSalutation(option?.salutation || "");
                                         loadGlobalDocumentDesign();
                                       }
                                       setCustomizeTab("editor");

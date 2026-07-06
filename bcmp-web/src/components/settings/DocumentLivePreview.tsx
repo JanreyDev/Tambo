@@ -37,6 +37,8 @@ interface Props {
   contentBodyHtml?: string;
   rawContent?: string;
   onContentChange?: (val: string) => void;
+  onTitleChange?: (val: string) => void;
+  onSalutationChange?: (val: string) => void;
   contentControlNo?: string;
   contentIssuedDate?: string;
   contentValidUntil?: string;
@@ -123,7 +125,7 @@ export function DocumentLivePreview({
   layout, paperSize, font, colorTheme, designPattern,
   barangayName, municipality, province, logoUrl, municipalityLogoUrl, nationalLogoUrl,
   signatoryName, signatoryTitle, hideChrome, fitToContainer, fitScale = 1,
-  contentTitle, contentSalutation, contentBodyHtml, rawContent, onContentChange, contentControlNo, contentIssuedDate,
+  contentTitle, contentSalutation, contentBodyHtml, rawContent, onContentChange, onTitleChange, onSalutationChange, contentControlNo, contentIssuedDate,
   contentValidUntil, contentRequestedBy, contentPurpose, officials
 }: Props) {
   const c = COLORS[colorTheme] ?? COLORS.plain;
@@ -151,6 +153,8 @@ export function DocumentLivePreview({
     bodyHtml: displayBody,
     rawContent: displayRawContent,
     onContentChange,
+    onTitleChange,
+    onSalutationChange,
     controlNo: displayControlNo,
     issuedDate: displayIssuedDate,
     validUntil: contentValidUntil || "Nov 16, 2026",
@@ -242,6 +246,8 @@ interface BodyProps {
   bodyHtml: string;
   rawContent?: string;
   onContentChange?: (val: string) => void;
+  onTitleChange?: (val: string) => void;
+  onSalutationChange?: (val: string) => void;
   controlNo: string;
   issuedDate: string;
   validUntil: string;
@@ -274,6 +280,62 @@ const EditorArea = memo(({ initialHtml, onInput, onBlur, className, style, inner
     />
   );
 }, () => true);
+
+// Reusable inline click-to-edit text component
+function EditableText({
+  value,
+  onChange,
+  className,
+  style,
+  placeholder,
+  tag = "div",
+  title = "Click to edit"
+}: {
+  value: string;
+  onChange?: (v: string) => void;
+  className?: string;
+  style?: React.CSSProperties;
+  placeholder?: string;
+  tag?: "div" | "h2" | "p" | "span";
+  title?: string;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const editorRef = useRef<HTMLDivElement>(null);
+
+  if (isEditing && onChange) {
+    return (
+      <div
+        ref={editorRef}
+        contentEditable
+        suppressContentEditableWarning
+        autoFocus
+        onInput={(e) => onChange(e.currentTarget.innerText)}
+        onBlur={() => setIsEditing(false)}
+        className={`${className} outline-none ring-[1.5px] ring-[var(--accent-primary)] rounded-sm font-inherit text-black shadow-inner cursor-text relative z-10 bg-white px-2`}
+        style={style}
+      >
+        {value}
+      </div>
+    );
+  }
+
+  const Tag = tag;
+
+  return (
+    <Tag
+      className={`${className} ${onChange ? 'hover:bg-blue-50/50 hover:ring-[1.5px] hover:ring-[var(--accent-primary)] cursor-pointer rounded-sm transition-all' : ''}`}
+      style={style}
+      onClick={() => {
+        if (onChange) {
+          setIsEditing(true);
+        }
+      }}
+      title={onChange ? title : undefined}
+    >
+      {value || placeholder || ""}
+    </Tag>
+  );
+}
 
 // Editable body wrapper for click-to-edit support
 function EditableBody({ 
@@ -604,13 +666,28 @@ function KlasikoBody(props: BodyProps) {
           <Watermark c={c} />
           <div className="relative z-10 h-full flex flex-col">
             <div className="text-center mb-6">
-              <h2 className="font-bold tracking-[0.2em] text-[13px]" style={{ color: c.primary }}>
-                {title}
-              </h2>
+              <EditableText
+                tag="h2"
+                value={title}
+                onChange={props.onTitleChange}
+                className="font-bold tracking-[0.2em] text-[13px]"
+                style={{ color: c.primary }}
+                title="Click to edit document title"
+              />
               <div className="h-1.5 rounded-full w-[70%] mx-auto mt-2 opacity-80" style={{ background: c.accent }} />
             </div>
             
-            {salutation && <p className="text-[7.5px] font-bold uppercase mb-3 tracking-wide" style={{ color: c.primary }}>{salutation}</p>}
+            {(salutation || props.onSalutationChange) && (
+              <EditableText
+                tag="p"
+                value={salutation || ""}
+                onChange={props.onSalutationChange}
+                placeholder="[Salutation]"
+                className="text-[7.5px] font-bold uppercase mb-3 tracking-wide"
+                style={{ color: c.primary }}
+                title="Click to edit salutation"
+              />
+            )}
             
             <EditableBody 
               className="text-[7.5px] text-justify leading-[1.6] text-gray-800 whitespace-pre-line mb-4" 
@@ -659,14 +736,27 @@ function EleganteBody(props: BodyProps) {
             <div className="relative max-w-[85%] mx-auto">
               <div className="flex items-center justify-center gap-2 mb-2">
                 <div className="h-px flex-1" style={{ background: c.primary }} />
-                <h2 className="font-bold tracking-[0.22em] uppercase" style={{ color: c.primary, fontSize: 14 }}>
-                  {title}
-                </h2>
+                <EditableText
+                  tag="h2"
+                  value={title}
+                  onChange={props.onTitleChange}
+                  className="font-bold tracking-[0.22em] uppercase"
+                  style={{ color: c.primary, fontSize: 14 }}
+                  title="Click to edit document title"
+                />
                 <div className="h-px flex-1" style={{ background: c.primary }} />
               </div>
-              {salutation && <p className="text-[9px] font-semibold uppercase text-center mb-3" style={{ color: c.primary, letterSpacing: 1 }}>
-                {salutation}
-              </p>}
+              {(salutation || props.onSalutationChange) && (
+                <EditableText
+                  tag="p"
+                  value={salutation || ""}
+                  onChange={props.onSalutationChange}
+                  placeholder="[Salutation]"
+                  className="text-[9px] font-semibold uppercase text-center mb-3"
+                  style={{ color: c.primary, letterSpacing: 1 }}
+                  title="Click to edit salutation"
+                />
+              )}
               <EditableBody 
                 className="text-[8px] text-justify leading-relaxed text-gray-800 whitespace-pre-line" 
                 bodyHtml={props.bodyHtml} rawContent={props.rawContent} onContentChange={props.onContentChange} 
@@ -730,11 +820,26 @@ function ModernoBody(props: BodyProps) {
       <main className="flex-1 px-8 pt-2 pb-3 relative">
         <Watermark c={c} />
         <div className="relative">
-          <h2 className="text-center font-bold tracking-wider mb-1" style={{ color: c.primary, fontSize: 13, letterSpacing: 1 }}>
-            {title}
-          </h2>
+          <EditableText
+            tag="h2"
+            value={title}
+            onChange={props.onTitleChange}
+            className="text-center font-bold tracking-wider mb-1 text-center w-full"
+            style={{ color: c.primary, fontSize: 13, letterSpacing: 1 }}
+            title="Click to edit document title"
+          />
           <div className="h-0.5 w-12 mx-auto mb-3" style={{ background: c.accent }} />
-          {salutation && <p className="text-[9px] font-semibold mb-2 uppercase" style={{ color: c.primary }}>{salutation}</p>}
+          {(salutation || props.onSalutationChange) && (
+            <EditableText
+              tag="p"
+              value={salutation || ""}
+              onChange={props.onSalutationChange}
+              placeholder="[Salutation]"
+              className="text-[9px] font-semibold mb-2 uppercase text-center w-full"
+              style={{ color: c.primary }}
+              title="Click to edit salutation"
+            />
+          )}
           <EditableBody 
             className="text-[8px] text-justify leading-relaxed text-gray-800 whitespace-pre-line" 
             bodyHtml={props.bodyHtml} rawContent={props.rawContent} onContentChange={props.onContentChange} 

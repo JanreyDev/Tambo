@@ -1137,8 +1137,8 @@ export function GenerateDocumentWizard({
                         signatoryTitle={selectedTemplate.approval_config?.right?.position || barangaySettings?.settings?.default_signatory_title}
                         hideChrome={true}
                         fitToContainer={true}
-                        contentTitle={selectedTemplate.title ?? selectedTemplate.name}
-                        contentSalutation={selectedTemplate.salutation}
+                        contentTitle={customSettings.custom_title ?? selectedTemplate.title ?? selectedTemplate.name}
+                        contentSalutation={customSettings.custom_salutation ?? selectedTemplate.salutation}
                         contentBodyHtml={renderedIssuanceContent}
                         rawContent={editableIssuanceContent}
                         onContentChange={updateManualContent}

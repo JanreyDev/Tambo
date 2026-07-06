@@ -219,6 +219,28 @@ class DocumentPdfService
         ?LotBuilding $lotBuilding,
         ?User $issuedBy,
     ): array {
+        // Apply custom template design settings overrides if present
+        $customConfigKey = match ($template->constituent_type) {
+            'establishment' => 'customized_establishment_certificates',
+            'lot_building' => 'customized_lot_building_certificates',
+            default => 'customized_resident_certificates',
+        };
+        $customConfigs = $barangay->settings[$customConfigKey] ?? [];
+        $customConfig = collect($customConfigs)->firstWhere('id', $template->id);
+        $customSettings = $customConfig['design_settings'] ?? null;
+
+        if ($customSettings) {
+            if (isset($customSettings['custom_title'])) {
+                $template->title = $customSettings['custom_title'];
+            }
+            if (isset($customSettings['custom_salutation'])) {
+                $template->salutation = $customSettings['custom_salutation'];
+            }
+            if (isset($customSettings['custom_content'])) {
+                $template->content = $customSettings['custom_content'];
+            }
+        }
+
         // Merge field values from resident + custom inputs
         $mergeValues = $this->resolveMergeFields($template, $resident, $establishment, $lotBuilding, $document);
 

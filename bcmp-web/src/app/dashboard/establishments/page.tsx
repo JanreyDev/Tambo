@@ -581,7 +581,7 @@ function DocGenModal({
     ? validUntilDate.toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" })
     : "No Expiry";
   const customConfig = customCertificates.find((certificate) => certificate.id === selectedTemplate?.id);
-  const customDesignSettings = customConfig?.design_settings ?? {};
+  const customDesignSettings = (customConfig?.design_settings ?? {}) as any;
   const useGlobalDesign = customConfig
     ? (customConfig.isGlobal ?? customDesignSettings.use_global_design ?? true)
     : true;
@@ -758,7 +758,8 @@ If the user only wants to change one field, keep the other field unchanged. Alwa
         {/* ── Left: Document Preview ── */}
         <div className="flex-1 bg-slate-100 dark:bg-slate-800/60 overflow-y-auto p-6 flex flex-col items-center custom-scrollbar">
           {(() => {
-            const docTitle = selectedTemplate?.title || docConfig.title;
+            const docTitle = customDesignSettings.custom_title ?? selectedTemplate?.title ?? docConfig.title;
+            const docSalutation = customDesignSettings.custom_salutation ?? selectedTemplate?.salutation;
             const fontVal = useGlobalDesign
               ? (barangayDocumentSettings.document_font || "times")
               : (customDesignSettings.document_font || "times");
@@ -793,7 +794,7 @@ If the user only wants to change one field, keep the other field unchanged. Alwa
                   signatoryName={barangayDocumentSettings.default_signatory_name || settings?.captain_name || "JUAN DELA CRUZ"}
                   signatoryTitle={barangayDocumentSettings.default_signatory_title || "PUNONG BARANGAY"}
                   contentTitle={docTitle}
-                  contentSalutation={selectedTemplate?.salutation}
+                  contentSalutation={docSalutation}
                   contentBodyHtml={issuanceContent}
                   rawContent={issuanceContent}
                   onContentChange={setIssuanceContent}
