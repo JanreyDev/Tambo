@@ -740,7 +740,7 @@ function KlasikoBody(props: BodyProps) {
                 <span className="font-bold" style={{ color: c.primary }}>Purpose:</span>
                 <span className="uppercase text-gray-800">{purpose}</span>
               </div>
-              {title?.toLowerCase().includes("clearance") && (
+              {title?.toLowerCase().includes("clearance") && barangay?.toLowerCase() === "tambo" && (
                 <div className="flex items-center gap-4 text-[6.5px] mt-2 select-none font-sans font-medium">
                   <div className="flex items-center gap-0.5">
                     <span className="text-[8px] font-mono" style={{ color: c.primary }}>{props.isVillageCondo ? "☐" : "☑"}</span>
@@ -802,7 +802,7 @@ function EleganteBody(props: BodyProps) {
                 className="text-[7.5px] text-justify leading-relaxed text-gray-800 whitespace-pre-line mb-3" 
                 bodyHtml={props.bodyHtml} rawContent={props.rawContent} onContentChange={props.onContentChange} 
               />
-              {title?.toLowerCase().includes("clearance") && (
+              {title?.toLowerCase().includes("clearance") && props.barangay?.toLowerCase() === "tambo" && (
                 <div className="flex items-center gap-4 text-[6.5px] select-none font-sans font-medium justify-center mb-2 shrink-0">
                   <div className="flex items-center gap-0.5">
                     <span className="text-[8px] font-mono" style={{ color: c.primary }}>{props.isVillageCondo ? "☐" : "☑"}</span>
@@ -918,7 +918,7 @@ function ModernoBody(props: BodyProps) {
                 <p className="font-semibold" style={{ color: c.primary }}>
                   Or No.:
                 </p>
-                {isClearance && (
+                {isClearance && props.barangay?.toLowerCase() === "tambo" && (
                   <div className="flex items-center gap-2 text-[6.5px] select-none font-sans font-medium mt-0.5 mb-0.5">
                     <div className="flex items-center gap-0.5">
                       <span className="text-[8px] font-mono" style={{ color: c.primary }}>{props.isVillageCondo ? "☐" : "☑"}</span>

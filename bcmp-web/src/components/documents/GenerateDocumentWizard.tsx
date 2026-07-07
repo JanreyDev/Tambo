@@ -1246,7 +1246,7 @@ export function GenerateDocumentWizard({
                         />
                       </div>
                     )}
-                    {selectedTemplate.constituent_type === "resident" && (
+                    {selectedTemplate.constituent_type === "resident" && barangaySettings?.name?.toLowerCase() === "tambo" && (
                       <div className="flex items-center gap-2">
                         <input
                           type="checkbox"

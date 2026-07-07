@@ -376,8 +376,9 @@
                         @endif
                         @php
                             $isClearance = str_contains(strtolower($template->title ?? $template->name), 'clearance');
+                            $isTambo = strtolower($barangay->name ?? '') === 'tambo';
                         @endphp
-                        @if($isClearance && isset($resident))
+                        @if($isClearance && $isTambo && isset($resident))
                         <div style="margin-top: 4px; font-size: 8.5pt; font-family: sans-serif; line-height: 1.4; color: #333;">
                             <span style="font-family: DejaVu Sans; font-size: 9.5pt; color: {{ $themePrimary }};">{!! $resident->is_village_condo ? '&#9744;' : '&#9745;' !!}</span> Official Tambo Resident &nbsp;&nbsp;
                             <span style="font-family: DejaVu Sans; font-size: 9.5pt; color: {{ $themePrimary }};">{!! $resident->is_village_condo ? '&#9745;' : '&#9744;' !!}</span> Village/Condo Resident
