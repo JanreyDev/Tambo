@@ -1224,7 +1224,14 @@ export function GenerateDocumentWizard({
                     {selectedTemplate.settings?.show_ctc && (
                       <div className="flex items-center gap-2">
                         <CreditCard className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                        <label className="text-[11px] font-medium text-muted-foreground whitespace-nowrap">CTC #</label>
+                        {(() => {
+                          const isClearance = (selectedTemplate.title ?? selectedTemplate.name ?? "").toLowerCase().includes("clearance");
+                          return (
+                            <label className="text-[11px] font-medium text-muted-foreground whitespace-nowrap">
+                              {isClearance ? "Series No." : "CTC #"}
+                            </label>
+                          );
+                        })()}
                         <input
                           type="text"
                           value={ctcNumber}

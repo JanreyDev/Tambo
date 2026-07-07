@@ -230,10 +230,7 @@
                 </tr>
             </table>
 
-            {{-- Salutation --}}
-            @if($renderedSalutation)
-            <div style="font-size: 10pt; font-weight: bold; color: {{ $themePrimary }}; text-transform: uppercase; letter-spacing: 1px; margin-top: 30px; margin-bottom: 15px;">{{ $renderedSalutation }}</div>
-            @endif
+
 
             {{-- Body text --}}
             <div style="font-size: 10pt; text-align: justify; line-height: 1.7; color: #333; margin-bottom: 20px;">
@@ -262,15 +259,18 @@
                     <td style="color: #333;">{{ $document->or_number }}</td>
                     @if($document->or_amount !== null)
                     <td style="font-weight: bold; color: {{ $themePrimary }}; padding-left: 15px; padding-right: 8px;">Amount:</td>
-                    <td style="color: #333;">&#8369;{{ number_format((float)$document->or_amount, 2) }}</td>
+                    <td style="color: #333;"><span style="font-family: DejaVu Sans;">&#8369;</span>{{ number_format((float)$document->or_amount, 2) }}</td>
                     @endif
                 </tr>
             </table>
             @endif
             @if(($settings['show_ctc'] ?? false) && $document->ctc_number)
+            @php
+                $isClearance = str_contains(strtolower($template->title ?? $template->name), 'clearance');
+            @endphp
             <table cellpadding="0" cellspacing="0" style="margin: 0 0 8px 20px; font-size: 9pt;">
                 <tr>
-                    <td style="font-weight: bold; color: {{ $themePrimary }}; padding-right: 8px;">CTC No.:</td>
+                    <td style="font-weight: bold; color: {{ $themePrimary }}; padding-right: 8px;">{{ $isClearance ? 'Series No:' : 'CTC No.:' }}</td>
                     <td style="color: #333;">{{ $document->ctc_number }}</td>
                 </tr>
             </table>

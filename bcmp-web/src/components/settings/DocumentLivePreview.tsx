@@ -723,17 +723,7 @@ function KlasikoBody(props: BodyProps) {
               <div className="h-1.5 rounded-full w-[70%] mx-auto mt-2 opacity-80" style={{ background: c.accent }} />
             </div>
             
-            {(salutation || props.onSalutationChange) && (
-              <EditableText
-                tag="p"
-                value={salutation || ""}
-                onChange={props.onSalutationChange}
-                placeholder="[Salutation]"
-                className="text-[7.5px] font-bold uppercase mb-3 tracking-wide"
-                style={{ color: c.primary }}
-                title="Click to edit salutation"
-              />
-            )}
+
             
             <EditableBody 
               className="text-[7.5px] text-justify leading-[1.6] text-gray-800 whitespace-pre-line mb-4" 
@@ -792,23 +782,11 @@ function EleganteBody(props: BodyProps) {
                 />
                 <div className="shrink-0" style={{ background: c.primary, width: "15px", height: "1px" }} />
               </div>
-              {(salutation || props.onSalutationChange) && (
-                <EditableText
-                  tag="p"
-                  value={salutation || ""}
-                  onChange={props.onSalutationChange}
-                  placeholder="[Salutation]"
-                  className="text-[7.5px] font-semibold uppercase text-center mb-2 shrink-0"
-                  style={{ color: c.primary, letterSpacing: 1 }}
-                  title="Click to edit salutation"
-                />
-              )}
-              <div className="flex-1 min-h-0 overflow-hidden">
-                <EditableBody 
-                  className="text-[7.5px] text-justify leading-relaxed text-gray-800 whitespace-pre-line" 
-                  bodyHtml={props.bodyHtml} rawContent={props.rawContent} onContentChange={props.onContentChange} 
-                />
-              </div>
+
+              <EditableBody 
+                className="text-[7.5px] text-justify leading-relaxed text-gray-800 whitespace-pre-line mb-3" 
+                bodyHtml={props.bodyHtml} rawContent={props.rawContent} onContentChange={props.onContentChange} 
+              />
               <div className="mt-auto pt-2 shrink-0">
                 <SignatureLine c={c} name={signName} title={signTitle} />
               </div>
@@ -891,17 +869,7 @@ function ModernoBody(props: BodyProps) {
             title="Click to edit document title"
           />
           <div className="h-0.5 w-12 mx-auto mb-3" style={{ background: c.accent }} />
-          {(salutation || props.onSalutationChange) && (
-            <EditableText
-              tag="p"
-              value={salutation || ""}
-              onChange={props.onSalutationChange}
-              placeholder="[Salutation]"
-              className="text-[9px] font-semibold mb-2 uppercase text-center w-full"
-              style={{ color: c.primary }}
-              title="Click to edit salutation"
-            />
-          )}
+
           <EditableBody 
             className="text-[8px] text-justify leading-relaxed text-gray-800 whitespace-pre-line" 
             bodyHtml={props.bodyHtml} rawContent={props.rawContent} onContentChange={props.onContentChange} 
@@ -932,10 +900,10 @@ function ModernoBody(props: BodyProps) {
         </div>
 
         {/* Signature (Bottom Right) */}
-        <div className="text-center" style={{ width: 120 }}>
-          <p className="text-[8px] font-bold uppercase tracking-wide" style={{ color: c.primary }}>{signName}</p>
+        <div className="text-center shrink-0" style={{ width: 140 }}>
+          <p className="text-[8px] font-bold uppercase tracking-wide whitespace-nowrap" style={{ color: c.primary }}>{signName}</p>
           <div className="h-px w-full my-0.5" style={{ background: c.primary }} />
-          <p className="text-[6.5px] uppercase tracking-wider text-gray-700">{signTitle}</p>
+          <p className="text-[6.5px] uppercase tracking-wider text-gray-700 whitespace-nowrap">{signTitle}</p>
         </div>
       </div>
     </div>

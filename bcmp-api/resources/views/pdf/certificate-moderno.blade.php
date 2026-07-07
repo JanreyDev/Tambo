@@ -318,10 +318,7 @@
             <div class="title-underline"></div>
         </div>
 
-        {{-- Salutation --}}
-        @if($renderedSalutation)
-        <div class="salutation">{{ $renderedSalutation }}</div>
-        @endif
+
 
         {{-- Body --}}
         <div class="body-text">
@@ -372,7 +369,7 @@
                             <span style="font-family: monospace; color: #111;">
                                 {{ $document->or_number }}
                                 @if($document->or_amount !== null)
-                                - ₱{{ number_format((float)$document->or_amount, 2) }}
+                                - <span style="font-family: DejaVu Sans;">&#8369;</span>{{ number_format((float)$document->or_amount, 2) }}
                                 @endif
                             </span>
                         </div>
@@ -384,11 +381,11 @@
                     
                     <!-- Bottom Right: Signature -->
                     <td width="50%" valign="bottom" align="right" style="text-align: right;">
-                        <div style="width: 250px; display: inline-block; text-align: center;">
-                            <div class="signature-name" style="font-size: 12pt; font-weight: bold; color: {{ $themePrimary }}; text-transform: uppercase;">
+                        <div style="width: 280px; display: inline-block; text-align: center;">
+                            <div class="signature-name" style="font-size: 12pt; font-weight: bold; color: {{ $themePrimary }}; text-transform: uppercase; white-space: nowrap;">
                                 {{ $rightSigName }}
                             </div>
-                            <div class="signature-line" style="width: 250px; height: 1px; background-color: {{ $themePrimary }}; margin: 4px auto;"></div>
+                            <div class="signature-line" style="width: 100%; height: 1px; background-color: {{ $themePrimary }}; margin: 4px auto;"></div>
                             <div class="signature-title" style="font-size: 9pt; color: #555; text-transform: uppercase; letter-spacing: 1px;">
                                 {{ $rightSigPos }}
                             </div>

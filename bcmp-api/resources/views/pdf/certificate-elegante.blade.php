@@ -293,10 +293,7 @@
                 </tr>
             </table>
 
-            {{-- Salutation --}}
-            @if($renderedSalutation)
-            <div class="salutation">{{ $renderedSalutation }}</div>
-            @endif
+
 
             {{-- Body --}}
             <div class="body-text">
