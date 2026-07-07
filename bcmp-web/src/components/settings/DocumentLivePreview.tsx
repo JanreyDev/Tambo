@@ -47,6 +47,7 @@ interface Props {
   contentOrNo?: string;
   contentOrAmount?: string;
   officials?: Array<{ name: string; position: string }>;
+  isVillageCondo?: boolean;
 }
 
 const ASPECT_RATIO: Record<PaperSize, string> = {
@@ -128,7 +129,7 @@ export function DocumentLivePreview({
   barangayName, municipality, province, logoUrl, municipalityLogoUrl, nationalLogoUrl,
   signatoryName, signatoryTitle, hideChrome, fitToContainer, fitScale = 1,
   contentTitle, contentSalutation, contentBodyHtml, rawContent, onContentChange, onTitleChange, onSalutationChange, contentControlNo, contentIssuedDate,
-  contentValidUntil, contentRequestedBy, contentPurpose, contentOrNo, contentOrAmount, officials
+  contentValidUntil, contentRequestedBy, contentPurpose, contentOrNo, contentOrAmount, officials, isVillageCondo
 }: Props) {
   const c = COLORS[colorTheme] ?? COLORS.plain;
   const fontFamily = FONT_FAMILY[font];
@@ -165,6 +166,7 @@ export function DocumentLivePreview({
     orNo: contentOrNo ?? "3270721",
     orAmount: contentOrAmount ?? "50.00",
     officials: officials !== undefined ? officials : SAMPLE_OFFICIALS,
+    isVillageCondo: isVillageCondo ?? false,
   };
 
   const meta = useMemo(() => ({
@@ -260,6 +262,7 @@ interface BodyProps {
   orNo?: string;
   orAmount?: string;
   officials: Array<{ name: string; position: string }>;
+  isVillageCondo: boolean;
 }
 
 const AVAILABLE_TAGS = [
@@ -737,6 +740,18 @@ function KlasikoBody(props: BodyProps) {
                 <span className="font-bold" style={{ color: c.primary }}>Purpose:</span>
                 <span className="uppercase text-gray-800">{purpose}</span>
               </div>
+              {title?.toLowerCase().includes("clearance") && (
+                <div className="flex items-center gap-4 text-[6.5px] mt-2 select-none font-sans font-medium">
+                  <div className="flex items-center gap-0.5">
+                    <span className="text-[8px] font-mono" style={{ color: c.primary }}>{props.isVillageCondo ? "☐" : "☑"}</span>
+                    <span>Official Tambo Resident</span>
+                  </div>
+                  <div className="flex items-center gap-0.5">
+                    <span className="text-[8px] font-mono" style={{ color: c.primary }}>{props.isVillageCondo ? "☑" : "☐"}</span>
+                    <span>Village/Condo Resident</span>
+                  </div>
+                </div>
+              )}
             </div>
             
             <div className="mt-auto self-end text-center w-40">
@@ -787,6 +802,18 @@ function EleganteBody(props: BodyProps) {
                 className="text-[7.5px] text-justify leading-relaxed text-gray-800 whitespace-pre-line mb-3" 
                 bodyHtml={props.bodyHtml} rawContent={props.rawContent} onContentChange={props.onContentChange} 
               />
+              {title?.toLowerCase().includes("clearance") && (
+                <div className="flex items-center gap-4 text-[6.5px] select-none font-sans font-medium justify-center mb-2 shrink-0">
+                  <div className="flex items-center gap-0.5">
+                    <span className="text-[8px] font-mono" style={{ color: c.primary }}>{props.isVillageCondo ? "☐" : "☑"}</span>
+                    <span>Official Tambo Resident</span>
+                  </div>
+                  <div className="flex items-center gap-0.5">
+                    <span className="text-[8px] font-mono" style={{ color: c.primary }}>{props.isVillageCondo ? "☑" : "☐"}</span>
+                    <span>Village/Condo Resident</span>
+                  </div>
+                </div>
+              )}
               <div className="mt-auto pt-2 shrink-0">
                 <SignatureLine c={c} name={signName} title={signTitle} />
               </div>
@@ -891,6 +918,18 @@ function ModernoBody(props: BodyProps) {
                 <p className="font-semibold" style={{ color: c.primary }}>
                   Or No.:
                 </p>
+                {isClearance && (
+                  <div className="flex items-center gap-2 text-[6.5px] select-none font-sans font-medium mt-0.5 mb-0.5">
+                    <div className="flex items-center gap-0.5">
+                      <span className="text-[8px] font-mono" style={{ color: c.primary }}>{props.isVillageCondo ? "☐" : "☑"}</span>
+                      <span>Official Tambo Resident</span>
+                    </div>
+                    <div className="flex items-center gap-0.5">
+                      <span className="text-[8px] font-mono" style={{ color: c.primary }}>{props.isVillageCondo ? "☑" : "☐"}</span>
+                      <span>Village/Condo Resident</span>
+                    </div>
+                  </div>
+                )}
                 <p className="italic font-medium mt-0.5" style={{ color: c.accent }}>
                   Not Valid Without Official Seal
                 </p>

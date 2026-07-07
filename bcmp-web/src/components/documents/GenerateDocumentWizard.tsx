@@ -117,6 +117,7 @@ export function GenerateDocumentWizard({
   const [approvedByLeft, setApprovedByLeft] = useState("");
   const [approvedByRight, setApprovedByRight] = useState("");
   const [issuedDate, setIssuedDate] = useState(new Date().toISOString().split("T")[0]);
+  const [isVillageCondo, setIsVillageCondo] = useState(false);
 
   // ── Mabini AI chat ──
   const [mabiniMessages, setMabiniMessages] = useState<MabiniMsg[]>([]);
@@ -240,6 +241,7 @@ export function GenerateDocumentWizard({
     setApprovedByLeft("");
     setApprovedByRight("");
     setIssuedDate(new Date().toISOString().split("T")[0]);
+    setIsVillageCondo(false);
     setTemplateSearch("");
     setMabiniMessages([]);
     setMabiniInput("");
@@ -338,6 +340,7 @@ export function GenerateDocumentWizard({
   // ── Select resident ──
   const handleSelectResident = (r: ResidentSummary) => {
     setSelectedResident(r);
+    setIsVillageCondo(!!r.is_village_condo);
     if (selectedTemplate) initMabiniChat(selectedTemplate, r);
     setWizardStep("fill-details");
   };
@@ -415,7 +418,7 @@ export function GenerateDocumentWizard({
     return vals;
   }, [selectedResident, customFields, purpose, issuedDate]);
 
-  const customConfigs = (selectedTemplate?.constituent_type === "establishment" ? barangaySettings?.settings?.customized_establishment_certificates : barangaySettings?.settings?.customized_resident_certificates) || [];
+  const customConfigs = ((selectedTemplate?.constituent_type === "establishment" ? barangaySettings?.settings?.customized_establishment_certificates : barangaySettings?.settings?.customized_resident_certificates) as any[]) || [];
   const customConfig = customConfigs.find((c: any) => c.id === selectedTemplate?.id);
   const customSettings = customConfig?.design_settings || {};
   const useGlobalDesign = customConfig ? (customConfig.isGlobal ?? true) : true;
@@ -463,6 +466,7 @@ export function GenerateDocumentWizard({
         custom_field_values: Object.keys(customFields).length > 0 ? customFields : undefined,
         custom_content: manualContentRef.current ?? manualContent ?? editableIssuanceContent,
         custom_title: manualTitle ?? undefined,
+        is_village_condo: selectedTemplate.constituent_type === "resident" ? isVillageCondo : undefined,
       };
       if (selectedTemplate.settings?.show_expiry && selectedTemplate.settings?.expiry_months) {
         const issued = new Date(issuedDate || Date.now());
@@ -1112,7 +1116,7 @@ export function GenerateDocumentWizard({
                         <span className="text-[10px] text-slate-500 dark:text-slate-300 uppercase tracking-widest font-medium">{paperLabel}</span>
                       </div>
                       {(() => {
-                        const customConfigs = (selectedTemplate?.constituent_type === "establishment" ? barangaySettings?.settings?.customized_establishment_certificates : barangaySettings?.settings?.customized_resident_certificates) || [];
+                        const customConfigs = ((selectedTemplate?.constituent_type === "establishment" ? barangaySettings?.settings?.customized_establishment_certificates : barangaySettings?.settings?.customized_resident_certificates) as any[]) || [];
                         const customConfig = customConfigs.find((c: any) => c.id === selectedTemplate.id);
                         const customSettings = customConfig?.design_settings || {};
                         const useGlobalDesign = customConfig ? (customConfig.isGlobal ?? true) : true;
@@ -1152,6 +1156,7 @@ export function GenerateDocumentWizard({
                         contentIssuedDate={issuedDate ? new Date(issuedDate + "T00:00:00").toLocaleDateString("en-PH", { month: "long", day: "numeric", year: "numeric" }) : undefined}
                         contentOrNo={orNumber || undefined}
                         contentOrAmount={orAmount || undefined}
+                        isVillageCondo={isVillageCondo}
                       />
                         );
                       })()}
@@ -1239,6 +1244,20 @@ export function GenerateDocumentWizard({
                           placeholder="Optional"
                           className="w-28 px-2 py-1 rounded-lg border border-border dark:border-slate-600 bg-background dark:bg-slate-900 text-foreground text-xs placeholder:text-muted-foreground dark:placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]/30"
                         />
+                      </div>
+                    )}
+                    {selectedTemplate.constituent_type === "resident" && (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="is_village_condo_checkbox"
+                          checked={isVillageCondo}
+                          onChange={(e) => setIsVillageCondo(e.target.checked)}
+                          className="w-3.5 h-3.5 rounded text-[var(--accent-primary)] focus:ring-[var(--accent-primary)]/30 border-border dark:border-slate-600 bg-background dark:bg-slate-900 cursor-pointer"
+                        />
+                        <label htmlFor="is_village_condo_checkbox" className="text-[11px] font-medium text-muted-foreground whitespace-nowrap cursor-pointer select-none">
+                          Village/Condo Resident?
+                        </label>
                       </div>
                     )}
                   </div>

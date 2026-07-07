@@ -429,6 +429,7 @@ export interface ResidentSummary {
   resident_type: string;
   housing_type?: string | null;
   profile_completion_pct: number;
+  is_village_condo?: boolean;
   photo_file_id: string | null;
   photo_url: string | null;
   registration_date: string | null;
@@ -634,6 +635,7 @@ export interface IssueDocumentPayload {
   custom_content?: string;
   /** Manual title override — replaces template title for this issuance only */
   custom_title?: string;
+  is_village_condo?: boolean;
 }
 
 // ── Establishment Types ───────────────────────────────────────────────────

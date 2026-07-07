@@ -127,6 +127,7 @@ class IssuedDocumentController extends Controller
             'approved_by_right' => ['nullable', 'string', 'max:255'],
             'custom_content' => ['nullable', 'string', 'max:50000'],
             'custom_title'   => ['nullable', 'string', 'max:500'],
+            'is_village_condo' => ['nullable', 'boolean'],
         ]);
 
         $barangayId = $request->user()->barangay_id;
@@ -155,6 +156,10 @@ class IssuedDocumentController extends Controller
                 ->with(['photoFile', 'sectoralTags'])
                 ->find($validated['constituent_id']);
             if ($resident) {
+                if (isset($validated['is_village_condo'])) {
+                    $resident->update(['is_village_condo' => (bool)$validated['is_village_condo']]);
+                    $resident->is_village_condo = (bool)$validated['is_village_condo'];
+                }
                 $constituentName = $resident->full_name;
                 $constituentNumber = $resident->resident_number;
             }

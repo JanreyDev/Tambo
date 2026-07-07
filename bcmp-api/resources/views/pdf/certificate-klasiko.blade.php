@@ -251,6 +251,16 @@
                 @endif
             </table>
 
+            @php
+                $isClearance = str_contains(strtolower($template->title ?? $template->name), 'clearance');
+            @endphp
+            @if($isClearance && isset($resident))
+            <div style="margin: 0 0 15px 20px; font-size: 9pt; font-family: sans-serif; color: #333;">
+                <span style="font-family: DejaVu Sans; font-size: 10pt; color: {{ $themePrimary }};">{!! $resident->is_village_condo ? '&#9744;' : '&#9745;' !!}</span> Official Tambo Resident &nbsp;&nbsp;&nbsp;&nbsp;
+                <span style="font-family: DejaVu Sans; font-size: 10pt; color: {{ $themePrimary }};">{!! $resident->is_village_condo ? '&#9745;' : '&#9744;' !!}</span> Village/Condo Resident
+            </div>
+            @endif
+
             {{-- OR / CTC --}}
             @if(($settings['show_or'] ?? false) && $document->or_number)
             <table cellpadding="0" cellspacing="0" style="margin: 0 0 8px 20px; font-size: 9pt;">
@@ -264,14 +274,14 @@
                 </tr>
             </table>
             @endif
-            @if(($settings['show_ctc'] ?? false) && $document->ctc_number)
+            @if(($settings['show_ctc'] ?? false))
             @php
                 $isClearance = str_contains(strtolower($template->title ?? $template->name), 'clearance');
             @endphp
             <table cellpadding="0" cellspacing="0" style="margin: 0 0 8px 20px; font-size: 9pt;">
                 <tr>
                     <td style="font-weight: bold; color: {{ $themePrimary }}; padding-right: 8px;">{{ $isClearance ? 'Series No:' : 'CTC No.:' }}</td>
-                    <td style="color: #333;">{{ $document->ctc_number }}</td>
+                    <td style="color: #333;">{{ !empty($document->ctc_number) ? $document->ctc_number : $document->document_number }}</td>
                 </tr>
             </table>
             @endif

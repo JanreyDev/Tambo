@@ -361,7 +361,7 @@
                         @endphp
                         <div>
                             <strong style="color: {{ $themePrimary }}; font-family: sans-serif;">{{ $isClearance ? 'Series No:' : 'CTC No:' }}</strong> 
-                            <span style="font-family: monospace; color: #111;">{{ $document->document_number }}</span>
+                            <span style="font-family: monospace; color: #111;">{{ !empty($document->ctc_number) ? $document->ctc_number : $document->document_number }}</span>
                         </div>
                         @if($document->or_number)
                         <div>
@@ -372,6 +372,15 @@
                                 - <span style="font-family: DejaVu Sans;">&#8369;</span>{{ number_format((float)$document->or_amount, 2) }}
                                 @endif
                             </span>
+                        </div>
+                        @endif
+                        @php
+                            $isClearance = str_contains(strtolower($template->title ?? $template->name), 'clearance');
+                        @endphp
+                        @if($isClearance && isset($resident))
+                        <div style="margin-top: 4px; font-size: 8.5pt; font-family: sans-serif; line-height: 1.4; color: #333;">
+                            <span style="font-family: DejaVu Sans; font-size: 9.5pt; color: {{ $themePrimary }};">{!! $resident->is_village_condo ? '&#9744;' : '&#9745;' !!}</span> Official Tambo Resident &nbsp;&nbsp;
+                            <span style="font-family: DejaVu Sans; font-size: 9.5pt; color: {{ $themePrimary }};">{!! $resident->is_village_condo ? '&#9745;' : '&#9744;' !!}</span> Village/Condo Resident
                         </div>
                         @endif
                         <div style="font-style: italic; color: {{ $themeAccent }}; margin-top: 4px; font-weight: bold; font-family: sans-serif;">
