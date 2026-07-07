@@ -29,7 +29,7 @@ class DocumentTemplateFactory extends Factory
             'custom_tables' => null,
             'approval_config' => [
                 'left' => ['label' => 'Prepared by', 'position' => 'Barangay Secretary'],
-                'right' => ['label' => 'Approved by', 'position' => 'Punong Barangay'],
+                'right' => ['label' => 'Processed by', 'position' => 'Punong Barangay'],
             ],
             'settings' => [
                 'show_qr' => true,

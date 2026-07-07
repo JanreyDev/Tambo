@@ -655,7 +655,7 @@ function PatternDecor({
 function KlasikoBody(props: BodyProps) {
   const {
     c, signName, signTitle, designPattern, title, salutation, bodyHtml,
-    controlNo, issuedDate, validUntil, requestedBy, purpose,
+    controlNo, issuedDate, validUntil, requestedBy, purpose, barangay,
   } = props;
   return (
     <div className="w-full h-full flex flex-col text-[8px] relative overflow-hidden bg-white">

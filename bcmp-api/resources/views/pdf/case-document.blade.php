@@ -290,7 +290,7 @@
                     </div>
                 </td>
                 <td class="sig-cell sig-right">
-                    <div class="sig-attested">Approved by:</div>
+                    <div class="sig-attested">Processed by:</div>
                     <div class="sig-name">______________________________</div>
                     <div class="sig-position">Punong Barangay</div>
                 </td>

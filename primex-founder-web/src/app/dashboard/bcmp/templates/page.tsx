@@ -633,7 +633,7 @@ function TemplateEditor({
               <div className="grid grid-cols-2 gap-4">
                 {[
                   { side: "Left (Attested by)", state: approvalLeft, setter: setApprovalLeft },
-                  { side: "Right (Approved by)", state: approvalRight, setter: setApprovalRight },
+                  { side: "Right (Processed by)", state: approvalRight, setter: setApprovalRight },
                 ].map(({ side, state, setter }) => (
                   <div key={side} className="space-y-2">
                     <p className="text-xs font-semibold text-muted-foreground">{side}</p>

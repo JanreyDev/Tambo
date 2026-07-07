@@ -3229,7 +3229,7 @@ export default function SettingsPage() {
                         "Header: dual logos + Republic / Province / Barangay",
                         "Title bar with flanking thin rules",
                         "Body: centered formal text + watermark",
-                        "Footer: 3-column signatures (Prepared / Reviewed / Approved)",
+                        "Footer: 3-column signatures (Prepared / Reviewed / Processed)",
                         "Verification strip + security strip",
                       ],
                       preview: (
@@ -3282,7 +3282,7 @@ export default function SettingsPage() {
                             <div className="text-center">
                               <div className="h-px bg-gray-400" />
                               <p className="mt-0.5 text-[4.5px] font-semibold uppercase text-gray-700 truncate">{previewSignatoryTitle}</p>
-                              <p className="text-[4px] uppercase text-gray-500">Approved By</p>
+                              <p className="text-[4px] uppercase text-gray-500">Processed By</p>
                             </div>
                           </div>
                           <div className="px-3 py-1 border-t border-gray-200 flex items-center gap-1.5 bg-gray-50 flex-shrink-0">
