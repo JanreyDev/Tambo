@@ -1180,14 +1180,22 @@ export default function SettingsPage() {
     try {
       const option = dbTemplates.find(c => c.id === selectedCertType);
       if (option) {
+        let templateToSave = option;
+        if (option.barangay_id === null) {
+          const cloneRes = await api.documentTemplates.clone(option.id, docCustomTitle || option.name);
+          templateToSave = cloneRes.document_template;
+          setDbTemplates(prev => [...prev.filter(c => c.id !== option.id), templateToSave]);
+          setSelectedCertType(templateToSave.id);
+        }
+
         const newCert = {
-          id: option.id,
-          name: option.name,
-          title: option.title || option.name,
-          category: option.category,
+          id: templateToSave.id,
+          name: docCustomTitle || templateToSave.name,
+          title: docCustomTitle || templateToSave.name,
+          category: templateToSave.category,
           isGlobal: false,
           badgeColor: "blue",
-          description: `Customization for ${(option.name || "").toLowerCase()}`,
+          description: `Customization for ${(templateToSave.name || "").toLowerCase()}`,
           theme: "Custom Draft",
           themeColor: "#3b82f6",
           pattern: "Custom Layout",
@@ -1207,17 +1215,17 @@ export default function SettingsPage() {
         };
         
           if (editingConstituentType === "lot_building") {
-            const newCerts = [...lotBuildingCertificates.filter(c => c.id !== option.id), newCert];
+            const newCerts = [...lotBuildingCertificates.filter(c => c.id !== templateToSave.id), newCert];
             setLotBuildingCertificates(newCerts);
             await api.settings.update({ settings: { customized_lot_building_certificates: newCerts } } as any);
             originalsRef.current.lotBuildingCertificates = newCerts;
           } else if (editingConstituentType === "establishment") {
-            const newCerts = [...establishmentCertificates.filter(c => c.id !== option.id), newCert];
+            const newCerts = [...establishmentCertificates.filter(c => c.id !== templateToSave.id), newCert];
             setEstablishmentCertificates(newCerts);
             await api.settings.update({ settings: { customized_establishment_certificates: newCerts } } as any);
               originalsRef.current.establishmentCertificates = newCerts;
           } else {
-            const newCerts = [...residentCertificates.filter(c => c.id !== option.id), newCert];
+            const newCerts = [...residentCertificates.filter(c => c.id !== templateToSave.id), newCert];
             setResidentCertificates(newCerts);
             await api.settings.update({ settings: { customized_resident_certificates: newCerts } } as any);
               originalsRef.current.residentCertificates = newCerts;
@@ -2854,14 +2862,21 @@ export default function SettingsPage() {
                                     } else {
                                       if (option) {
                                         try {
+                                          let templateToSave = option;
+                                          if (option.barangay_id === null) {
+                                            const cloneRes = await api.documentTemplates.clone(option.id, option.name);
+                                            templateToSave = cloneRes.document_template;
+                                            setDbTemplates(prev => [...prev.filter(c => c.id !== option.id), templateToSave]);
+                                          }
+                                          
                                           const newCert = {
-                                            id: option.id,
-                                            name: option.name,
-                                            title: option.title || option.name,
-                                            category: option.category,
+                                            id: templateToSave.id,
+                                            name: templateToSave.name,
+                                            title: templateToSave.title || templateToSave.name,
+                                            category: templateToSave.category,
                                             isGlobal: true,
                                             badgeColor: "green",
-                                            description: `Customization for ${(option.name || "").toLowerCase()}`,
+                                            description: `Customization for ${(templateToSave.name || "").toLowerCase()}`,
                                             theme: "Global Default",
                                             themeColor: "#22c55e",
                                             pattern: "Standard Layout",
@@ -2870,20 +2885,20 @@ export default function SettingsPage() {
                                           };
                                           
                                           if (editingConstituentType === "lot_building") {
-                                            const newCerts = [...lotBuildingCertificates.filter(c => c.id !== option.id), newCert];
+                                            const newCerts = [...lotBuildingCertificates.filter(c => c.id !== templateToSave.id), newCert];
                                             setLotBuildingCertificates(newCerts);
                                             await api.settings.update({ settings: { customized_lot_building_certificates: newCerts } } as any);
                                             originalsRef.current.lotBuildingCertificates = newCerts;
                                           } else if (editingConstituentType === "establishment") {
-                                            const newCerts = [...establishmentCertificates.filter(c => c.id !== option.id), newCert];
+                                            const newCerts = [...establishmentCertificates.filter(c => c.id !== templateToSave.id), newCert];
                                             setEstablishmentCertificates(newCerts);
                                             await api.settings.update({ settings: { customized_establishment_certificates: newCerts } } as any);
-              originalsRef.current.establishmentCertificates = newCerts;
+                                            originalsRef.current.establishmentCertificates = newCerts;
                                           } else {
-                                            const newCerts = [...residentCertificates.filter(c => c.id !== option.id), newCert];
+                                            const newCerts = [...residentCertificates.filter(c => c.id !== templateToSave.id), newCert];
                                             setResidentCertificates(newCerts);
                                             await api.settings.update({ settings: { customized_resident_certificates: newCerts } } as any);
-              originalsRef.current.residentCertificates = newCerts;
+                                            originalsRef.current.residentCertificates = newCerts;
                                           }
                                         } catch(e) {}
                                       }

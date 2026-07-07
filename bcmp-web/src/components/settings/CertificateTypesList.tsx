@@ -90,8 +90,7 @@ export function CertificateTypesList({
 
   const systemByType = (type: ConstituentType) =>
     systemTemplates
-      .filter((t) => ((t.constituent_type as ConstituentType) ?? "resident") === type)
-      .filter((t) => !ownedNamesLower.has(t.name.toLowerCase()));
+      .filter((t) => ((t.constituent_type as ConstituentType) ?? "resident") === type);
 
   const handleClone = async (sys: DocumentTemplate) => {
     setCloning(sys.id);
