@@ -1,3 +1,15 @@
+@php
+    $hexToRgba = function($hex, $opacity) {
+        $hex = ltrim($hex, '#');
+        if (strlen($hex) === 3) {
+            $hex = $hex[0].$hex[0].$hex[1].$hex[1].$hex[2].$hex[2];
+        }
+        $r = hexdec(substr($hex, 0, 2));
+        $g = hexdec(substr($hex, 2, 2));
+        $b = hexdec(substr($hex, 4, 2));
+        return "rgba($r, $g, $b, $opacity)";
+    };
+@endphp
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,19 +18,19 @@
     <title>{{ $documentTitle }} — {{ $document->constituent_number }}</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        @page { margin: 20mm 18mm 20mm 18mm; }
-        body { font-family: sans-serif; font-size: 11pt; color: #1a1a1a; background: #fff; line-height: 1.6; }
+        @page { margin: 25mm 22mm 25mm 22mm; }
+        body { font-family: sans-serif; font-size: 11pt; color: #1a1a1a; background: #fff; line-height: 1.6; padding: 20px 50px; }
 
         /* ── Header ── */
-        .header { text-align: center; padding-bottom: 8px; margin-bottom: 16px; border-bottom: 3px double #1a3a6e; }
+        .header { text-align: center; padding-bottom: 8px; margin-bottom: 16px; border-bottom: 3px double {{ $themePrimary }}; }
         .header-table { width: 100%; border-collapse: collapse; }
-        .seal-cell { width: 80px; text-align: center; vertical-align: middle; }
-        .seal-img { width: 70px; height: 70px; }
+        .seal-cell { width: 130px; text-align: center; vertical-align: middle; }
+        .seal-img { width: 120px; height: 120px; }
         .header-text { text-align: center; vertical-align: middle; }
         .republic-text { font-size: 9pt; color: #444; letter-spacing: 1px; text-transform: uppercase; }
         .province-text { font-size: 9pt; color: #555; }
         .municipality-text { font-size: 10pt; color: #333; font-weight: 600; }
-        .barangay-name { font-size: 16pt; font-weight: bold; color: #1a3a6e; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+        .barangay-name { font-size: 16pt; font-weight: bold; color: {{ $themePrimary }}; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
         .office-text { font-size: 9pt; color: #666; font-style: italic; }
 
         /* ── Confidential watermark ── */
@@ -29,11 +41,11 @@
         }
 
         /* ── Document title ── */
-        .doc-title { text-align: center; font-size: 15pt; font-weight: bold; color: #1a3a6e; text-transform: uppercase; letter-spacing: 2px; margin: 16px 0 4px; }
+        .doc-title { text-align: center; font-size: 15pt; font-weight: bold; color: {{ $themePrimary }}; text-transform: uppercase; letter-spacing: 2px; margin: 16px 0 4px; }
         .doc-ref   { text-align: center; font-size: 9pt; color: #666; margin-bottom: 20px; }
 
         /* ── Section labels ── */
-        .section-label { font-size: 8pt; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #1a3a6e; border-bottom: 1px solid #1a3a6e; margin: 16px 0 8px; padding-bottom: 2px; }
+        .section-label { font-size: 8pt; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: {{ $themePrimary }}; border-bottom: 1px solid {{ $themePrimary }}; margin: 16px 0 8px; padding-bottom: 2px; }
 
         /* ── Field rows ── */
         .field-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
@@ -42,7 +54,7 @@
         .field-value { color: #111; }
 
         /* ── Narrative box ── */
-        .narrative-box { border: 1px solid #ccc; padding: 10px 12px; font-size: 10pt; line-height: 1.7; margin-bottom: 10px; min-height: 60px; background: #fafafa; }
+        .narrative-box { border: 1px solid {{ $hexToRgba($themePrimary, 0.2) }}; padding: 10px 12px; font-size: 10pt; line-height: 1.7; margin-bottom: 10px; min-height: 60px; background: {{ $themeTint }}; border-radius: 4px; }
 
         /* ── Badge ── */
         .badge { display: inline-block; padding: 2px 8px; font-size: 8pt; font-weight: bold; border: 1px solid; border-radius: 2px; }
@@ -62,7 +74,7 @@
         .sig-position { font-size: 9pt; color: #555; text-align: center; }
 
         /* ── Footer ── */
-        .footer { position: fixed; bottom: 0; left: 0; right: 0; border-top: 1px solid #ddd; padding-top: 8px; font-size: 7pt; color: #999; }
+        .footer { position: fixed; bottom: 15px; left: 50px; right: 50px; border-top: 1px solid #ddd; padding-top: 8px; font-size: 7pt; color: #999; }
         .footer-table { width: 100%; border-collapse: collapse; }
         .footer-left { text-align: left; vertical-align: middle; }
         .footer-center { text-align: center; vertical-align: middle; }
@@ -76,9 +88,14 @@
     <div class="header">
         <table class="header-table">
             <tr>
-                @if($sealDataUri)
+                @if(isset($municipalityLogoUrl) && $municipalityLogoUrl)
+                <td class="seal-cell"><img src="{{ $municipalityLogoUrl }}" class="seal-img" alt="LGU Logo"></td>
+                @elseif($sealDataUri)
                 <td class="seal-cell"><img src="{{ $sealDataUri }}" class="seal-img" alt="Barangay Seal"></td>
+                @else
+                <td class="seal-cell" style="width: 130px;"></td>
                 @endif
+                
                 <td class="header-text">
                     <div class="republic-text">Republic of the Philippines</div>
                     <div class="province-text">Province of {{ $barangay->province ?? '________________' }}</div>
@@ -86,8 +103,11 @@
                     <div class="barangay-name">Barangay {{ $barangay->name ?? '________________' }}</div>
                     <div class="office-text">Office of the Punong Barangay</div>
                 </td>
+                
                 @if($sealDataUri)
                 <td class="seal-cell"><img src="{{ $sealDataUri }}" class="seal-img" alt="Barangay Seal"></td>
+                @else
+                 <td class="seal-cell" style="width: 130px;"></td>
                 @endif
             </tr>
         </table>
@@ -283,16 +303,20 @@
         <table class="sig-table">
             <tr>
                 <td class="sig-cell sig-left">
-                    <div class="sig-attested">Prepared by:</div>
-                    <div class="sig-name">{{ $issuedByName !== 'System' ? $issuedByName : '______________________________' }}</div>
-                    <div class="sig-position">
-                        @if($caseType === 'vawc_case') VAW Desk Officer @else Barangay Secretary @endif
+                    <div style="display: inline-block; text-align: center;">
+                        <div class="sig-attested">Prepared by:</div>
+                        <div class="sig-name">{{ $issuedByName !== 'System' ? $issuedByName : '______________________________' }}</div>
+                        <div class="sig-position">
+                            @if($caseType === 'vawc_case') VAW Desk Officer @else Barangay Secretary @endif
+                        </div>
                     </div>
                 </td>
                 <td class="sig-cell sig-right">
-                    <div class="sig-attested">Processed by:</div>
-                    <div class="sig-name">______________________________</div>
-                    <div class="sig-position">Punong Barangay</div>
+                    <div style="display: inline-block; text-align: center;">
+                        <div class="sig-attested">Processed by:</div>
+                        <div class="sig-name">______________________________</div>
+                        <div class="sig-position">Punong Barangay</div>
+                    </div>
                 </td>
             </tr>
         </table>
