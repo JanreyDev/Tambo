@@ -1150,6 +1150,8 @@ export function GenerateDocumentWizard({
                         contentPurpose={purpose}
                         contentControlNo="(assigned on save)"
                         contentIssuedDate={issuedDate ? new Date(issuedDate + "T00:00:00").toLocaleDateString("en-PH", { month: "long", day: "numeric", year: "numeric" }) : undefined}
+                        contentOrNo={orNumber || undefined}
+                        contentOrAmount={orAmount || undefined}
                       />
                         );
                       })()}

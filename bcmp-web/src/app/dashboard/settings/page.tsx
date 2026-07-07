@@ -647,9 +647,10 @@ function ResponsiveThumbnail({ layout, docPaperSize, docFont, docColorTheme, doc
     return () => observer.disconnect();
   }, []);
 
+  const ratioMultiplier = docPaperSize === "legal" ? 1.529 : docPaperSize === "letter" ? 1.294 : 1.414;
   return (
-    <div ref={containerRef} className="w-full relative flex justify-center overflow-hidden" style={{ height: 560 * 1.414 * scale }}>
-      <div style={{ transform: `scale(${scale})`, transformOrigin: "top center", width: 560, height: 560 * 1.414, flexShrink: 0 }}>
+    <div ref={containerRef} className="w-full relative flex justify-center overflow-hidden" style={{ height: 560 * ratioMultiplier * scale }}>
+      <div style={{ transform: `scale(${scale})`, transformOrigin: "top center", width: 560, height: 560 * ratioMultiplier, flexShrink: 0 }}>
         <DocumentLivePreview
           layout={layout}
           paperSize={docPaperSize}

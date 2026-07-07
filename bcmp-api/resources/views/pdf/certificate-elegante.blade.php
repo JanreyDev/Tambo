@@ -56,7 +56,7 @@
 
         /* ── Main Content ── */
         .main-content {
-            padding: 30px 50px;
+            padding: 30px 25px;
         }
 
         .title-section {
@@ -65,7 +65,7 @@
         }
 
         .title-text {
-            font-size: 20pt;
+            font-size: 15pt;
             font-weight: bold;
             color: {{ $themePrimary }};
             letter-spacing: 3px;
@@ -84,7 +84,7 @@
         .salutation {
             font-weight: bold;
             color: {{ $themePrimary }};
-            font-size: 11pt;
+            font-size: 9.5pt;
             margin-bottom: 20px;
             text-transform: uppercase;
             letter-spacing: 1px;
@@ -285,11 +285,11 @@
             {{-- Title --}}
             <table cellpadding="0" cellspacing="0" style="margin: 0 auto; margin-bottom: 25px;">
                 <tr>
-                    <td valign="middle"><div style="width: 70px; height: 1px; background-color: {{ $themePrimary }};"></div></td>
+                    <td valign="middle"><div style="width: 20px; height: 1px; background-color: {{ $themePrimary }};"></div></td>
                     <td valign="middle" style="padding: 0 15px;">
                         <div class="title-text">{{ $template->title ?? $template->name }}</div>
                     </td>
-                    <td valign="middle"><div style="width: 70px; height: 1px; background-color: {{ $themePrimary }};"></div></td>
+                    <td valign="middle"><div style="width: 20px; height: 1px; background-color: {{ $themePrimary }};"></div></td>
                 </tr>
             </table>
 
@@ -313,25 +313,23 @@
                 }
                 $fallbackSigName = $barangay->settings['default_signatory_name'] ?? 'HON. ____________________';
                 $defaultSigName = $pbName ?: strtoupper($fallbackSigName);
+
+                $sigName = $document->approved_by_right ?? $defaultSigName;
+                $sigPos = $barangay->settings['default_signatory_title'] ?? 'Punong Barangay';
+
+                if (!empty($approvalConfig['right'])) {
+                    $configPos = $approvalConfig['right']['position'] ?? '';
+                    $configLabel = $approvalConfig['right']['label'] ?? '';
+
+                    if (strtolower($configPos) !== 'punong barangay' && strtolower($configLabel) !== 'punong barangay') {
+                        $sigName = $document->approved_by_right ?? $configLabel;
+                        $sigPos = $configPos;
+                    }
+                }
             @endphp
 
             {{-- Signatures (Centered) --}}
             <div class="signature-block">
-                @php
-                    $sigName = $document->approved_by_right ?? $defaultSigName;
-                    $sigPos = $barangay->settings['default_signatory_title'] ?? 'Punong Barangay';
-
-                    if (!empty($approvalConfig['right'])) {
-                        $configPos = $approvalConfig['right']['position'] ?? '';
-                        $configLabel = $approvalConfig['right']['label'] ?? '';
-
-                        // If the template configured a custom signer that is NOT the Kapitan, use it
-                        if (strtolower($configPos) !== 'punong barangay' && strtolower($configLabel) !== 'punong barangay') {
-                            $sigName = $document->approved_by_right ?? $configLabel;
-                            $sigPos = $configPos;
-                        }
-                    }
-                @endphp
                 <div style="font-size: 12pt; font-weight: bold; color: {{ $themePrimary }}; text-transform: uppercase;">{{ $sigName }}</div>
                 <div style="height: 1px; background-color: {{ $themePrimary }}; opacity: 0.6; width: 250px; margin: 4px auto;"></div>
                 <div style="font-size: 9pt; color: #555; text-transform: uppercase; letter-spacing: 1px;">{{ $sigPos }}</div>
@@ -367,16 +365,14 @@
         <div class="footer-section">
             <table class="footer-table" cellpadding="0" cellspacing="0">
                 <tr>
-                    <td width="80" valign="middle">
-                        @if($qrDataUri)
-                        <div style="border: 2px solid {{ $themePrimary }}; padding: 3px; display: inline-block;">
-                            <img src="{{ $qrDataUri }}" width="45" height="45" style="display: block;">
-                        </div>
-                        @endif
-                    </td>
                     <td valign="middle">
-                        <div style="font-size: 8pt; font-weight: bold; color: {{ $themePrimary }}; letter-spacing: 1px; margin-bottom: 3px;">CONTROL NO.</div>
-                        <div style="font-size: 7pt; color: #555;">{{ $document->document_number }}</div>
+                        @php
+                            $isClearance = str_contains(strtolower($template->title ?? $template->name), 'clearance');
+                        @endphp
+                        <div style="font-size: 8pt; font-weight: bold; color: {{ $themePrimary }}; letter-spacing: 1px; margin-bottom: 3px;">
+                            {{ $isClearance ? 'SERIES NO.' : 'CONTROL NO.' }}
+                        </div>
+                        <div style="font-size: 7pt; color: #555; font-family: monospace;">{{ $document->document_number }}</div>
                         <div style="font-size: 6pt; color: #888; margin-top: 2px;">Issued: {{ $document->issued_date?->format('M d, Y') ?? '—' }}</div>
                     </td>
                     <td align="right" valign="bottom" style="font-size: 7pt; color: #666; text-transform: uppercase; letter-spacing: 1px; line-height: 1.5;">

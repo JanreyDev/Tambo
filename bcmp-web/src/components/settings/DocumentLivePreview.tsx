@@ -44,6 +44,8 @@ interface Props {
   contentValidUntil?: string;
   contentRequestedBy?: string;
   contentPurpose?: string;
+  contentOrNo?: string;
+  contentOrAmount?: string;
   officials?: Array<{ name: string; position: string }>;
 }
 
@@ -126,7 +128,7 @@ export function DocumentLivePreview({
   barangayName, municipality, province, logoUrl, municipalityLogoUrl, nationalLogoUrl,
   signatoryName, signatoryTitle, hideChrome, fitToContainer, fitScale = 1,
   contentTitle, contentSalutation, contentBodyHtml, rawContent, onContentChange, onTitleChange, onSalutationChange, contentControlNo, contentIssuedDate,
-  contentValidUntil, contentRequestedBy, contentPurpose, officials
+  contentValidUntil, contentRequestedBy, contentPurpose, contentOrNo, contentOrAmount, officials
 }: Props) {
   const c = COLORS[colorTheme] ?? COLORS.plain;
   const fontFamily = FONT_FAMILY[font];
@@ -160,6 +162,8 @@ export function DocumentLivePreview({
     validUntil: contentValidUntil || "Nov 16, 2026",
     requestedBy: contentRequestedBy ?? "JUAN MIGUEL SANTOS",
     purpose: contentPurpose ?? "LOCAL EMPLOYMENT",
+    orNo: contentOrNo ?? "3270721",
+    orAmount: contentOrAmount ?? "50.00",
     officials: officials !== undefined ? officials : SAMPLE_OFFICIALS,
   };
 
@@ -253,6 +257,8 @@ interface BodyProps {
   validUntil: string;
   requestedBy: string;
   purpose: string;
+  orNo?: string;
+  orAmount?: string;
   officials: Array<{ name: string; position: string }>;
 }
 
@@ -769,22 +775,22 @@ function EleganteBody(props: BodyProps) {
       <PatternDecor c={c} designPattern={designPattern} />
       <div className="w-full h-full border-2 p-1.5" style={{ borderColor: c.primary }}>
         <div className="w-full h-full border bg-white flex flex-col text-[8px]" style={{ borderColor: c.accent, borderStyle: "dashed" }}>
-          <HeaderBlock {...props} />
+          <HeaderBlock {...props} compact={true} />
 
-          <main className="flex-1 p-5 relative">
+          <main className="flex-1 px-4 pt-3 pb-2 relative flex flex-col min-h-0 overflow-hidden">
             <Watermark c={c} />
-            <div className="relative max-w-[85%] mx-auto">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <div className="h-px flex-1" style={{ background: c.primary }} />
+            <div className="relative max-w-[94%] mx-auto w-full flex-1 flex flex-col">
+              <div className="flex items-center justify-center gap-3 mb-2 w-full shrink-0">
+                <div className="shrink-0" style={{ background: c.primary, width: "15px", height: "1px" }} />
                 <EditableText
                   tag="h2"
                   value={title}
                   onChange={props.onTitleChange}
-                  className="font-bold tracking-[0.22em] uppercase"
-                  style={{ color: c.primary, fontSize: 14 }}
+                  className="font-bold tracking-[0.22em] uppercase text-center shrink-0"
+                  style={{ color: c.primary, fontSize: 11.5, display: "inline-block" }}
                   title="Click to edit document title"
                 />
-                <div className="h-px flex-1" style={{ background: c.primary }} />
+                <div className="shrink-0" style={{ background: c.primary, width: "15px", height: "1px" }} />
               </div>
               {(salutation || props.onSalutationChange) && (
                 <EditableText
@@ -792,25 +798,29 @@ function EleganteBody(props: BodyProps) {
                   value={salutation || ""}
                   onChange={props.onSalutationChange}
                   placeholder="[Salutation]"
-                  className="text-[9px] font-semibold uppercase text-center mb-3"
+                  className="text-[7.5px] font-semibold uppercase text-center mb-2 shrink-0"
                   style={{ color: c.primary, letterSpacing: 1 }}
                   title="Click to edit salutation"
                 />
               )}
-              <EditableBody 
-                className="text-[8px] text-justify leading-relaxed text-gray-800 whitespace-pre-line" 
-                bodyHtml={props.bodyHtml} rawContent={props.rawContent} onContentChange={props.onContentChange} 
-              />
-              <SignatureLine c={c} name={signName} title={signTitle} />
+              <div className="flex-1 min-h-0 overflow-hidden">
+                <EditableBody 
+                  className="text-[7.5px] text-justify leading-relaxed text-gray-800 whitespace-pre-line" 
+                  bodyHtml={props.bodyHtml} rawContent={props.rawContent} onContentChange={props.onContentChange} 
+                />
+              </div>
+              <div className="mt-auto pt-2 shrink-0">
+                <SignatureLine c={c} name={signName} title={signTitle} />
+              </div>
             </div>
           </main>
 
           {/* Officials row (anti-epal compliant placement — below content) */}
-          <div className="px-5 py-2 border-t" style={{ borderColor: c.primary + "33", background: c.tint }}>
-            <p className="text-[7px] font-bold uppercase tracking-wider mb-1 text-center" style={{ color: c.primary }}>
+          <div className="px-5 py-1.5 border-t shrink-0" style={{ borderColor: c.primary + "33", background: c.tint }}>
+            <p className="text-[6.5px] font-bold uppercase tracking-wider mb-1 text-center" style={{ color: c.primary }}>
               Sangguniang Barangay {props.barangay}
             </p>
-            <div className="grid grid-cols-4 gap-1 text-[6px] leading-tight">
+            <div className="grid grid-cols-4 gap-1 text-[5.5px] leading-tight">
               {props.officials.slice(0, 8).map((o) => (
                 <div key={o.name} className="text-center">
                   <p className="font-semibold text-gray-800 truncate">{o.name}</p>
@@ -820,8 +830,20 @@ function EleganteBody(props: BodyProps) {
             </div>
           </div>
 
-          <footer className="px-4 py-1.5 border-t flex items-center justify-between" style={{ borderColor: c.primary }}>
-            <QrAndControl c={c} controlNo={controlNo} dateLabel={issuedDate} />
+          <footer className="px-4 py-1.5 flex items-center justify-between border-t shrink-0 animate-fade-in" style={{ borderColor: c.primary }}>
+            <div className="text-[7px] leading-tight select-none">
+              {(() => {
+                const isClearance = title?.toLowerCase().includes("clearance");
+                return (
+                  <>
+                    <p className="font-semibold tracking-wider uppercase" style={{ color: c.primary }}>
+                      {isClearance ? "Series No." : "Control No."}
+                    </p>
+                    <p className="text-gray-700 font-mono">{controlNo}</p>
+                  </>
+                );
+              })()}
+            </div>
             <span className="text-[6px] tracking-wider uppercase text-gray-500 text-right">Republic of the Philippines<br />Not Valid Without Seal</span>
           </footer>
         </div>
@@ -835,7 +857,7 @@ function EleganteBody(props: BodyProps) {
 function ModernoBody(props: BodyProps) {
   const { c, signName, signTitle, designPattern, title, salutation, bodyHtml, controlNo, issuedDate } = props;
   return (
-    <div className="w-full h-full flex flex-col bg-white text-[8px] relative overflow-hidden">
+    <div className="w-full h-full flex flex-col bg-white text-[8px] relative overflow-hidden pb-16">
       <PatternDecor c={c} designPattern={designPattern} />
       {/* Compact centered header */}
       <div className="px-4 pt-5 pb-3 text-center">
@@ -857,9 +879,9 @@ function ModernoBody(props: BodyProps) {
         <div className="h-px w-16 mx-auto mt-1.5" style={{ background: c.primary }} />
       </div>
 
-      <main className="flex-1 px-8 pt-2 pb-16 relative flex flex-col">
+      <main className="flex-1 px-4 pt-2 pb-3 relative">
         <Watermark c={c} />
-        <div className="relative flex-1">
+        <div className="relative">
           <EditableText
             tag="h2"
             value={title}
@@ -885,11 +907,37 @@ function ModernoBody(props: BodyProps) {
             bodyHtml={props.bodyHtml} rawContent={props.rawContent} onContentChange={props.onContentChange} 
           />
         </div>
-        {/* Signature pinned to bottom */}
-        <div className="mt-auto pt-4">
-          <SignatureLine c={c} name={signName} title={signTitle} />
-        </div>
       </main>
+
+      {/* Footer section: Metadata on left, Signature on right */}
+      <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between border-t border-gray-100/40 bg-white pt-2">
+        {/* Metadata Block (Bottom Left) */}
+        <div className="text-left font-sans text-[7.5px] leading-relaxed text-gray-700 select-none">
+          {(() => {
+            const isClearance = title?.toLowerCase().includes("clearance");
+            return (
+              <>
+                <p className="font-semibold" style={{ color: c.primary }}>
+                  {isClearance ? "Series No." : "CTC No."}:
+                </p>
+                <p className="font-semibold" style={{ color: c.primary }}>
+                  Or No.:
+                </p>
+                <p className="italic font-medium mt-0.5" style={{ color: c.accent }}>
+                  Not Valid Without Official Seal
+                </p>
+              </>
+            );
+          })()}
+        </div>
+
+        {/* Signature (Bottom Right) */}
+        <div className="text-center" style={{ width: 120 }}>
+          <p className="text-[8px] font-bold uppercase tracking-wide" style={{ color: c.primary }}>{signName}</p>
+          <div className="h-px w-full my-0.5" style={{ background: c.primary }} />
+          <p className="text-[6.5px] uppercase tracking-wider text-gray-700">{signTitle}</p>
+        </div>
+      </div>
     </div>
   );
 }

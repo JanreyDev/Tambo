@@ -82,7 +82,7 @@
 
         /* ── Main Content ── */
         .main-content {
-            padding: 0 30px;
+            padding: 0 15px;
         }
 
         .title-section {
@@ -353,11 +353,49 @@
             }
         @endphp
 
-        {{-- Signatures (Centered) --}}
-        <div class="signature-block">
-            <div class="signature-name">{{ $rightSigName }}</div>
-            <div class="signature-line"></div>
-            <div class="signature-title">{{ $rightSigPos }}</div>
+        {{-- ── FOOTER SECTION (Metadata & Signature) ── --}}
+        <div class="footer-section" style="position: absolute; bottom: 40px; left: 0; right: 0; padding: 0 15px;">
+            <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                    <!-- Bottom Left: Metadata Block -->
+                    <td width="50%" valign="bottom" style="text-align: left; font-size: 9pt; line-height: 1.6; color: #444;">
+                        @php
+                            $isClearance = str_contains(strtolower($template->title ?? $template->name), 'clearance');
+                        @endphp
+                        <div>
+                            <strong style="color: {{ $themePrimary }}; font-family: sans-serif;">{{ $isClearance ? 'Series No:' : 'CTC No:' }}</strong> 
+                            <span style="font-family: monospace; color: #111;">{{ $document->document_number }}</span>
+                        </div>
+                        @if($document->or_number)
+                        <div>
+                            <strong style="color: {{ $themePrimary }}; font-family: sans-serif;">Or No:</strong> 
+                            <span style="font-family: monospace; color: #111;">
+                                {{ $document->or_number }}
+                                @if($document->or_amount !== null)
+                                - ₱{{ number_format((float)$document->or_amount, 2) }}
+                                @endif
+                            </span>
+                        </div>
+                        @endif
+                        <div style="font-style: italic; color: {{ $themeAccent }}; margin-top: 4px; font-weight: bold; font-family: sans-serif;">
+                            Not Valid Without Official Seal
+                        </div>
+                    </td>
+                    
+                    <!-- Bottom Right: Signature -->
+                    <td width="50%" valign="bottom" align="right" style="text-align: right;">
+                        <div style="width: 250px; display: inline-block; text-align: center;">
+                            <div class="signature-name" style="font-size: 12pt; font-weight: bold; color: {{ $themePrimary }}; text-transform: uppercase;">
+                                {{ $rightSigName }}
+                            </div>
+                            <div class="signature-line" style="width: 250px; height: 1px; background-color: {{ $themePrimary }}; margin: 4px auto;"></div>
+                            <div class="signature-title" style="font-size: 9pt; color: #555; text-transform: uppercase; letter-spacing: 1px;">
+                                {{ $rightSigPos }}
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            </table>
         </div>
 
     </div>
