@@ -850,8 +850,8 @@ export default function ResidentsPage() {
       e.target.value = "";
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
-      setCameraError("File is too large (max 10 MB). Please choose a smaller image or take a photo with the camera.");
+    if (file.size > 50 * 1024 * 1024) {
+      setCameraError("File is too large (max 50 MB). Please choose a smaller image or take a photo with the camera.");
       e.target.value = "";
       return;
     }

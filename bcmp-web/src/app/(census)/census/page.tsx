@@ -645,10 +645,10 @@ export default function CensusPage() {
     setPhotoUploading(true);
     setPhotoError(null);
     try {
-      // Check file size before processing (max 10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        setPhotoError("Masyadong malaki ang photo (max 10MB). Kumuha ng bagong photo.");
-        toast("error", "Malaki ang photo", "Maximum na file size ay 10MB. Kumuha ng mas maliit na photo.");
+      // Check file size before processing (max 50MB)
+      if (file.size > 50 * 1024 * 1024) {
+        setPhotoError("Masyadong malaki ang photo (max 50MB). Kumuha ng bagong photo.");
+        toast("error", "Malaki ang photo", "Maximum na file size ay 50MB. Kumuha ng mas maliit na photo.");
         setPhotoUploading(false);
         return;
       }

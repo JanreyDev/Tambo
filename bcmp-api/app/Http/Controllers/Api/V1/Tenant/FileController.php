@@ -23,13 +23,13 @@ class FileController extends Controller
 {
     /** Allowed upload categories and their max file sizes (in KB). */
     private const CATEGORY_LIMITS = [
-        'photo' => 5120,          // 5 MB
+        'photo' => 51200,         // 50 MB
         'signature' => 2048,      // 2 MB
         'thumbmark' => 2048,      // 2 MB
-        'document' => 10240,      // 10 MB
+        'document' => 51200,      // 50 MB
         'seal' => 5120,           // 5 MB
         'logo' => 5120,           // 5 MB
-        'attachment' => 10240,    // 10 MB
+        'attachment' => 51200,    // 50 MB
     ];
 
     /** Allowed MIME types per category. */
