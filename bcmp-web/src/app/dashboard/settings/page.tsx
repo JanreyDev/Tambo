@@ -2479,14 +2479,7 @@ export default function SettingsPage() {
 
                         {customizeTab === "editor" && (
                           <div className="space-y-4">
-                            <div className="bg-background/40 rounded-xl p-4 border border-border/60 shadow-sm">
-                              <SettingsTextarea
-                                label="Custom Certificate Body"
-                                value={docCustomContent}
-                                onChange={setDocCustomContent}
-                                placeholder="Enter custom text content for this certificate..."
-                              />
-                            </div>
+
                             {selectedCertType && (dbTemplates || []).find(c => c && c.id === selectedCertType)?.name?.toLowerCase().includes("clearance") && (
                               <div className="bg-background/40 rounded-xl p-4 border border-border/60 shadow-sm">
                                 <label className="text-xs font-semibold text-foreground/80 block mb-2">Clearance Expiry (Validity Period)</label>
