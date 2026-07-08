@@ -300,16 +300,7 @@
                 {!! nl2br(e($renderedContent)) !!}
             </div>
 
-            @php
-                $isClearance = str_contains(strtolower($template->title ?? $template->name), 'clearance');
-                $isTambo = strtolower($barangay->name ?? '') === 'tambo';
-            @endphp
-            @if($isClearance && $isTambo && isset($resident))
-            <div style="text-align: center; margin-bottom: 25px; font-size: 9pt; font-family: sans-serif; color: #333;">
-                <span style="font-family: DejaVu Sans; font-size: 10pt; color: {{ $themePrimary }};">{!! $resident->is_village_condo ? '&#9744;' : '&#9745;' !!}</span> Official Tambo Resident &nbsp;&nbsp;&nbsp;&nbsp;
-                <span style="font-family: DejaVu Sans; font-size: 10pt; color: {{ $themePrimary }};">{!! $resident->is_village_condo ? '&#9745;' : '&#9744;' !!}</span> Village/Condo Resident
-            </div>
-            @endif
+
 
             @php
                 $pbName = '';
@@ -336,12 +327,7 @@
                 }
             @endphp
 
-            {{-- Signatures (Centered) --}}
-            <div class="signature-block">
-                <div style="font-size: 12pt; font-weight: bold; color: {{ $themePrimary }}; text-transform: uppercase;">{{ $sigName }}</div>
-                <div style="height: 1px; background-color: {{ $themePrimary }}; opacity: 0.6; width: 250px; margin: 4px auto;"></div>
-                <div style="font-size: 9pt; color: #555; text-transform: uppercase; letter-spacing: 1px;">{{ $sigPos }}</div>
-            </div>
+
 
         </div>
 
@@ -376,16 +362,47 @@
                     <td valign="middle">
                         @php
                             $isClearance = str_contains(strtolower($template->title ?? $template->name), 'clearance');
+                            $isTambo = strtolower($barangay->name ?? '') === 'tambo';
                         @endphp
-                        <div style="font-size: 8pt; font-weight: bold; color: {{ $themePrimary }}; letter-spacing: 1px; margin-bottom: 3px;">
-                            {{ $isClearance ? 'SERIES NO.' : 'CONTROL NO.' }}
-                        </div>
-                        <div style="font-size: 7pt; color: #555; font-family: monospace;">{{ $document->document_number }}</div>
-                        <div style="font-size: 6pt; color: #888; margin-top: 2px;">Issued: {{ $document->issued_date?->format('M d, Y') ?? '—' }}</div>
+                        @if($isClearance)
+                            @if($isTambo && isset($resident))
+                                <div style="font-size: 9pt; font-family: sans-serif; color: #333; margin-bottom: 5px;">
+                                    <span style="font-family: DejaVu Sans; font-size: 8.5pt; color: {{ $themePrimary }}; vertical-align: middle;">{!! $resident->is_village_condo ? '&#9744;' : '&#9745;' !!}</span> <span style="font-size: 7.5pt; text-transform: none; color: #444; vertical-align: middle;">Official Tambo Resident</span> &nbsp;&nbsp;&nbsp;&nbsp;
+                                    <span style="font-family: DejaVu Sans; font-size: 8.5pt; color: {{ $themePrimary }}; vertical-align: middle;">{!! $resident->is_village_condo ? '&#9745;' : '&#9744;' !!}</span> <span style="font-size: 7.5pt; text-transform: none; color: #444; vertical-align: middle;">Village/Condo Resident</span>
+                                </div>
+                            @endif
+                            <div style="font-size: 6.5pt; color: #888;">Issued: {{ $document->issued_date?->format('M d, Y') ?? '—' }}</div>
+                        @else
+                            <div style="font-size: 8pt; font-weight: bold; color: {{ $themePrimary }}; letter-spacing: 1px; margin-bottom: 3px;">
+                                CONTROL NO.
+                            </div>
+                            <div style="font-size: 7pt; color: #555; font-family: monospace;">{{ $document->document_number }}</div>
+                            <div style="font-size: 6pt; color: #888; margin-top: 2px;">Issued: {{ $document->issued_date?->format('M d, Y') ?? '—' }}</div>
+                        @endif
                     </td>
                     <td align="right" valign="bottom" style="font-size: 7pt; color: #666; text-transform: uppercase; letter-spacing: 1px; line-height: 1.5;">
-                        Republic of the Philippines<br>
-                        <span style="font-weight: bold; color: {{ $themePrimary }};">NOT VALID WITHOUT SEAL</span>
+                        @if($isClearance)
+                            @php
+                                $daysToWordsMap = [
+                                    30 => 'thirty (30)',
+                                    60 => 'sixty (60)',
+                                    90 => 'ninety (90)',
+                                    120 => 'one hundred twenty (120)',
+                                    150 => 'one hundred fifty (150)',
+                                    180 => 'one hundred eighty (180)',
+                                    360 => 'three hundred sixty (360)',
+                                ];
+                                $expiryMonths = $settings['expiry_months'] ?? 3;
+                                $expiryDays = $expiryMonths * 30;
+                                $validityDaysText = $daysToWordsMap[$expiryDays] ?? "$expiryDays";
+                            @endphp
+                            <span style="font-weight: bold; color: {{ $themeAccent }}; font-style: italic; font-size: 7.5pt; text-transform: none; display: block; max-width: 320px; line-height: 1.3;">
+                                Note: This clearance is valid only for {{ $validityDaysText }} days from the date of issue. Not valid without the official seal.
+                            </span>
+                        @else
+                            Republic of the Philippines<br>
+                            <span style="font-weight: bold; color: {{ $themePrimary }};">NOT VALID WITHOUT SEAL</span>
+                        @endif
                     </td>
                 </tr>
             </table>

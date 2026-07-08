@@ -468,9 +468,22 @@ export function GenerateDocumentWizard({
         custom_title: manualTitle ?? undefined,
         is_village_condo: selectedTemplate.constituent_type === "resident" ? isVillageCondo : undefined,
       };
-      if (selectedTemplate.settings?.show_expiry && selectedTemplate.settings?.expiry_months) {
+      const customConfigKey = selectedTemplate.constituent_type === "establishment"
+        ? "customized_establishment_certificates"
+        : selectedTemplate.constituent_type === "lot_building"
+        ? "customized_lot_building_certificates"
+        : "customized_resident_certificates";
+      const customConfigs = (barangaySettings?.settings?.[customConfigKey] as any[]) || [];
+      const customConfig = customConfigs.find((c: any) => c.id === selectedTemplate.id);
+      const customSettings = customConfig?.design_settings || {};
+      const useGlobalDesign = customConfig ? (customConfig.isGlobal ?? true) : true;
+      const expiryMonthsToUse = useGlobalDesign 
+        ? (selectedTemplate.settings?.expiry_months ?? 6) 
+        : (customSettings.expiry_months ?? selectedTemplate.settings?.expiry_months ?? 6);
+
+      if (selectedTemplate.settings?.show_expiry && expiryMonthsToUse) {
         const issued = new Date(issuedDate || Date.now());
-        issued.setMonth(issued.getMonth() + selectedTemplate.settings.expiry_months);
+        issued.setMonth(issued.getMonth() + expiryMonthsToUse);
         payload.valid_until = issued.toISOString().split("T")[0];
       }
       const result = await api.issuedDocuments.create(payload);
@@ -1116,16 +1129,24 @@ export function GenerateDocumentWizard({
                         <span className="text-[10px] text-slate-500 dark:text-slate-300 uppercase tracking-widest font-medium">{paperLabel}</span>
                       </div>
                       {(() => {
-                        const customConfigs = ((selectedTemplate?.constituent_type === "establishment" ? barangaySettings?.settings?.customized_establishment_certificates : barangaySettings?.settings?.customized_resident_certificates) as any[]) || [];
-                        const customConfig = customConfigs.find((c: any) => c.id === selectedTemplate.id);
-                        const customSettings = customConfig?.design_settings || {};
-                        const useGlobalDesign = customConfig ? (customConfig.isGlobal ?? true) : true;
+                        const customConfigKey = selectedTemplate.constituent_type === "establishment"
+                           ? "customized_establishment_certificates"
+                           : selectedTemplate.constituent_type === "lot_building"
+                           ? "customized_lot_building_certificates"
+                           : "customized_resident_certificates";
+                         const customConfigs = (barangaySettings?.settings as any)?.[customConfigKey] || [];
+                         const customConfig = customConfigs.find((c: any) => c.id === selectedTemplate.id);
+                         const customSettings = customConfig?.design_settings || {};
+                         const useGlobalDesign = customConfig ? (customConfig.isGlobal ?? true) : true;
 
-                        const layoutToUse = useGlobalDesign ? barangaySettings?.settings?.document_layout : customSettings.document_layout;
-                        const paperSizeToUse = selectedTemplate.settings?.paper_size || (useGlobalDesign ? barangaySettings?.settings?.document_paper_size : customSettings.document_paper_size);
-                        const fontToUse = useGlobalDesign ? barangaySettings?.settings?.document_font : customSettings.document_font;
-                        const colorThemeToUse = useGlobalDesign ? barangaySettings?.settings?.document_color_theme : customSettings.document_color_theme;
-                        const designPatternToUse = useGlobalDesign ? barangaySettings?.settings?.document_design_pattern : customSettings.document_design_pattern;
+                         const layoutToUse = useGlobalDesign ? barangaySettings?.settings?.document_layout : customSettings.document_layout;
+                         const paperSizeToUse = selectedTemplate.settings?.paper_size || (useGlobalDesign ? barangaySettings?.settings?.document_paper_size : customSettings.document_paper_size);
+                         const fontToUse = useGlobalDesign ? barangaySettings?.settings?.document_font : customSettings.document_font;
+                         const colorThemeToUse = useGlobalDesign ? barangaySettings?.settings?.document_color_theme : customSettings.document_color_theme;
+                         const designPatternToUse = useGlobalDesign ? barangaySettings?.settings?.document_design_pattern : customSettings.document_design_pattern;
+                         const expiryMonthsToUse = useGlobalDesign 
+                           ? (selectedTemplate.settings?.expiry_months ?? 6) 
+                           : (customSettings.expiry_months ?? selectedTemplate.settings?.expiry_months ?? 6);
 
                         return (
                           <DocumentLivePreview
@@ -1157,6 +1178,8 @@ export function GenerateDocumentWizard({
                         contentOrNo={orNumber || undefined}
                         contentOrAmount={orAmount || undefined}
                         isVillageCondo={isVillageCondo}
+                        expiryMonths={expiryMonthsToUse}
+                        resident={selectedResident || undefined}
                       />
                         );
                       })()}
@@ -1277,27 +1300,42 @@ export function GenerateDocumentWizard({
             {wizardStep === "select-type" ? "Cancel" : "Back"}
           </button>
 
-          {wizardStep === "fill-details" && selectedTemplate && (
-            <div className="flex items-center justify-end gap-3">
-              {selectedTemplate.settings?.show_expiry && selectedTemplate.settings?.expiry_months && (
-                <span className="text-[11px] text-muted-foreground">
-                  Expires in {selectedTemplate.settings.expiry_months} month(s)
-                </span>
-              )}
-              <button
-                onClick={handleGenerate}
-                disabled={saving || hasRequiredFields || (selectedTemplate.id === "__custom__" && !manualContent?.trim())}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-                style={{ background: "var(--accent-primary)" }}
-              >
-                {saving ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" />Generating...</>
-                ) : (
-                  <><Save className="w-4 h-4" />Generate & Save</>
+          {wizardStep === "fill-details" && selectedTemplate && (() => {
+            const customConfigKey = selectedTemplate.constituent_type === "establishment"
+              ? "customized_establishment_certificates"
+              : selectedTemplate.constituent_type === "lot_building"
+              ? "customized_lot_building_certificates"
+              : "customized_resident_certificates";
+            const customConfigs = (barangaySettings?.settings?.[customConfigKey] as any[]) || [];
+            const customConfig = customConfigs.find((c: any) => c.id === selectedTemplate.id);
+            const customSettings = customConfig?.design_settings || {};
+            const useGlobalDesign = customConfig ? (customConfig.isGlobal ?? true) : true;
+            const expiryMonthsToUse = useGlobalDesign 
+              ? (selectedTemplate.settings?.expiry_months ?? 6) 
+              : (customSettings.expiry_months ?? selectedTemplate.settings?.expiry_months ?? 6);
+
+            return (
+              <div className="flex items-center justify-end gap-3">
+                {selectedTemplate.settings?.show_expiry && expiryMonthsToUse && (
+                  <span className="text-[11px] text-muted-foreground font-semibold">
+                    Expires in {expiryMonthsToUse} month(s)
+                  </span>
                 )}
-              </button>
-            </div>
-          )}
+                <button
+                  onClick={handleGenerate}
+                  disabled={saving || hasRequiredFields || (selectedTemplate.id === "__custom__" && !manualContent?.trim())}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                  style={{ background: "var(--accent-primary)" }}
+                >
+                  {saving ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" />Generating...</>
+                  ) : (
+                    <><Save className="w-4 h-4" />Generate & Save</>
+                  )}
+                </button>
+              </div>
+            );
+          })()}
         </div>
         </div>
       </div>

@@ -259,8 +259,31 @@
      ═══════════════════════════════════════════════════════ --}}
 <table width="100%" cellpadding="0" cellspacing="0" style="border-top: 1px solid {{ $themePrimary }}33; background-color: {{ $themeTint }}; position: absolute; bottom: 0; left: 0; right: 0;">
     <tr>
-        <td style="padding: 8px 15mm; font-size: 7pt; color: #888; text-transform: uppercase; letter-spacing: 1px;">{{ $document->document_number ?? '' }}</td>
-        <td align="right" style="padding: 8px 15mm; font-size: 8pt; color: #888; text-transform: uppercase; letter-spacing: 2px; font-weight: bold;">NOT VALID WITHOUT SEAL</td>
+        @php
+            $isClearance = str_contains(strtolower($template->title ?? $template->name), 'clearance');
+        @endphp
+        @if($isClearance)
+            @php
+                $daysToWordsMap = [
+                    30 => 'thirty (30)',
+                    60 => 'sixty (60)',
+                    90 => 'ninety (90)',
+                    120 => 'one hundred twenty (120)',
+                    150 => 'one hundred fifty (150)',
+                    180 => 'one hundred eighty (180)',
+                    360 => 'three hundred sixty (360)',
+                ];
+                $expiryMonths = $settings['expiry_months'] ?? 3;
+                $expiryDays = $expiryMonths * 30;
+                $validityDaysText = $daysToWordsMap[$expiryDays] ?? "$expiryDays";
+            @endphp
+            <td colspan="2" align="center" style="padding: 8px 15mm; font-size: 7.5pt; color: {{ $themeAccent }}; font-style: italic; font-weight: bold; line-height: 1.3;">
+                Note: This clearance is valid only for {{ $validityDaysText }} days from the date of issue. Not valid without the official seal.
+            </td>
+        @else
+            <td style="padding: 8px 15mm; font-size: 7pt; color: #888; text-transform: uppercase; letter-spacing: 1px;">{{ $document->document_number ?? '' }}</td>
+            <td align="right" style="padding: 8px 15mm; font-size: 8pt; color: #888; text-transform: uppercase; letter-spacing: 2px; font-weight: bold;">NOT VALID WITHOUT SEAL</td>
+        @endif
     </tr>
 </table>
 

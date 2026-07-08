@@ -48,6 +48,9 @@ interface Props {
   contentOrAmount?: string;
   officials?: Array<{ name: string; position: string }>;
   isVillageCondo?: boolean;
+  expiryMonths?: number;
+  resident?: any;
+  hideProfileTable?: boolean;
 }
 
 const ASPECT_RATIO: Record<PaperSize, string> = {
@@ -74,6 +77,21 @@ const PAPER_LABEL: Record<PaperSize, string> = {
   a4: "A4 (210 × 297mm)",
   letter: "Letter (8.5 × 11in)",
   legal: "Legal PH (8.5 × 13in)",
+};
+
+const getValidityDaysText = (expiryMonths: number | undefined) => {
+  const months = expiryMonths ?? 3;
+  const days = months * 30;
+  const daysToWordsMap: Record<number, string> = {
+    30: "thirty (30)",
+    60: "sixty (60)",
+    90: "ninety (90)",
+    120: "one hundred twenty (120)",
+    150: "one hundred fifty (150)",
+    180: "one hundred eighty (180)",
+    360: "three hundred sixty (360)",
+  };
+  return daysToWordsMap[days] || `${days}`;
 };
 
 const COLORS: Record<ColorTheme, { primary: string; accent: string; tint: string }> = {
@@ -129,7 +147,7 @@ export function DocumentLivePreview({
   barangayName, municipality, province, logoUrl, municipalityLogoUrl, nationalLogoUrl,
   signatoryName, signatoryTitle, hideChrome, fitToContainer, fitScale = 1,
   contentTitle, contentSalutation, contentBodyHtml, rawContent, onContentChange, onTitleChange, onSalutationChange, contentControlNo, contentIssuedDate,
-  contentValidUntil, contentRequestedBy, contentPurpose, contentOrNo, contentOrAmount, officials, isVillageCondo
+  contentValidUntil, contentRequestedBy, contentPurpose, contentOrNo, contentOrAmount, officials, isVillageCondo, expiryMonths, resident, hideProfileTable
 }: Props) {
   const c = COLORS[colorTheme] ?? COLORS.plain;
   const fontFamily = FONT_FAMILY[font];
@@ -167,6 +185,9 @@ export function DocumentLivePreview({
     orAmount: contentOrAmount ?? "50.00",
     officials: officials !== undefined ? officials : SAMPLE_OFFICIALS,
     isVillageCondo: isVillageCondo ?? false,
+    expiryMonths,
+    resident,
+    hideProfileTable,
   };
 
   const meta = useMemo(() => ({
@@ -263,6 +284,9 @@ interface BodyProps {
   orAmount?: string;
   officials: Array<{ name: string; position: string }>;
   isVillageCondo: boolean;
+  expiryMonths?: number;
+  resident?: any;
+  hideProfileTable?: boolean;
 }
 
 const AVAILABLE_TAGS = [
@@ -650,6 +674,7 @@ function PatternDecor({
   }
 }
 
+
 // ── KLASIKO — Classic Sidebar ─────────────────────────────────────
 
 function KlasikoBody(props: BodyProps) {
@@ -733,26 +758,18 @@ function KlasikoBody(props: BodyProps) {
               bodyHtml={props.bodyHtml} rawContent={props.rawContent} onContentChange={props.onContentChange} 
             />
             
-            <div className="text-[6.5px] mb-8 ml-8">
-              <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1">
-                <span className="font-bold" style={{ color: c.primary }}>Requested By:</span>
-                <span className="uppercase text-gray-800">{requestedBy}</span>
-                <span className="font-bold" style={{ color: c.primary }}>Purpose:</span>
-                <span className="uppercase text-gray-800">{purpose}</span>
-              </div>
-              {title?.toLowerCase().includes("clearance") && barangay?.toLowerCase() === "tambo" && (
-                <div className="flex items-center gap-4 text-[6.5px] mt-2 select-none font-sans font-medium">
-                  <div className="flex items-center gap-0.5">
-                    <span className="text-[8px] font-mono" style={{ color: c.primary }}>{props.isVillageCondo ? "☐" : "☑"}</span>
-                    <span>Official Tambo Resident</span>
-                  </div>
-                  <div className="flex items-center gap-0.5">
-                    <span className="text-[8px] font-mono" style={{ color: c.primary }}>{props.isVillageCondo ? "☑" : "☐"}</span>
-                    <span>Village/Condo Resident</span>
-                  </div>
+            {!title?.toLowerCase().includes("clearance") && (
+              <div className="text-[6.5px] mb-8 ml-8">
+                <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1">
+                  <span className="font-bold" style={{ color: c.primary }}>Requested By:</span>
+                  <span className="uppercase text-gray-800">{requestedBy}</span>
+                  <span className="font-bold" style={{ color: c.primary }}>Purpose:</span>
+                  <span className="uppercase text-gray-800">{purpose}</span>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
+            
+
             
             <div className="mt-auto self-end text-center w-40">
               <p className="text-[8.5px] font-bold uppercase tracking-wider" style={{ color: c.primary }}>{signName}</p>
@@ -764,8 +781,28 @@ function KlasikoBody(props: BodyProps) {
       </div>
 
       <footer className="px-3 py-1.5 flex items-center justify-between z-10 border-t" style={{ borderColor: c.primary + "33", background: c.tint }}>
-        <span className="text-[6px] tracking-wider uppercase text-gray-500">{controlNo}</span>
-        <span className="text-[6px] tracking-wider uppercase text-gray-500 font-semibold">NOT VALID WITHOUT SEAL</span>
+        <span className="text-[6px] tracking-wider uppercase text-gray-500 flex items-center gap-4">
+          {!title?.toLowerCase().includes("clearance") && <span>{controlNo}</span>}
+          {title?.toLowerCase().includes("clearance") && barangay?.toLowerCase() === "tambo" && (
+            <span className="flex items-center gap-3 select-none font-sans font-medium text-[5.5px] tracking-normal text-gray-600 normal-case">
+              <span className="flex items-center gap-0.5">
+                <span className="text-[7px] font-mono" style={{ color: c.primary }}>{props.isVillageCondo ? "☐" : "☑"}</span>
+                <span>Official Tambo Resident</span>
+              </span>
+              <span className="flex items-center gap-0.5">
+                <span className="text-[7px] font-mono" style={{ color: c.primary }}>{props.isVillageCondo ? "☑" : "☐"}</span>
+                <span>Village/Condo Resident</span>
+              </span>
+            </span>
+          )}
+        </span>
+        {title?.toLowerCase().includes("clearance") ? (
+          <span className="text-[5px] font-bold italic text-right leading-tight max-w-[280px]" style={{ color: c.accent }}>
+            Note: This clearance is valid only for {getValidityDaysText(props.expiryMonths)} days from the date of issue. Not valid without the official seal.
+          </span>
+        ) : (
+          <span className="text-[6px] tracking-wider uppercase text-gray-500 font-semibold">NOT VALID WITHOUT SEAL</span>
+        )}
       </footer>
     </div>
   );
@@ -802,21 +839,9 @@ function EleganteBody(props: BodyProps) {
                 className="text-[7.5px] text-justify leading-relaxed text-gray-800 whitespace-pre-line mb-3" 
                 bodyHtml={props.bodyHtml} rawContent={props.rawContent} onContentChange={props.onContentChange} 
               />
-              {title?.toLowerCase().includes("clearance") && props.barangay?.toLowerCase() === "tambo" && (
-                <div className="flex items-center gap-4 text-[6.5px] select-none font-sans font-medium justify-center mb-2 shrink-0">
-                  <div className="flex items-center gap-0.5">
-                    <span className="text-[8px] font-mono" style={{ color: c.primary }}>{props.isVillageCondo ? "☐" : "☑"}</span>
-                    <span>Official Tambo Resident</span>
-                  </div>
-                  <div className="flex items-center gap-0.5">
-                    <span className="text-[8px] font-mono" style={{ color: c.primary }}>{props.isVillageCondo ? "☑" : "☐"}</span>
-                    <span>Village/Condo Resident</span>
-                  </div>
-                </div>
-              )}
-              <div className="mt-auto pt-2 shrink-0">
-                <SignatureLine c={c} name={signName} title={signTitle} />
-              </div>
+
+
+
             </div>
           </main>
 
@@ -839,17 +864,40 @@ function EleganteBody(props: BodyProps) {
             <div className="text-[7px] leading-tight select-none">
               {(() => {
                 const isClearance = title?.toLowerCase().includes("clearance");
-                return (
+                return isClearance ? (
+                  <>
+                    {props.barangay?.toLowerCase() === "tambo" && (
+                      <div className="flex items-center gap-2 text-[6.5px] select-none font-sans font-medium mb-1 normal-case text-gray-700">
+                        <div className="flex items-center gap-0.5">
+                          <span className="text-[8px] font-mono" style={{ color: c.primary }}>{props.isVillageCondo ? "☐" : "☑"}</span>
+                          <span>Official Tambo Resident</span>
+                        </div>
+                        <div className="flex items-center gap-0.5">
+                          <span className="text-[8px] font-mono" style={{ color: c.primary }}>{props.isVillageCondo ? "☑" : "☐"}</span>
+                          <span>Village/Condo Resident</span>
+                        </div>
+                      </div>
+                    )}
+                    <p className="text-gray-500">Issued: {issuedDate}</p>
+                  </>
+                ) : (
                   <>
                     <p className="font-semibold tracking-wider uppercase" style={{ color: c.primary }}>
-                      {isClearance ? "Series No." : "Control No."}
+                      Control No.
                     </p>
                     <p className="text-gray-700 font-mono">{controlNo}</p>
+                    <p className="text-gray-500">Issued: {issuedDate}</p>
                   </>
                 );
               })()}
             </div>
-            <span className="text-[6px] tracking-wider uppercase text-gray-500 text-right">Republic of the Philippines<br />Not Valid Without Seal</span>
+            {title?.toLowerCase().includes("clearance") ? (
+              <span className="text-[5px] font-bold italic text-right leading-tight max-w-[280px]" style={{ color: c.accent }}>
+                Note: This clearance is valid only for {getValidityDaysText(props.expiryMonths)} days from the date of issue.<br />Not valid without the official seal.
+              </span>
+            ) : (
+              <span className="text-[6px] tracking-wider uppercase text-gray-500 text-right">Republic of the Philippines<br />Not Valid Without Seal</span>
+            )}
           </footer>
         </div>
       </div>
@@ -901,11 +949,11 @@ function ModernoBody(props: BodyProps) {
             className="text-[8px] text-justify leading-relaxed text-gray-800 whitespace-pre-line" 
             bodyHtml={props.bodyHtml} rawContent={props.rawContent} onContentChange={props.onContentChange} 
           />
+
         </div>
       </main>
 
-      {/* Footer section: Metadata on left, Signature on right */}
-      <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between border-t border-gray-100/40 bg-white pt-2">
+      <div className="absolute bottom-4 left-4 right-4 flex items-start justify-between border-t border-gray-100/40 bg-white pt-2">
         {/* Metadata Block (Bottom Left) */}
         <div className="text-left font-sans text-[7.5px] leading-relaxed text-gray-700 select-none">
           {(() => {
@@ -913,10 +961,10 @@ function ModernoBody(props: BodyProps) {
             return (
               <>
                 <p className="font-semibold" style={{ color: c.primary }}>
-                  {isClearance ? "Series No." : "CTC No."}:
+                  {isClearance ? "Series No." : "CTC No."}: <span className="font-mono text-gray-800 font-normal">{controlNo}</span>
                 </p>
                 <p className="font-semibold" style={{ color: c.primary }}>
-                  Or No.:
+                  Or No.: <span className="font-mono text-gray-800 font-normal">OR-9876543</span>
                 </p>
                 {isClearance && props.barangay?.toLowerCase() === "tambo" && (
                   <div className="flex items-center gap-2 text-[6.5px] select-none font-sans font-medium mt-0.5 mb-0.5">
@@ -930,14 +978,19 @@ function ModernoBody(props: BodyProps) {
                     </div>
                   </div>
                 )}
-                <p className="italic font-medium mt-0.5" style={{ color: c.accent }}>
-                  Not Valid Without Official Seal
-                </p>
+                {isClearance ? (
+                  <p className="italic font-bold mt-0.5 leading-tight text-[5px]" style={{ color: c.accent }}>
+                    Note: This clearance is valid only for {getValidityDaysText(props.expiryMonths)} days from the date of issue. Not valid without the official seal.
+                  </p>
+                ) : (
+                  <p className="italic font-medium mt-0.5" style={{ color: c.accent }}>
+                    Not Valid Without Official Seal
+                  </p>
+                )}
               </>
             );
           })()}
         </div>
-
         {/* Signature (Bottom Right) */}
         <div className="text-center shrink-0" style={{ width: 140 }}>
           <p className="text-[8px] font-bold uppercase tracking-wide whitespace-nowrap" style={{ color: c.primary }}>{signName}</p>

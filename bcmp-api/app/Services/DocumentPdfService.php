@@ -419,7 +419,10 @@ class DocumentPdfService
             'qrDataUri' => $qrDataUri,
             'issuedByName' => $issuedByName,
             'issuedAt' => now()->setTimezone('Asia/Manila')->format('F d, Y'),
-            'settings' => $template->settings ?? [],
+            'settings' => array_merge(
+                $template->settings ?? [],
+                $customSettings && isset($customSettings['expiry_months']) ? ['expiry_months' => $customSettings['expiry_months']] : []
+            ),
             'approvalConfig' => $template->approval_config ?? [],
             // Design injection
             'themePrimary' => $themeColors['primary'],

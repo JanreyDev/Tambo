@@ -58,8 +58,40 @@
 <div style="position: fixed; bottom: 0; left: 0; right: 0; border-top: 1px solid {{ $hexToRgba($themePrimary, 0.2) }}; background-color: {{ $themeTint }}; z-index: 10; padding: 6px 20px;">
     <table width="100%" cellpadding="0" cellspacing="0">
         <tr>
-            <td style="font-size: 7pt; color: #888; text-transform: uppercase; letter-spacing: 1px;">{{ $document->document_number ?? '' }}</td>
-            <td align="right" style="font-size: 7pt; color: #888; text-transform: uppercase; letter-spacing: 1px; font-weight: bold;">NOT VALID WITHOUT SEAL</td>
+            @php
+                $isClearance = str_contains(strtolower($template->title ?? $template->name), 'clearance');
+            @endphp
+            @if($isClearance)
+                @php
+                    $daysToWordsMap = [
+                        30 => 'thirty (30)',
+                        60 => 'sixty (60)',
+                        90 => 'ninety (90)',
+                        120 => 'one hundred twenty (120)',
+                        150 => 'one hundred fifty (150)',
+                        180 => 'one hundred eighty (180)',
+                        360 => 'three hundred sixty (360)',
+                    ];
+                    $expiryMonths = $settings['expiry_months'] ?? 3;
+                    $expiryDays = $expiryMonths * 30;
+                    $validityDaysText = $daysToWordsMap[$expiryDays] ?? "$expiryDays";
+                @endphp
+                <td style="font-size: 7pt; color: #888; text-transform: uppercase; letter-spacing: 1px; white-space: nowrap;">
+                    @php
+                        $isTambo = strtolower($barangay->name ?? '') === 'tambo';
+                    @endphp
+                    @if($isTambo && isset($resident))
+                        <span style="font-family: DejaVu Sans; font-size: 8pt; color: {{ $themePrimary }}; font-weight: normal; vertical-align: middle;">{!! $resident->is_village_condo ? '&#9744;' : '&#9745;' !!}</span> <span style="font-size: 7pt; text-transform: none; font-weight: normal; color: #555; vertical-align: middle;">Official Tambo Resident</span> &nbsp;&nbsp;&nbsp;&nbsp;
+                        <span style="font-family: DejaVu Sans; font-size: 8pt; color: {{ $themePrimary }}; font-weight: normal; vertical-align: middle;">{!! $resident->is_village_condo ? '&#9745;' : '&#9744;' !!}</span> <span style="font-size: 7pt; text-transform: none; font-weight: normal; color: #555; vertical-align: middle;">Village/Condo Resident</span>
+                    @endif
+                </td>
+                <td align="right" style="font-size: 7pt; color: {{ $themeAccent }}; font-style: italic; font-weight: bold; max-width: 380px; line-height: 1.3;">
+                    Note: This clearance is valid only for {{ $validityDaysText }} days from the date of issue. Not valid without the official seal.
+                </td>
+            @else
+                <td style="font-size: 7pt; color: #888; text-transform: uppercase; letter-spacing: 1px;">{{ $document->document_number ?? '' }}</td>
+                <td align="right" style="font-size: 7pt; color: #888; text-transform: uppercase; letter-spacing: 1px; font-weight: bold;">NOT VALID WITHOUT SEAL</td>
+            @endif
         </tr>
     </table>
 </div>
@@ -238,6 +270,7 @@
             </div>
 
             {{-- Requested By / Purpose --}}
+            @if(!$isClearance)
             <table cellpadding="0" cellspacing="0" style="margin: 10px 0 20px 20px; font-size: 9pt;">
                 <tr>
                     <td style="font-weight: bold; color: {{ $themePrimary }}; padding-right: 10px; padding-bottom: 5px; white-space: nowrap;">Requested By:</td>
@@ -250,17 +283,9 @@
                 </tr>
                 @endif
             </table>
-
-            @php
-                $isClearance = str_contains(strtolower($template->title ?? $template->name), 'clearance');
-                $isTambo = strtolower($barangay->name ?? '') === 'tambo';
-            @endphp
-            @if($isClearance && $isTambo && isset($resident))
-            <div style="margin: 0 0 15px 20px; font-size: 9pt; font-family: sans-serif; color: #333;">
-                <span style="font-family: DejaVu Sans; font-size: 10pt; color: {{ $themePrimary }};">{!! $resident->is_village_condo ? '&#9744;' : '&#9745;' !!}</span> Official Tambo Resident &nbsp;&nbsp;&nbsp;&nbsp;
-                <span style="font-family: DejaVu Sans; font-size: 10pt; color: {{ $themePrimary }};">{!! $resident->is_village_condo ? '&#9745;' : '&#9744;' !!}</span> Village/Condo Resident
-            </div>
             @endif
+
+
 
             {{-- OR / CTC --}}
             @if(($settings['show_or'] ?? false) && $document->or_number)

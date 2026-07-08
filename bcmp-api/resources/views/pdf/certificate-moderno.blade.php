@@ -384,9 +384,29 @@
                             <span style="font-family: DejaVu Sans; font-size: 9.5pt; color: {{ $themePrimary }};">{!! $resident->is_village_condo ? '&#9745;' : '&#9744;' !!}</span> Village/Condo Resident
                         </div>
                         @endif
-                        <div style="font-style: italic; color: {{ $themeAccent }}; margin-top: 4px; font-weight: bold; font-family: sans-serif;">
-                            Not Valid Without Official Seal
-                        </div>
+                        @if($isClearance)
+                            @php
+                                $daysToWordsMap = [
+                                    30 => 'thirty (30)',
+                                    60 => 'sixty (60)',
+                                    90 => 'ninety (90)',
+                                    120 => 'one hundred twenty (120)',
+                                    150 => 'one hundred fifty (150)',
+                                    180 => 'one hundred eighty (180)',
+                                    360 => 'three hundred sixty (360)',
+                                ];
+                                $expiryMonths = $settings['expiry_months'] ?? 3;
+                                $expiryDays = $expiryMonths * 30;
+                                $validityDaysText = $daysToWordsMap[$expiryDays] ?? "$expiryDays";
+                            @endphp
+                            <div style="font-style: italic; color: {{ $themeAccent }}; margin-top: 4px; font-weight: bold; font-family: sans-serif; font-size: 7.5pt; line-height: 1.3;">
+                                Note: This clearance is valid only for {{ $validityDaysText }} days from the date of issue. Not valid without the official seal.
+                            </div>
+                        @else
+                            <div style="font-style: italic; color: {{ $themeAccent }}; margin-top: 4px; font-weight: bold; font-family: sans-serif;">
+                                Not Valid Without Official Seal
+                            </div>
+                        @endif
                     </td>
                     
                     <!-- Bottom Right: Signature -->

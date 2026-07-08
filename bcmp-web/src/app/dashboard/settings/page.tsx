@@ -666,6 +666,7 @@ function ResponsiveThumbnail({ layout, docPaperSize, docFont, docColorTheme, doc
           signatoryName={signatoryName}
           signatoryTitle={signatoryTitle}
           hideChrome={true}
+          hideProfileTable={true}
         />
       </div>
     </div>
@@ -831,6 +832,7 @@ export default function SettingsPage() {
   >("wave");
   const [docPaperSize, setDocPaperSize] = useState<"a4" | "letter" | "legal">("a4");
   const [docFont, setDocFont] = useState<"times" | "arial" | "inter" | "poppins" | "merriweather" | "playfair">("times");
+  const [docExpiryMonths, setDocExpiryMonths] = useState<number>(3);
   const loadGlobalDocumentDesign = useCallback(() => {
     const globalDesign = settings?.settings ?? {};
     setDocLayout((globalDesign.document_layout as typeof docLayout) || "klasiko");
@@ -839,6 +841,7 @@ export default function SettingsPage() {
     setDocDesignPattern((globalDesign.document_design_pattern as typeof docDesignPattern) || "wave");
     setDocPaperSize((globalDesign.document_paper_size as typeof docPaperSize) || "a4");
     setDocCustomContent("");
+    setDocExpiryMonths(3);
   }, [settings]);
   // Track whether the user has touched structure/color/paper at least once.
   // Patterns stay as dummy placeholders until first interaction so the user
@@ -1179,7 +1182,7 @@ export default function SettingsPage() {
     if (!selectedCertType) return;
     setSaving(true);
     try {
-      const option = dbTemplates.find(c => c.id === selectedCertType);
+      const option = dbTemplates.find(c => c && c.id === selectedCertType);
       if (option) {
         let templateToSave = option;
         if (option.barangay_id === null) {
@@ -1212,6 +1215,7 @@ export default function SettingsPage() {
             custom_content: docCustomContent,
             custom_title: docCustomTitle,
             custom_salutation: docCustomSalutation,
+            expiry_months: docExpiryMonths,
           }
         };
         
@@ -2316,7 +2320,7 @@ export default function SettingsPage() {
                                 <ArrowLeft className="w-5 h-5" />
                               </button>
                               <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
-                                Editing Custom Theme <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 text-[10px] uppercase font-bold tracking-wider">{(dbTemplates || []).find(c => c.id === selectedCertType)?.name || "Draft"}</span>
+                                Editing Custom Theme <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 text-[10px] uppercase font-bold tracking-wider">{(dbTemplates || []).find(c => c && c.id === selectedCertType)?.name || "Draft"}</span>
                               </h3>
                             </div>
                             <p className="text-xs text-muted-foreground mb-5 ml-9">You are customizing the layout specifically for this certificate. Changes here will not affect the global theme.</p>
@@ -2474,13 +2478,34 @@ export default function SettingsPage() {
                         </div>
 
                         {customizeTab === "editor" && (
-                          <div className="bg-background/40 rounded-xl p-4 border border-border/60 shadow-sm">
-                            <SettingsTextarea
-                              label="Custom Certificate Body"
-                              value={docCustomContent}
-                              onChange={setDocCustomContent}
-                              placeholder="Enter custom text content for this certificate..."
-                            />
+                          <div className="space-y-4">
+                            <div className="bg-background/40 rounded-xl p-4 border border-border/60 shadow-sm">
+                              <SettingsTextarea
+                                label="Custom Certificate Body"
+                                value={docCustomContent}
+                                onChange={setDocCustomContent}
+                                placeholder="Enter custom text content for this certificate..."
+                              />
+                            </div>
+                            {selectedCertType && (dbTemplates || []).find(c => c && c.id === selectedCertType)?.name?.toLowerCase().includes("clearance") && (
+                              <div className="bg-background/40 rounded-xl p-4 border border-border/60 shadow-sm">
+                                <label className="text-xs font-semibold text-foreground/80 block mb-2">Clearance Expiry (Validity Period)</label>
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    max={60}
+                                    value={docExpiryMonths}
+                                    onChange={(e) => setDocExpiryMonths(Math.max(1, Math.min(120, parseInt(e.target.value) || 3)))}
+                                    className="w-20 px-3 py-1.5 rounded-lg border border-border dark:border-slate-600 bg-background dark:bg-slate-900 text-foreground text-xs"
+                                  />
+                                  <span className="text-xs text-muted-foreground font-semibold">months</span>
+                                </div>
+                                <p className="text-[10px] text-muted-foreground mt-1.5">
+                                  Specify the validity period of this clearance. For example: 3 months = 90 days, 6 months = 180 days.
+                                </p>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -2525,6 +2550,7 @@ export default function SettingsPage() {
                             onContentChange={customizeTab === "editor" ? setDocCustomContent : undefined}
                             onTitleChange={customizeTab === "editor" ? setDocCustomTitle : undefined}
                             onSalutationChange={customizeTab === "editor" ? setDocCustomSalutation : undefined}
+                            expiryMonths={docExpiryMonths}
                             fitToContainer={true}
                           />
                         </div>
@@ -2655,6 +2681,7 @@ export default function SettingsPage() {
                                         setDocDesignPattern((cert.design_settings.document_design_pattern as any) || "wave");
                                         setDocPaperSize((cert.design_settings.document_paper_size as any) || "a4");
                                         setDocCustomContent(cert.design_settings.custom_content || "");
+                                        setDocExpiryMonths(cert.design_settings.expiry_months || 3);
                                       } else {
                                         loadGlobalDocumentDesign();
                                       }
@@ -2755,7 +2782,7 @@ export default function SettingsPage() {
                                         <FileText className="w-7 h-7 text-blue-500" />
                                       </div>
                                       <div className="flex flex-col gap-1">
-                                        <h3 className="text-lg font-bold text-white">{dbTemplates.find(c => c.id === selectedCertType)?.name}</h3>
+                                        <h3 className="text-lg font-bold text-white">{dbTemplates.find(c => c && c.id === selectedCertType)?.name}</h3>
                                         <p className="text-sm text-slate-400">Customize design for this certificate</p>
                                       </div>
                                     </div>
@@ -2836,7 +2863,7 @@ export default function SettingsPage() {
                                 <button onClick={() => setModalStep(1)} className="px-4 py-2 text-sm font-medium text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800 transition-colors">Back</button>
                                 <button 
                                   onClick={async () => {
-                                    const option = dbTemplates.find(c => c.id === selectedCertType);
+                                    const option = dbTemplates.find(c => c && c.id === selectedCertType);
                                     
                                     if (themeSource === "custom") {
                                       const existingCertificates = editingConstituentType === "lot_building"
@@ -4387,7 +4414,7 @@ export default function SettingsPage() {
                 const fontVal = isGlobal ? globalDesign.document_font : customDesign.document_font;
                 const pattern = isGlobal ? globalDesign.document_design_pattern : customDesign.document_design_pattern;
                 const colors = isGlobal ? globalDesign.document_color_theme : customDesign.document_color_theme;
-                const dbTemp = dbTemplates.find(t => t.id === previewCertId);
+                const dbTemp = dbTemplates.find(t => t && t.id === previewCertId);
                 const previewContent = !isGlobal && customDesign.custom_content
                   ? customDesign.custom_content
                   : dbTemp?.content;
