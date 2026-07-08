@@ -1180,6 +1180,8 @@ export function GenerateDocumentWizard({
                         isVillageCondo={isVillageCondo}
                         expiryMonths={expiryMonthsToUse}
                         resident={selectedResident || undefined}
+                        showTamboResident={selectedTemplate.settings?.show_tambo_resident}
+                        showVillageCondo={selectedTemplate.settings?.show_village_condo}
                       />
                         );
                       })()}

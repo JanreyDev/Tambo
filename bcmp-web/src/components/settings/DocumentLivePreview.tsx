@@ -51,6 +51,8 @@ interface Props {
   expiryMonths?: number;
   resident?: any;
   hideProfileTable?: boolean;
+  showTamboResident?: boolean;
+  showVillageCondo?: boolean;
 }
 
 const ASPECT_RATIO: Record<PaperSize, string> = {
@@ -147,7 +149,7 @@ export function DocumentLivePreview({
   barangayName, municipality, province, logoUrl, municipalityLogoUrl, nationalLogoUrl,
   signatoryName, signatoryTitle, hideChrome, fitToContainer, fitScale = 1,
   contentTitle, contentSalutation, contentBodyHtml, rawContent, onContentChange, onTitleChange, onSalutationChange, contentControlNo, contentIssuedDate,
-  contentValidUntil, contentRequestedBy, contentPurpose, contentOrNo, contentOrAmount, officials, isVillageCondo, expiryMonths, resident, hideProfileTable
+  contentValidUntil, contentRequestedBy, contentPurpose, contentOrNo, contentOrAmount, officials, isVillageCondo, expiryMonths, resident, hideProfileTable, showTamboResident, showVillageCondo
 }: Props) {
   const c = COLORS[colorTheme] ?? COLORS.plain;
   const fontFamily = FONT_FAMILY[font];
@@ -188,6 +190,8 @@ export function DocumentLivePreview({
     expiryMonths,
     resident,
     hideProfileTable,
+    showTamboResident: showTamboResident ?? false,
+    showVillageCondo: showVillageCondo ?? false,
   };
 
   const meta = useMemo(() => ({
@@ -287,6 +291,8 @@ interface BodyProps {
   expiryMonths?: number;
   resident?: any;
   hideProfileTable?: boolean;
+  showTamboResident?: boolean;
+  showVillageCondo?: boolean;
 }
 
 const AVAILABLE_TAGS = [
@@ -877,16 +883,20 @@ function KlasikoBody(props: BodyProps) {
       <footer className="px-3 py-1.5 flex items-center justify-between z-10 border-t" style={{ borderColor: c.primary + "33", background: c.tint }}>
         <span className="text-[6px] tracking-wider uppercase text-gray-500 flex items-center gap-4">
           {!title?.toLowerCase().includes("clearance") && <span>{controlNo}</span>}
-          {title?.toLowerCase().includes("clearance") && barangay?.toLowerCase() === "tambo" && (
+          {(props.showTamboResident || props.showVillageCondo) && (
             <span className="flex items-center gap-3 select-none font-sans font-medium text-[5.5px] tracking-normal text-gray-600 normal-case">
-              <span className="flex items-center gap-0.5">
-                <span className="text-[7px] font-mono" style={{ color: c.primary }}>{props.isVillageCondo ? "☐" : "☑"}</span>
-                <span>Official Tambo Resident</span>
-              </span>
-              <span className="flex items-center gap-0.5">
-                <span className="text-[7px] font-mono" style={{ color: c.primary }}>{props.isVillageCondo ? "☑" : "☐"}</span>
-                <span>Village/Condo Resident</span>
-              </span>
+              {props.showTamboResident && (
+                <span className="flex items-center gap-0.5">
+                  <span className="text-[7px] font-mono" style={{ color: c.primary }}>{props.isVillageCondo ? "☐" : "☑"}</span>
+                  <span>Official Tambo Resident</span>
+                </span>
+              )}
+              {props.showVillageCondo && (
+                <span className="flex items-center gap-0.5">
+                  <span className="text-[7px] font-mono" style={{ color: c.primary }}>{props.isVillageCondo ? "☑" : "☐"}</span>
+                  <span>Village/Condo Resident</span>
+                </span>
+              )}
             </span>
           )}
         </span>
@@ -960,29 +970,36 @@ function EleganteBody(props: BodyProps) {
             <div className="text-[7px] leading-tight select-none">
               {(() => {
                 const isClearance = title?.toLowerCase().includes("clearance");
-                return isClearance ? (
+                const hasCheckboxes = props.showTamboResident || props.showVillageCondo;
+                return (
                   <>
-                    {props.barangay?.toLowerCase() === "tambo" && (
+                    {hasCheckboxes && (
                       <div className="flex items-center gap-2 text-[6.5px] select-none font-sans font-medium mb-1 normal-case text-gray-700">
-                        <div className="flex items-center gap-0.5">
-                          <span className="text-[8px] font-mono" style={{ color: c.primary }}>{props.isVillageCondo ? "☐" : "☑"}</span>
-                          <span>Official Tambo Resident</span>
-                        </div>
-                        <div className="flex items-center gap-0.5">
-                          <span className="text-[8px] font-mono" style={{ color: c.primary }}>{props.isVillageCondo ? "☑" : "☐"}</span>
-                          <span>Village/Condo Resident</span>
-                        </div>
+                        {props.showTamboResident && (
+                          <div className="flex items-center gap-0.5">
+                            <span className="text-[8px] font-mono" style={{ color: c.primary }}>{props.isVillageCondo ? "☐" : "☑"}</span>
+                            <span>Official Tambo Resident</span>
+                          </div>
+                        )}
+                        {props.showVillageCondo && (
+                          <div className="flex items-center gap-0.5">
+                            <span className="text-[8px] font-mono" style={{ color: c.primary }}>{props.isVillageCondo ? "☑" : "☐"}</span>
+                            <span>Village/Condo Resident</span>
+                          </div>
+                        )}
                       </div>
                     )}
-                    <p className="text-gray-500">Issued: {issuedDate}</p>
-                  </>
-                ) : (
-                  <>
-                    <p className="font-semibold tracking-wider uppercase" style={{ color: c.primary }}>
-                      Control No.
-                    </p>
-                    <p className="text-gray-700 font-mono">{controlNo}</p>
-                    <p className="text-gray-500">Issued: {issuedDate}</p>
+                    {isClearance ? (
+                      <p className="text-gray-500">Issued: {issuedDate}</p>
+                    ) : (
+                      <>
+                        <p className="font-semibold tracking-wider uppercase mt-1" style={{ color: c.primary }}>
+                          Control No.
+                        </p>
+                        <p className="text-gray-700 font-mono">{controlNo}</p>
+                        <p className="text-gray-500">Issued: {issuedDate}</p>
+                      </>
+                    )}
                   </>
                 );
               })()}
@@ -1064,16 +1081,20 @@ function ModernoBody(props: BodyProps) {
                 <p className="font-semibold" style={{ color: c.primary }}>
                   Or No.: <span className="font-mono text-gray-800 font-normal">OR-9876543</span>
                 </p>
-                {isClearance && props.barangay?.toLowerCase() === "tambo" && (
+                {(props.showTamboResident || props.showVillageCondo) && (
                   <div className="flex items-center gap-2 text-[6.5px] select-none font-sans font-medium mt-0.5 mb-0.5">
-                    <div className="flex items-center gap-0.5">
-                      <span className="text-[8px] font-mono" style={{ color: c.primary }}>{props.isVillageCondo ? "☐" : "☑"}</span>
-                      <span>Official Tambo Resident</span>
-                    </div>
-                    <div className="flex items-center gap-0.5">
-                      <span className="text-[8px] font-mono" style={{ color: c.primary }}>{props.isVillageCondo ? "☑" : "☐"}</span>
-                      <span>Village/Condo Resident</span>
-                    </div>
+                    {props.showTamboResident && (
+                      <div className="flex items-center gap-0.5">
+                        <span className="text-[8px] font-mono" style={{ color: c.primary }}>{props.isVillageCondo ? "☐" : "☑"}</span>
+                        <span>Official Tambo Resident</span>
+                      </div>
+                    )}
+                    {props.showVillageCondo && (
+                      <div className="flex items-center gap-0.5">
+                        <span className="text-[8px] font-mono" style={{ color: c.primary }}>{props.isVillageCondo ? "☑" : "☐"}</span>
+                        <span>Village/Condo Resident</span>
+                      </div>
+                    )}
                   </div>
                 )}
                 {isClearance ? (

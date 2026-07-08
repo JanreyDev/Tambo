@@ -409,15 +409,22 @@
                     <td valign="middle">
                         @php
                             $isClearance = str_contains(strtolower($template->title ?? $template->name), 'clearance');
-                            $isTambo = strtolower($barangay->name ?? '') === 'tambo';
+                            $showTambo = $settings['show_tambo_resident'] ?? false;
+                            $showVillage = $settings['show_village_condo'] ?? false;
                         @endphp
-                        @if($isClearance)
-                            @if($isTambo && isset($resident))
+                        @if($showTambo || $showVillage)
+                            @if(isset($resident))
                                 <div style="font-size: 9pt; font-family: sans-serif; color: #333; margin-bottom: 5px;">
-                                    <span style="font-family: DejaVu Sans; font-size: 8.5pt; color: {{ $themePrimary }}; vertical-align: middle;">{!! $resident->is_village_condo ? '&#9744;' : '&#9745;' !!}</span> <span style="font-size: 7.5pt; text-transform: none; color: #444; vertical-align: middle;">Official Tambo Resident</span> &nbsp;&nbsp;&nbsp;&nbsp;
-                                    <span style="font-family: DejaVu Sans; font-size: 8.5pt; color: {{ $themePrimary }}; vertical-align: middle;">{!! $resident->is_village_condo ? '&#9745;' : '&#9744;' !!}</span> <span style="font-size: 7.5pt; text-transform: none; color: #444; vertical-align: middle;">Village/Condo Resident</span>
+                                    @if($showTambo)
+                                        <span style="font-family: DejaVu Sans; font-size: 8.5pt; color: {{ $themePrimary }}; vertical-align: middle;">{!! $resident->is_village_condo ? '&#9744;' : '&#9745;' !!}</span> <span style="font-size: 7.5pt; text-transform: none; color: #444; vertical-align: middle;">Official Tambo Resident</span> &nbsp;&nbsp;&nbsp;&nbsp;
+                                    @endif
+                                    @if($showVillage)
+                                        <span style="font-family: DejaVu Sans; font-size: 8.5pt; color: {{ $themePrimary }}; vertical-align: middle;">{!! $resident->is_village_condo ? '&#9745;' : '&#9744;' !!}</span> <span style="font-size: 7.5pt; text-transform: none; color: #444; vertical-align: middle;">Village/Condo Resident</span>
+                                    @endif
                                 </div>
                             @endif
+                            <div style="font-size: 6.5pt; color: #888;">Issued: {{ $document->issued_date?->format('M d, Y') ?? '—' }}</div>
+                        @elseif($isClearance)
                             <div style="font-size: 6.5pt; color: #888;">Issued: {{ $document->issued_date?->format('M d, Y') ?? '—' }}</div>
                         @else
                             <div style="font-size: 8pt; font-weight: bold; color: {{ $themePrimary }}; letter-spacing: 1px; margin-bottom: 3px;">

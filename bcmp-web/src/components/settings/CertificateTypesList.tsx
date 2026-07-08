@@ -362,6 +362,8 @@ function QuickEditModal({ template, defaultType, onClose, onSaved, onToast }: Qu
     show_doc_no: template?.settings?.show_doc_no ?? true,
     show_expiry: template?.settings?.show_expiry ?? false,
     expiry_months: template?.settings?.expiry_months ?? 6,
+    show_tambo_resident: template?.settings?.show_tambo_resident ?? false,
+    show_village_condo: template?.settings?.show_village_condo ?? false,
   });
 
   const setField = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) =>
@@ -387,6 +389,8 @@ function QuickEditModal({ template, defaultType, onClose, onSaved, onToast }: Qu
           show_doc_no: form.show_doc_no,
           show_expiry: form.show_expiry,
           expiry_months: form.show_expiry ? form.expiry_months : undefined,
+          show_tambo_resident: form.show_tambo_resident,
+          show_village_condo: form.show_village_condo,
         },
       };
 
@@ -484,6 +488,8 @@ function QuickEditModal({ template, defaultType, onClose, onSaved, onToast }: Qu
             <Toggle checked={form.show_qr}     onChange={(v) => setField("show_qr", v)}     label="Show QR code (verification)" />
             <Toggle checked={form.show_doc_no} onChange={(v) => setField("show_doc_no", v)} label="Show document number" />
             <Toggle checked={form.show_expiry} onChange={(v) => setField("show_expiry", v)} label="Has expiry date" />
+            <Toggle checked={form.show_tambo_resident} onChange={(v) => setField("show_tambo_resident", v)} label="Show Official Tambo Resident checkbox" />
+            <Toggle checked={form.show_village_condo} onChange={(v) => setField("show_village_condo", v)} label="Show Village/Condo Resident checkbox" />
             {form.show_expiry && (
               <div className="flex items-center gap-2 pl-6 pt-1">
                 <span className="text-xs text-muted-foreground">Valid for</span>

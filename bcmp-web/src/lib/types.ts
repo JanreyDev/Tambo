@@ -562,6 +562,8 @@ export interface DocumentTemplateSettings {
   show_photo?: boolean;
   show_thumbmark?: boolean;
   paper_size?: PaperSize;
+  show_tambo_resident?: boolean;
+  show_village_condo?: boolean;
 }
 
 export interface DocumentTemplate {

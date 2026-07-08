@@ -423,12 +423,17 @@
                         @endif
                         @php
                             $isClearance = str_contains(strtolower($template->title ?? $template->name), 'clearance');
-                            $isTambo = strtolower($barangay->name ?? '') === 'tambo';
+                            $showTambo = $settings['show_tambo_resident'] ?? false;
+                            $showVillage = $settings['show_village_condo'] ?? false;
                         @endphp
-                        @if($isClearance && $isTambo && isset($resident))
+                        @if(($showTambo || $showVillage) && isset($resident))
                         <div style="margin-top: 4px; font-size: 8.5pt; font-family: sans-serif; line-height: 1.4; color: #333;">
-                            <span style="font-family: DejaVu Sans; font-size: 9.5pt; color: {{ $themePrimary }};">{!! $resident->is_village_condo ? '&#9744;' : '&#9745;' !!}</span> Official Tambo Resident &nbsp;&nbsp;
-                            <span style="font-family: DejaVu Sans; font-size: 9.5pt; color: {{ $themePrimary }};">{!! $resident->is_village_condo ? '&#9745;' : '&#9744;' !!}</span> Village/Condo Resident
+                            @if($showTambo)
+                                <span style="font-family: DejaVu Sans; font-size: 9.5pt; color: {{ $themePrimary }};">{!! $resident->is_village_condo ? '&#9744;' : '&#9745;' !!}</span> Official Tambo Resident &nbsp;&nbsp;
+                            @endif
+                            @if($showVillage)
+                                <span style="font-family: DejaVu Sans; font-size: 9.5pt; color: {{ $themePrimary }};">{!! $resident->is_village_condo ? '&#9745;' : '&#9744;' !!}</span> Village/Condo Resident
+                            @endif
                         </div>
                         @endif
                         @if($isClearance)

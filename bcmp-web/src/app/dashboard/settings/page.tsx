@@ -2533,30 +2533,37 @@ export default function SettingsPage() {
                           )}
                         </div>
                         <div className="w-full rounded-xl border border-border bg-background p-2 shadow-sm overflow-hidden flex justify-center">
-                          <DocumentLivePreview
-                            layout={docLayout}
-                            paperSize={docPaperSize}
-                            font={docFont}
-                            colorTheme={docColorTheme}
-                            designPattern={docDesignPattern}
-                            barangayName={settings?.name ?? null}
-                            municipality={settings?.city_municipality ?? null}
-                            province={settings?.province ?? null}
-                            logoUrl={resolvePhotoUrl(logoUrl)}
-                            municipalityLogoUrl={resolvePhotoUrl(municipalityLogoUrl)}
-                            nationalLogoUrl={resolvePhotoUrl(nationalLogoUrl)}
-                            signatoryName={previewSignatoryName}
-                            signatoryTitle={previewSignatoryTitle}
-                            contentTitle={customizeTab === "editor" ? docCustomTitle : undefined}
-                            contentSalutation={customizeTab === "editor" ? docCustomSalutation : undefined}
-                            contentBodyHtml={customizeTab === "editor" ? docCustomContent : undefined}
-                            rawContent={customizeTab === "editor" ? docCustomContent : undefined}
-                            onContentChange={customizeTab === "editor" ? setDocCustomContent : undefined}
-                            onTitleChange={customizeTab === "editor" ? setDocCustomTitle : undefined}
-                            onSalutationChange={customizeTab === "editor" ? setDocCustomSalutation : undefined}
-                            expiryMonths={docExpiryMonths}
-                            fitToContainer={true}
-                          />
+                          {(() => {
+                            const activeTemplate = dbTemplates.find(c => c && c.id === selectedCertType);
+                            return (
+                              <DocumentLivePreview
+                                layout={docLayout}
+                                paperSize={docPaperSize}
+                                font={docFont}
+                                colorTheme={docColorTheme}
+                                designPattern={docDesignPattern}
+                                barangayName={settings?.name ?? null}
+                                municipality={settings?.city_municipality ?? null}
+                                province={settings?.province ?? null}
+                                logoUrl={resolvePhotoUrl(logoUrl)}
+                                municipalityLogoUrl={resolvePhotoUrl(municipalityLogoUrl)}
+                                nationalLogoUrl={resolvePhotoUrl(nationalLogoUrl)}
+                                signatoryName={previewSignatoryName}
+                                signatoryTitle={previewSignatoryTitle}
+                                contentTitle={customizeTab === "editor" ? docCustomTitle : undefined}
+                                contentSalutation={customizeTab === "editor" ? docCustomSalutation : undefined}
+                                contentBodyHtml={customizeTab === "editor" ? docCustomContent : undefined}
+                                rawContent={customizeTab === "editor" ? docCustomContent : undefined}
+                                onContentChange={customizeTab === "editor" ? setDocCustomContent : undefined}
+                                onTitleChange={customizeTab === "editor" ? setDocCustomTitle : undefined}
+                                onSalutationChange={customizeTab === "editor" ? setDocCustomSalutation : undefined}
+                                expiryMonths={docExpiryMonths}
+                                fitToContainer={true}
+                                showTamboResident={activeTemplate?.settings?.show_tambo_resident}
+                                showVillageCondo={activeTemplate?.settings?.show_village_condo}
+                              />
+                            );
+                          })()}
                         </div>
                         <div className="mt-4 p-3 rounded-xl border border-border bg-background shadow-sm">
                           <h4 className="text-[10px] font-semibold text-foreground uppercase tracking-wider mb-2">Current Settings</h4>
@@ -4444,6 +4451,8 @@ export default function SettingsPage() {
                     contentControlNo="PREVIEW-12345"
                     contentIssuedDate={previewIssueDate.toLocaleDateString("en-PH", { month: "long", day: "numeric", year: "numeric" })}
                     fitToContainer={true}
+                    showTamboResident={dbTemp?.settings?.show_tambo_resident}
+                    showVillageCondo={dbTemp?.settings?.show_village_condo}
                   />
                 );
               })()}

@@ -78,10 +78,13 @@
                 @endphp
                 <td style="font-size: 7pt; color: #888; text-transform: uppercase; letter-spacing: 1px; white-space: nowrap;">
                     @php
-                        $isTambo = strtolower($barangay->name ?? '') === 'tambo';
+                        $showTambo = $settings['show_tambo_resident'] ?? false;
+                        $showVillage = $settings['show_village_condo'] ?? false;
                     @endphp
-                    @if($isTambo && isset($resident))
+                    @if($showTambo && isset($resident))
                         <span style="font-family: DejaVu Sans; font-size: 8pt; color: {{ $themePrimary }}; font-weight: normal; vertical-align: middle;">{!! $resident->is_village_condo ? '&#9744;' : '&#9745;' !!}</span> <span style="font-size: 7pt; text-transform: none; font-weight: normal; color: #555; vertical-align: middle;">Official Tambo Resident</span> &nbsp;&nbsp;&nbsp;&nbsp;
+                    @endif
+                    @if($showVillage && isset($resident))
                         <span style="font-family: DejaVu Sans; font-size: 8pt; color: {{ $themePrimary }}; font-weight: normal; vertical-align: middle;">{!! $resident->is_village_condo ? '&#9745;' : '&#9744;' !!}</span> <span style="font-size: 7pt; text-transform: none; font-weight: normal; color: #555; vertical-align: middle;">Village/Condo Resident</span>
                     @endif
                 </td>

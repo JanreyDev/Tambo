@@ -306,29 +306,44 @@
     <tr>
         @php
             $isClearance = str_contains(strtolower($template->title ?? $template->name), 'clearance');
+            $showTambo = $settings['show_tambo_resident'] ?? false;
+            $showVillage = $settings['show_village_condo'] ?? false;
         @endphp
-        @if($isClearance)
-            @php
-                $daysToWordsMap = [
-                    30 => 'thirty (30)',
-                    60 => 'sixty (60)',
-                    90 => 'ninety (90)',
-                    120 => 'one hundred twenty (120)',
-                    150 => 'one hundred fifty (150)',
-                    180 => 'one hundred eighty (180)',
-                    360 => 'three hundred sixty (360)',
-                ];
-                $expiryMonths = $settings['expiry_months'] ?? 3;
-                $expiryDays = $expiryMonths * 30;
-                $validityDaysText = $daysToWordsMap[$expiryDays] ?? "$expiryDays";
-            @endphp
-            <td colspan="2" align="center" style="padding: 8px 15mm; font-size: 7.5pt; color: {{ $themeAccent }}; font-style: italic; font-weight: bold; line-height: 1.3;">
-                Note: This clearance is valid only for {{ $validityDaysText }} days from the date of issue. Not valid without the official seal.
+        @if($showTambo || $showVillage)
+            <td style="padding: 8px 15mm; font-size: 7.5pt; color: #555; white-space: nowrap;">
+                @if($showTambo && isset($resident))
+                    <span style="font-family: DejaVu Sans; font-size: 8.5pt; color: {{ $themePrimary }}; vertical-align: middle;">{!! $resident->is_village_condo ? '&#9744;' : '&#9745;' !!}</span> <span style="vertical-align: middle;">Official Tambo Resident</span> &nbsp;&nbsp;&nbsp;&nbsp;
+                @endif
+                @if($showVillage && isset($resident))
+                    <span style="font-family: DejaVu Sans; font-size: 8.5pt; color: {{ $themePrimary }}; vertical-align: middle;">{!! $resident->is_village_condo ? '&#9745;' : '&#9744;' !!}</span> <span style="vertical-align: middle;">Village/Condo Resident</span>
+                @endif
             </td>
         @else
             <td style="padding: 8px 15mm; font-size: 7pt; color: #888; text-transform: uppercase; letter-spacing: 1px;">{{ $document->document_number ?? '' }}</td>
-            <td align="right" style="padding: 8px 15mm; font-size: 8pt; color: #888; text-transform: uppercase; letter-spacing: 2px; font-weight: bold;">NOT VALID WITHOUT SEAL</td>
         @endif
+        <td align="right" style="padding: 8px 15mm;">
+            @if($isClearance)
+                @php
+                    $daysToWordsMap = [
+                        30 => 'thirty (30)',
+                        60 => 'sixty (60)',
+                        90 => 'ninety (90)',
+                        120 => 'one hundred twenty (120)',
+                        150 => 'one hundred fifty (150)',
+                        180 => 'one hundred eighty (180)',
+                        360 => 'three hundred sixty (360)',
+                    ];
+                    $expiryMonths = $settings['expiry_months'] ?? 3;
+                    $expiryDays = $expiryMonths * 30;
+                    $validityDaysText = $daysToWordsMap[$expiryDays] ?? "$expiryDays";
+                @endphp
+                <span style="font-size: 7.5pt; color: {{ $themeAccent }}; font-style: italic; font-weight: bold; line-height: 1.3;">
+                    Note: This clearance is valid only for {{ $validityDaysText }} days from the date of issue. Not valid without the official seal.
+                </span>
+            @else
+                <span style="font-size: 8pt; color: #888; text-transform: uppercase; letter-spacing: 2px; font-weight: bold;">NOT VALID WITHOUT SEAL</span>
+            @endif
+        </td>
     </tr>
 </table>
 
