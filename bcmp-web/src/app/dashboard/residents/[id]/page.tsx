@@ -707,6 +707,7 @@ function PersonalInfoTab({
         <Field label="Resident Type" value={cap(r.resident_type)} />
         <Field label="Housing / Settlement Type" value={cap(r.housing_type)} />
         <Field label="Date of Occupancy" value={r.date_of_occupancy ? `${new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'long', day: 'numeric' }).format(new Date(r.date_of_occupancy))} (${lengthOfStay(r.date_of_occupancy)})` : null} />
+        <Field label="Alias/es" value={r.alias ? cap(r.alias) : null} />
         <Field label="Mother's Maiden Name" value={cap(r.mothers_maiden_name)} wide />
       </Section>
 

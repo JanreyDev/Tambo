@@ -532,7 +532,7 @@ export default function CensusPage() {
   // ── Form state (all flat fields) ──────────────────────────────────────
   const [form, setForm] = useState<Record<string, string>>({
     // Identity
-    first_name: "", last_name: "", middle_name: "", extension_name: "",
+    first_name: "", last_name: "", middle_name: "", extension_name: "", alias: "",
     date_of_birth: "", place_of_birth: "", sex: "", civil_status: "",
     citizenship: "FILIPINO", mothers_maiden_name: "",
     // Physical
@@ -782,6 +782,7 @@ export default function CensusPage() {
       last_name: form.last_name?.trim(),
       middle_name: form.middle_name?.trim() || null,
       extension_name: form.extension_name || null,
+      alias: form.alias?.trim() || null,
       mothers_maiden_name: form.mothers_maiden_name?.trim() || null,
       date_of_birth: form.date_of_birth,
       place_of_birth: form.place_of_birth?.trim(),
@@ -986,7 +987,7 @@ export default function CensusPage() {
   // ── Reset form ────────────────────────────────────────────────────────
   const resetForm = () => {
     setForm({
-      first_name: "", last_name: "", middle_name: "", extension_name: "",
+      first_name: "", last_name: "", middle_name: "", extension_name: "", alias: "",
       date_of_birth: "", place_of_birth: "", sex: "", civil_status: "",
       citizenship: "FILIPINO", mothers_maiden_name: "",
       blood_type: "", height_cm: "", weight_kg: "", complexion: "",
@@ -1184,6 +1185,7 @@ export default function CensusPage() {
               <CSelectRaw label="Ext." name="extension_name" value={f("extension_name")} onChange={updateForm}
                 options={extensions.map((e) => ({ value: e.toLowerCase(), label: e || "None" }))} placeholder="None" />
             </div>
+            <CField label="Alias / Ibang pangalan (o Palayaw)" name="alias" value={f("alias")} onChange={updateForm} placeholder="e.g. CARDO" maxLength={100} />
             <CField label="Date of Birth / Kaarawan" name="date_of_birth" type="date" required value={f("date_of_birth")} onChange={updateForm} max={new Date().toISOString().split("T")[0]} />
             {f("date_of_birth") && getAge(f("date_of_birth")) !== null && (
               <p className="text-xs text-muted-foreground -mt-1.5 ml-1">Edad: <span className="font-semibold text-foreground">{getAge(f("date_of_birth"))} taon</span></p>
@@ -1639,6 +1641,7 @@ export default function CensusPage() {
                   </p>
                 </div>
               </div>
+              {f("alias") && <ReviewLine label="Alias" value={f("alias")} />}
               {f("mothers_maiden_name") && <ReviewLine label="Mother's Maiden" value={f("mothers_maiden_name")} />}
             </ReviewCard>
 

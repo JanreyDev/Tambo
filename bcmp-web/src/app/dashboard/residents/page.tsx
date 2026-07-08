@@ -1115,7 +1115,7 @@ export default function ResidentsPage() {
 
     // Flat string/boolean fields -> map directly
     const directFields = [
-      "first_name", "last_name", "middle_name", "extension_name",
+      "first_name", "last_name", "middle_name", "extension_name", "alias",
       "mothers_maiden_name", "date_of_birth", "place_of_birth",
       "citizenship", "religion", "ethnicity", "blood_type",
       "complexion", "email", "mobile_number",
@@ -1325,6 +1325,7 @@ export default function ResidentsPage() {
       first_name: upper(r.first_name),
       middle_name: upper(r.middle_name),
       last_name: upper(r.last_name),
+      alias: upper((r as unknown as Record<string, unknown>).alias),
       mothers_maiden_name: upper((r as unknown as Record<string, unknown>).mothers_maiden_name),
       place_of_birth: upper(r.place_of_birth),
       citizenship: upper((r as unknown as Record<string, unknown>).citizenship),
@@ -1652,10 +1653,11 @@ export default function ResidentsPage() {
                   <div className="space-y-5">
                     <div className="flex items-start gap-6">
                       <div className="flex-1 space-y-4">
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
                           <FInput label="First Name" name="first_name" required placeholder="e.g. Juan" value={f("first_name")} onChange={updateForm} valid={dupOk("first_name")} error={formErrors.first_name} />
                           <FInput label="Middle Name" name="middle_name" placeholder="e.g. Santiago" value={f("middle_name")} onChange={updateForm} valid={dupOk("middle_name")} />
                           <FInput label="Last Name" name="last_name" required placeholder="e.g. Dela Cruz" value={f("last_name")} onChange={updateForm} valid={dupOk("last_name")} error={formErrors.last_name} />
+                          <FInput label="Alias/es" name="alias" placeholder="e.g. Cardo" value={f("alias")} onChange={updateForm} />
                           <FSelect label="Extension" name="extension_name" options={extensions} value={f("extension_name")} onChange={updateForm} />
                         </div>
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -3351,6 +3353,7 @@ export default function ResidentsPage() {
               <div className="flex-1 min-w-0">
                 <h3 className="text-lg font-bold text-foreground leading-tight">
                   {viewResident.first_name}{viewResident.middle_name ? ` ${viewResident.middle_name[0]}.` : ""} {viewResident.last_name}{viewResident.extension_name ? ` ${viewResident.extension_name}` : ""}
+                  {viewResident.alias && <span className="text-xs text-muted-foreground font-semibold block mt-0.5">Alias: {viewResident.alias}</span>}
                 </h3>
                 <p className="text-xs text-muted-foreground mt-0.5 font-mono">{viewResident.resident_number}</p>
                 <div className="flex items-center gap-2 mt-2 flex-wrap">

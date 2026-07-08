@@ -39,6 +39,7 @@ class Resident extends Model
         'middle_name',
         'last_name',
         'extension_name',
+        'alias',
         'mothers_maiden_name',
         'date_of_birth',
         'place_of_birth',

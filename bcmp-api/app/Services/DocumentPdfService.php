@@ -478,6 +478,13 @@ class DocumentPdfService
                 $brgy?->province,
             ]);
             $values['address'] = implode(', ', $addrParts);
+
+            // Additional fields for flexible templates
+            $values['alias'] = $resident->alias ?? '';
+            $values['remarks'] = $resident->other_remarks ?? '';
+            $values['birthdate'] = $values['date_of_birth'];
+            $values['birthplace'] = $values['place_of_birth'];
+            $values['gender'] = $values['sex'];
         }
 
         if ($establishment) {

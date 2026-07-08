@@ -291,12 +291,104 @@ interface BodyProps {
 
 const AVAILABLE_TAGS = [
   { tag: "{{full_name}}", desc: "Resident's full name" },
+  { tag: "{{alias}}", desc: "Resident's alias/es" },
+  { tag: "{{date_of_birth}}", desc: "Birthdate" },
+  { tag: "{{birthdate}}", desc: "Birthdate (alias)" },
   { tag: "{{age}}", desc: "Current age" },
+  { tag: "{{place_of_birth}}", desc: "Birthplace" },
+  { tag: "{{birthplace}}", desc: "Birthplace (alias)" },
   { tag: "{{civil_status}}", desc: "Single, Married, etc." },
-  { tag: "{{sex}}", desc: "Male or Female" },
+  { tag: "{{sex}}", desc: "Sex" },
+  { tag: "{{gender}}", desc: "Gender (alias)" },
+  { tag: "{{citizenship}}", desc: "Citizenship" },
   { tag: "{{address}}", desc: "Complete address" },
   { tag: "{{purpose}}", desc: "Stated purpose" },
+  { tag: "{{remarks}}", desc: "Remarks" },
 ];
+
+function ResidentDetailsTable({ resident, c }: { resident: any; c: any }) {
+  const mockResident = {
+    full_name: "PEDRO M. PENDUKO",
+    alias: "PEDRO / PENDUKS",
+    date_of_birth: "1991-07-08",
+    place_of_birth: "OLONGAPO CITY, ZAMBALES",
+    civil_status: "Single",
+    sex: "Male",
+    citizenship: "FILIPINO",
+    house_block_lot: "Blk 5 Lot 12",
+    purok: "5",
+    street: "Rizal Street",
+    other_remarks: "No Derogatory Record",
+  };
+  
+  const activeResident = resident || mockResident;
+
+  const getBirthdateString = () => {
+    if (!activeResident.date_of_birth) return "N/A";
+    try {
+      const d = new Date(activeResident.date_of_birth.includes("T") ? activeResident.date_of_birth : activeResident.date_of_birth + "T00:00:00");
+      return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+    } catch {
+      return activeResident.date_of_birth;
+    }
+  };
+
+  const getAge = () => {
+    if (!activeResident.date_of_birth) return "N/A";
+    try {
+      const d = new Date(activeResident.date_of_birth.includes("T") ? activeResident.date_of_birth : activeResident.date_of_birth + "T00:00:00");
+      return Math.floor((Date.now() - d.getTime()) / 31557600000);
+    } catch {
+      return "N/A";
+    }
+  };
+
+  const getAddress = () => {
+    const parts = [
+      activeResident.house_block_lot,
+      activeResident.purok ? `Purok ${activeResident.purok}` : null,
+      activeResident.street,
+    ].filter(Boolean);
+    return parts.join(", ") || "—";
+  };
+
+  const formatEnumValue = (val: string) => {
+    if (!val) return "—";
+    return val.charAt(0).toUpperCase() + val.slice(1).toLowerCase().replace(/_/g, " ");
+  };
+
+  const rows = [
+    { label: "Resident Name", value: activeResident.full_name || `${activeResident.first_name || ""} ${activeResident.middle_name || ""} ${activeResident.last_name || ""}`.trim(), isBold: true },
+    { label: "Resident Alias/es", value: activeResident.alias || "None" },
+    { label: "Birthdate", value: getBirthdateString() },
+    { label: "Age", value: String(getAge()) },
+    { label: "Birthplace", value: activeResident.place_of_birth || "N/A" },
+    { label: "Civil Status", value: formatEnumValue(activeResident.civil_status) },
+    { label: "Gender", value: formatEnumValue(activeResident.sex) },
+    { label: "Citizenship", value: activeResident.citizenship || "Filipino" },
+    { label: "Address", value: getAddress() },
+    { label: "Remarks", value: activeResident.other_remarks || "None" },
+  ];
+
+  return (
+    <div className="my-3 max-w-full overflow-x-auto select-none">
+      <table className="w-full border-collapse border border-gray-200 text-[7.5px] font-sans leading-normal">
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={i} className="border-b border-gray-200">
+              <td className="w-[35%] px-2 py-1 bg-gray-50/80 border-r border-gray-200 font-bold text-gray-700" style={{ color: c.primary }}>
+                {row.label}:
+              </td>
+              <td className="w-[65%] px-2 py-1 text-gray-900" style={{ fontWeight: row.isBold ? "bold" : "normal" }}>
+                {row.value}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 const EditorArea = memo(({ initialHtml, onInput, onBlur, className, style, innerRef }: any) => {
   return (
@@ -757,6 +849,8 @@ function KlasikoBody(props: BodyProps) {
               className="text-[7.5px] text-justify leading-[1.6] text-gray-800 whitespace-pre-line mb-4" 
               bodyHtml={props.bodyHtml} rawContent={props.rawContent} onContentChange={props.onContentChange} 
             />
+
+            <ResidentDetailsTable resident={props.resident} c={c} />
             
             {!title?.toLowerCase().includes("clearance") && (
               <div className="text-[6.5px] mb-8 ml-8">
@@ -839,6 +933,8 @@ function EleganteBody(props: BodyProps) {
                 className="text-[7.5px] text-justify leading-relaxed text-gray-800 whitespace-pre-line mb-3" 
                 bodyHtml={props.bodyHtml} rawContent={props.rawContent} onContentChange={props.onContentChange} 
               />
+
+              <ResidentDetailsTable resident={props.resident} c={c} />
 
 
 
@@ -949,6 +1045,8 @@ function ModernoBody(props: BodyProps) {
             className="text-[8px] text-justify leading-relaxed text-gray-800 whitespace-pre-line" 
             bodyHtml={props.bodyHtml} rawContent={props.rawContent} onContentChange={props.onContentChange} 
           />
+
+          <ResidentDetailsTable resident={props.resident} c={c} />
 
         </div>
       </main>

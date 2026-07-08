@@ -414,6 +414,7 @@ export interface ResidentSummary {
   last_name: string;
   middle_name: string | null;
   extension_name: string | null;
+  alias: string | null;
   date_of_birth: string;
   sex: "male" | "female";
   civil_status: string | null;

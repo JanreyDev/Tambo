@@ -136,6 +136,7 @@ export const residentSchema = z
     middle_name: optionalString,
     extension_name: z.string().optional(),
     nickname: optionalString,
+    alias: optionalString,
 
     // Contact
     mobile_number: requiredPhMobile,
