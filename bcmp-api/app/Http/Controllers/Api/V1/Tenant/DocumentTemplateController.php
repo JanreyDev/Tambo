@@ -304,6 +304,10 @@ class DocumentTemplateController extends Controller
             'settings.show_expiry' => ['nullable', 'boolean'],
             'settings.expiry_months' => ['nullable', 'integer', 'min:1', 'max:120'],
 
+            'settings.require_documents' => ['nullable', 'boolean'],
+            'settings.required_documents' => ['nullable', 'array', 'max:20'],
+            'settings.required_documents.*' => ['string', 'max:120'],
+
             'settings.use_global_design' => ['nullable', 'boolean'],
             'settings.document_layout' => ['nullable', 'string', 'max:50'],
             'settings.document_color_theme' => ['nullable', 'string', 'max:50'],

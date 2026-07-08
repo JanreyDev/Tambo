@@ -364,7 +364,10 @@ function QuickEditModal({ template, defaultType, onClose, onSaved, onToast }: Qu
     expiry_months: template?.settings?.expiry_months ?? 6,
     show_tambo_resident: template?.settings?.show_tambo_resident ?? false,
     show_village_condo: template?.settings?.show_village_condo ?? false,
+    require_documents: template?.settings?.require_documents ?? false,
+    required_documents: (template?.settings?.required_documents as string[]) ?? [],
   });
+  const [newDocInput, setNewDocInput] = useState("");
 
   const setField = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -391,6 +394,8 @@ function QuickEditModal({ template, defaultType, onClose, onSaved, onToast }: Qu
           expiry_months: form.show_expiry ? form.expiry_months : undefined,
           show_tambo_resident: form.show_tambo_resident,
           show_village_condo: form.show_village_condo,
+          require_documents: form.require_documents,
+          required_documents: form.require_documents ? form.required_documents : [],
         },
       };
 
@@ -502,6 +507,66 @@ function QuickEditModal({ template, defaultType, onClose, onSaved, onToast }: Qu
                   className="w-16 px-2 py-1 rounded-md border border-border/50 bg-background/40 text-xs text-center"
                 />
                 <span className="text-xs text-muted-foreground">months</span>
+              </div>
+            )}
+          </div>
+
+          {/* Required Documents */}
+          <div className="rounded-lg border border-border/40 bg-background/30 p-3 space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Required Documents</p>
+            <Toggle checked={form.require_documents} onChange={(v) => setField("require_documents", v)} label="Require supporting documents" />
+            {form.require_documents && (
+              <div className="pl-1 pt-1 space-y-2">
+                <p className="text-[10px] text-muted-foreground">List the documents a resident must submit when requesting this certificate.</p>
+                <div className="flex gap-1.5">
+                  <input
+                    type="text"
+                    value={newDocInput}
+                    onChange={(e) => setNewDocInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && newDocInput.trim()) {
+                        e.preventDefault();
+                        const val = newDocInput.trim();
+                        if (!form.required_documents.includes(val)) {
+                          setField("required_documents", [...form.required_documents, val]);
+                        }
+                        setNewDocInput("");
+                      }
+                    }}
+                    placeholder="e.g. Valid ID, Proof of Billing"
+                    className="flex-1 px-2.5 py-1.5 rounded-md border border-border/50 bg-background/40 text-xs focus:outline-none focus:border-blue-500/60"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const val = newDocInput.trim();
+                      if (val && !form.required_documents.includes(val)) {
+                        setField("required_documents", [...form.required_documents, val]);
+                      }
+                      setNewDocInput("");
+                    }}
+                    className="px-2.5 py-1.5 rounded-md text-xs font-medium text-white bg-blue-500 hover:bg-blue-600 transition-colors disabled:opacity-50"
+                    disabled={!newDocInput.trim()}
+                  >
+                    Add
+                  </button>
+                </div>
+                {form.required_documents.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {form.required_documents.map((doc, i) => (
+                      <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/50">
+                        {doc}
+                        <button
+                          type="button"
+                          onClick={() => setField("required_documents", form.required_documents.filter((_, j) => j !== i))}
+                          className="ml-0.5 hover:text-red-500 transition-colors"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>

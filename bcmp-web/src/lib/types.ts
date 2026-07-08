@@ -564,6 +564,8 @@ export interface DocumentTemplateSettings {
   paper_size?: PaperSize;
   show_tambo_resident?: boolean;
   show_village_condo?: boolean;
+  require_documents?: boolean;
+  required_documents?: string[];
 }
 
 export interface DocumentTemplate {
