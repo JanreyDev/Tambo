@@ -78,14 +78,16 @@
                 @endphp
                 <td style="font-size: 7pt; color: #888; text-transform: uppercase; letter-spacing: 1px; white-space: nowrap;">
                     @php
-                        $showTambo = $settings['show_tambo_resident'] ?? false;
-                        $showVillage = $settings['show_village_condo'] ?? false;
+                        $showTambo = $settings['show_tambo_resident'] ?? $isClearance;
+                        $showVillage = $settings['show_village_condo'] ?? $isClearance;
+                        $isVillageCondo = isset($resident) ? $resident->is_village_condo : false;
                     @endphp
-                    @if($showTambo && isset($resident))
-                        <span style="font-family: DejaVu Sans; font-size: 8pt; color: {{ $themePrimary }}; font-weight: normal; vertical-align: middle;">{!! $resident->is_village_condo ? '&#9744;' : '&#9745;' !!}</span> <span style="font-size: 7pt; text-transform: none; font-weight: normal; color: #555; vertical-align: middle;">Official Tambo Resident</span> &nbsp;&nbsp;&nbsp;&nbsp;
-                    @endif
-                    @if($showVillage && isset($resident))
-                        <span style="font-family: DejaVu Sans; font-size: 8pt; color: {{ $themePrimary }}; font-weight: normal; vertical-align: middle;">{!! $resident->is_village_condo ? '&#9745;' : '&#9744;' !!}</span> <span style="font-size: 7pt; text-transform: none; font-weight: normal; color: #555; vertical-align: middle;">Village/Condo Resident</span>
+                    @if(isset($resident) && ($showTambo || $showVillage))
+                        @if($isVillageCondo && $showVillage)
+                            <span style="font-family: DejaVu Sans; font-size: 8pt; color: {{ $themePrimary }}; font-weight: normal; vertical-align: middle;">&#9745;</span> <span style="font-size: 7pt; text-transform: none; font-weight: normal; color: #555; vertical-align: middle;">Village/Condo Resident</span>
+                        @elseif(!$isVillageCondo && $showTambo)
+                            <span style="font-family: DejaVu Sans; font-size: 8pt; color: {{ $themePrimary }}; font-weight: normal; vertical-align: middle;">&#9745;</span> <span style="font-size: 7pt; text-transform: none; font-weight: normal; color: #555; vertical-align: middle;">Official Tambo Resident</span>
+                        @endif
                     @endif
                 </td>
                 <td align="right" style="font-size: 7pt; color: {{ $themeAccent }}; font-style: italic; font-weight: bold; max-width: 380px; line-height: 1.3;">
@@ -272,50 +274,6 @@
                 {!! nl2br(e($renderedContent)) !!}
             </div>
 
-            @if(isset($resident))
-            <table width="100%" style="margin-top: 15px; margin-bottom: 15px; border-collapse: collapse; font-size: 8.5pt; font-family: sans-serif; border: 1px solid #ddd; line-height: 1.4;">
-                <tr>
-                    <td width="35%" style="padding: 4px 8px; border: 1px solid #ddd; background-color: #f9f9f9; font-weight: bold; color: {{ $themePrimary ?? '#111' }};">Resident Name:</td>
-                    <td width="65%" style="padding: 4px 8px; border: 1px solid #ddd; font-weight: bold; color: #111;">{{ $resident->full_name }}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 4px 8px; border: 1px solid #ddd; background-color: #f9f9f9; font-weight: bold; color: {{ $themePrimary ?? '#111' }};">Resident Alias/es:</td>
-                    <td style="padding: 4px 8px; border: 1px solid #ddd;">{{ $resident->alias ?? 'None' }}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 4px 8px; border: 1px solid #ddd; background-color: #f9f9f9; font-weight: bold; color: {{ $themePrimary ?? '#111' }};">Birthdate:</td>
-                    <td style="padding: 4px 8px; border: 1px solid #ddd;">{{ $resident->date_of_birth?->format('F d, Y') ?? 'N/A' }}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 4px 8px; border: 1px solid #ddd; background-color: #f9f9f9; font-weight: bold; color: {{ $themePrimary ?? '#111' }};">Age:</td>
-                    <td style="padding: 4px 8px; border: 1px solid #ddd;">{{ $resident->date_of_birth?->age ?? 'N/A' }}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 4px 8px; border: 1px solid #ddd; background-color: #f9f9f9; font-weight: bold; color: {{ $themePrimary ?? '#111' }};">Birthplace:</td>
-                    <td style="padding: 4px 8px; border: 1px solid #ddd;">{{ $resident->place_of_birth ?? 'N/A' }}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 4px 8px; border: 1px solid #ddd; background-color: #f9f9f9; font-weight: bold; color: {{ $themePrimary ?? '#111' }};">Civil Status:</td>
-                    <td style="padding: 4px 8px; border: 1px solid #ddd;">{{ ucfirst(str_replace('_', '-', $resident->civil_status?->value ?? '')) }}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 4px 8px; border: 1px solid #ddd; background-color: #f9f9f9; font-weight: bold; color: {{ $themePrimary ?? '#111' }};">Gender:</td>
-                    <td style="padding: 4px 8px; border: 1px solid #ddd;">{{ ucfirst($resident->sex ?? '') }}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 4px 8px; border: 1px solid #ddd; background-color: #f9f9f9; font-weight: bold; color: {{ $themePrimary ?? '#111' }};">Citizenship:</td>
-                    <td style="padding: 4px 8px; border: 1px solid #ddd;">{{ $resident->citizenship ?? 'Filipino' }}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 4px 8px; border: 1px solid #ddd; background-color: #f9f9f9; font-weight: bold; color: {{ $themePrimary ?? '#111' }};">Address:</td>
-                    <td style="padding: 4px 8px; border: 1px solid #ddd;">{{ $values['address'] ?? '' }}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 4px 8px; border: 1px solid #ddd; background-color: #f9f9f9; font-weight: bold; color: {{ $themePrimary ?? '#111' }};">Remarks:</td>
-                    <td style="padding: 4px 8px; border: 1px solid #ddd;">{{ $resident->other_remarks ?? 'None' }}</td>
-                </tr>
-            </table>
-            @endif
 
             {{-- Requested By / Purpose --}}
             @if(!$isClearance)

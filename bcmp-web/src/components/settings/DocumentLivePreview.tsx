@@ -190,8 +190,8 @@ export function DocumentLivePreview({
     expiryMonths,
     resident,
     hideProfileTable,
-    showTamboResident: showTamboResident ?? false,
-    showVillageCondo: showVillageCondo ?? false,
+    showTamboResident: showTamboResident ?? (displayTitle?.toLowerCase().includes("clearance") ? true : false),
+    showVillageCondo: showVillageCondo ?? (displayTitle?.toLowerCase().includes("clearance") ? true : false),
   };
 
   const meta = useMemo(() => ({
@@ -312,89 +312,7 @@ const AVAILABLE_TAGS = [
   { tag: "{{remarks}}", desc: "Remarks" },
 ];
 
-function ResidentDetailsTable({ resident, c }: { resident: any; c: any }) {
-  const mockResident = {
-    full_name: "PEDRO M. PENDUKO",
-    alias: "PEDRO / PENDUKS",
-    date_of_birth: "1991-07-08",
-    place_of_birth: "OLONGAPO CITY, ZAMBALES",
-    civil_status: "Single",
-    sex: "Male",
-    citizenship: "FILIPINO",
-    house_block_lot: "Blk 5 Lot 12",
-    purok: "5",
-    street: "Rizal Street",
-    other_remarks: "No Derogatory Record",
-  };
-  
-  const activeResident = resident || mockResident;
 
-  const getBirthdateString = () => {
-    if (!activeResident.date_of_birth) return "N/A";
-    try {
-      const d = new Date(activeResident.date_of_birth.includes("T") ? activeResident.date_of_birth : activeResident.date_of_birth + "T00:00:00");
-      return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-    } catch {
-      return activeResident.date_of_birth;
-    }
-  };
-
-  const getAge = () => {
-    if (!activeResident.date_of_birth) return "N/A";
-    try {
-      const d = new Date(activeResident.date_of_birth.includes("T") ? activeResident.date_of_birth : activeResident.date_of_birth + "T00:00:00");
-      return Math.floor((Date.now() - d.getTime()) / 31557600000);
-    } catch {
-      return "N/A";
-    }
-  };
-
-  const getAddress = () => {
-    const parts = [
-      activeResident.house_block_lot,
-      activeResident.purok ? `Purok ${activeResident.purok}` : null,
-      activeResident.street,
-    ].filter(Boolean);
-    return parts.join(", ") || "—";
-  };
-
-  const formatEnumValue = (val: string) => {
-    if (!val) return "—";
-    return val.charAt(0).toUpperCase() + val.slice(1).toLowerCase().replace(/_/g, " ");
-  };
-
-  const rows = [
-    { label: "Resident Name", value: activeResident.full_name || `${activeResident.first_name || ""} ${activeResident.middle_name || ""} ${activeResident.last_name || ""}`.trim(), isBold: true },
-    { label: "Resident Alias/es", value: activeResident.alias || "None" },
-    { label: "Birthdate", value: getBirthdateString() },
-    { label: "Age", value: String(getAge()) },
-    { label: "Birthplace", value: activeResident.place_of_birth || "N/A" },
-    { label: "Civil Status", value: formatEnumValue(activeResident.civil_status) },
-    { label: "Gender", value: formatEnumValue(activeResident.sex) },
-    { label: "Citizenship", value: activeResident.citizenship || "Filipino" },
-    { label: "Address", value: getAddress() },
-    { label: "Remarks", value: activeResident.other_remarks || "None" },
-  ];
-
-  return (
-    <div className="my-3 max-w-full overflow-x-auto select-none">
-      <table className="w-full border-collapse border border-gray-200 text-[7.5px] font-sans leading-normal">
-        <tbody>
-          {rows.map((row, i) => (
-            <tr key={i} className="border-b border-gray-200">
-              <td className="w-[35%] px-2 py-1 bg-gray-50/80 border-r border-gray-200 font-bold text-gray-700" style={{ color: c.primary }}>
-                {row.label}:
-              </td>
-              <td className="w-[65%] px-2 py-1 text-gray-900" style={{ fontWeight: row.isBold ? "bold" : "normal" }}>
-                {row.value}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
 
 const EditorArea = memo(({ initialHtml, onInput, onBlur, className, style, innerRef }: any) => {
   return (
@@ -856,7 +774,6 @@ function KlasikoBody(props: BodyProps) {
               bodyHtml={props.bodyHtml} rawContent={props.rawContent} onContentChange={props.onContentChange} 
             />
 
-            <ResidentDetailsTable resident={props.resident} c={c} />
             
             {!title?.toLowerCase().includes("clearance") && (
               <div className="text-[6.5px] mb-8 ml-8">
@@ -885,16 +802,16 @@ function KlasikoBody(props: BodyProps) {
           {!title?.toLowerCase().includes("clearance") && <span>{controlNo}</span>}
           {(props.showTamboResident || props.showVillageCondo) && (
             <span className="flex items-center gap-3 select-none font-sans font-medium text-[5.5px] tracking-normal text-gray-600 normal-case">
-              {props.showTamboResident && (
+              {props.isVillageCondo && props.showVillageCondo && (
                 <span className="flex items-center gap-0.5">
-                  <span className="text-[7px] font-mono" style={{ color: c.primary }}>{props.isVillageCondo ? "☐" : "☑"}</span>
-                  <span>Official Tambo Resident</span>
+                  <span className="text-[7px] font-mono" style={{ color: c.primary }}>☑</span>
+                  <span>Village/Condo Resident</span>
                 </span>
               )}
-              {props.showVillageCondo && (
+              {!props.isVillageCondo && props.showTamboResident && (
                 <span className="flex items-center gap-0.5">
-                  <span className="text-[7px] font-mono" style={{ color: c.primary }}>{props.isVillageCondo ? "☑" : "☐"}</span>
-                  <span>Village/Condo Resident</span>
+                  <span className="text-[7px] font-mono" style={{ color: c.primary }}>☑</span>
+                  <span>Official Tambo Resident</span>
                 </span>
               )}
             </span>
@@ -944,7 +861,6 @@ function EleganteBody(props: BodyProps) {
                 bodyHtml={props.bodyHtml} rawContent={props.rawContent} onContentChange={props.onContentChange} 
               />
 
-              <ResidentDetailsTable resident={props.resident} c={c} />
 
 
 
@@ -975,16 +891,16 @@ function EleganteBody(props: BodyProps) {
                   <>
                     {hasCheckboxes && (
                       <div className="flex items-center gap-2 text-[6.5px] select-none font-sans font-medium mb-1 normal-case text-gray-700">
-                        {props.showTamboResident && (
+                        {props.isVillageCondo && props.showVillageCondo && (
                           <div className="flex items-center gap-0.5">
-                            <span className="text-[8px] font-mono" style={{ color: c.primary }}>{props.isVillageCondo ? "☐" : "☑"}</span>
-                            <span>Official Tambo Resident</span>
+                            <span className="text-[8px] font-mono" style={{ color: c.primary }}>☑</span>
+                            <span>Village/Condo Resident</span>
                           </div>
                         )}
-                        {props.showVillageCondo && (
+                        {!props.isVillageCondo && props.showTamboResident && (
                           <div className="flex items-center gap-0.5">
-                            <span className="text-[8px] font-mono" style={{ color: c.primary }}>{props.isVillageCondo ? "☑" : "☐"}</span>
-                            <span>Village/Condo Resident</span>
+                            <span className="text-[8px] font-mono" style={{ color: c.primary }}>☑</span>
+                            <span>Official Tambo Resident</span>
                           </div>
                         )}
                       </div>
@@ -1063,7 +979,6 @@ function ModernoBody(props: BodyProps) {
             bodyHtml={props.bodyHtml} rawContent={props.rawContent} onContentChange={props.onContentChange} 
           />
 
-          <ResidentDetailsTable resident={props.resident} c={c} />
 
         </div>
       </main>
@@ -1083,16 +998,16 @@ function ModernoBody(props: BodyProps) {
                 </p>
                 {(props.showTamboResident || props.showVillageCondo) && (
                   <div className="flex items-center gap-2 text-[6.5px] select-none font-sans font-medium mt-0.5 mb-0.5">
-                    {props.showTamboResident && (
+                    {props.isVillageCondo && props.showVillageCondo && (
                       <div className="flex items-center gap-0.5">
-                        <span className="text-[8px] font-mono" style={{ color: c.primary }}>{props.isVillageCondo ? "☐" : "☑"}</span>
-                        <span>Official Tambo Resident</span>
+                        <span className="text-[8px] font-mono" style={{ color: c.primary }}>☑</span>
+                        <span>Village/Condo Resident</span>
                       </div>
                     )}
-                    {props.showVillageCondo && (
+                    {!props.isVillageCondo && props.showTamboResident && (
                       <div className="flex items-center gap-0.5">
-                        <span className="text-[8px] font-mono" style={{ color: c.primary }}>{props.isVillageCondo ? "☑" : "☐"}</span>
-                        <span>Village/Condo Resident</span>
+                        <span className="text-[8px] font-mono" style={{ color: c.primary }}>☑</span>
+                        <span>Official Tambo Resident</span>
                       </div>
                     )}
                   </div>
