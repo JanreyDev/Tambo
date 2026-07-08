@@ -2485,11 +2485,22 @@ export default function SettingsPage() {
                                 <label className="text-xs font-semibold text-foreground/80 block mb-2">Clearance Expiry (Validity Period)</label>
                                 <div className="flex items-center gap-2">
                                   <input
-                                    type="number"
-                                    min={1}
-                                    max={60}
+                                    type="text"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
                                     value={docExpiryMonths}
-                                    onChange={(e) => setDocExpiryMonths(Math.max(1, Math.min(120, parseInt(e.target.value) || 3)))}
+                                    onChange={(e) => {
+                                      const raw = e.target.value.replace(/[^0-9]/g, "");
+                                      if (raw === "") {
+                                        setDocExpiryMonths("" as any);
+                                      } else {
+                                        setDocExpiryMonths(parseInt(raw, 10) as any);
+                                      }
+                                    }}
+                                    onBlur={(e) => {
+                                      const val = parseInt(e.target.value, 10);
+                                      setDocExpiryMonths(isNaN(val) || val < 1 ? 3 : Math.min(120, val));
+                                    }}
                                     className="w-20 px-3 py-1.5 rounded-lg border border-border dark:border-slate-600 bg-background dark:bg-slate-900 text-foreground text-xs"
                                   />
                                   <span className="text-xs text-muted-foreground font-semibold">months</span>
