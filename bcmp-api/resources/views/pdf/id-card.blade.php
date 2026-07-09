@@ -58,6 +58,22 @@
     </style>
 </head>
 <body>
+@php
+    $templateCategory = strtolower((string) ($template->category ?? 'barangay_id'));
+    $idTheme = match ($templateCategory) {
+        'family_id' => ['titleBg' => '#14532d', 'title' => 'FAMILY I.D.'],
+        'staff_id' => ['titleBg' => '#b45309', 'title' => 'OFFICIAL I.D.'],
+        default => ['titleBg' => '#0a1d56', 'title' => 'BARANGAY I.D.'],
+    };
+    $backIssuedLong = $document->issued_date
+        ? strtoupper(\Carbon\Carbon::parse($document->issued_date)->format('F d, Y'))
+        : '—';
+    $backValidMonths = (int) ($settings['expiry_months'] ?? 12);
+    $backPbOfficial = collect($officials ?? [])->first(fn ($o) => strtolower($o->position ?? '') === 'punong barangay')
+        ?? collect($officials ?? [])->first();
+    $backCaptainName = ($backPbOfficial->name ?? null) ?: ($barangay->captain_name ?: '—');
+    $backSignatoryLabel = ($backPbOfficial->position ?? null) ?: ($approvalConfig['right']['label'] ?? 'Punong Barangay');
+@endphp
 @if(strtolower($barangay->name) === 'tambo')
 <div class="tambo-card">
 
@@ -104,8 +120,8 @@
         {{-- PILL Row --}}
         <tr style="height: 15pt;">
             <td style="vertical-align: top; padding: 0 12pt;">
-                <div style="background: #0a1d56; border-radius: 9999px; color: #ffffff; font-weight: 900; font-size: 8.5pt; letter-spacing: 2.5pt; text-align: center; line-height: 12pt; height: 12pt; box-shadow: 0 1.5pt 3pt rgba(0,0,0,0.25); margin-top: 1pt;">
-                    BARANGAY I.D.
+                <div style="background: {{ $idTheme['titleBg'] }}; border-radius: 9999px; color: #ffffff; font-weight: 900; font-size: 8.5pt; letter-spacing: 2.5pt; text-align: center; line-height: 12pt; height: 12pt; box-shadow: 0 1.5pt 3pt rgba(0,0,0,0.25); margin-top: 1pt;">
+                    {{ $idTheme['title'] }}
                 </div>
             </td>
         </tr>
@@ -248,7 +264,7 @@
 
     {{-- ROW 2: BAND (7pt) --}}
     <tr class="band" style="height: 7pt;">
-        <td colspan="4">{{ $template->title ?? 'BARANGAY IDENTIFICATION CARD' }}</td>
+        <td colspan="4" style="background: {{ $idTheme['titleBg'] }}; color: #ffffff;">{{ $idTheme['title'] }}</td>
     </tr>
 
     {{-- ROW 3: BODY (84pt) --}}
@@ -341,5 +357,45 @@
 
 </table>
 @endif
+
+{{-- ══════════════════ BACK SIDE (certification) ══════════════════ --}}
+<div style="page-break-before: always;"></div>
+<div style="position: relative; width: 239.64pt; height: 150.07pt; border: 1.5pt solid #1a3a8c; background: #ffffff; overflow: hidden;">
+
+    {{-- Wave ribbons (lower area) --}}
+    <div style="position: absolute; left: 0; bottom: 0; width: 239.64pt; height: 90pt; overflow: hidden; z-index: 1;">
+        <svg style="width: 100%; height: 100%;" viewBox="0 0 400 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M-10,45 C60,25 130,65 200,40 C270,15 340,55 410,35" stroke="#5ba3d9" stroke-width="20" fill="none" opacity="0.3" stroke-linecap="round"/>
+            <path d="M-10,60 C70,40 140,75 210,52 C280,30 350,65 410,48" stroke="#3b8fd0" stroke-width="14" fill="none" opacity="0.4" stroke-linecap="round"/>
+            <path d="M-10,72 C80,55 150,85 220,65 C290,45 360,75 410,60" stroke="#2b7cc4" stroke-width="10" fill="none" opacity="0.5" stroke-linecap="round"/>
+        </svg>
+    </div>
+
+    {{-- Title --}}
+    <div style="position: absolute; top: 12pt; left: 0; width: 239.64pt; text-align: center; font-size: 9pt; font-weight: bold; letter-spacing: 1pt; color: #111; z-index: 2;">TO WHOM IT MAY CONCERN:</div>
+
+    {{-- Certification paragraph --}}
+    <div style="position: absolute; top: 28pt; left: 16pt; width: 207pt; text-align: justify; font-size: 7pt; line-height: 1.55; color: #111; z-index: 2;">
+        This is to certify that the bearer whose name, address and photo appears on this card is a bonafide resident of this Barangay. Bearer has no derogatory records as of the issuance of any courtesy and assistance extended to him/her is highly appreciated.
+    </div>
+
+    {{-- Signatory (right) --}}
+    <div style="position: absolute; right: 14pt; bottom: 32pt; width: 150pt; text-align: center; z-index: 2;">
+        <div style="font-size: 8pt; font-weight: bold; color: #111; text-transform: uppercase; border-top: 0.75pt solid #333; padding-top: 1pt;">{{ $backCaptainName }}</div>
+        <div style="font-size: 6pt; color: #333; text-transform: uppercase; letter-spacing: 0.3pt;">{{ $backSignatoryLabel }}</div>
+    </div>
+
+    {{-- Photo bottom-left (only when a photo is available) --}}
+    @if($photoDataUri && ($settings['show_photo'] ?? false))
+    <div style="position: absolute; left: 16pt; bottom: 26pt; width: 48pt; height: 56pt; border: 1pt solid #1a3a8c; background: #ffffff; overflow: hidden; z-index: 2;">
+        <img src="{{ $photoDataUri }}" style="width: 100%; height: 100%; object-fit: cover;">
+    </div>
+    @endif
+
+    {{-- Bottom bars --}}
+    <div style="position: absolute; left: 12pt; bottom: 6pt; background: #0a1d56; color: #ffffff; font-size: 5pt; font-weight: bold; letter-spacing: 0.3pt; padding: 2pt 5pt; text-transform: uppercase; z-index: 2;">DATE ISSUED: {{ $backIssuedLong }}</div>
+    <div style="position: absolute; right: 12pt; bottom: 6pt; background: #0a1d56; color: #ffffff; font-size: 5pt; font-weight: bold; letter-spacing: 0.3pt; padding: 2pt 5pt; text-transform: uppercase; z-index: 2;">I.D. VALID FOR {{ $backValidMonths }} MONTHS FROM ISSUANCE</div>
+
+</div>
 </body>
 </html>

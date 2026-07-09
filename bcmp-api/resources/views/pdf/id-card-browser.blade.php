@@ -12,6 +12,12 @@
         $scale   = (85.6 * $pxPerMm) / $cardW; // shrink 472px card -> 85.6mm
 
         $isTambo = strtolower($barangay->name ?? '') === 'tambo';
+        $templateCategory = strtolower((string) ($template->category ?? 'barangay_id'));
+        $idTheme = match ($templateCategory) {
+            'family_id' => ['titleBg' => '#14532d', 'title' => 'FAMILY I.D.'],
+            'staff_id' => ['titleBg' => '#b45309', 'title' => 'OFFICIAL I.D.'],
+            default => ['titleBg' => '#0a1d56', 'title' => 'BARANGAY I.D.'],
+        };
 
         // ---- Shared field values (mirrors GenerateIdModal.tsx) ----
         $docNumber = $document->document_number ?? '';
@@ -67,8 +73,19 @@
             ? \Carbon\Carbon::parse($document->valid_until)->format('M d, Y')
             : '—';
 
-        $signatoryLabel = $approvalConfig['right']['label'] ?? 'Punong Barangay';
-        $captainName = $barangay->captain_name ?: '—';
+        // Back side data
+        $issuedLong = $document->issued_date
+            ? strtoupper(\Carbon\Carbon::parse($document->issued_date)->format('F d, Y'))
+            : '—';
+        $validMonths = (int) ($settings['expiry_months'] ?? 12);
+
+        // Resolve the Punong Barangay from the barangay's officials (authoritative
+        // source, same as certificates), falling back to captain_name / default.
+        $pbOfficial = collect($officials ?? [])->first(fn ($o) => strtolower($o->position ?? '') === 'punong barangay')
+            ?? collect($officials ?? [])->first();
+        $captainName = ($pbOfficial->name ?? null) ?: ($barangay->captain_name ?: '—');
+        $signatoryLabel = ($pbOfficial->position ?? null) ?: ($approvalConfig['right']['label'] ?? 'Punong Barangay');
+        $signatureDataUri = $signatureDataUri ?? null;
         $genericCityProvince = implode(', ', array_filter([
             $barangay->city_municipality ?? null,
             $barangay->province ?? null,
@@ -79,20 +96,23 @@
     <style>
         @page { size: 85.6mm 54mm; margin: 0; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body { width: 85.6mm; height: 54mm; overflow: hidden; background: #fff; }
+        html, body { width: 85.6mm; background: #fff; }
         .frame { position: relative; width: 85.6mm; height: 54mm; overflow: hidden; }
+        .frame.front { page-break-after: always; }
         .scaler {
-            position: absolute; top: 0; left: 0;
+            /* Use `zoom` (not transform: scale) so the layout box shrinks too.
+               transform: scale keeps the 297.8px-tall layout box, which the print
+               paginator splits across the 54mm page boundary, cutting the front
+               card. zoom scales the layout box so each card fits exactly one page. */
             width: {{ $cardW }}px; height: {{ $cardH }}px;
-            transform: scale({{ $scale }});
-            transform-origin: top left;
+            zoom: {{ $scale }};
         }
         img { display: block; }
         .truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     </style>
 </head>
 <body>
-<div class="frame">
+<div class="frame front">
   <div class="scaler">
 
 @if($isTambo)
@@ -142,8 +162,8 @@
 
         {{-- Lower: pill --}}
         <div style="position:relative;z-index:10;width:100%;display:flex;align-items:center;justify-content:center;padding-left:4%;padding-right:4%;padding-bottom:1.5%;height:28%;">
-          <div style="width:100%;text-align:center;font-weight:900;text-transform:uppercase;color:#fff;display:flex;align-items:center;justify-content:center;border-radius:9999px;padding-top:4px;padding-bottom:4px;margin-top:20px;background:#0a1d56;font-size:9.5px;letter-spacing:2.5px;box-shadow:0 1.5px 3px rgba(0,0,0,0.25);">
-            BARANGAY I.D.
+          <div style="width:100%;text-align:center;font-weight:900;text-transform:uppercase;color:#fff;display:flex;align-items:center;justify-content:center;border-radius:9999px;padding-top:4px;padding-bottom:4px;margin-top:20px;background:{{ $idTheme['titleBg'] }};font-size:9.5px;letter-spacing:2.5px;box-shadow:0 1.5px 3px rgba(0,0,0,0.25);">
+            {{ $idTheme['title'] }}
           </div>
         </div>
       </div>
@@ -244,7 +264,7 @@
       </div>
 
       {{-- ID type label --}}
-      <div style="text-align:center;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;line-height:1;padding-top:2px;padding-bottom:2px;background:#f59e0b;font-size:6px;color:#1a1a1a;">{{ $template->title ?? 'BARANGAY IDENTIFICATION CARD' }}</div>
+      <div style="text-align:center;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;line-height:1;padding-top:2px;padding-bottom:2px;background:{{ $idTheme['titleBg'] }};font-size:6px;color:#ffffff;">{{ $idTheme['title'] }}</div>
 
       {{-- Body --}}
       <div style="display:flex;background:#fff;height:48%;color:#1e293b;">
@@ -326,6 +346,57 @@
     </div>
 @endif
 
+  </div>
+</div>
+
+{{-- ══════════════════ BACK SIDE (certification) ══════════════════ --}}
+<div class="frame back">
+  <div class="scaler">
+    <div style="width:100%;height:100%;border-radius:4px;overflow:hidden;border:2px solid #1a3a8c;box-shadow:0 4px 6px rgba(0,0,0,0.1);position:relative;background:#fff;font-family:'Arial',sans-serif;">
+
+      {{-- Wave ribbons (lower half, faint) --}}
+      <svg style="position:absolute;left:0;bottom:0;width:100%;height:60%;pointer-events:none;z-index:0;" preserveAspectRatio="none" viewBox="0 0 400 100" xmlns="http://www.w3.org/2000/svg">
+        <path d="M-10,45 C60,25 130,65 200,40 C270,15 340,55 410,35" stroke="#5ba3d9" stroke-width="20" fill="none" opacity="0.28" stroke-linecap="round"/>
+        <path d="M-10,60 C70,40 140,75 210,52 C280,30 350,65 410,48" stroke="#3b8fd0" stroke-width="14" fill="none" opacity="0.34" stroke-linecap="round"/>
+        <path d="M-10,72 C80,55 150,85 220,65 C290,45 360,75 410,60" stroke="#2b7cc4" stroke-width="10" fill="none" opacity="0.4" stroke-linecap="round"/>
+      </svg>
+
+      {{-- Content --}}
+      <div style="position:relative;z-index:2;height:100%;display:flex;flex-direction:column;padding:16px 18px 6px;">
+
+        <div style="text-align:center;font-weight:700;font-size:11px;letter-spacing:1.5px;color:#111;">TO WHOM IT MAY CONCERN:</div>
+
+        <div style="text-align:justify;font-size:9.5px;line-height:1.55;color:#111;margin-top:10px;">
+          This is to certify that the bearer whose name, address and photo appears on this card is a bonafide resident of this Barangay. Bearer has no derogatory records as of the issuance of any courtesy and assistance extended to him/her is highly appreciated.
+        </div>
+
+        {{-- Signatory (right) --}}
+        <div style="flex:1;display:flex;align-items:flex-end;justify-content:flex-end;padding-right:6px;padding-bottom:34px;">
+          <div style="text-align:center;min-width:150px;">
+            @if($signatureDataUri)
+              <img src="{{ $signatureDataUri }}" alt="" style="height:26px;margin:0 auto 1px;object-fit:contain;">
+            @else
+              <div style="height:22px;"></div>
+            @endif
+            <div style="font-weight:700;font-size:11px;color:#111;text-transform:uppercase;letter-spacing:0.5px;border-top:1px solid #333;padding-top:2px;">{{ $captainName }}</div>
+            <div style="font-size:8px;color:#333;text-transform:uppercase;letter-spacing:0.5px;margin-top:1px;">{{ $signatoryLabel }}</div>
+          </div>
+        </div>
+
+        {{-- Photo bottom-left (only when a photo is available) --}}
+        @if($photoDataUri && $showPhoto)
+        <div style="position:absolute;left:18px;bottom:30px;width:66px;height:76px;border:1px solid #1a3a8c;background:#fff;overflow:hidden;">
+          <img src="{{ $photoDataUri }}" alt="" style="width:100%;height:100%;object-fit:cover;">
+        </div>
+        @endif
+
+        {{-- Bottom bars --}}
+        <div style="position:absolute;left:16px;right:16px;bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          <div style="background:#0a1d56;color:#fff;font-weight:700;font-size:7px;letter-spacing:0.4px;padding:2px 6px;border-radius:2px;text-transform:uppercase;white-space:nowrap;">DATE ISSUED: {{ $issuedLong }}</div>
+          <div style="background:#0a1d56;color:#fff;font-weight:700;font-size:7px;letter-spacing:0.4px;padding:2px 6px;border-radius:2px;text-transform:uppercase;white-space:nowrap;">I.D. VALID FOR {{ $validMonths }} MONTHS FROM ISSUANCE</div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 </body>

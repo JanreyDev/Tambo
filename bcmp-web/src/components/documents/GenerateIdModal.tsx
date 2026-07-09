@@ -290,7 +290,7 @@ export function GenerateIdModal({ open, onClose, residentId, onSuccess }: Props)
             {/* Actions */}
             <div className="flex gap-2 pt-1">
               <button
-                onClick={() => window.open(`/api/v1/issued-documents/${generatedDoc.id}/pdf#zoom=page-width`, "_blank")}
+                onClick={() => window.open(`/api/v1/issued-documents/${generatedDoc.id}/pdf?t=${Date.now()}#zoom=page-width`, "_blank")}
                 className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-sm transition-all hover:opacity-90"
                 style={{ background: selectedIdType?.accent ?? "#7c3aed" }}
               >
@@ -348,6 +348,11 @@ function IdCardPreview({ resident, barangay, doc, template, idType }: IdCardPrev
   const barangayLogoUrl = resolvePhotoUrl(barangay?.seal_url ?? barangay?.logo_url);
   const municipalityLogoUrl = resolvePhotoUrl(barangay?.municipality_logo_url);
   const residentPhotoUrl = resolvePhotoUrl(resident.photo_url);
+  const idTheme = idType.category === "family_id"
+    ? { titleBg: "#14532d", title: "FAMILY I.D." }
+    : idType.category === "staff_id"
+      ? { titleBg: "#b45309", title: "OFFICIAL I.D." }
+      : { titleBg: "#0a1d56", title: "BARANGAY I.D." };
 
   // CR80 aspect ratio: 85.6mm × 54mm
   if (isTambo) {
@@ -462,13 +467,13 @@ function IdCardPreview({ resident, barangay, doc, template, idType }: IdCardPrev
             <div
               className="w-full text-center font-black uppercase text-white flex items-center justify-center rounded-full py-[4px] mt-[20px]"
               style={{
-                background: "#0a1d56",
+                background: idTheme.titleBg,
                 fontSize: "9.5px",
                 letterSpacing: "2.5px",
                 boxShadow: "0 1.5px 3px rgba(0,0,0,0.25)",
               }}
             >
-              BARANGAY I.D.
+              {idTheme.title}
             </div>
           </div>
         </div>
@@ -487,8 +492,8 @@ function IdCardPreview({ resident, barangay, doc, template, idType }: IdCardPrev
             >
               {/* Photo box — square, fills column width */}
               <div
-                className="w-full flex items-center justify-center overflow-hidden bg-white border-[2px] border-[#1a3a8c] rounded-[4px]"
-                style={{ aspectRatio: "1/1" }}
+                className="w-full flex items-center justify-center overflow-hidden bg-white border-[2px] rounded-[4px]"
+                style={{ borderColor: "#1a3a8c", aspectRatio: "1/1" }}
               >
                 {residentPhotoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -505,7 +510,7 @@ function IdCardPreview({ resident, barangay, doc, template, idType }: IdCardPrev
             <div className="flex-1 flex flex-col justify-start gap-[4px]">
               {/* I.D. NO row (Aligned with the top of the photo) */}
               <div className="flex items-start gap-[4px] pl-[2px] shrink-0 pt-[2px]">
-                <div className="bg-[#1a3a8c] text-white font-black px-[4px] py-[1px] tracking-widest leading-none" style={{ fontSize: "8.5px" }}>
+                <div className="text-white font-black px-[4px] py-[1px] tracking-widest leading-none" style={{ background: "#1a3a8c", fontSize: "8.5px" }}>
                   I.D. NO.
                 </div>
                 <span className="font-black text-black tracking-widest leading-none" style={{ fontSize: "10.5px" }}>
@@ -651,9 +656,9 @@ function IdCardPreview({ resident, barangay, doc, template, idType }: IdCardPrev
       {/* ID type label */}
       <div
         className="text-center font-bold uppercase tracking-widest leading-none py-0.5"
-        style={{ background: "#f59e0b", fontSize: "6px", color: "#1a1a1a" }}
+        style={{ background: idTheme.titleBg, fontSize: "6px", color: "#ffffff" }}
       >
-        {template?.title ?? idType.label.toUpperCase()}
+        {idTheme.title}
       </div>
 
       {/* Body */}
@@ -664,8 +669,8 @@ function IdCardPreview({ resident, barangay, doc, template, idType }: IdCardPrev
           style={{ width: "22%", borderRight: "0.5px solid #e5e7eb" }}
         >
           <div
-            className="border border-[#1a3a6e] bg-slate-50 flex items-center justify-center overflow-hidden"
-            style={{ width: "80%", aspectRatio: "40/44" }}
+            className="border bg-slate-50 flex items-center justify-center overflow-hidden"
+            style={{ borderColor: "#1a3a6e", width: "80%", aspectRatio: "40/44" }}
           >
             {residentPhotoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
