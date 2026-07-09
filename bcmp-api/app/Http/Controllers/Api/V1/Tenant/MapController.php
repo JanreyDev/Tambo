@@ -8,31 +8,46 @@ use App\Http\Controllers\Controller;
 use App\Models\Admin\Barangay;
 use App\Models\Tenant\Disaster\Evacuation;
 use App\Models\Tenant\Disaster\HazardPin;
+use App\Models\Tenant\Resident;
 use App\Models\Tenant\Records\Establishment;
 use App\Models\Tenant\Records\Household;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 
 class MapController extends Controller
 {
     /**
      * GET /api/v1/map/residents
      *
-     * Returns one pin per household that has a locatable position.
+     * Returns one pin per household that has at least one ACTIVE resident.
      * Location priority:
      *   1. household.latitude / longitude  (set via household form)
-     *   2. Any member resident's latitude / longitude where resident.household_id = household.id
+     *   2. Head resident's latitude / longitude (households.head_resident_id)
+     *   3. First ACTIVE member resident's latitude / longitude
      *
      * Response key kept as "residents" for frontend compatibility.
      */
     public function residents(Request $request): JsonResponse
     {
         $barangayId = $request->user()->barangay_id;
+        $barangay = Barangay::select(['id', 'name', 'city_municipality', 'province', 'latitude', 'longitude', 'boundary_geojson', 'boundary_fetched_at', 'boundary_source'])
+            ->find($barangayId);
 
-        // Pull all households + their own coords
+        // Pull households that still have at least one ACTIVE resident.
+        // This keeps map totals aligned with the active Residents page.
         $households = Household::where('barangay_id', $barangayId)
             ->whereNull('deleted_at')
+            ->whereExists(function ($q) use ($barangayId) {
+                $q->select(DB::raw(1))
+                    ->from('residents')
+                    ->whereColumn('residents.household_id', 'households.id')
+                    ->where('residents.barangay_id', $barangayId)
+                    ->whereNull('residents.deleted_at')
+                    ->where('residents.status', 'active');
+            })
             ->select([
                 'id', 'household_number', 'household_name',
                 'head_resident_id', 'purok', 'address', 'member_count',
@@ -42,20 +57,51 @@ class MapController extends Controller
             ->orderBy('household_number')
             ->get();
 
-        // For households without own coords, find the first member who has coords
-        // Keyed by household_id → {lat, lng}
-        $householdIds = $households->whereNull('latitude')->pluck('id');
+        // For households without own coords, first try head resident coordinates.
+        // Keyed by resident_id (head_resident_id) -> {lat, lng}
+        $headResidentIds = $households
+            ->whereNull('latitude')
+            ->pluck('head_resident_id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        $headCoords = [];
+        if ($headResidentIds->isNotEmpty()) {
+            Resident::whereIn('id', $headResidentIds)
+                ->whereNotNull('latitude')
+                ->whereNotNull('longitude')
+                ->select(['id', 'latitude', 'longitude'])
+                ->get()
+                ->each(function ($r) use (&$headCoords) {
+                    $headCoords[$r->id] = [
+                        'lat' => (float) $r->latitude,
+                        'lng' => (float) $r->longitude,
+                    ];
+                });
+        }
+
+        // Final fallback: first ACTIVE member with coordinates per household.
+        // Keyed by household_id -> {lat, lng}
+        $householdIdsMissingCoords = $households
+            ->filter(function ($h) use ($headCoords) {
+                return $h->latitude === null && (! $h->head_resident_id || ! isset($headCoords[$h->head_resident_id]));
+            })
+            ->pluck('id')
+            ->values();
+
         $memberCoords = [];
-        if ($householdIds->isNotEmpty()) {
-            \App\Models\Tenant\Resident::whereIn('household_id', $householdIds)
+        if ($householdIdsMissingCoords->isNotEmpty()) {
+            Resident::whereIn('household_id', $householdIdsMissingCoords)
+                ->whereNull('deleted_at')
+                ->where('status', 'active')
                 ->whereNotNull('latitude')
                 ->whereNotNull('longitude')
                 ->select(['household_id', 'latitude', 'longitude'])
                 ->orderBy('household_id')
                 ->get()
                 ->each(function ($r) use (&$memberCoords) {
-                    // Keep only the first coord found per household
-                    if (!isset($memberCoords[$r->household_id])) {
+                    if (! isset($memberCoords[$r->household_id])) {
                         $memberCoords[$r->household_id] = [
                             'lat' => (float) $r->latitude,
                             'lng' => (float) $r->longitude,
@@ -64,16 +110,70 @@ class MapController extends Controller
                 });
         }
 
-        // Build pin list — only households that have a location
-        $mapped = $households->filter(function ($h) use ($memberCoords) {
-            return $h->latitude !== null || isset($memberCoords[$h->id]);
-        })->map(function ($h) use ($memberCoords) {
-            $lat = $h->latitude !== null
-                ? (float) $h->latitude
-                : $memberCoords[$h->id]['lat'];
-            $lng = $h->longitude !== null
-                ? (float) $h->longitude
-                : $memberCoords[$h->id]['lng'];
+        // Last fallback: geocode household address text (Nominatim) when no pin exists.
+        // Keep this bounded to avoid slow map loads.
+        $householdIdsForGeocode = $households
+            ->filter(function ($h) use ($headCoords, $memberCoords) {
+                if ($h->latitude !== null && $h->longitude !== null) {
+                    return false;
+                }
+                if ($h->head_resident_id && isset($headCoords[$h->head_resident_id])) {
+                    return false;
+                }
+
+                return ! isset($memberCoords[$h->id]);
+            })
+            ->take(8);
+
+        foreach ($householdIdsForGeocode as $h) {
+            $coords = $this->geocodeHouseholdAddress($h, $barangay);
+            if (! $coords) {
+                continue;
+            }
+
+            // Save to household once so next map load is fast and stable.
+            $h->forceFill([
+                'latitude' => $coords['lat'],
+                'longitude' => $coords['lng'],
+            ])->save();
+
+            $memberCoords[$h->id] = $coords;
+        }
+
+        $hasExactLocation = function ($h) use ($headCoords, $memberCoords): bool {
+            if ($h->latitude !== null && $h->longitude !== null) {
+                return true;
+            }
+            if ($h->head_resident_id && isset($headCoords[$h->head_resident_id])) {
+                return true;
+            }
+
+            return isset($memberCoords[$h->id]);
+        };
+
+        $mappedExactCount = $households->filter($hasExactLocation)->count();
+
+        // Build map pins for every active household:
+        // - exact coordinates when available
+        // - otherwise a deterministic approximate coordinate near barangay center
+        $fallbackCenterLat = $barangay && $barangay->latitude !== null ? (float) $barangay->latitude : 14.5995;
+        $fallbackCenterLng = $barangay && $barangay->longitude !== null ? (float) $barangay->longitude : 120.9842;
+
+        $pins = $households->map(function ($h) use ($headCoords, $memberCoords, $fallbackCenterLat, $fallbackCenterLng) {
+            $isEstimated = false;
+            if ($h->latitude !== null && $h->longitude !== null) {
+                $lat = (float) $h->latitude;
+                $lng = (float) $h->longitude;
+            } elseif ($h->head_resident_id && isset($headCoords[$h->head_resident_id])) {
+                $lat = $headCoords[$h->head_resident_id]['lat'];
+                $lng = $headCoords[$h->head_resident_id]['lng'];
+            } elseif (isset($memberCoords[$h->id])) {
+                $lat = $memberCoords[$h->id]['lat'];
+                $lng = $memberCoords[$h->id]['lng'];
+            } else {
+                $isEstimated = true;
+                ['lat' => $lat, 'lng' => $lng] = $this->estimatedHouseholdPoint($h->id, $fallbackCenterLat, $fallbackCenterLng);
+            }
 
             return [
                 'id'              => $h->id,
@@ -94,18 +194,19 @@ class MapController extends Controller
                 'status'       => 'active',
                 'latitude'     => $lat,
                 'longitude'    => $lng,
+                'is_estimated' => $isEstimated,
             ];
         })->values();
 
         $total = $households->count();
 
-        $barangay = Barangay::select(['id', 'name', 'latitude', 'longitude', 'boundary_geojson', 'boundary_fetched_at', 'boundary_source'])
-            ->find($barangayId);
-
         return response()->json([
-            'residents' => $mapped,
+            'residents' => $pins,
             'total'     => $total,
-            'mapped'    => $mapped->count(),
+            // "mapped" is visual map availability (pins shown), including estimated fallback points.
+            'mapped'    => $pins->count(),
+            // Exact mapped count (real saved coordinates only) for data-quality use.
+            'mapped_exact' => $mappedExactCount,
             'barangay'  => $barangay ? [
                 'id'                  => $barangay->id,
                 'name'                => $barangay->name,
@@ -116,6 +217,86 @@ class MapController extends Controller
                 'boundary_source'     => $barangay->boundary_source,
             ] : null,
         ]);
+    }
+
+    /**
+     * Deterministic fallback point near barangay center (for households without coords).
+     *
+     * @return array{lat: float, lng: float}
+     */
+    private function estimatedHouseholdPoint(string $householdId, float $centerLat, float $centerLng): array
+    {
+        $seed = crc32($householdId);
+        $angle = deg2rad($seed % 360);
+        // 0.00035..0.00115 (~35m..115m from center)
+        $radius = 0.00035 + (($seed % 800) / 1000000);
+
+        return [
+            'lat' => $centerLat + (sin($angle) * $radius),
+            'lng' => $centerLng + (cos($angle) * $radius),
+        ];
+    }
+
+    /**
+     * Resolve household coordinates from address text using Nominatim.
+     *
+     * @return array{lat: float, lng: float}|null
+     */
+    private function geocodeHouseholdAddress(Household $household, ?Barangay $barangay): ?array
+    {
+        $address = trim((string) ($household->address ?? ''));
+        $purok = trim((string) ($household->purok ?? ''));
+        $city = trim((string) ($barangay->city_municipality ?? ''));
+        $province = trim((string) ($barangay->province ?? ''));
+        $barangayName = trim((string) ($barangay->name ?? ''));
+
+        if ($address === '' && $purok === '') {
+            return null;
+        }
+
+        $parts = array_values(array_filter([
+            $address,
+            $purok !== '' ? "Purok {$purok}" : null,
+            $barangayName !== '' ? "Barangay {$barangayName}" : null,
+            $city,
+            $province,
+            'Philippines',
+        ]));
+
+        $query = implode(', ', $parts);
+        $cacheKey = 'map:geocode:'.sha1(strtolower($query));
+
+        return Cache::remember($cacheKey, now()->addDays(30), function () use ($query) {
+            try {
+                $res = Http::withHeaders([
+                    'User-Agent' => 'BCMP-kapitan.ph (support@primex.ventures)',
+                    'Accept' => 'application/json',
+                    'Accept-Language' => 'en',
+                ])->timeout(8)->retry(1, 300)->get('https://nominatim.openstreetmap.org/search', [
+                    'q' => $query,
+                    'format' => 'jsonv2',
+                    'countrycodes' => 'ph',
+                    'limit' => 1,
+                    'addressdetails' => 0,
+                ]);
+
+                if (! $res->successful()) {
+                    return null;
+                }
+
+                $rows = $res->json();
+                if (! is_array($rows) || empty($rows[0]['lat']) || empty($rows[0]['lon'])) {
+                    return null;
+                }
+
+                return [
+                    'lat' => (float) $rows[0]['lat'],
+                    'lng' => (float) $rows[0]['lon'],
+                ];
+            } catch (\Throwable) {
+                return null;
+            }
+        });
     }
 
     /**
@@ -202,26 +383,66 @@ class MapController extends Controller
     {
         $barangayId = $request->user()->barangay_id;
 
-        $total = Household::where('barangay_id', $barangayId)->whereNull('deleted_at')->count();
-
-        // Count as mapped: household has own coords OR its head resident has coords
-        $mapped = Household::where('households.barangay_id', $barangayId)
+        $total = Household::where('households.barangay_id', $barangayId)
             ->whereNull('households.deleted_at')
+            ->whereExists(function ($q) use ($barangayId) {
+                $q->select(DB::raw(1))
+                    ->from('residents')
+                    ->whereColumn('residents.household_id', 'households.id')
+                    ->where('residents.barangay_id', $barangayId)
+                    ->whereNull('residents.deleted_at')
+                    ->where('residents.status', 'active');
+            })
+            ->count();
+
+        // Count as exactly mapped: household has full coords, OR head resident has full coords,
+        // OR any ACTIVE member has full coords.
+        $exactMapped = Household::where('households.barangay_id', $barangayId)
+            ->whereNull('households.deleted_at')
+            ->whereExists(function ($q) use ($barangayId) {
+                $q->select(DB::raw(1))
+                    ->from('residents')
+                    ->whereColumn('residents.household_id', 'households.id')
+                    ->where('residents.barangay_id', $barangayId)
+                    ->whereNull('residents.deleted_at')
+                    ->where('residents.status', 'active');
+            })
             ->leftJoin('residents as hr', 'hr.id', '=', 'households.head_resident_id')
             ->where(function ($q) {
-                $q->whereNotNull('households.latitude')
-                  ->orWhereNotNull('hr.latitude');
+                $q->where(function ($qq) {
+                    $qq->whereNotNull('households.latitude')
+                        ->whereNotNull('households.longitude');
+                })->orWhere(function ($qq) {
+                    $qq->whereNotNull('hr.latitude')
+                        ->whereNotNull('hr.longitude');
+                })->orWhereExists(function ($qq) {
+                    $qq->select(DB::raw(1))
+                        ->from('residents as rm')
+                        ->whereColumn('rm.household_id', 'households.id')
+                        ->whereNull('rm.deleted_at')
+                        ->where('rm.status', 'active')
+                        ->whereNotNull('rm.latitude')
+                        ->whereNotNull('rm.longitude');
+                });
             })
             ->count();
 
         // Per-purok: total households + how many are mapped (own or head resident coords)
         $byPurok = Household::where('households.barangay_id', $barangayId)
             ->whereNull('households.deleted_at')
+            ->whereExists(function ($q) use ($barangayId) {
+                $q->select(DB::raw(1))
+                    ->from('residents')
+                    ->whereColumn('residents.household_id', 'households.id')
+                    ->where('residents.barangay_id', $barangayId)
+                    ->whereNull('residents.deleted_at')
+                    ->where('residents.status', 'active');
+            })
             ->leftJoin('residents as hr2', 'hr2.id', '=', 'households.head_resident_id')
             ->select([
                 DB::raw("COALESCE(NULLIF(TRIM(households.purok), ''), 'Unclassified') as purok_name"),
                 DB::raw('COUNT(*) as total'),
-                DB::raw('COUNT(CASE WHEN households.latitude IS NOT NULL OR hr2.latitude IS NOT NULL THEN 1 END) as mapped'),
+                DB::raw("COUNT(CASE WHEN ((households.latitude IS NOT NULL AND households.longitude IS NOT NULL) OR (hr2.latitude IS NOT NULL AND hr2.longitude IS NOT NULL) OR EXISTS (SELECT 1 FROM residents rm2 WHERE rm2.household_id = households.id AND rm2.deleted_at IS NULL AND rm2.status = 'active' AND rm2.latitude IS NOT NULL AND rm2.longitude IS NOT NULL)) THEN 1 END) as mapped_exact"),
             ])
             ->groupBy('purok_name')
             ->orderByDesc('total')
@@ -229,14 +450,25 @@ class MapController extends Controller
             ->map(fn ($r) => [
                 'purok'  => $r->purok_name,
                 'total'  => (int) $r->total,
-                'mapped' => (int) $r->mapped,
+                // Visual mapped in each purok (pins shown) includes estimated fallback.
+                'mapped' => (int) $r->total,
+                'mapped_exact' => (int) $r->mapped_exact,
             ]);
+
+        // Visual mapped/unmapped/coverage should match what users see on the map.
+        $mapped = $total;
+        $unmapped = 0;
+        $coverage = $total > 0 ? 100.0 : 0.0;
 
         return response()->json([
             'total'     => $total,
             'mapped'    => $mapped,
-            'unmapped'  => $total - $mapped,
-            'coverage'  => $total > 0 ? round(($mapped / $total) * 100, 1) : 0,
+            'unmapped'  => $unmapped,
+            'coverage'  => $coverage,
+            // Keep exact metrics available for future UI/QA.
+            'mapped_exact' => $exactMapped,
+            'unmapped_exact' => $total - $exactMapped,
+            'coverage_exact' => $total > 0 ? round(($exactMapped / $total) * 100, 1) : 0,
             'by_purok'  => $byPurok,
             'by_status' => [['status' => 'active', 'count' => $total]],
         ]);

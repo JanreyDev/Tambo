@@ -2840,8 +2840,8 @@ export default function ResidentsPage() {
       </div>
 
       {/* Table */}
-      <div className="rounded-xl glass overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="rounded-xl glass">
+        <div className="overflow-x-auto overflow-y-visible">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-muted/50 border-b border-border">
@@ -3178,7 +3178,7 @@ export default function ResidentsPage() {
                         )}
                       </td>
                       {/* Actions — unified neutral hover, colored-icon-on-hover (premium look) */}
-                      <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-4 py-3.5 relative" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-center gap-0.5 rounded-xl border border-border/40 bg-muted/20 px-1 py-0.5">
                           {/* View */}
                           <button
@@ -3251,7 +3251,7 @@ export default function ResidentsPage() {
                             </button>
                             {actionMenu === r.id && (
                               <div className={cn(
-                                "absolute right-0 z-50 w-44 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-xl shadow-lg py-1.5",
+                                "absolute right-0 z-[90] w-44 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-xl shadow-lg py-1.5",
                                 index >= paged.length - 2 ? "bottom-8" : "top-8"
                               )}>
                                 {canEdit && (
