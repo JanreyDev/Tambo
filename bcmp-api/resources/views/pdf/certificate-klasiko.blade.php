@@ -271,7 +271,7 @@
 
             {{-- Body text --}}
             <div style="font-size: 10pt; text-align: justify; line-height: 1.7; color: #333; margin-bottom: 20px;">
-                {!! nl2br(e($renderedContent)) !!}
+                {!! $renderedContent !!}
             </div>
 
 

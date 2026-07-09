@@ -394,14 +394,33 @@ export function GenerateDocumentWizard({
     if (selectedResident) {
       const dob = selectedResident.date_of_birth;
       const dobDate = dob ? new Date(dob.includes("T") ? dob : dob + "T00:00:00") : null;
+      const dobLong = dobDate && !Number.isNaN(dobDate.getTime())
+        ? dobDate.toLocaleDateString("en-PH", { month: "long", day: "numeric", year: "numeric" })
+        : "";
       vals.full_name = residentFullName(selectedResident);
       vals.first_name = selectedResident.first_name ?? "";
       vals.last_name = selectedResident.last_name ?? "";
       vals.middle_name = selectedResident.middle_name ?? "";
+      vals.extension_name = selectedResident.extension_name ?? "";
       vals.age = dobDate ? String(new Date().getFullYear() - dobDate.getFullYear()) : "";
       vals.sex = selectedResident.sex
         ? selectedResident.sex.charAt(0).toUpperCase() + selectedResident.sex.slice(1) : "";
+      vals.gender = vals.sex;
       vals.civil_status = selectedResident.civil_status ?? "";
+      vals.date_of_birth = dobLong;
+      vals.birthdate = dobLong;
+      vals.place_of_birth = selectedResident.place_of_birth ?? "";
+      vals.birthplace = vals.place_of_birth;
+      vals.citizenship = selectedResident.citizenship ?? "Filipino";
+      vals.religion = selectedResident.religion ?? "";
+      vals.occupation = selectedResident.occupation ?? "";
+      vals.monthly_income = selectedResident.monthly_income != null ? String(selectedResident.monthly_income) : "";
+      vals.blood_type = selectedResident.blood_type ?? "";
+      vals.contact_number = selectedResident.mobile_number ?? "";
+      vals.emergency_contact = selectedResident.emergency_contact_name ?? "";
+      vals.emergency_number = selectedResident.emergency_contact_phone ?? "";
+      vals.alias = selectedResident.alias ?? "";
+      vals.remarks = selectedResident.other_remarks ?? "";
       vals.address = [
         selectedResident.house_block_lot,
         selectedResident.purok ? (isTambo ? selectedResident.purok : `Purok ${selectedResident.purok}`) : null,
@@ -426,7 +445,8 @@ export function GenerateDocumentWizard({
 
   const renderMergedHtml = useCallback((text: string): string => {
     const vals = buildPreviewValues();
-    return text.replace(/\{\{(\w+)\}\}/g, (_, key) => {
+    return text.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, rawKey) => {
+      const key = String(rawKey).trim();
       const isEditable = key === "purpose" || key.startsWith("or_") || key.startsWith("ctc_") || key.startsWith("custom_") || !vals[key];
       const val = vals[key] || "";
       if (isEditable) {
@@ -437,13 +457,14 @@ export function GenerateDocumentWizard({
   }, [buildPreviewValues]);
   const issuanceSourceContent = manualContent ?? baseContent ?? "";
   const renderedIssuanceContent = renderMergedHtml(issuanceSourceContent);
-  const editableIssuanceContent = renderedIssuanceContent
+  const plainMergedContent = renderedIssuanceContent
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/p>/gi, "\n")
     .replace(/<[^>]*>/g, "")
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">");
+  const contentForSave = manualContent ?? plainMergedContent;
 
   // ── Generate document ──
   const handleGenerate = async () => {
@@ -464,7 +485,7 @@ export function GenerateDocumentWizard({
         approved_by_right: approvedByRight || undefined,
         issued_date: issuedDate || undefined,
         custom_field_values: Object.keys(customFields).length > 0 ? customFields : undefined,
-        custom_content: manualContentRef.current ?? manualContent ?? editableIssuanceContent,
+        custom_content: manualContentRef.current ?? manualContent ?? contentForSave,
         custom_title: manualTitle ?? undefined,
         is_village_condo: selectedTemplate.constituent_type === "resident" ? isVillageCondo : undefined,
       };
@@ -1168,7 +1189,7 @@ export function GenerateDocumentWizard({
                         contentTitle={manualTitle ?? customSettings.custom_title ?? selectedTemplate.title ?? selectedTemplate.name}
                         contentSalutation={customSettings.custom_salutation ?? selectedTemplate.salutation}
                         contentBodyHtml={renderedIssuanceContent}
-                        rawContent={editableIssuanceContent}
+                        rawContent={manualContent ?? issuanceSourceContent}
                         onContentChange={updateManualContent}
                         onTitleChange={(val) => setManualTitle(val)}
                         contentRequestedBy={selectedResident ? residentFullName(selectedResident) : ""}

@@ -330,7 +330,9 @@ class DocumentPdfService
         if (!empty($document->custom_title)) {
             $template->title = $document->custom_title;
         }
-        $renderedContent = $this->renderContent($content, $mergeValues);
+        $renderedContent = $this->formatCertificateBody(
+            $this->renderContent($content, $mergeValues)
+        );
         $renderedSalutation = $this->renderContent($template->salutation ?? '', $mergeValues);
 
         // Photo as base64 data URI
@@ -595,15 +597,49 @@ class DocumentPdfService
     }
 
     /**
-     * Replace {{field_name}} placeholders with actual values.
+     * Replace {{ field_name }} placeholders with actual values.
      */
     private function renderContent(string $content, array $mergeValues): string
     {
-        return preg_replace_callback('/\{\{(\w+)\}\}/', function ($matches) use ($mergeValues) {
-            $key = $matches[1];
+        return preg_replace_callback('/\{\{\s*([A-Za-z0-9_]+)\s*\}\}/', function ($matches) use ($mergeValues) {
+            $key = trim($matches[1]);
 
             return $mergeValues[$key] ?? $matches[0]; // Keep placeholder if no value
         }, $content);
+    }
+
+    /**
+     * Format certificate body for PDF: plain text → escaped + line breaks;
+     * rich text → allow safe inline HTML only.
+     */
+    private function formatCertificateBody(string $content): string
+    {
+        $trimmed = trim($content);
+        if ($trimmed === '') {
+            return '';
+        }
+
+        // Plain text (no HTML) — legacy templates and unformatted edits
+        if ($trimmed === strip_tags($trimmed)) {
+            return nl2br(e($content));
+        }
+
+        $allowed = '<b><strong><i><em><u><br><p><span><font>';
+        $sanitized = strip_tags($content, $allowed);
+        $sanitized = preg_replace('/ on\w+="[^"]*"/i', '', $sanitized) ?? $sanitized;
+        $sanitized = preg_replace('/ on\w+=\'[^\']*\'/i', '', $sanitized) ?? $sanitized;
+
+        // Keep only font-size on span; size on font (from execCommand fontSize)
+        $sanitized = preg_replace_callback('/<span([^>]*)>/i', function (array $m): string {
+            if (preg_match('/style="([^"]*)"/i', $m[1], $styleMatch)
+                && preg_match('/font-size:\s*[^;"]+/i', $styleMatch[1], $sizeMatch)) {
+                return '<span style="'.e($sizeMatch[0]).'">';
+            }
+
+            return '<span>';
+        }, $sanitized) ?? $sanitized;
+
+        return $sanitized;
     }
 
     /**

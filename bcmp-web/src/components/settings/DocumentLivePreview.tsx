@@ -1,7 +1,14 @@
 "use client";
 
 import { useMemo, useState, useRef, useEffect, memo } from "react";
-import { QrCode, Plus } from "lucide-react";
+import { QrCode, Plus, Bold, Italic, Underline, Type } from "lucide-react";
+
+/** Plain template text → editor HTML; leave existing HTML unchanged. */
+function toEditorHtml(text: string): string {
+  if (!text) return "";
+  if (/<[a-z][\s\S]*>/i.test(text)) return text;
+  return text.replace(/\n/g, "<br>");
+}
 
 type Layout = "klasiko" | "elegante" | "moderno" | "digital";
 type PaperSize = "a4" | "letter" | "legal";
@@ -295,21 +302,84 @@ interface BodyProps {
   showVillageCondo?: boolean;
 }
 
+function FormatToolbar({ editorRef }: { editorRef: React.RefObject<HTMLDivElement | null> }) {
+  const apply = (cmd: string, value?: string) => {
+    editorRef.current?.focus();
+    document.execCommand(cmd, false, value);
+  };
+
+  return (
+    <div
+      className="flex flex-wrap items-center gap-0.5 mb-1.5 p-1 rounded-md border border-gray-200 bg-white/95 shadow-sm"
+      onMouseDown={(e) => e.preventDefault()}
+    >
+      <button
+        type="button"
+        title="Bold"
+        onClick={() => apply("bold")}
+        className="p-1 rounded hover:bg-gray-100 text-gray-700 font-bold text-[11px] min-w-[22px]"
+      >
+        <Bold className="w-3 h-3 mx-auto" />
+      </button>
+      <button
+        type="button"
+        title="Italic"
+        onClick={() => apply("italic")}
+        className="p-1 rounded hover:bg-gray-100 text-gray-700 italic text-[11px] min-w-[22px]"
+      >
+        <Italic className="w-3 h-3 mx-auto" />
+      </button>
+      <button
+        type="button"
+        title="Underline"
+        onClick={() => apply("underline")}
+        className="p-1 rounded hover:bg-gray-100 text-gray-700 underline text-[11px] min-w-[22px]"
+      >
+        <Underline className="w-3 h-3 mx-auto" />
+      </button>
+      <span className="w-px h-4 bg-gray-200 mx-0.5" />
+      <button
+        type="button"
+        title="Smaller text"
+        onClick={() => apply("fontSize", "2")}
+        className="p-1 rounded hover:bg-gray-100 text-gray-600 text-[9px] font-medium min-w-[22px]"
+      >
+        A
+      </button>
+      <button
+        type="button"
+        title="Normal text"
+        onClick={() => apply("fontSize", "3")}
+        className="p-1 rounded hover:bg-gray-100 text-gray-700 text-[11px] font-medium min-w-[22px]"
+      >
+        A
+      </button>
+      <button
+        type="button"
+        title="Larger text"
+        onClick={() => apply("fontSize", "5")}
+        className="p-1 rounded hover:bg-gray-100 text-gray-900 text-[13px] font-medium min-w-[22px]"
+      >
+        A
+      </button>
+      <span className="flex items-center gap-0.5 text-[7px] text-gray-400 ml-0.5">
+        <Type className="w-2.5 h-2.5" />
+        Format
+      </span>
+    </div>
+  );
+}
+
 const AVAILABLE_TAGS = [
   { tag: "{{full_name}}", desc: "Resident's full name" },
   { tag: "{{alias}}", desc: "Resident's alias/es" },
   { tag: "{{date_of_birth}}", desc: "Birthdate" },
-  { tag: "{{birthdate}}", desc: "Birthdate (alias)" },
   { tag: "{{age}}", desc: "Current age" },
   { tag: "{{place_of_birth}}", desc: "Birthplace" },
-  { tag: "{{birthplace}}", desc: "Birthplace (alias)" },
   { tag: "{{civil_status}}", desc: "Single, Married, etc." },
   { tag: "{{sex}}", desc: "Sex" },
-  { tag: "{{gender}}", desc: "Gender (alias)" },
   { tag: "{{citizenship}}", desc: "Citizenship" },
   { tag: "{{address}}", desc: "Complete address" },
-  { tag: "{{purpose}}", desc: "Stated purpose" },
-  { tag: "{{remarks}}", desc: "Remarks" },
 ];
 
 
@@ -438,29 +508,31 @@ function EditableBody({
   const editorRef = useRef<HTMLDivElement>(null);
   const initialContent = useRef(rawContent || "");
 
+  const syncHtml = () => {
+    if (editorRef.current && onContentChange) {
+      onContentChange(editorRef.current.innerHTML);
+    }
+  };
+
   const insertTag = (tag: string) => {
     if (editorRef.current) {
       editorRef.current.focus();
-      document.execCommand('insertText', false, tag);
+      document.execCommand("insertText", false, tag);
       setShowTags(false);
-      if (onContentChange) {
-        onContentChange(editorRef.current.innerText);
-      }
+      syncHtml();
     }
   };
 
   if (isEditing && onContentChange) {
     return (
       <div className="relative w-full group">
+        <FormatToolbar editorRef={editorRef} />
         <EditorArea
           innerRef={editorRef}
-          initialHtml={initialContent.current}
-          onInput={(e: any) => {
-            if (onContentChange) {
-              onContentChange(e.currentTarget.innerText);
-            }
-          }}
-          onBlur={(e: any) => {
+          initialHtml={toEditorHtml(initialContent.current)}
+          onInput={() => syncHtml()}
+          onBlur={() => {
+            syncHtml();
             setIsEditing(false);
           }}
           className={`${className} outline-none ring-[1.5px] ring-[var(--accent-primary)] rounded-sm font-inherit text-black shadow-inner whitespace-pre-wrap cursor-text relative z-10`}
@@ -516,11 +588,11 @@ function EditableBody({
     <div 
       className={`${className} block min-w-full ${onContentChange ? 'hover:bg-blue-50/50 hover:ring-[1.5px] hover:ring-[var(--accent-primary)] cursor-pointer rounded-sm transition-all' : ''}`}
       dangerouslySetInnerHTML={{ __html: bodyHtml || "&nbsp;" }} 
-      onClick={(e) => { 
+      onClick={(e) => {
         if (onContentChange) {
-          initialContent.current = rawContent || "";
+          initialContent.current = rawContent || bodyHtml || "";
           setMinHeight(e.currentTarget.clientHeight);
-          setIsEditing(true); 
+          setIsEditing(true);
         }
       }}
       title={onContentChange ? "Click to edit template content" : undefined}

@@ -322,7 +322,7 @@
 
         {{-- Body --}}
         <div class="body-text">
-            {!! nl2br(e($renderedContent)) !!}
+                {!! $renderedContent !!}
         </div>
 
 
