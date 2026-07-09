@@ -35,6 +35,14 @@ return [
         ],
     ],
 
+    'browsershot' => [
+        // Absolute paths to the Node binary and Chromium executable used to render
+        // ID card PDFs via headless Chromium. Defaults point to the project-local
+        // copies in base_path('browser') so they're reachable by the web user.
+        'node_binary' => env('BROWSERSHOT_NODE_BINARY'),
+        'chrome_path' => env('BROWSERSHOT_CHROME_PATH'),
+    ],
+
     'txtbox' => [
         'api_key' => env('TXTBOX_API_KEY'),
         'url' => env('TXTBOX_URL', 'https://ws-v2.txtbox.com/messaging/v1/sms/push'),

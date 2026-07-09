@@ -290,7 +290,7 @@ export function GenerateIdModal({ open, onClose, residentId, onSuccess }: Props)
             {/* Actions */}
             <div className="flex gap-2 pt-1">
               <button
-                onClick={() => window.open(`/api/v1/issued-documents/${generatedDoc.id}/pdf`, "_blank")}
+                onClick={() => window.open(`/api/v1/issued-documents/${generatedDoc.id}/pdf#zoom=page-width`, "_blank")}
                 className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-sm transition-all hover:opacity-90"
                 style={{ background: selectedIdType?.accent ?? "#7c3aed" }}
               >

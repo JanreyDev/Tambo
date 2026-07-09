@@ -13,6 +13,7 @@ use App\Models\Tenant\Records\LotBuilding;
 use App\Models\Tenant\Resident;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Spatie\Browsershot\Browsershot;
 use chillerlan\QRCode\QRCode;
 use chillerlan\QRCode\QROptions;
 use Illuminate\Support\Facades\Storage;
@@ -146,6 +147,14 @@ class DocumentPdfService
         $idCardCategories = ['barangay_id', 'family_id', 'staff_id'];
 
         if (in_array($template->category, $idCardCategories)) {
+            // Preferred: render via headless Chromium so the PDF is a pixel-perfect
+            // match of the on-screen React preview (full flexbox/SVG/CSS support).
+            $browserBinary = $this->renderIdCardViaBrowser($data);
+            if ($browserBinary !== null) {
+                return $browserBinary;
+            }
+
+            // Fallback: DomPDF (used until Chromium system libs are installed).
             // CR80 card: 85.6mm × 54mm → 242.64pt × 153.07pt (1mm = 2.8346pt)
             $pdf = Pdf::loadView('pdf.id-card', $data)
                 ->setPaper([0, 0, 242.64, 153.07])
@@ -202,6 +211,53 @@ class DocumentPdfService
         }
 
         return $pdf->output();
+    }
+
+    /**
+     * Render the ID card to PDF using headless Chromium (Browsershot).
+     *
+     * This produces a pixel-perfect match of the on-screen React preview because it
+     * renders the exact same HTML/CSS in a real browser engine. Returns null on any
+     * failure so the caller can gracefully fall back to the DomPDF template.
+     */
+    private function renderIdCardViaBrowser(array $data): ?string
+    {
+        $nodeBinary = config('services.browsershot.node_binary') ?: base_path('browser/node');
+        $chromePath = config('services.browsershot.chrome_path') ?: base_path('browser/chrome-linux64/chrome-wrapped.sh');
+        $nodeModulePath = base_path('node_modules');
+
+        if (! is_file($nodeBinary) || ! is_file($chromePath)) {
+            return null;
+        }
+
+        try {
+            $html = view('pdf.id-card-browser', $data)->render();
+
+            return Browsershot::html($html)
+                ->setNodeBinary($nodeBinary)
+                ->setChromePath($chromePath)
+                ->setNodeModulePath($nodeModulePath)
+                ->newHeadless()
+                ->noSandbox()
+                ->setOption('args', [
+                    '--disable-gpu',
+                    '--disable-dev-shm-usage',
+                    '--disable-crash-reporter',
+                    '--disable-breakpad',
+                    '--no-first-run',
+                    '--font-render-hinting=none',
+                ])
+                ->showBackground()
+                ->paperSize(85.6, 54, 'mm')
+                ->margins(0, 0, 0, 0, 'mm')
+                ->pdf();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Browsershot ID card render failed, falling back to DomPDF', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
     }
 
     /**
