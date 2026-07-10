@@ -3,7 +3,7 @@
 import { DocumentTemplate } from "@/lib/types";
 
 
-import {  useState, useEffect, useCallback, useRef } from "react";
+import {  useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   Upload, Phone, Mail, Clock, Building2, Shield, Bell, FileText,
   AlertTriangle, X, Globe, Loader2, Image as ImageIcon, Banknote,
@@ -13,6 +13,8 @@ import {
   Calendar, Info, User, ChevronDown, Search, Eye, Edit2, CheckCircle, Circle, Car, Accessibility, Briefcase, Palette, ArrowRight, ArrowLeft,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
+import { Modal, ModalButton } from "@/components/ui/modal";
+import { useToast } from "@/components/ui/toast";
 import { cn, resolvePhotoUrl } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
@@ -695,6 +697,86 @@ const RESIDENT_CERTIFICATES = [
   { id: 6, iconType: "norecord", title: "Certificate of No Record", isGlobal: true, badgeColor: "green", description: "Certificate for no derogatory record.", theme: "Earth & Sky", themeColor: "#22c55e", themeColor2: "#3b82f6", pattern: "Wave • Classic Sidebar", modifiedDate: "Jun 5, 2026 02:30 PM", author: "Juan Dela Cruz" },
 ];
 
+type CertUser = { full_name?: string; first_name?: string; last_name?: string; username?: string } | null | undefined;
+
+function certModifierName(u: CertUser): string {
+  if (!u) return "Unknown";
+  const name = u.full_name?.trim() || [u.first_name, u.last_name].filter(Boolean).join(" ").trim();
+  return name || u.username || "Unknown";
+}
+
+function formatCertModifiedAt(value?: string | null): string {
+  if (!value) return "—";
+  const parsed = new Date(value);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toLocaleString("en-PH", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  }
+  if (value === "Just now") return "—";
+  return value;
+}
+
+function certModifiedAuthor(cert: { modified_by?: string; author?: string }): string {
+  const name = cert.modified_by?.trim() || cert.author?.trim();
+  if (!name || name === "You") return "—";
+  return name;
+}
+
+function certModifiedWhen(cert: { modified_at?: string; modifiedDate?: string }): string {
+  return formatCertModifiedAt(cert.modified_at || cert.modifiedDate);
+}
+
+function certThemeLabel(cert: { isGlobal?: boolean; theme?: string }): string {
+  if (cert.isGlobal === true) return "Global";
+  if (cert.isGlobal === false) return "Custom";
+  const theme = (cert.theme || "").toLowerCase();
+  if (theme.includes("global")) return "Global";
+  return "Custom";
+}
+
+function withCertModification<T extends Record<string, unknown>>(cert: T, u: CertUser): T & {
+  modified_at: string;
+  modified_by: string;
+  modifiedDate: string;
+  author: string;
+  theme: string;
+} {
+  const name = certModifierName(u);
+  const at = new Date().toISOString();
+  const theme = cert.isGlobal === true ? "Global" : "Custom";
+  return {
+    ...cert,
+    modified_at: at,
+    modified_by: name,
+    modifiedDate: at,
+    author: name,
+    theme,
+  };
+}
+
+function sortCertificatesNewestFirst(certs: any[]): any[] {
+  return [...certs].sort((a, b) => {
+    const aTime = a?.modified_at ? new Date(a.modified_at).getTime() : 0;
+    const bTime = b?.modified_at ? new Date(b.modified_at).getTime() : 0;
+    return bTime - aTime;
+  });
+}
+
+/** Sort admin/system templates — show every super-admin entry (no category dedupe). */
+function sortSystemTemplates(templates: DocumentTemplate[]): DocumentTemplate[] {
+  return [...templates]
+    .filter((t) => t.barangay_id == null)
+    .sort(
+      (a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999) || String(a.name).localeCompare(String(b.name)),
+    );
+}
+
 function CertIcon({ type }: { type: string }) {
   const iconProps = "w-5 h-5";
   const bgColors: Record<string, string> = {
@@ -714,6 +796,7 @@ function CertIcon({ type }: { type: string }) {
 
 export default function SettingsPage() {
   const { user, refreshUser } = useAuth();
+  const { toast } = useToast();
   const { language, setLanguage, t } = useLanguage();
   const [settings, setSettings] = useState<BarangaySettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -732,38 +815,111 @@ export default function SettingsPage() {
   const [establishmentCertificates, setEstablishmentCertificates] = useState<any[]>([]);
   const [lotBuildingCertificates, setLotBuildingCertificates] = useState<any[]>([]);
   const [editingConstituentType, setEditingConstituentType] = useState<"resident" | "establishment" | "lot_building">("resident");
-  const [dbTemplates, setDbTemplates] = useState<any[]>([]);
+  const [dbTemplates, setDbTemplates] = useState<DocumentTemplate[]>([]);
+  const [templateById, setTemplateById] = useState<Record<string, DocumentTemplate>>({});
+  const [modalTemplateSearch, setModalTemplateSearch] = useState("");
+  const [certDeleteTarget, setCertDeleteTarget] = useState<{
+    id: string;
+    type: "resident" | "establishment" | "lot_building";
+    title: string;
+  } | null>(null);
+  const [certDeleting, setCertDeleting] = useState(false);
+  const [certDesignSearch, setCertDesignSearch] = useState("");
+  const [certDesignThemeFilter, setCertDesignThemeFilter] = useState<"all" | "global" | "custom">("all");
 
 
   useEffect(() => {
-    if (isModalOpen || customizeTab === "resident" || customizeTab === "establishment" || customizeTab === "editor") {
+    if (isModalOpen || customizeTab === "resident" || customizeTab === "establishment" || customizeTab === "lot" || customizeTab === "editor") {
       const typeToFetch = (isModalOpen || customizeTab === "editor")
         ? editingConstituentType
         : customizeTab === "establishment" ? "establishment" : customizeTab === "lot" ? "lot_building" : "resident";
-      api.documentTemplates.list({ constituent_type: typeToFetch, per_page: 50 })
+      api.documentTemplates.list({
+        constituent_type: typeToFetch,
+        system_only: true,
+        is_active: true,
+        sort_by: "sort_order",
+        sort_dir: "asc",
+        per_page: 200,
+      })
         .then(res => {
-          const data = res.data || [];
-          const filteredData = data.filter(c => c.constituent_type === typeToFetch);
-          const unique = Object.values(filteredData.reduce((acc, curr) => {
-            if (!acc[curr.name] || curr.barangay_id) {
-              acc[curr.name] = curr;
-            }
-            return acc;
-          }, {}));
-          setDbTemplates(unique as any[]);
+          const systemOnly = sortSystemTemplates(res.data || []);
+          setDbTemplates(systemOnly);
+          setTemplateById((prev) => {
+            const next = { ...prev };
+            systemOnly.forEach((t) => { next[t.id] = t; });
+            return next;
+          });
         })
         .catch(console.error);
     }
   }, [customizeTab, isModalOpen, editingConstituentType]);
 
+  const findTemplate = useCallback((id: string | null | undefined): DocumentTemplate | undefined => {
+    if (!id) return undefined;
+    return templateById[id] ?? dbTemplates.find((t) => t.id === id);
+  }, [templateById, dbTemplates]);
+
+  useEffect(() => {
+    const ids = [selectedCertType, previewCertId].filter(Boolean) as string[];
+    ids.forEach((id) => {
+      if (templateById[id] || dbTemplates.some((t) => t.id === id)) return;
+      api.documentTemplates.get(id)
+        .then((t) => setTemplateById((prev) => ({ ...prev, [t.id]: t })))
+        .catch(() => {});
+    });
+  }, [selectedCertType, previewCertId, templateById, dbTemplates]);
+
+  const configuredCertificateList =
+    editingConstituentType === "lot_building"
+      ? lotBuildingCertificates
+      : editingConstituentType === "establishment"
+        ? establishmentCertificates
+        : residentCertificates;
+
+  const pickerTemplates = useMemo(() => {
+    const configuredIds = new Set(configuredCertificateList.map((c) => c.id).filter(Boolean));
+    const configuredNames = new Set(
+      configuredCertificateList
+        .map((c) => (c.name || c.title || "").trim().toLowerCase())
+        .filter(Boolean),
+    );
+    const query = modalTemplateSearch.trim().toLowerCase();
+    return dbTemplates.filter((t) => {
+      if (configuredIds.has(t.id)) return false;
+      const templateName = (t.name || t.title || "").trim().toLowerCase();
+      if (templateName && configuredNames.has(templateName)) return false;
+      if (!query) return true;
+      const haystack = [t.name, t.title, t.category].filter(Boolean).join(" ").toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [dbTemplates, configuredCertificateList, modalTemplateSearch]);
+
+  useEffect(() => {
+    if (!isModalOpen) {
+      setModalTemplateSearch("");
+    }
+  }, [isModalOpen]);
+
+  useEffect(() => {
+    setCertDesignSearch("");
+    setCertDesignThemeFilter("all");
+  }, [customizeTab]);
+
 
   // Toast
-  const [toasts, setToasts] = useState<{ id: number; message: string; type: "success" | "error" }[]>([]);
+  type SettingsToast = { id: number; type: "success" | "error"; title: string; message?: string };
+  const [toasts, setToasts] = useState<SettingsToast[]>([]);
   const toastCounter = useRef(0);
-  const addToast = useCallback((message: string, type: "success" | "error" = "success") => {
+  const addToast = useCallback((
+    input: string | { title: string; message?: string; type?: "success" | "error" },
+    type: "success" | "error" = "success",
+  ) => {
+    const payload = typeof input === "string"
+      ? { title: input, message: undefined, type }
+      : { title: input.title, message: input.message, type: input.type ?? "success" };
     const id = ++toastCounter.current;
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
+    setToasts((prev) => [...prev, { id, ...payload }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 5000);
   }, []);
 
   // Snapshot of originally-loaded values per editable field — used to detect unsaved changes.
@@ -1045,9 +1201,9 @@ export default function SettingsPage() {
         const loadedDesignPattern = (s.document_design_pattern as typeof docDesignPattern) || "wave";
         setDocColorTheme(loadedColorTheme);
         setDocDesignPattern(loadedDesignPattern);
-        setResidentCertificates(s.customized_resident_certificates || []);
-        setEstablishmentCertificates(s.customized_establishment_certificates || []);
-        setLotBuildingCertificates(s.customized_lot_building_certificates || []);
+        setResidentCertificates(sortCertificatesNewestFirst(s.customized_resident_certificates || []));
+        setEstablishmentCertificates(sortCertificatesNewestFirst(s.customized_establishment_certificates || []));
+        setLotBuildingCertificates(sortCertificatesNewestFirst(s.customized_lot_building_certificates || []));
         // If the barangay has previously customized any design field, skip dummy gating.
         const hasAnyCustom = !!(s.document_paper_size || s.document_font || s.document_color_theme || s.document_design_pattern);
         if (hasAnyCustom) setHasGeneratedPatterns(true);
@@ -1182,17 +1338,17 @@ export default function SettingsPage() {
     if (!selectedCertType) return;
     setSaving(true);
     try {
-      const option = dbTemplates.find(c => c && c.id === selectedCertType);
+      const option = findTemplate(selectedCertType);
       if (option) {
         let templateToSave = option;
         if (option.barangay_id === null) {
           const cloneRes = await api.documentTemplates.clone(option.id, docCustomTitle || option.name);
           templateToSave = cloneRes.document_template;
-          setDbTemplates(prev => [...prev.filter(c => c.id !== option.id), templateToSave]);
+          setTemplateById(prev => ({ ...prev, [templateToSave.id]: templateToSave }));
           setSelectedCertType(templateToSave.id);
         }
 
-        const newCert = {
+        const newCert = withCertModification({
           id: templateToSave.id,
           name: docCustomTitle || templateToSave.name,
           title: docCustomTitle || templateToSave.name,
@@ -1200,11 +1356,8 @@ export default function SettingsPage() {
           isGlobal: false,
           badgeColor: "blue",
           description: `Customization for ${(templateToSave.name || "").toLowerCase()}`,
-          theme: "Custom Draft",
           themeColor: "#3b82f6",
           pattern: "Custom Layout",
-          modifiedDate: "Just now",
-          author: "You",
           design_settings: {
             use_global_design: false,
             document_layout: docLayout,
@@ -1217,20 +1370,20 @@ export default function SettingsPage() {
             custom_salutation: docCustomSalutation,
             expiry_months: docExpiryMonths,
           }
-        };
+        }, user);
         
           if (editingConstituentType === "lot_building") {
-            const newCerts = [...lotBuildingCertificates.filter(c => c.id !== templateToSave.id), newCert];
+            const newCerts = [newCert, ...lotBuildingCertificates.filter(c => c.id !== templateToSave.id)];
             setLotBuildingCertificates(newCerts);
             await api.settings.update({ settings: { customized_lot_building_certificates: newCerts } } as any);
             originalsRef.current.lotBuildingCertificates = newCerts;
           } else if (editingConstituentType === "establishment") {
-            const newCerts = [...establishmentCertificates.filter(c => c.id !== templateToSave.id), newCert];
+            const newCerts = [newCert, ...establishmentCertificates.filter(c => c.id !== templateToSave.id)];
             setEstablishmentCertificates(newCerts);
             await api.settings.update({ settings: { customized_establishment_certificates: newCerts } } as any);
               originalsRef.current.establishmentCertificates = newCerts;
           } else {
-            const newCerts = [...residentCertificates.filter(c => c.id !== templateToSave.id), newCert];
+            const newCerts = [newCert, ...residentCertificates.filter(c => c.id !== templateToSave.id)];
             setResidentCertificates(newCerts);
             await api.settings.update({ settings: { customized_resident_certificates: newCerts } } as any);
               originalsRef.current.residentCertificates = newCerts;
@@ -1246,10 +1399,11 @@ export default function SettingsPage() {
     }
   };
 
-  const handleRemoveCustomCertificate = async (idToRemove: string, type: "resident" | "establishment" | "lot_building" = "resident") => {
-    if (!window.confirm("Are you sure you want to remove this customized design? The certificate will revert to the global default.")) return;
-    
-    setSaving(true);
+  const confirmRemoveCustomCertificate = async () => {
+    if (!certDeleteTarget) return;
+
+    const { id: idToRemove, type } = certDeleteTarget;
+    setCertDeleting(true);
     try {
       if (type === "lot_building") {
         const newCerts = lotBuildingCertificates.filter(c => c.id !== idToRemove);
@@ -1267,13 +1421,42 @@ export default function SettingsPage() {
         await api.settings.update({ settings: { customized_resident_certificates: newCerts } } as any);
         originalsRef.current.residentCertificates = newCerts;
       }
-      addToast("Custom design removed successfully", "success");
+      setCertDeleteTarget(null);
+      toast(
+        "success",
+        "Certificate design removed",
+        `${certDeleteTarget.title} will now use the global default theme.`,
+      );
     } catch (err) {
-      addToast("Failed to remove custom design", "error");
+      toast(
+        "error",
+        "Could not remove design",
+        err instanceof Error ? err.message : "Please try again.",
+      );
     } finally {
-      setSaving(false);
+      setCertDeleting(false);
     }
   };
+
+  const activeCertificateList = sortCertificatesNewestFirst(
+    customizeTab === "resident"
+      ? residentCertificates
+      : customizeTab === "establishment"
+        ? establishmentCertificates
+        : lotBuildingCertificates,
+  );
+
+  const filteredCertificateList = activeCertificateList.filter((cert) => {
+    const query = certDesignSearch.trim().toLowerCase();
+    if (query) {
+      const haystack = [cert.title, cert.name, cert.description].filter(Boolean).join(" ").toLowerCase();
+      if (!haystack.includes(query)) return false;
+    }
+    if (certDesignThemeFilter === "global" && !cert.isGlobal) return false;
+    if (certDesignThemeFilter === "custom" && cert.isGlobal) return false;
+    return true;
+  });
+
   const saveDocuments = () => saveSettings(
     {
       document_header_text: docHeader || null,
@@ -2320,7 +2503,7 @@ export default function SettingsPage() {
                                 <ArrowLeft className="w-5 h-5" />
                               </button>
                               <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
-                                Editing Custom Theme <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 text-[10px] uppercase font-bold tracking-wider">{(dbTemplates || []).find(c => c && c.id === selectedCertType)?.name || "Draft"}</span>
+                                Editing Custom Theme <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 text-[10px] uppercase font-bold tracking-wider">{findTemplate(selectedCertType)?.name || "Draft"}</span>
                               </h3>
                             </div>
                             <p className="text-xs text-muted-foreground mb-5 ml-9">You are customizing the layout specifically for this certificate. Changes here will not affect the global theme.</p>
@@ -2402,13 +2585,13 @@ export default function SettingsPage() {
                           </div>
                         </div>
 
-                        {/* Document Font Horizontal Block */}
-                        <div className="flex flex-col md:flex-row bg-background/40 rounded-xl p-4 mb-4 border border-border/60 shadow-sm">
-                          <div className="md:w-1/3 mb-3 md:mb-0 pr-4">
+                        {/* Document Font Block — heading row + controls row */}
+                        <div className="bg-background/40 rounded-xl p-4 mb-4 border border-border/60 shadow-sm">
+                          <div className="mb-3">
                             <h4 className="text-[13px] font-semibold text-foreground">Document Font</h4>
                             <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">Select the default font for all certificates.</p>
                           </div>
-                          <div className="md:w-2/3 flex flex-col sm:flex-row items-center gap-4">
+                          <div className="flex flex-col sm:flex-row items-center gap-4">
                             <div className="relative w-full sm:w-1/2">
                               <select
                                 value={docFont}
@@ -2440,13 +2623,13 @@ export default function SettingsPage() {
                           </div>
                         </div>
 
-                        {/* Paper Size Horizontal Block */}
-                        <div className="flex flex-col md:flex-row bg-background/40 rounded-xl p-4 mb-6 border border-border/60 shadow-sm">
-                          <div className="md:w-1/3 mb-3 md:mb-0 pr-4">
+                        {/* Paper Size Block — heading row + options row */}
+                        <div className="bg-background/40 rounded-xl p-4 mb-6 border border-border/60 shadow-sm">
+                          <div className="mb-3">
                             <h4 className="text-[13px] font-semibold text-foreground">Paper Size</h4>
                             <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">Select the default paper size.</p>
                           </div>
-                          <div className="md:w-2/3 grid grid-cols-3 gap-3 w-full">
+                          <div className="grid grid-cols-3 gap-3 w-full">
                             {[
                               { id: "a4", label: "A4", dims: "210 x 297 mm" },
                               { id: "letter", label: "Letter", dims: "8.5 x 11 in" },
@@ -2480,7 +2663,7 @@ export default function SettingsPage() {
                         {customizeTab === "editor" && (
                           <div className="space-y-4">
 
-                            {selectedCertType && (dbTemplates || []).find(c => c && c.id === selectedCertType)?.name?.toLowerCase().includes("clearance") && (
+                            {selectedCertType && findTemplate(selectedCertType)?.name?.toLowerCase().includes("clearance") && (
                               <div className="bg-background/40 rounded-xl p-4 border border-border/60 shadow-sm">
                                 <label className="text-xs font-semibold text-foreground/80 block mb-2">Clearance Expiry (Validity Period)</label>
                                 <div className="flex items-center gap-2">
@@ -2534,7 +2717,7 @@ export default function SettingsPage() {
                         </div>
                         <div className="w-full rounded-xl border border-border bg-background p-2 shadow-sm overflow-hidden flex justify-center">
                           {(() => {
-                            const activeTemplate = dbTemplates.find(c => c && c.id === selectedCertType);
+                            const activeTemplate = findTemplate(selectedCertType);
                             return (
                               <DocumentLivePreview
                                 layout={docLayout}
@@ -2597,42 +2780,60 @@ export default function SettingsPage() {
                     <div className="flex items-center gap-3 w-full max-w-lg">
                       <div className="relative flex-1">
                         <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                        <input type="text" placeholder="Search certificates..." className="w-full bg-background border border-border/80 rounded-lg pl-9 pr-3 py-2 text-sm text-foreground focus:outline-none focus:border-blue-500 transition-colors" />
+                        <input
+                          type="text"
+                          value={certDesignSearch}
+                          onChange={(e) => setCertDesignSearch(e.target.value)}
+                          placeholder="Search certificates..."
+                          className="w-full bg-background border border-border/80 rounded-lg pl-9 pr-3 py-2 text-sm text-foreground focus:outline-none focus:border-blue-500 transition-colors"
+                        />
                       </div>
                       <div className="relative w-40">
-                        <select className="w-full bg-background border border-border/80 rounded-lg pl-3 pr-8 py-2 text-sm text-foreground focus:outline-none focus:border-blue-500 transition-colors appearance-none cursor-pointer">
+                        <select
+                          value={certDesignThemeFilter}
+                          onChange={(e) => setCertDesignThemeFilter(e.target.value as "all" | "global" | "custom")}
+                          className="w-full bg-background border border-border/80 rounded-lg pl-3 pr-8 py-2 text-sm text-foreground focus:outline-none focus:border-blue-500 transition-colors appearance-none cursor-pointer"
+                        >
                           <option value="all">All Status</option>
-                          <option value="global">Global Theme</option>
-                          <option value="custom">Custom Theme</option>
+                          <option value="global">Global</option>
+                          <option value="custom">Custom</option>
                         </select>
                         <ChevronDown className="w-4 h-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                       </div>
                     </div>
 
                     <div className="w-full overflow-x-auto pb-4">
-                      <table className="w-full text-left border-collapse min-w-[800px]">
+                      <table className="w-full text-left border-collapse min-w-[640px]">
                         <thead>
                           <tr className="border-b border-border/40 text-xs text-muted-foreground font-semibold uppercase tracking-wider">
-                            <th className="pb-3 px-4 w-[40%]">Certificate</th>
-                            <th className="pb-3 px-4 w-[25%]">Theme</th>
-                            <th className="pb-3 px-4 w-[25%]">Last Modified</th>
-                            <th className="pb-3 px-4 w-[10%] text-center">Actions</th>
+                            <th className="pb-3 px-4 w-[50%]">Certificate</th>
+                            <th className="pb-3 px-4 w-[30%]">Last Modified</th>
+                            <th className="pb-3 px-4 w-[20%] text-center">Actions</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border/20">
-                          {(customizeTab === "resident" ? residentCertificates : customizeTab === "establishment" ? establishmentCertificates : lotBuildingCertificates).length === 0 ? (
+                          {filteredCertificateList.length === 0 ? (
                             <tr>
-                              <td colSpan={4} className="py-16 text-center text-slate-400 bg-slate-900/10">
+                              <td colSpan={3} className="py-16 text-center text-slate-400 bg-slate-900/10">
                                 <div className="flex flex-col items-center justify-center">
                                   <div className="w-16 h-16 rounded-full bg-slate-800/50 flex items-center justify-center mb-4 border border-slate-700">
                                     <FileText className="w-8 h-8 text-slate-500" />
                                   </div>
-                                  <p className="text-base font-semibold text-white">No certificates designed yet</p>
-                                  <p className="text-sm text-slate-500 mt-1 max-w-sm">Click the "+ New Certificate Design" button to select a document type and assign it a Global or Custom theme.</p>
+                                  {activeCertificateList.length === 0 ? (
+                                    <>
+                                      <p className="text-base font-semibold text-white">No certificates designed yet</p>
+                                      <p className="text-sm text-slate-500 mt-1 max-w-sm">Click the "+ New Certificate Design" button to select a document type and assign it a Global or Custom theme.</p>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <p className="text-base font-semibold text-white">No matching certificates</p>
+                                      <p className="text-sm text-slate-500 mt-1 max-w-sm">Try a different search term or change the status filter.</p>
+                                    </>
+                                  )}
                                 </div>
                               </td>
                             </tr>
-                          ) : (customizeTab === "resident" ? residentCertificates : customizeTab === "establishment" ? establishmentCertificates : lotBuildingCertificates).map(cert => (
+                          ) : filteredCertificateList.map(cert => (
                             <tr key={cert.id} className="group hover:bg-background/40 transition-colors">
                               <td className="py-4 px-4 align-top">
                                 <div className="flex gap-4">
@@ -2641,7 +2842,7 @@ export default function SettingsPage() {
                                     <div className="flex items-center gap-2">
                                       <span className="font-semibold text-sm text-foreground">{cert.title || cert.name}</span>
                                       <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-sm ${cert.isGlobal ? 'bg-green-500/10 text-green-500' : cert.badgeColor === 'blue' ? 'bg-blue-500/10 text-blue-500' : cert.badgeColor === 'red' ? 'bg-red-500/10 text-red-500' : 'bg-purple-500/10 text-purple-500'}`}>
-                                        {cert.isGlobal ? 'Global Theme' : 'Custom Theme'}
+                                        {certThemeLabel(cert)}
                                       </span>
                                     </div>
                                     <span className="text-[11px] text-muted-foreground">{cert.description}</span>
@@ -2650,22 +2851,8 @@ export default function SettingsPage() {
                               </td>
                               <td className="py-4 px-4 align-top">
                                 <div className="flex flex-col gap-1">
-                                  <div className="flex items-center gap-2 text-sm text-foreground font-medium">
-                                    <div className="flex items-center justify-center">
-                                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cert.themeColor }}></div>
-                                      {cert.themeColor2 && (
-                                        <div className="w-2.5 h-2.5 rounded-full -ml-1 border border-background" style={{ backgroundColor: cert.themeColor2 }}></div>
-                                      )}
-                                    </div>
-                                    {cert.theme}
-                                  </div>
-                                  <span className="text-[11px] text-muted-foreground">{cert.pattern}</span>
-                                </div>
-                              </td>
-                              <td className="py-4 px-4 align-top">
-                                <div className="flex flex-col gap-1">
-                                  <span className="text-sm text-foreground">{cert.modifiedDate}</span>
-                                  <span className="text-[11px] text-muted-foreground">by {cert.author}</span>
+                                  <span className="text-sm text-foreground">{certModifiedWhen(cert)}</span>
+                                  <span className="text-[11px] text-muted-foreground">by {certModifiedAuthor(cert)}</span>
                                 </div>
                               </td>
                               <td className="py-4 px-4 align-top">
@@ -2704,7 +2891,11 @@ export default function SettingsPage() {
                                   </button>
                                   <button 
                                     className="text-muted-foreground hover:text-red-500 transition-colors"
-                                    onClick={() => handleRemoveCustomCertificate(cert.id, customizeTab === "lot" ? "lot_building" : customizeTab === "resident" ? "resident" : "establishment")}
+                                    onClick={() => setCertDeleteTarget({
+                                      id: cert.id,
+                                      type: customizeTab === "lot" ? "lot_building" : customizeTab === "resident" ? "resident" : "establishment",
+                                      title: cert.title || cert.name || "Certificate",
+                                    })}
                                     title="Remove"
                                   >
                                     <Trash2 className="w-4 h-4" />
@@ -2757,10 +2948,30 @@ export default function SettingsPage() {
                                   <>
                                     <div className="relative">
                                       <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                                      <input type="text" placeholder="Search certificate..." className="w-full bg-[#1e293b] border border-slate-700/50 rounded-lg pl-9 pr-3 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors" />
+                                      <input
+                                        type="text"
+                                        value={modalTemplateSearch}
+                                        onChange={(e) => setModalTemplateSearch(e.target.value)}
+                                        placeholder="Search certificate..."
+                                        className="w-full bg-[#1e293b] border border-slate-700/50 rounded-lg pl-9 pr-3 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors"
+                                      />
                                     </div>
+                                    {pickerTemplates.length === 0 ? (
+                                      <div className="py-12 text-center text-slate-400">
+                                        <p className="text-sm font-medium text-slate-300">
+                                          {modalTemplateSearch.trim()
+                                            ? "No matching certificates found."
+                                            : "All available certificates are already configured."}
+                                        </p>
+                                        <p className="text-xs text-slate-500 mt-1">
+                                          {modalTemplateSearch.trim()
+                                            ? "Try a different search term."
+                                            : "Remove a design from the list to add it again."}
+                                        </p>
+                                      </div>
+                                    ) : (
                                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mt-2">
-                                      {(dbTemplates || []).map(opt => {
+                                      {pickerTemplates.map(opt => {
                                         const isBlue = opt.category === "clearance" || opt.category === "id";
                                         const isGreen = opt.category === "residency" || opt.category === "goodmoral";
                                         const isRed = opt.category === "indigency";
@@ -2785,6 +2996,7 @@ export default function SettingsPage() {
                                         )
                                       })}
                                     </div>
+                                    )}
                                   </>
                                 ) : (
                                   <div className="p-6 rounded-xl border border-slate-700/50 bg-slate-800/30 flex items-center justify-between mt-2">
@@ -2793,7 +3005,7 @@ export default function SettingsPage() {
                                         <FileText className="w-7 h-7 text-blue-500" />
                                       </div>
                                       <div className="flex flex-col gap-1">
-                                        <h3 className="text-lg font-bold text-white">{dbTemplates.find(c => c && c.id === selectedCertType)?.name}</h3>
+                                        <h3 className="text-lg font-bold text-white">{findTemplate(selectedCertType)?.name}</h3>
                                         <p className="text-sm text-slate-400">Customize design for this certificate</p>
                                       </div>
                                     </div>
@@ -2874,7 +3086,7 @@ export default function SettingsPage() {
                                 <button onClick={() => setModalStep(1)} className="px-4 py-2 text-sm font-medium text-slate-300 border border-slate-700 rounded-lg hover:bg-slate-800 transition-colors">Back</button>
                                 <button 
                                   onClick={async () => {
-                                    const option = dbTemplates.find(c => c && c.id === selectedCertType);
+                                    const option = findTemplate(selectedCertType);
                                     
                                     if (themeSource === "custom") {
                                       const existingCertificates = editingConstituentType === "lot_building"
@@ -2905,10 +3117,10 @@ export default function SettingsPage() {
                                           if (option.barangay_id === null) {
                                             const cloneRes = await api.documentTemplates.clone(option.id, option.name);
                                             templateToSave = cloneRes.document_template;
-                                            setDbTemplates(prev => [...prev.filter(c => c.id !== option.id), templateToSave]);
+                                            setTemplateById(prev => ({ ...prev, [templateToSave.id]: templateToSave }));
                                           }
                                           
-                                          const newCert = {
+                                          const newCert = withCertModification({
                                             id: templateToSave.id,
                                             name: templateToSave.name,
                                             title: templateToSave.title || templateToSave.name,
@@ -2916,25 +3128,22 @@ export default function SettingsPage() {
                                             isGlobal: true,
                                             badgeColor: "green",
                                             description: `Customization for ${(templateToSave.name || "").toLowerCase()}`,
-                                            theme: "Global Default",
                                             themeColor: "#22c55e",
                                             pattern: "Standard Layout",
-                                            modifiedDate: "Just now",
-                                            author: "You"
-                                          };
+                                          }, user);
                                           
                                           if (editingConstituentType === "lot_building") {
-                                            const newCerts = [...lotBuildingCertificates.filter(c => c.id !== templateToSave.id), newCert];
+                                            const newCerts = [newCert, ...lotBuildingCertificates.filter(c => c.id !== templateToSave.id)];
                                             setLotBuildingCertificates(newCerts);
                                             await api.settings.update({ settings: { customized_lot_building_certificates: newCerts } } as any);
                                             originalsRef.current.lotBuildingCertificates = newCerts;
                                           } else if (editingConstituentType === "establishment") {
-                                            const newCerts = [...establishmentCertificates.filter(c => c.id !== templateToSave.id), newCert];
+                                            const newCerts = [newCert, ...establishmentCertificates.filter(c => c.id !== templateToSave.id)];
                                             setEstablishmentCertificates(newCerts);
                                             await api.settings.update({ settings: { customized_establishment_certificates: newCerts } } as any);
                                             originalsRef.current.establishmentCertificates = newCerts;
                                           } else {
-                                            const newCerts = [...residentCertificates.filter(c => c.id !== templateToSave.id), newCert];
+                                            const newCerts = [newCert, ...residentCertificates.filter(c => c.id !== templateToSave.id)];
                                             setResidentCertificates(newCerts);
                                             await api.settings.update({ settings: { customized_resident_certificates: newCerts } } as any);
                                             originalsRef.current.residentCertificates = newCerts;
@@ -4369,19 +4578,100 @@ export default function SettingsPage() {
 
       {/* Toasts */}
       {toasts.length > 0 && (
-        <div className="fixed bottom-20 right-6 z-50 flex flex-col gap-2">
-          {toasts.map((toast) => (
-            <div key={toast.id}
-              className={cn("flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg text-sm font-medium text-white animate-in slide-in-from-right-5 fade-in duration-300",
-                toast.type === "success" ? "bg-emerald-600" : "bg-red-600")}>
-              <span>{toast.message}</span>
-              <button onClick={() => setToasts((prev) => prev.filter((t) => t.id !== toast.id))} className="ml-1 hover:opacity-80">
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          ))}
+        <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3 pointer-events-none">
+          {toasts.map((toast) => {
+            const colors = toast.type === "success"
+              ? {
+                  bg: "bg-emerald-50 dark:bg-emerald-950/40",
+                  border: "border-emerald-200 dark:border-emerald-800",
+                  icon: "text-emerald-600 dark:text-emerald-400",
+                  bar: "bg-emerald-500",
+                }
+              : {
+                  bg: "bg-red-50 dark:bg-red-950/40",
+                  border: "border-red-200 dark:border-red-800",
+                  icon: "text-red-600 dark:text-red-400",
+                  bar: "bg-red-500",
+                };
+            const Icon = toast.type === "success" ? CheckCircle : AlertTriangle;
+
+            return (
+              <div
+                key={toast.id}
+                className={cn(
+                  "pointer-events-auto w-96 rounded-xl border shadow-2xl overflow-hidden animate-in slide-in-from-right-5 fade-in duration-300",
+                  colors.bg,
+                  colors.border,
+                )}
+              >
+                <div className="flex items-start gap-3 p-4">
+                  <div className={cn("shrink-0 mt-0.5", colors.icon)}>
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-foreground">{toast.title}</p>
+                    {toast.message && (
+                      <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{toast.message}</p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setToasts((prev) => prev.filter((t) => t.id !== toast.id))}
+                    className="shrink-0 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="h-1 w-full bg-black/5 dark:bg-white/5">
+                  <div className={cn("h-full rounded-full", colors.bar)} />
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
+
+      {/* Remove certificate design confirmation */}
+      <Modal
+        open={!!certDeleteTarget}
+        onClose={() => { if (!certDeleting) setCertDeleteTarget(null); }}
+        title="Remove Certificate Design"
+        description="This certificate will revert to the global default theme."
+        size="sm"
+        disableOutsideClick={certDeleting}
+        footer={
+          <>
+            <ModalButton variant="secondary" disabled={certDeleting} onClick={() => setCertDeleteTarget(null)}>
+              Cancel
+            </ModalButton>
+            <ModalButton variant="danger" disabled={certDeleting} onClick={confirmRemoveCustomCertificate}>
+              <span className="flex items-center gap-1.5">
+                {certDeleting ? <Loader2 className="h-4 w-4 animate-spin shrink-0" /> : <Trash2 className="h-4 w-4 shrink-0" />}
+                {certDeleting ? "Removing..." : "Remove Design"}
+              </span>
+            </ModalButton>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900">
+            <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+            <p className="text-sm text-amber-700 dark:text-amber-400">
+              Any custom layout, colors, or content saved for this certificate will be removed. The global theme settings will apply instead.
+            </p>
+          </div>
+          {certDeleteTarget && (
+            <div className="flex items-center gap-3 p-3 rounded-lg glass-subtle border border-border/60">
+              <div className="w-9 h-9 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
+                <FileText className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">{certDeleteTarget.title}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Custom design will be deleted from this list</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </Modal>
 
       {/* Sticky bottom save bar — slides in when current tab has unsaved changes */}
       <SettingsSaveBar
@@ -4425,7 +4715,7 @@ export default function SettingsPage() {
                 const fontVal = isGlobal ? globalDesign.document_font : customDesign.document_font;
                 const pattern = isGlobal ? globalDesign.document_design_pattern : customDesign.document_design_pattern;
                 const colors = isGlobal ? globalDesign.document_color_theme : customDesign.document_color_theme;
-                const dbTemp = dbTemplates.find(t => t && t.id === previewCertId);
+                const dbTemp = findTemplate(previewCertId);
                 const previewContent = !isGlobal && customDesign.custom_content
                   ? customDesign.custom_content
                   : dbTemp?.content;

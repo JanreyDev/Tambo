@@ -1128,7 +1128,8 @@ export default function ResidentsPage() {
       "sector_other", "other_remarks",
       "emergency_contact_name", "emergency_contact_phone",
       "emergency_contact_address", "emergency_contact_relationship",
-      "photo_file_id",
+      "photo_file_id", "valid_id_file_id", "signature_file_id",
+      "left_thumbmark_file_id", "right_thumbmark_file_id",
       // Gov IDs (plain names -- backend encrypts them)
       "philhealth_number", "philhealth_expiry",
       "sss_gsis_number", "sss_gsis_expiry",

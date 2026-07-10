@@ -947,6 +947,7 @@ class ResidentController extends Controller
             'last_name' => ['required', 'string', 'max:100'],
             'middle_name' => ['nullable', 'string', 'max:100'],
             'extension_name' => ['nullable', 'string', 'max:10'],
+            'alias' => ['nullable', 'string', 'max:255'],
             'mothers_maiden_name' => ['nullable', 'string', 'max:200'],
             'date_of_birth' => ['required', 'date', 'before:today'],
             'place_of_birth' => ['required', 'string', 'max:255'],
