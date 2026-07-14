@@ -2761,7 +2761,7 @@ export default function SettingsPage() {
                             </button>
                           )}
                         </div>
-                        <div className="w-full rounded-xl border border-border bg-background p-2 shadow-sm overflow-hidden flex justify-center">
+                        <div className="w-full rounded-xl border border-border bg-background p-2 shadow-sm overflow-y-auto max-h-[min(85vh,920px)] flex justify-center">
                           {(() => {
                             const activeTemplate = findTemplate(selectedCertType);
                             return (

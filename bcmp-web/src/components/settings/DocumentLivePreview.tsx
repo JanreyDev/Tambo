@@ -53,6 +53,12 @@ interface Props {
   contentPurpose?: string;
   contentOrNo?: string;
   contentOrAmount?: string;
+  contentCtcNumber?: string;
+  contentCtcDate?: string;
+  contentCtcPlace?: string;
+  contentClerkName?: string;
+  onPurposeChange?: (val: string) => void;
+  onClerkNameChange?: (val: string) => void;
   officials?: Array<{ name: string; position: string }>;
   isVillageCondo?: boolean;
   expiryMonths?: number;
@@ -123,19 +129,6 @@ const COLORS: Record<ColorTheme, { primary: string; accent: string; tint: string
 export const TAMBO_CLEARANCE_INTRO =
   "This is to certify that the person whose name, signature and thumbmarks appear below has requested a clearance from this barangay and the result/s is/are stated below:";
 
-const TAMBO_SAMPLE_RESIDENT = {
-  full_name: "PEDRO M. PENDUKO",
-  alias: "",
-  date_of_birth: "January 15, 1991",
-  age: "35",
-  place_of_birth: "Parañaque City",
-  civil_status: "Single",
-  sex: "Male",
-  citizenship: "Filipino",
-  address: "Purok 5, Barangay Tambo, Parañaque City",
-  remarks: "",
-};
-
 const SAMPLE = {
   barangay: "TAMBO",
   municipality: "Paranaque City",
@@ -172,7 +165,10 @@ export function DocumentLivePreview({
   barangayName, municipality, province, logoUrl, municipalityLogoUrl, nationalLogoUrl,
   signatoryName, signatoryTitle, hideChrome, fitToContainer, fitScale = 1,
   contentTitle, contentSalutation, contentBodyHtml, rawContent, onContentChange, onTitleChange, onSalutationChange, contentControlNo, contentIssuedDate,
-  contentValidUntil, contentRequestedBy, contentPurpose, contentOrNo, contentOrAmount, officials, isVillageCondo, expiryMonths, resident, hideProfileTable, showTamboResident, showVillageCondo
+  contentValidUntil, contentRequestedBy, contentPurpose, contentOrNo, contentOrAmount,
+  contentCtcNumber, contentCtcDate, contentCtcPlace, contentClerkName,
+  onPurposeChange, onClerkNameChange,
+  officials, isVillageCondo, expiryMonths, resident, hideProfileTable, showTamboResident, showVillageCondo
 }: Props) {
   const c = COLORS[colorTheme] ?? COLORS.plain;
   const fontFamily = FONT_FAMILY[font];
@@ -183,6 +179,10 @@ export function DocumentLivePreview({
   const displayRawContent = rawContent ?? (layout === "tambo" ? TAMBO_CLEARANCE_INTRO : SAMPLE.body);
   const displayControlNo = contentControlNo ?? SAMPLE.controlNo;
   const displayIssuedDate = contentIssuedDate ?? SAMPLE.issuedDate;
+  const placeDefault = [
+    barangayName ? `Barangay ${String(barangayName).replace(/^(brgy\.?\s*|barangay\s*)/i, "")}` : null,
+    municipality || null,
+  ].filter(Boolean).join(", ");
 
   const sharedProps: BodyProps = {
     c, designPattern,
@@ -206,8 +206,14 @@ export function DocumentLivePreview({
     validUntil: contentValidUntil || "Nov 16, 2026",
     requestedBy: contentRequestedBy ?? "JUAN MIGUEL SANTOS",
     purpose: contentPurpose ?? "LOCAL EMPLOYMENT",
-    orNo: contentOrNo ?? "3270721",
-    orAmount: contentOrAmount ?? "50.00",
+    orNo: contentOrNo !== undefined ? contentOrNo : "3270721",
+    orAmount: contentOrAmount !== undefined ? contentOrAmount : "50.00",
+    ctcNumber: contentCtcNumber ?? resident?.resident_number ?? "",
+    ctcDate: contentCtcDate ?? displayIssuedDate,
+    ctcPlace: contentCtcPlace ?? placeDefault,
+    clerkName: contentClerkName ?? "",
+    onPurposeChange,
+    onClerkNameChange,
     officials: officials !== undefined ? officials : SAMPLE_OFFICIALS,
     isVillageCondo: isVillageCondo ?? false,
     expiryMonths,
@@ -228,10 +234,15 @@ export function DocumentLivePreview({
 
   const previewDocument = (
       <div
-        className="bg-white text-[#1a1a1a] shadow-xl border border-gray-200 overflow-hidden"
+        className={
+          effectiveLayout === "tambo"
+            ? "bg-white text-[#1a1a1a] shadow-xl border border-gray-200 overflow-y-auto"
+            : "bg-white text-[#1a1a1a] shadow-xl border border-gray-200 overflow-hidden"
+        }
         style={{
           width: fitToContainer ? "100%" : "560px",
           height: fitToContainer ? "100%" : undefined,
+          maxHeight: effectiveLayout === "tambo" && fitToContainer ? "100%" : undefined,
           aspectRatio: meta.aspect,
           fontFamily,
           color: "#1a1a1a",
@@ -310,6 +321,12 @@ interface BodyProps {
   purpose: string;
   orNo?: string;
   orAmount?: string;
+  ctcNumber?: string;
+  ctcDate?: string;
+  ctcPlace?: string;
+  clerkName?: string;
+  onPurposeChange?: (val: string) => void;
+  onClerkNameChange?: (val: string) => void;
   officials: Array<{ name: string; position: string }>;
   isVillageCondo: boolean;
   expiryMonths?: number;
@@ -456,7 +473,7 @@ function EditableTextInner({
       suppressContentEditableWarning
       onInput={(e) => onChange(e.currentTarget.innerText)}
       onBlur={onBlur}
-      className={`${className} outline-none ring-[1.5px] ring-[var(--accent-primary)] rounded-sm font-inherit text-black shadow-inner cursor-text relative z-10 bg-white px-2`}
+      className={`${className} outline-none ring-[1.5px] ring-[var(--accent-primary)] font-inherit text-black shadow-inner cursor-text relative z-10 bg-white px-2`}
       style={style}
     />
   );
@@ -498,7 +515,7 @@ function EditableText({
 
   return (
     <Tag
-      className={`${className} ${onChange ? 'hover:bg-blue-50/50 hover:ring-[1.5px] hover:ring-[var(--accent-primary)] cursor-pointer rounded-sm transition-all' : ''}`}
+      className={`${className} ${onChange ? 'hover:bg-blue-50/50 hover:ring-[1.5px] hover:ring-[var(--accent-primary)] cursor-pointer transition-all' : ''}`}
       style={style}
       onClick={() => {
         if (onChange) {
@@ -515,12 +532,17 @@ function EditableText({
 
 // Editable body wrapper for click-to-edit support
 function EditableBody({ 
-  className, bodyHtml, rawContent, onContentChange 
+  className, bodyHtml, rawContent, onContentChange, minHeightPx = 280,
 }: { 
-  className: string; bodyHtml: string; rawContent?: string; onContentChange?: (v: string) => void 
+  className: string;
+  bodyHtml: string;
+  rawContent?: string;
+  onContentChange?: (v: string) => void;
+  /** Floor height so short templates stay clickable; grow naturally as the user types. */
+  minHeightPx?: number;
 }) {
   const [isEditing, setIsEditing] = useState(false);
-  const [minHeight, setMinHeight] = useState<number | undefined>(undefined);
+  const [capturedHeight, setCapturedHeight] = useState<number | undefined>(undefined);
   const [showTags, setShowTags] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
   const initialContent = useRef(rawContent || "");
@@ -540,6 +562,8 @@ function EditableBody({
     }
   };
 
+  const editMinHeight = Math.max(capturedHeight || 0, minHeightPx);
+
   if (isEditing && onContentChange) {
     return (
       <div className="relative w-full group">
@@ -557,7 +581,7 @@ function EditableBody({
             display: 'block', 
             width: '100%', 
             minWidth: '100%', 
-            minHeight: Math.max(minHeight || 0, 280) + 'px',
+            minHeight: editMinHeight + 'px',
             paddingRight: '28px' // Prevent text from hiding under the button
           }}
         />
@@ -608,12 +632,12 @@ function EditableBody({
       onClick={(e) => {
         if (onContentChange) {
           initialContent.current = rawContent || bodyHtml || "";
-          setMinHeight(e.currentTarget.clientHeight);
+          setCapturedHeight(e.currentTarget.clientHeight);
           setIsEditing(true);
         }
       }}
       title={onContentChange ? "Click to edit template content" : undefined}
-      style={{ minHeight: '280px' }}
+      style={{ minHeight: minHeightPx + 'px' }}
     />
   );
 }
@@ -1075,124 +1099,145 @@ function EleganteBody(props: BodyProps) {
 
 // ── TAMBO — Official Barangay Clearance Form (Tambo only) ─────────
 
-function FieldRow({ label, value, labelWidth = "auto" }: { label: string; value: string; labelWidth?: string }) {
-  return (
-    <div className="flex items-end gap-1 mb-1">
-      <span className="font-bold shrink-0 text-[6.5px]" style={{ minWidth: labelWidth }}>{label}</span>
-      <span className="flex-1 border-b border-gray-900 text-[6.5px] pb-px min-h-[10px]">{value}</span>
-    </div>
-  );
-}
-
 function TamboClearanceBody(props: BodyProps) {
-  const r = props.resident ?? TAMBO_SAMPLE_RESIDENT;
-  const field = (key: string, fallback = "") => {
-    const map: Record<string, string> = {
-      full_name: r.full_name ?? props.requestedBy ?? TAMBO_SAMPLE_RESIDENT.full_name,
-      alias: r.alias ?? "",
-      date_of_birth: r.date_of_birth ?? "",
-      age: r.age != null ? String(r.age) : "",
-      place_of_birth: r.place_of_birth ?? "",
-      civil_status: r.civil_status ?? "",
-      sex: r.sex ?? "",
-      citizenship: r.citizenship ?? "Filipino",
-      address: r.address ?? r.full_address ?? "",
-      remarks: r.other_remarks ?? r.remarks ?? "",
-    };
-    return map[key] || fallback;
-  };
-
   const expiryDays = (props.expiryMonths ?? 3) * 30;
 
   return (
-    <div className="w-full h-full flex flex-col bg-white text-[#111] relative overflow-hidden pb-2">
+    <div className="w-full min-h-full flex flex-col bg-white text-[#111] relative pb-2">
       <PatternDecor c={props.c} designPattern={props.designPattern} />
-      <CenteredModernHeader props={props} showTitle />
+      <CenteredModernHeader props={props} showTitle={false} />
 
-      <div className="px-4 pb-1 flex justify-end gap-3 text-[5.5px]">
-        <span>No.: <span className="border-b border-gray-900 inline-block min-w-[52px]">{props.controlNo}</span></span>
-        <span>Date.: <span className="border-b border-gray-900 inline-block min-w-[52px]">{props.issuedDate}</span></span>
+      {/* No. / Date — right side, below header, above CLEARANCE title (official Tambo form) */}
+      <div className="px-4 -mt-1 mb-1 flex justify-end shrink-0">
+        <div className="text-[5.5px] leading-[1.55]">
+          <table className="border-collapse">
+            <tbody>
+              <tr>
+                <td className="pr-1 whitespace-nowrap align-bottom pb-px text-left">No.:</td>
+                <td className="border-b border-gray-900 min-w-[72px] align-bottom pb-px">{props.controlNo}</td>
+              </tr>
+              <tr>
+                <td className="pr-1 whitespace-nowrap align-bottom pb-px text-left">Date.:</td>
+                <td className="border-b border-gray-900 min-w-[72px] align-bottom pb-px">{props.issuedDate}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      <div className="px-4 relative flex-1 min-h-0">
+      <div className="px-4 text-center mb-2 shrink-0">
+        <EditableText
+          tag="h2"
+          value={props.title}
+          onChange={props.onTitleChange}
+          className="text-center font-bold tracking-[0.35em] w-full uppercase"
+          style={{ color: "#111", fontSize: 12 }}
+          title="Click to edit document title"
+        />
+      </div>
+
+      <div className="px-4 relative flex-1 flex flex-col">
         <Watermark c={props.c} />
 
-      <EditableText
-        tag="p"
-        value={props.salutation || "TO WHOM IT MAY CONCERN:"}
-        onChange={props.onSalutationChange}
-        className="font-bold text-[6.5px] mb-1"
-        title="Click to edit salutation"
-      />
+        <EditableText
+          tag="p"
+          value={props.salutation || "TO WHOM IT MAY CONCERN:"}
+          onChange={props.onSalutationChange}
+          className="font-bold text-[6.5px] mb-1 shrink-0"
+          title="Click to edit salutation"
+        />
 
-      <EditableBody
-        className="text-[6px] text-justify leading-snug mb-2"
-        bodyHtml={props.bodyHtml}
-        rawContent={props.rawContent}
-        onContentChange={props.onContentChange}
-      />
+        <EditableBody
+          className="text-[6px] text-justify leading-snug mb-2 shrink-0"
+          bodyHtml={props.bodyHtml}
+          rawContent={props.rawContent}
+          onContentChange={props.onContentChange}
+          minHeightPx={36}
+        />
 
-      <div className="flex gap-0.5 mb-0.5 text-[6px]">
-        <span className="font-bold shrink-0">NAME:</span>
-        <span className="flex-[2] border-b border-gray-900">{field("full_name")}</span>
-        <span className="font-bold shrink-0 ml-1">ALIAS/ES:</span>
-        <span className="flex-1 border-b border-gray-900">{field("alias")}</span>
-      </div>
-      <div className="flex gap-0.5 mb-0.5 text-[6px]">
-        <span className="font-bold shrink-0">BIRTHDATE:</span>
-        <span className="flex-1 border-b border-gray-900">{field("date_of_birth")}</span>
-        <span className="font-bold shrink-0">AGE:</span>
-        <span className="w-6 border-b border-gray-900">{field("age")}</span>
-        <span className="font-bold shrink-0">BIRTHPLACE:</span>
-        <span className="flex-1 border-b border-gray-900">{field("place_of_birth")}</span>
-      </div>
-      <div className="flex gap-0.5 mb-0.5 text-[6px]">
-        <span className="font-bold shrink-0">CIVIL STATUS:</span>
-        <span className="flex-1 border-b border-gray-900">{field("civil_status")}</span>
-        <span className="font-bold shrink-0">GENDER:</span>
-        <span className="w-10 border-b border-gray-900">{field("sex")}</span>
-        <span className="font-bold shrink-0">CITIZENSHIP:</span>
-        <span className="flex-1 border-b border-gray-900">{field("citizenship")}</span>
-      </div>
-      <FieldRow label="ADDRESS:" value={field("address")} />
-      <FieldRow label="REMARKS:" value={field("remarks")} />
+        <div className="mt-auto shrink-0 pt-2">
+          <div className="flex items-start justify-between gap-x-16">
+            {/* Left footer column — thumbmarks / CTC / OR */}
+            <div className="w-[38%] shrink-0">
+              <div className="flex border border-gray-900">
+                <div className="flex-1 h-10 border-r border-gray-900 flex items-end justify-center pb-0.5 text-[5px] text-gray-600">Left</div>
+                <div className="flex-1 h-10 flex items-end justify-center pb-0.5 text-[5px] text-gray-600">Right</div>
+              </div>
+              <div className="border border-gray-900 border-t-0 text-center text-[5px] tracking-[0.28em] py-[2px] mb-2 text-gray-900">
+                THUMBMARKS
+              </div>
+              <div className="border-b border-gray-900 h-5" />
+              <p className="text-center text-[5.5px] mt-0.5 mb-2">Signature</p>
 
-      <div className="flex gap-2 mt-2 flex-1 min-h-0">
-        <div className="w-[48%]">
-          <div className="flex border border-gray-900 mb-0.5">
-            <div className="flex-1 h-8 border-r border-gray-900 flex items-center justify-center text-[5px] text-gray-500">Left</div>
-            <div className="flex-1 h-8 flex items-center justify-center text-[5px] text-gray-500">Right</div>
+              <table className="w-full text-[5.5px] border-collapse mb-1.5">
+                <tbody>
+                  <tr>
+                    <td className="whitespace-nowrap pr-1 align-bottom pb-0.5 w-[72px]">Res. Cert No.</td>
+                    <td className="border-b border-gray-900 align-bottom pb-0.5">{props.ctcNumber || ""}</td>
+                  </tr>
+                  <tr>
+                    <td className="whitespace-nowrap pr-1 align-bottom pb-0.5 pt-1">Issued on</td>
+                    <td className="border-b border-gray-900 align-bottom pb-0.5 pt-1">{props.ctcDate || ""}</td>
+                  </tr>
+                  <tr>
+                    <td className="whitespace-nowrap pr-1 align-bottom pb-0.5 pt-1">Issued at</td>
+                    <td className="border-b border-gray-900 align-bottom pb-0.5 pt-1">{props.ctcPlace || ""}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <p className="text-[4.5px] italic leading-tight mb-1.5">
+                Note: This clearance is good only for {expiryDays} days from the date of issue. Not valid without official seal.
+              </p>
+
+              <table className="w-full text-[5.5px] border-collapse">
+                <tbody>
+                  <tr>
+                    <td className="whitespace-nowrap pr-1 align-bottom pb-0.5 w-[52px]">OR No.</td>
+                    <td className="border-b border-gray-900 align-bottom pb-0.5">{props.orNo ?? ""}</td>
+                  </tr>
+                  <tr>
+                    <td className="whitespace-nowrap pr-1 align-bottom pb-0.5 pt-1">Amount P</td>
+                    <td className="border-b border-gray-900 align-bottom pb-0.5 pt-1">{props.orAmount ?? ""}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Right footer column — purpose / approvals */}
+            <div className="w-[42%] shrink-0">
+              <p className="text-[5.5px] font-bold mb-0.5">THIS CLEARANCE IS HEREBY ISSUED FOR PURPOSES OF:</p>
+              <EditableText
+                value={props.purpose || ""}
+                onChange={props.onPurposeChange}
+                className="border-b border-gray-900 min-h-[12px] text-[6px] mb-3 w-full uppercase"
+                placeholder="Click to enter purpose"
+                title="Click to edit purpose"
+              />
+
+              <p className="text-[5.5px]">Processed by:</p>
+              <EditableText
+                value={props.clerkName || ""}
+                onChange={props.onClerkNameChange}
+                className="border-b border-gray-900 w-[85%] min-h-[14px] text-[6px] font-semibold uppercase mt-1"
+                placeholder="Click to enter clerk name"
+                title="Click to edit clerk name"
+              />
+              <p className="text-[5.5px] font-bold mt-0.5 mb-3">Clerk In-charge</p>
+
+              <p className="text-[5.5px] font-bold">APPROVED BY:</p>
+              <div className="border-b border-gray-900 w-[85%] h-6 mt-3" />
+              <p className="text-[6.5px] font-bold uppercase mt-0.5 tracking-wide">
+                {(props.signName || "").replace(/^HON\.\s+/i, "")}
+              </p>
+              <p className="text-[5.5px]">Barangay Captain</p>
+            </div>
           </div>
-          <p className="text-center text-[5px] tracking-[0.25em] mb-1">T H U M B M A R K S</p>
-          <div className="border-b border-gray-900 h-5" />
-          <p className="text-center text-[5.5px] mt-0.5">Signature</p>
-          <div className="mt-2 space-y-0.5 text-[5.5px]">
-            <div className="flex gap-1"><span>Res. Cert No.</span><span className="flex-1 border-b border-gray-900" /></div>
-            <div className="flex gap-1"><span>Issued on</span><span className="flex-1 border-b border-gray-900" /></div>
-            <div className="flex gap-1"><span>Issued at</span><span className="flex-1 border-b border-gray-900" /></div>
-          </div>
-          <p className="text-[4.5px] italic mt-1 leading-tight">
-            Note: This clearance is good only for {expiryDays} days from the date of issue. Not valid without official seal.
+
+          <p className="text-center text-[5px] mt-3 mb-1 tracking-wide text-gray-700">
+            Seaside Coastal : (0977) 7232933 / (0960) 2547401
           </p>
-          <div className="flex gap-1 mt-1 text-[5.5px]">
-            <span>OR No.</span>
-            <span className="flex-1 border-b border-gray-900">{props.orNo ?? ""}</span>
-            <span>Amount P</span>
-            <span className="w-10 border-b border-gray-900">{props.orAmount ?? ""}</span>
-          </div>
         </div>
-        <div className="w-[52%]">
-          <p className="text-[5.5px] font-bold mb-0.5">THIS CLEARANCE IS HEREBY ISSUED FOR PURPOSES OF:</p>
-          <div className="border-b border-gray-900 min-h-[14px] text-[6px] mb-2">{props.purpose}</div>
-          <p className="text-[5.5px]">Processed by:</p>
-          <div className="border-b border-gray-900 w-3/4 h-5 mt-1" />
-          <p className="text-[5.5px] font-bold mt-0.5">Clerk In-charge</p>
-          <p className="text-[5.5px] font-bold mt-3">APPROVED BY:</p>
-          <div className="border-b border-gray-900 w-3/4 h-6 mt-4" />
-          <p className="text-[6.5px] font-bold uppercase mt-0.5">{props.signName}</p>
-          <p className="text-[5.5px]">Barangay Captain</p>
-        </div>
-      </div>
       </div>
     </div>
   );

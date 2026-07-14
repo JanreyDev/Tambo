@@ -80,16 +80,22 @@
     <div style="font-size: 8pt; color: #666; letter-spacing: 1px; text-transform: uppercase; margin-top: 2px;">{{ strtoupper($barangay->province ?? 'METRO MANILA') }}</div>
     <div style="font-size: 11pt; font-weight: 500; color: #111; margin-top: 6px;">{{ $officeName }}</div>
     <div class="header-line"></div>
-    <div style="margin-top: 14px;">
-        <div class="title-text">{{ $docTitle }}</div>
-        <div class="title-underline"></div>
-    </div>
 </div>
 
-<div class="meta-row">
-    No.: <span style="border-bottom: 1px solid #111; display: inline-block; min-width: 90px;">{{ e($docNo) }}</span>
-    &nbsp;&nbsp;
-    Date.: <span style="border-bottom: 1px solid #111; display: inline-block; min-width: 90px;">{{ e($issuedDate) }}</span>
+{{-- No. / Date on the right, under header, above CLEARANCE title --}}
+<table style="margin: 4px 0 8px 0; margin-left: auto; width: 42%;">
+    <tr>
+        <td style="width: 42px; text-align: left; white-space: nowrap; padding-right: 6px; vertical-align: bottom; font-size: 9pt;">No.:</td>
+        <td style="border-bottom: 1px solid #111; vertical-align: bottom; font-size: 9pt; padding-bottom: 1px;">{{ e($docNo) }}</td>
+    </tr>
+    <tr>
+        <td style="width: 42px; text-align: left; white-space: nowrap; padding-right: 6px; vertical-align: bottom; font-size: 9pt; padding-top: 4px;">Date.:</td>
+        <td style="border-bottom: 1px solid #111; vertical-align: bottom; font-size: 9pt; padding-bottom: 1px; padding-top: 4px;">{{ e($issuedDate) }}</td>
+    </tr>
+</table>
+
+<div style="text-align: center; margin: 10px 0 14px;">
+    <div style="font-size: 18pt; font-weight: bold; color: #111; letter-spacing: 8px; text-transform: uppercase;">{{ $docTitle }}</div>
 </div>
 
 @if(!empty($renderedSalutation))
@@ -99,80 +105,39 @@
 @endif
 
 @if(!empty($renderedContent))
-    <div style="text-align: justify; margin-bottom: 12px;">{!! $renderedContent !!}</div>
+    <div style="text-align: justify; margin-bottom: 16px;">{!! $renderedContent !!}</div>
 @else
-    <div style="text-align: justify; margin-bottom: 12px;">
+    <div style="text-align: justify; margin-bottom: 16px;">
         This is to certify that the person whose name, signature and thumbmarks appear below has requested a clearance from this barangay and the result/s is/are stated below:
     </div>
 @endif
 
-<table style="margin-bottom: 6px;">
+<table style="width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed;">
     <tr>
-        <td class="field-label" style="width: 12%;">NAME:</td>
-        <td class="field-line" colspan="3">{{ $val('full_name', $document->constituent_name ?? '') }}</td>
-        <td class="field-label" style="width: 10%; padding-left: 8px;">ALIAS/ES:</td>
-        <td class="field-line" style="width: 18%;">{{ $val('alias') }}</td>
-    </tr>
-</table>
-<table style="margin-bottom: 6px;">
-    <tr>
-        <td class="field-label">BIRTHDATE:</td>
-        <td class="field-line" style="width: 22%;">{{ $val('date_of_birth', $val('birthdate')) }}</td>
-        <td class="field-label" style="padding-left: 6px;">AGE:</td>
-        <td class="field-line" style="width: 8%;">{{ $val('age') }}</td>
-        <td class="field-label" style="padding-left: 6px;">BIRTHPLACE:</td>
-        <td class="field-line">{{ $val('place_of_birth', $val('birthplace')) }}</td>
-    </tr>
-</table>
-<table style="margin-bottom: 6px;">
-    <tr>
-        <td class="field-label">CIVIL STATUS:</td>
-        <td class="field-line" style="width: 20%;">{{ $val('civil_status') }}</td>
-        <td class="field-label" style="padding-left: 6px;">GENDER:</td>
-        <td class="field-line" style="width: 14%;">{{ $val('sex', $val('gender')) }}</td>
-        <td class="field-label" style="padding-left: 6px;">CITIZENSHIP:</td>
-        <td class="field-line">{{ $val('citizenship', 'Filipino') }}</td>
-    </tr>
-</table>
-<table style="margin-bottom: 6px;">
-    <tr>
-        <td class="field-label" style="width: 12%;">ADDRESS:</td>
-        <td class="field-line">{{ $val('address') }}</td>
-    </tr>
-</table>
-<table style="margin-bottom: 14px;">
-    <tr>
-        <td class="field-label" style="width: 12%;">REMARKS:</td>
-        <td class="field-line">{{ $val('remarks') }}</td>
-    </tr>
-</table>
-
-<table>
-    <tr>
-        <td style="width: 48%; vertical-align: top; padding-right: 10px;">
-            <table style="width: 100%; margin-bottom: 8px;">
+        <td style="width: 38%; vertical-align: top;">
+            <table style="width: 100%; border-collapse: collapse;">
                 <tr>
-                    <td class="thumb-box" style="width: 50%;">Left</td>
-                    <td class="thumb-box" style="width: 50%;">Right</td>
+                    <td class="thumb-box" style="width: 50%; height: 56px; vertical-align: bottom; padding-bottom: 2px;">Left</td>
+                    <td class="thumb-box" style="width: 50%; height: 56px; vertical-align: bottom; padding-bottom: 2px;">Right</td>
                 </tr>
             </table>
-            <div style="text-align: center; font-size: 8pt; letter-spacing: 3px; margin-bottom: 10px;">T H U M B M A R K S</div>
+            <div style="border: 1px solid #111; border-top: none; text-align: center; font-size: 8pt; letter-spacing: 3px; padding: 2px 0; margin-bottom: 10px; color: #111; background: transparent;">THUMBMARKS</div>
             <div class="sig-line"></div>
-            <div style="text-align: center; font-size: 8.5pt; margin-top: 2px;">Signature</div>
+            <div style="text-align: center; font-size: 8.5pt; margin-top: 2px; margin-bottom: 10px;">Signature</div>
 
-            <table style="margin-top: 12px; font-size: 9pt;">
+            <table style="width: 100%; font-size: 9pt;">
                 <tr>
-                    <td style="width: 34%;">Res. Cert No.</td>
+                    <td style="width: 88px; white-space: nowrap; padding-right: 6px; vertical-align: bottom;">Res. Cert No.</td>
                     <td class="field-line">{{ $val('ctc_number') }}</td>
                 </tr>
-                <tr><td colspan="2" style="height: 4px;"></td></tr>
+                <tr><td colspan="2" style="height: 5px;"></td></tr>
                 <tr>
-                    <td>Issued on</td>
+                    <td style="white-space: nowrap; padding-right: 6px; vertical-align: bottom;">Issued on</td>
                     <td class="field-line">{{ $val('ctc_date') }}</td>
                 </tr>
-                <tr><td colspan="2" style="height: 4px;"></td></tr>
+                <tr><td colspan="2" style="height: 5px;"></td></tr>
                 <tr>
-                    <td>Issued at</td>
+                    <td style="white-space: nowrap; padding-right: 6px; vertical-align: bottom;">Issued at</td>
                     <td class="field-line">{{ $val('ctc_place') }}</td>
                 </tr>
             </table>
@@ -181,33 +146,37 @@
                 Note: This clearance is good only for {{ $expiryDays }} days from the date of issue. Not valid without official seal.
             </div>
 
-            <table style="margin-top: 8px; font-size: 9pt;">
+            <table style="width: 100%; margin-top: 8px; font-size: 9pt;">
                 <tr>
-                    <td style="width: 18%;">OR No.</td>
-                    <td class="field-line" style="width: 42%;">{{ e($document->or_number ?? '') }}</td>
-                    <td style="width: 16%; padding-left: 6px;">Amount P</td>
+                    <td style="width: 68px; white-space: nowrap; padding-right: 6px; vertical-align: bottom;">OR No.</td>
+                    <td class="field-line">{{ e($document->or_number ?? '') }}</td>
+                </tr>
+                <tr><td colspan="2" style="height: 5px;"></td></tr>
+                <tr>
+                    <td style="white-space: nowrap; padding-right: 6px; vertical-align: bottom;">Amount P</td>
                     <td class="field-line">{{ e($document->or_amount ?? '') }}</td>
                 </tr>
             </table>
         </td>
-        <td style="width: 52%; vertical-align: top; padding-left: 10px;">
+        <td style="width: 20%;">&nbsp;</td>
+        <td style="width: 42%; vertical-align: top;">
             <div style="font-size: 9pt; font-weight: bold; margin-bottom: 4px;">THIS CLEARANCE IS HEREBY ISSUED FOR PURPOSES OF:</div>
             <div class="field-line" style="min-height: 22px; margin-bottom: 18px;">{{ $val('purpose') }}</div>
 
             <div style="font-size: 9pt; margin-bottom: 2px;">Processed by:</div>
-            <div class="sig-line" style="width: 75%;"></div>
-            <div style="font-size: 8.5pt; font-weight: bold; margin-top: 2px;">{{ $clerkName !== '' ? e($clerkName) : 'Clerk In-charge' }}</div>
+            <div class="sig-line" style="width: 80%; font-size: 9.5pt; font-weight: bold; text-transform: uppercase;">{{ e($clerkName) }}</div>
+            <div style="font-size: 8.5pt; font-weight: bold; margin-top: 2px;">Clerk In-charge</div>
 
             <div style="margin-top: 22px; font-size: 9pt; font-weight: bold;">APPROVED BY:</div>
-            <div class="sig-line" style="width: 75%; margin-top: 28px;"></div>
+            <div class="sig-line" style="width: 80%; margin-top: 28px;"></div>
             <div style="font-size: 10pt; font-weight: bold; margin-top: 4px; text-transform: uppercase;">{{ e($captainName) }}</div>
             <div style="font-size: 9pt;">Barangay Captain</div>
         </td>
     </tr>
 </table>
 
-@if(!empty($footerContact))
-    <div class="footer-text">{{ $footerContact }}</div>
-@endif
+<div class="footer-text">
+    {{ !empty($footerContact) ? $footerContact : 'Seaside Coastal : (0977) 7232933 / (0960) 2547401' }}
+</div>
 </body>
 </html>

@@ -595,9 +595,26 @@ class DocumentPdfService
         $values['purpose'] = $document->purpose ?? '';
         $values['or_number'] = $document->or_number ?? '';
         $values['or_amount'] = $document->or_amount !== null ? (string) $document->or_amount : '';
-        $values['ctc_number'] = $document->ctc_number ?? '';
-        $values['ctc_date'] = $document->ctc_date?->format('F d, Y') ?? '';
-        $values['ctc_place'] = $document->ctc_place ?? '';
+
+        $barangayForPlace = $resident
+            ? Barangay::find($resident->barangay_id)
+            : null;
+        $defaultCtcPlace = $barangayForPlace
+            ? trim(implode(', ', array_filter([
+                $barangayForPlace->name
+                    ? 'Barangay '.preg_replace('/^(brgy\.?\s*|barangay\s*)/i', '', (string) $barangayForPlace->name)
+                    : null,
+                $barangayForPlace->city_municipality ?? null,
+            ])))
+            : '';
+
+        $values['ctc_number'] = $document->ctc_number
+            ?: ($resident?->resident_number ?? '');
+        $values['ctc_date'] = $document->ctc_date?->format('F d, Y')
+            ?: ($document->issued_date?->format('F d, Y') ?? '');
+        $values['ctc_place'] = $document->ctc_place
+            ?: $defaultCtcPlace;
+        $values['resident_number'] = $resident?->resident_number ?? '';
         $values['document_number'] = $document->document_number ?? '';
         $values['control_number'] = $document->document_number ?? '';
         $values['issued_date'] = $document->issued_date?->format('F d, Y') ?? now()->setTimezone('Asia/Manila')->format('F d, Y');

@@ -8,7 +8,7 @@ import {
   Wand2, Settings,
 } from "lucide-react";
 import { resolvePhotoUrl } from "@/lib/utils";
-import { DocumentLivePreview } from "@/components/settings/DocumentLivePreview";
+import { DocumentLivePreview, TAMBO_CLEARANCE_INTRO } from "@/components/settings/DocumentLivePreview";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
 import { api } from "@/lib/api";
@@ -84,12 +84,49 @@ interface Props {
   initialTemplateCategory?: string | null;
 }
 
+type LastIssueFields = {
+  purpose?: string;
+  orAmount?: string;
+  approvedByLeft?: string;
+};
+
+function lastIssueStorageKey(barangayKey: string) {
+  return `bcmp:last-issue-fields:${barangayKey}`;
+}
+
+function loadLastIssueFields(barangayKey: string): LastIssueFields {
+  if (typeof window === "undefined" || !barangayKey) return {};
+  try {
+    const raw = localStorage.getItem(lastIssueStorageKey(barangayKey));
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveLastIssueFields(barangayKey: string, fields: LastIssueFields) {
+  if (typeof window === "undefined" || !barangayKey) return;
+  try {
+    localStorage.setItem(lastIssueStorageKey(barangayKey), JSON.stringify(fields));
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
 export function GenerateDocumentWizard({
   open, onClose, onSuccess, initialResidentId, initialTemplateCategory,
 }: Props) {
   const { user } = useAuth();
   const barangay = user?.barangay;
   const isTambo = barangay?.name?.toLowerCase() === "tambo";
+  const barangayStorageKey = String(
+    (barangay as { id?: string | number; slug?: string } | undefined)?.id
+      ?? (barangay as { slug?: string } | undefined)?.slug
+      ?? barangay?.name
+      ?? "default"
+  );
 
   // ── Core wizard state ──
   const [wizardStep, setWizardStep] = useState<WizardStep>("select-type");
@@ -218,12 +255,19 @@ export function GenerateDocumentWizard({
       // Don't reset if initialResidentId is provided — preloading is already handled
       if (!initialResidentId) {
         resetWizard();
+      } else {
+        // Still restore remembered clerk / purpose / amount for the next issuance
+        const last = loadLastIssueFields(barangayStorageKey);
+        if (last.purpose) setPurpose((prev) => prev || last.purpose || "");
+        if (last.orAmount) setOrAmount((prev) => prev || last.orAmount || "");
+        if (last.approvedByLeft) setApprovedByLeft((prev) => prev || last.approvedByLeft || "");
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const resetWizard = () => {
+    const last = loadLastIssueFields(barangayStorageKey);
     setWizardStep("select-type");
     setSelectedTemplate(null);
     setSelectedResident(null);
@@ -232,13 +276,13 @@ export function GenerateDocumentWizard({
     setResidentSearch("");
     setResidentResults([]);
     setCustomFields({});
-    setPurpose("");
+    setPurpose(last.purpose ?? "");
     setOrNumber("");
-    setOrAmount("");
+    setOrAmount(last.orAmount ?? "");
     setCtcNumber("");
     setCtcDate("");
     setCtcPlace("");
-    setApprovedByLeft("");
+    setApprovedByLeft(last.approvedByLeft ?? "");
     setApprovedByRight("");
     setIssuedDate(new Date().toISOString().split("T")[0]);
     setIsVillageCondo(false);
@@ -320,10 +364,15 @@ export function GenerateDocumentWizard({
 
   // ── Select template ──
   const handleSelectTemplate = (tpl: DocumentTemplate) => {
+    const last = loadLastIssueFields(barangayStorageKey);
     setSelectedTemplate(tpl);
     const fields: Record<string, string> = {};
     tpl.custom_inputs?.forEach((inp) => { fields[inp.name] = ""; });
     setCustomFields(fields);
+    setApprovedByLeft(last.approvedByLeft || tpl.approval_config?.left?.label || "");
+    setApprovedByRight(tpl.approval_config?.right?.label || "");
+    if (last.purpose) setPurpose(last.purpose);
+    if (last.orAmount) setOrAmount(last.orAmount);
     if (tpl.constituent_type === "resident") {
       if (residentPreloaded && selectedResident) {
         initMabiniChat(tpl, selectedResident);
@@ -441,7 +490,16 @@ export function GenerateDocumentWizard({
   const customConfig = customConfigs.find((c: any) => c.id === selectedTemplate?.id);
   const customSettings = customConfig?.design_settings || {};
   const useGlobalDesign = customConfig ? (customConfig.isGlobal ?? true) : true;
-  const baseContent = (!useGlobalDesign && customSettings.custom_content) ? customSettings.custom_content : selectedTemplate?.content;
+  const layoutToUse = useGlobalDesign
+    ? barangaySettings?.settings?.document_layout
+    : customSettings.document_layout;
+  // Prefer saved custom body → template body → Tambo default intro when using the official form.
+  const baseContent =
+    (!useGlobalDesign && customSettings.custom_content?.trim())
+      ? customSettings.custom_content
+      : (selectedTemplate?.content?.trim()
+          ? selectedTemplate.content
+          : (layoutToUse === "tambo" ? TAMBO_CLEARANCE_INTRO : ""));
 
   const renderMergedHtml = useCallback((text: string): string => {
     const vals = buildPreviewValues();
@@ -478,9 +536,14 @@ export function GenerateDocumentWizard({
         purpose: purpose || undefined,
         or_number: orNumber || undefined,
         or_amount: orAmount ? parseFloat(orAmount) : undefined,
-        ctc_number: ctcNumber || undefined,
-        ctc_date: ctcDate || undefined,
-        ctc_place: ctcPlace || undefined,
+        ctc_number: ctcNumber || selectedResident?.resident_number || undefined,
+        ctc_date: ctcDate || issuedDate || undefined,
+        ctc_place: ctcPlace || [
+          barangaySettings?.name
+            ? `Barangay ${String(barangaySettings.name).replace(/^(brgy\.?\s*|barangay\s*)/i, "")}`
+            : null,
+          barangaySettings?.city_municipality || null,
+        ].filter(Boolean).join(", ") || undefined,
         approved_by_left: approvedByLeft || undefined,
         approved_by_right: approvedByRight || undefined,
         issued_date: issuedDate || undefined,
@@ -508,6 +571,11 @@ export function GenerateDocumentWizard({
         payload.valid_until = issued.toISOString().split("T")[0];
       }
       const result = await api.issuedDocuments.create(payload);
+      saveLastIssueFields(barangayStorageKey, {
+        purpose: purpose.trim() || undefined,
+        orAmount: orAmount.trim() || undefined,
+        approvedByLeft: approvedByLeft.trim() || undefined,
+      });
       onSuccess?.(result.issued_document);
       onClose();
       showToast(`Document generated — ${result.issued_document?.document_number ?? ""}`, "ok");
@@ -562,9 +630,18 @@ export function GenerateDocumentWizard({
     return true;
   });
 
-  // ── Required fields check (skip if user already edited preview manually) ──
-  const hasRequiredFields = !manualContent && (
-    selectedTemplate?.custom_inputs?.some((i) => i.required && !customFields[i.name]) ?? false
+  // Soft warning only — do not block Generate when template/global body content exists.
+  const getRequiredFieldValue = useCallback((name: string) => {
+    if (name === "purpose") return purpose || customFields.purpose || "";
+    return customFields[name] ?? "";
+  }, [purpose, customFields]);
+
+  const missingRequiredLabels = (selectedTemplate?.custom_inputs ?? [])
+    .filter((i) => i.required && !String(getRequiredFieldValue(i.name)).trim())
+    .map((i) => i.label);
+
+  const hasBodyContent = Boolean(
+    (manualContent ?? baseContent ?? "").replace(/<[^>]*>/g, "").trim()
   );
 
   if (!open) return null;
@@ -1037,11 +1114,11 @@ export function GenerateDocumentWizard({
                   <div ref={mabiniChatEndRef} />
                 </div>
 
-                {/* Hint: required fields reminder */}
-                {selectedTemplate.custom_inputs && selectedTemplate.custom_inputs.some((i) => i.required) && !manualContent && (
+                {/* Hint: optional required fields reminder (does not block Generate) */}
+                {missingRequiredLabels.length > 0 && (
                   <div className="px-4 py-1.5 border-t border-border/50 bg-amber-50 dark:bg-amber-950/50 shrink-0">
                     <p className="text-[10px] text-amber-700 dark:text-amber-200">
-                      Required: {selectedTemplate.custom_inputs.filter((i) => i.required).map((i) => i.label).join(", ")} — tell Mabini above, or click <strong>Edit</strong> on the preview.
+                      Optional to fill: {missingRequiredLabels.join(", ")} — tell Mabini above, or click the dashed field in the preview.
                     </p>
                   </div>
                 )}
@@ -1170,6 +1247,7 @@ export function GenerateDocumentWizard({
                            : (customSettings.expiry_months ?? selectedTemplate.settings?.expiry_months ?? 6);
 
                         return (
+                          <div className="w-full max-w-[560px]">
                           <DocumentLivePreview
                             layout={(layoutToUse as any) || "klasiko"}
                             paperSize={(paperSizeToUse as any) || "short_bond"}
@@ -1194,16 +1272,40 @@ export function GenerateDocumentWizard({
                         onTitleChange={(val) => setManualTitle(val)}
                         contentRequestedBy={selectedResident ? residentFullName(selectedResident) : ""}
                         contentPurpose={purpose}
+                        onPurposeChange={setPurpose}
+                        contentClerkName={approvedByLeft}
+                        onClerkNameChange={setApprovedByLeft}
                         contentControlNo="(assigned on save)"
                         contentIssuedDate={issuedDate ? new Date(issuedDate + "T00:00:00").toLocaleDateString("en-PH", { month: "long", day: "numeric", year: "numeric" }) : undefined}
-                        contentOrNo={orNumber || undefined}
-                        contentOrAmount={orAmount || undefined}
+                        contentOrNo={orNumber}
+                        contentOrAmount={orAmount}
+                        contentCtcNumber={ctcNumber || selectedResident?.resident_number || undefined}
+                        contentCtcDate={
+                          ctcDate
+                            ? new Date(ctcDate + (ctcDate.includes("T") ? "" : "T00:00:00")).toLocaleDateString("en-PH", {
+                                month: "long", day: "numeric", year: "numeric",
+                              })
+                            : (issuedDate
+                              ? new Date(issuedDate + "T00:00:00").toLocaleDateString("en-PH", {
+                                  month: "long", day: "numeric", year: "numeric",
+                                })
+                              : undefined)
+                        }
+                        contentCtcPlace={
+                          ctcPlace || [
+                            barangaySettings?.name
+                              ? `Barangay ${String(barangaySettings.name).replace(/^(brgy\.?\s*|barangay\s*)/i, "")}`
+                              : null,
+                            barangaySettings?.city_municipality || null,
+                          ].filter(Boolean).join(", ") || undefined
+                        }
                         isVillageCondo={isVillageCondo}
                         expiryMonths={expiryMonthsToUse}
                         resident={selectedResident || undefined}
                         showTamboResident={selectedTemplate.settings?.show_tambo_resident}
                         showVillageCondo={selectedTemplate.settings?.show_village_condo}
                       />
+                          </div>
                         );
                       })()}
                       {/* Inline editing hint */}
@@ -1346,7 +1448,7 @@ export function GenerateDocumentWizard({
                 )}
                 <button
                   onClick={handleGenerate}
-                  disabled={saving || hasRequiredFields || (selectedTemplate.id === "__custom__" && !manualContent?.trim())}
+                  disabled={saving || (selectedTemplate.id === "__custom__" && !hasBodyContent)}
                   className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                   style={{ background: "var(--accent-primary)" }}
                 >
