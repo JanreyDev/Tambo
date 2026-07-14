@@ -200,6 +200,18 @@ class DocumentPdfService
                 : ($customSettings['document_paper_size'] ?? $template->settings['paper_size'] ?? 'short_bond');
             $domPdfPaper = $paperSizeMap[$paperSetting] ?? 'letter';
 
+            // Tambo clearance: prefer Chromium (same approach as ID cards) so the PDF
+            // matches the Live Preview flex/gap layout more closely.
+            if ($layout === 'tambo') {
+                $data['settings'] = array_merge($data['settings'] ?? [], [
+                    'paper_size' => $paperSetting,
+                ]);
+                $browserBinary = $this->renderTamboClearanceViaBrowser($data, $paperSetting);
+                if ($browserBinary !== null) {
+                    return $browserBinary;
+                }
+            }
+
             $pdf = Pdf::loadView($view, $data)
                 ->setPaper($domPdfPaper, 'portrait')
                 ->setOptions([
@@ -213,6 +225,36 @@ class DocumentPdfService
         return $pdf->output();
     }
 
+    private function resolveBrowsershotBinaries(): ?array
+    {
+        $nodeBinary = config('services.browsershot.node_binary') ?: base_path('browser/node');
+        $configuredChrome = config('services.browsershot.chrome_path');
+        $chromeCandidates = array_filter([
+            $configuredChrome,
+            base_path('browser/chrome-linux64/chrome-wrapped.sh'),
+            base_path('browser/chrome-linux64/chrome-wrapper'),
+            base_path('browser/chrome-linux64/chrome'),
+        ]);
+
+        $chromePath = null;
+        foreach ($chromeCandidates as $candidate) {
+            if (is_file($candidate) && is_executable($candidate)) {
+                $chromePath = $candidate;
+                break;
+            }
+        }
+
+        if (! is_file($nodeBinary) || ! $chromePath) {
+            return null;
+        }
+
+        return [
+            'node' => $nodeBinary,
+            'chrome' => $chromePath,
+            'modules' => base_path('node_modules'),
+        ];
+    }
+
     /**
      * Render the ID card to PDF using headless Chromium (Browsershot).
      *
@@ -222,11 +264,8 @@ class DocumentPdfService
      */
     private function renderIdCardViaBrowser(array $data): ?string
     {
-        $nodeBinary = config('services.browsershot.node_binary') ?: base_path('browser/node');
-        $chromePath = config('services.browsershot.chrome_path') ?: base_path('browser/chrome-linux64/chrome-wrapped.sh');
-        $nodeModulePath = base_path('node_modules');
-
-        if (! is_file($nodeBinary) || ! is_file($chromePath)) {
+        $bins = $this->resolveBrowsershotBinaries();
+        if ($bins === null) {
             return null;
         }
 
@@ -234,9 +273,9 @@ class DocumentPdfService
             $html = view('pdf.id-card-browser', $data)->render();
 
             return Browsershot::html($html)
-                ->setNodeBinary($nodeBinary)
-                ->setChromePath($chromePath)
-                ->setNodeModulePath($nodeModulePath)
+                ->setNodeBinary($bins['node'])
+                ->setChromePath($bins['chrome'])
+                ->setNodeModulePath($bins['modules'])
                 ->newHeadless()
                 ->noSandbox()
                 ->setOption('args', [
@@ -253,6 +292,53 @@ class DocumentPdfService
                 ->pdf();
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning('Browsershot ID card render failed, falling back to DomPDF', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    /**
+     * Render Tambo official clearance via headless Chromium (Browsershot).
+     * Falls back to DomPDF when Chromium is unavailable.
+     */
+    private function renderTamboClearanceViaBrowser(array $data, string $paperSetting): ?string
+    {
+        $bins = $this->resolveBrowsershotBinaries();
+        if ($bins === null) {
+            return null;
+        }
+
+        [$widthMm, $heightMm] = match ($paperSetting) {
+            'a4' => [210.0, 297.0],
+            'short_bond', 'letter' => [215.9, 279.4],
+            default => [215.9, 330.2], // legal / long_bond
+        };
+
+        try {
+            $html = view('pdf.certificate-tambo-browser', $data)->render();
+
+            return Browsershot::html($html)
+                ->setNodeBinary($bins['node'])
+                ->setChromePath($bins['chrome'])
+                ->setNodeModulePath($bins['modules'])
+                ->newHeadless()
+                ->noSandbox()
+                ->setOption('args', [
+                    '--disable-gpu',
+                    '--disable-dev-shm-usage',
+                    '--disable-crash-reporter',
+                    '--disable-breakpad',
+                    '--no-first-run',
+                    '--font-render-hinting=none',
+                ])
+                ->showBackground()
+                ->paperSize($widthMm, $heightMm, 'mm')
+                ->margins(0, 0, 0, 0, 'mm')
+                ->pdf();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Browsershot Tambo clearance render failed, falling back to DomPDF', [
                 'error' => $e->getMessage(),
             ]);
 

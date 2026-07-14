@@ -1763,7 +1763,8 @@ export default function SettingsPage() {
   const previewCaptainName = getOfficialDisplayName(previewCaptainOfficial) || kapitanDisplayName.toUpperCase() || "JUAN DELA CRUZ";
   const previewSecretaryName = getOfficialDisplayName(previewSecretaryOfficial) || "ANA REYES";
   const previewTreasurerName = getOfficialDisplayName(previewTreasurerOfficial) || "PABLO SANTOS";
-  const previewSignatoryName = (signatoryName || previewCaptainName || "JUAN DELA CRUZ").toUpperCase();
+  // Officials tab is the source of truth for Punong Barangay name
+  const previewSignatoryName = (previewCaptainName || signatoryName || "JUAN DELA CRUZ").toUpperCase();
   const previewSignatoryTitle = (signatoryTitle || "PUNONG BARANGAY").toUpperCase();
   const previewIssueDate = new Date();
   const previewExpiryDate = new Date(previewIssueDate.getTime() + (parseInt(certValidityDays) || 180) * 86_400_000);
@@ -2585,8 +2586,8 @@ export default function SettingsPage() {
                                       logoUrl={resolvePhotoUrl(logoUrl)}
                                       municipalityLogoUrl={resolvePhotoUrl(municipalityLogoUrl)}
                                       nationalLogoUrl={resolvePhotoUrl(nationalLogoUrl)}
-                                      signatoryName={signatoryName}
-                                      signatoryTitle={signatoryTitle}
+                                      signatoryName={previewSignatoryName}
+                                      signatoryTitle={previewSignatoryTitle}
                                     />
                                   </div>
                                   <div className="px-2 py-1.5 border-t border-border/40 bg-background/40 flex items-center justify-between gap-1">
@@ -4360,8 +4361,8 @@ export default function SettingsPage() {
                 logoUrl={resolvePhotoUrl(logoUrl)}
                 municipalityLogoUrl={resolvePhotoUrl(municipalityLogoUrl)}
                 nationalLogoUrl={resolvePhotoUrl(nationalLogoUrl)}
-                signatoryName={signatoryName}
-                signatoryTitle={signatoryTitle}
+                signatoryName={previewSignatoryName}
+                signatoryTitle={previewSignatoryTitle}
               />
 
               {/* ── STAGE 3 of 3 — Certificate Types (CRUD list) ── */}

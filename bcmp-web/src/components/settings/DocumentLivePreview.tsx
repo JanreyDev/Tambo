@@ -1156,32 +1156,32 @@ function TamboClearanceBody(props: BodyProps) {
         />
 
         <div className="mt-auto shrink-0 pt-2">
-          <div className="flex items-start justify-between gap-x-16">
+          <div className="grid grid-cols-[3fr_2fr] gap-x-[50px] items-start">
             {/* Left footer column — thumbmarks / CTC / OR */}
-            <div className="w-[38%] shrink-0">
-              <div className="flex border border-gray-900">
-                <div className="flex-1 h-10 border-r border-gray-900 flex items-end justify-center pb-0.5 text-[5px] text-gray-600">Left</div>
+            <div>
+              <div className="flex border border-gray-500" style={{ borderWidth: 0.5 }}>
+                <div className="flex-1 h-10 border-r border-gray-500 flex items-end justify-center pb-0.5 text-[5px] text-gray-600" style={{ borderRightWidth: 0.5 }}>Left</div>
                 <div className="flex-1 h-10 flex items-end justify-center pb-0.5 text-[5px] text-gray-600">Right</div>
               </div>
-              <div className="border border-gray-900 border-t-0 text-center text-[5px] tracking-[0.28em] py-[2px] mb-2 text-gray-900">
+              <div className="border border-gray-500 border-t-0 text-center text-[5px] tracking-[0.28em] py-[2px] mb-2 text-gray-900" style={{ borderWidth: 0.5, borderTopWidth: 0 }}>
                 THUMBMARKS
               </div>
-              <div className="border-b border-gray-900 h-5" />
+              <div className="border-b border-gray-500 h-5" style={{ borderBottomWidth: 0.5 }} />
               <p className="text-center text-[5.5px] mt-0.5 mb-2">Signature</p>
 
               <table className="w-full text-[5.5px] border-collapse mb-1.5">
                 <tbody>
                   <tr>
                     <td className="whitespace-nowrap pr-1 align-bottom pb-0.5 w-[72px]">Res. Cert No.</td>
-                    <td className="border-b border-gray-900 align-bottom pb-0.5">{props.ctcNumber || ""}</td>
+                    <td className="border-b border-gray-500 align-bottom pb-0.5" style={{ borderBottomWidth: 0.5 }}>{props.ctcNumber || ""}</td>
                   </tr>
                   <tr>
                     <td className="whitespace-nowrap pr-1 align-bottom pb-0.5 pt-1">Issued on</td>
-                    <td className="border-b border-gray-900 align-bottom pb-0.5 pt-1">{props.ctcDate || ""}</td>
+                    <td className="border-b border-gray-500 align-bottom pb-0.5 pt-1" style={{ borderBottomWidth: 0.5 }}>{props.ctcDate || ""}</td>
                   </tr>
                   <tr>
                     <td className="whitespace-nowrap pr-1 align-bottom pb-0.5 pt-1">Issued at</td>
-                    <td className="border-b border-gray-900 align-bottom pb-0.5 pt-1">{props.ctcPlace || ""}</td>
+                    <td className="border-b border-gray-500 align-bottom pb-0.5 pt-1" style={{ borderBottomWidth: 0.5 }}>{props.ctcPlace || ""}</td>
                   </tr>
                 </tbody>
               </table>
@@ -1194,43 +1194,45 @@ function TamboClearanceBody(props: BodyProps) {
                 <tbody>
                   <tr>
                     <td className="whitespace-nowrap pr-1 align-bottom pb-0.5 w-[52px]">OR No.</td>
-                    <td className="border-b border-gray-900 align-bottom pb-0.5">{props.orNo ?? ""}</td>
+                    <td className="border-b border-gray-500 align-bottom pb-0.5" style={{ borderBottomWidth: 0.5 }}>{props.orNo ?? ""}</td>
                   </tr>
                   <tr>
                     <td className="whitespace-nowrap pr-1 align-bottom pb-0.5 pt-1">Amount P</td>
-                    <td className="border-b border-gray-900 align-bottom pb-0.5 pt-1">{props.orAmount ?? ""}</td>
+                    <td className="border-b border-gray-500 align-bottom pb-0.5 pt-1" style={{ borderBottomWidth: 0.5 }}>{props.orAmount ?? ""}</td>
                   </tr>
                 </tbody>
               </table>
             </div>
 
             {/* Right footer column — purpose / approvals */}
-            <div className="w-[42%] shrink-0">
-              <p className="text-[5.5px] font-bold mb-0.5">THIS CLEARANCE IS HEREBY ISSUED FOR PURPOSES OF:</p>
+            <div>
+              <p className="text-[5.5px] font-normal mb-0.5">THIS CLEARANCE IS HEREBY ISSUED FOR PURPOSES OF:</p>
               <EditableText
                 value={props.purpose || ""}
                 onChange={props.onPurposeChange}
-                className="border-b border-gray-900 min-h-[12px] text-[6px] mb-3 w-full uppercase"
+                className="border-b border-gray-500 min-h-[12px] text-[5px] mb-3 w-full uppercase font-normal"
+                style={{ borderBottomWidth: 0.5 }}
                 placeholder="Click to enter purpose"
                 title="Click to edit purpose"
               />
 
-              <p className="text-[5.5px]">Processed by:</p>
+              <p className="text-[5.5px] font-normal">Processed by:</p>
               <EditableText
                 value={props.clerkName || ""}
                 onChange={props.onClerkNameChange}
-                className="border-b border-gray-900 w-[85%] min-h-[14px] text-[6px] font-semibold uppercase mt-1"
+                className="border-b border-gray-500 w-[85%] min-h-[14px] text-[5px] font-normal uppercase mt-1"
+                style={{ borderBottomWidth: 0.5 }}
                 placeholder="Click to enter clerk name"
                 title="Click to edit clerk name"
               />
-              <p className="text-[5.5px] font-bold mt-0.5 mb-3">Clerk In-charge</p>
+              <p className="text-[5.5px] font-normal mt-0.5 mb-3">Clerk In-charge</p>
 
-              <p className="text-[5.5px] font-bold">APPROVED BY:</p>
-              <div className="border-b border-gray-900 w-[85%] h-6 mt-3" />
-              <p className="text-[6.5px] font-bold uppercase mt-0.5 tracking-wide">
+              <p className="text-[5.5px] font-normal">APPROVED BY:</p>
+              <p className="text-[6px] font-normal uppercase mt-3 w-[85%] tracking-normal">
                 {(props.signName || "").replace(/^HON\.\s+/i, "")}
               </p>
-              <p className="text-[5.5px]">Barangay Captain</p>
+              <div className="border-b border-gray-500 w-[85%] mt-0.5" style={{ borderBottomWidth: 0.5 }} />
+              <p className="text-[5.5px] font-normal mt-0.5">Barangay Captain</p>
             </div>
           </div>
 

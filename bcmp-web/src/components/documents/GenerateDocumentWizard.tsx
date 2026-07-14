@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
 import { api } from "@/lib/api";
 import type {
-  BarangaySettings, DocumentTemplate, IssuedDocument, IssueDocumentPayload,
+  BarangaySettings, BarangayOfficial, DocumentTemplate, IssuedDocument, IssueDocumentPayload,
   ResidentSummary,
 } from "@/lib/types";
 
@@ -153,6 +153,7 @@ export function GenerateDocumentWizard({
   const [ctcPlace, setCtcPlace] = useState("");
   const [approvedByLeft, setApprovedByLeft] = useState("");
   const [approvedByRight, setApprovedByRight] = useState("");
+  const [punongBarangayName, setPunongBarangayName] = useState("");
   const [issuedDate, setIssuedDate] = useState(new Date().toISOString().split("T")[0]);
   const [isVillageCondo, setIsVillageCondo] = useState(false);
 
@@ -212,10 +213,30 @@ export function GenerateDocumentWizard({
     if (!open || barangaySettings) return;
     api.settings.get().then((s) => {
       setBarangaySettings(s);
-      // Auto-fill signatory from settings (only if not already set)
-      setApprovedByRight((prev) => prev || s.settings?.default_signatory_name || "");
     }).catch(() => {});
   }, [open, barangaySettings]);
+
+  // ── Punong Barangay from Officials (source of truth for captain name) ──
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    api.officials.list({ position: "kapitan", per_page: 1, is_active: true })
+      .then((res) => {
+        if (cancelled) return;
+        const official = res.data?.[0] as BarangayOfficial | undefined;
+        const r = official?.resident;
+        if (!r) return;
+        const name = [r.first_name, r.middle_name, r.last_name, r.extension_name]
+          .filter(Boolean)
+          .join(" ")
+          .trim();
+        if (!name) return;
+        setPunongBarangayName(name);
+        setApprovedByRight(name);
+      })
+      .catch(() => { /* keep previous / settings fallback */ });
+    return () => { cancelled = true; };
+  }, [open]);
 
   // ── Preload resident when opened from residents page ──
   useEffect(() => {
@@ -283,7 +304,7 @@ export function GenerateDocumentWizard({
     setCtcDate("");
     setCtcPlace("");
     setApprovedByLeft(last.approvedByLeft ?? "");
-    setApprovedByRight("");
+    setApprovedByRight(punongBarangayName);
     setIssuedDate(new Date().toISOString().split("T")[0]);
     setIsVillageCondo(false);
     setTemplateSearch("");
@@ -545,7 +566,7 @@ export function GenerateDocumentWizard({
           barangaySettings?.city_municipality || null,
         ].filter(Boolean).join(", ") || undefined,
         approved_by_left: approvedByLeft || undefined,
-        approved_by_right: approvedByRight || undefined,
+        approved_by_right: punongBarangayName || approvedByRight || undefined,
         issued_date: issuedDate || undefined,
         custom_field_values: Object.keys(customFields).length > 0 ? customFields : undefined,
         custom_content: manualContentRef.current ?? manualContent ?? contentForSave,
@@ -1260,8 +1281,13 @@ export function GenerateDocumentWizard({
                         logoUrl={resolvePhotoUrl(barangaySettings?.logo_url)}
                         municipalityLogoUrl={resolvePhotoUrl(barangaySettings?.municipality_logo_url)}
                         nationalLogoUrl={resolvePhotoUrl(barangaySettings?.national_logo_url)}
-                        signatoryName={approvedByRight || selectedTemplate.approval_config?.right?.label || barangaySettings?.settings?.default_signatory_name}
-                        signatoryTitle={selectedTemplate.approval_config?.right?.position || barangaySettings?.settings?.default_signatory_title}
+                        signatoryName={
+                          punongBarangayName
+                          || approvedByRight
+                          || barangaySettings?.settings?.default_signatory_name
+                          || barangaySettings?.captain_name
+                        }
+                        signatoryTitle={selectedTemplate.approval_config?.right?.position || barangaySettings?.settings?.default_signatory_title || "Punong Barangay"}
                         hideChrome={true}
                         fitToContainer={true}
                         contentTitle={manualTitle ?? customSettings.custom_title ?? selectedTemplate.title ?? selectedTemplate.name}
