@@ -834,8 +834,6 @@ export default function SettingsPage() {
   const [certDeleting, setCertDeleting] = useState(false);
   const [certDesignSearch, setCertDesignSearch] = useState("");
   const [certDesignThemeFilter, setCertDesignThemeFilter] = useState<"all" | "global" | "custom">("all");
-  const [certDesignSearch, setCertDesignSearch] = useState("");
-  const [certDesignThemeFilter, setCertDesignThemeFilter] = useState<"all" | "global" | "custom">("all");
 
 
   useEffect(() => {
@@ -2602,14 +2600,6 @@ export default function SettingsPage() {
                             })}
                           </div>
                         </div>
-                        ) : (
-                          <div className="mb-6 rounded-xl border border-blue-500/20 bg-blue-500/5 px-4 py-3">
-                            <p className="text-xs text-foreground font-medium">Tambo Official Form</p>
-                            <p className="text-[11px] text-muted-foreground mt-1">
-                              This layout uses the official Barangay Tambo clearance structure. Edit the salutation and intro text in the live preview, then save.
-                            </p>
-                          </div>
-                        )}
 
                         {/* Color Theme and Design Pattern - Compressed Grid */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
@@ -3054,7 +3044,6 @@ export default function SettingsPage() {
                                         )
                                       })}
                                     </div>
-                                    )}
                                     )}
                                   </>
                                 ) : (
