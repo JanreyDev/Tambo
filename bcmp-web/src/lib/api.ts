@@ -10,19 +10,17 @@ const BASE_URL = process.env.NODE_ENV === "production"
 const LEGACY_TOKEN_KEY = "bcmp_token";
 const LEGACY_REMEMBER_KEY = "bcmp_remember";
 const AUTH_INDICATOR_COOKIE = "bcmp_auth";
+const AUTH_COOKIE_MAX_AGE = 86400; // 24 hours — matches Sanctum token lifetime
 
 type RequestOptions = {
   headers?: Record<string, string>;
   skipAuth?: boolean;
 };
 
-// Auth is now cookie-based: backend issues an httpOnly bcmp_token cookie at login.
-// All fetch calls below use `credentials: 'include'` so the browser auto-attaches it.
-// JS can never read the real token (XSS-stolen-token attacks become impossible).
-//
-// The non-httpOnly `bcmp_auth` cookie is a yes/no indicator readable from JS — used
-// by Next.js middleware for route protection and by hasAuthCookie() below to decide
-// whether to attempt /auth/me on app boot.
+// Hybrid auth: backend issues httpOnly bcmp_token when Set-Cookie reaches the browser,
+// but Next.js rewrite proxies often drop Set-Cookie. We also persist the login token in
+// sessionStorage and send Authorization: Bearer on each request as a reliable fallback.
+// The non-httpOnly bcmp_auth cookie is a yes/no flag for Next.js middleware.
 
 function hasAuthCookie(): boolean {
   if (typeof window === "undefined") return false;
@@ -31,8 +29,16 @@ function hasAuthCookie(): boolean {
     .some((c) => c.trim().startsWith(`${AUTH_INDICATOR_COOKIE}=1`));
 }
 
-// Legacy localStorage cleanup — older versions stored tokens here.
-// Wipes any stale entries left over from the pre-cookie era.
+function getStoredToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(LEGACY_TOKEN_KEY) || sessionStorage.getItem(LEGACY_TOKEN_KEY);
+}
+
+function stampAuthIndicator(): void {
+  if (typeof document === "undefined") return;
+  document.cookie = `${AUTH_INDICATOR_COOKIE}=1; path=/; max-age=${AUTH_COOKIE_MAX_AGE}; SameSite=Lax`;
+}
+
 function purgeLegacyTokens(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(LEGACY_TOKEN_KEY);
@@ -40,27 +46,34 @@ function purgeLegacyTokens(): void {
   localStorage.removeItem(LEGACY_REMEMBER_KEY);
 }
 
-// Kept for API surface compatibility. With cookie auth, the backend manages
-// the real token lifecycle via Set-Cookie. These functions only manage the
-// non-sensitive `bcmp_auth` indicator and clean up legacy localStorage entries.
 function getToken(): string | null {
-  // Returns "1" if the indicator cookie is set — used as a boolean gate by callers.
-  // The actual bearer token is httpOnly and not accessible to JS.
-  return hasAuthCookie() ? "1" : null;
+  return getStoredToken();
 }
 
-function setToken(_token: string, _remember = false): void {
-  // No-op on web — the backend already set bcmp_token + bcmp_auth via Set-Cookie.
-  // Just clean up any stale legacy entries that might still exist.
-  purgeLegacyTokens();
+function setToken(token: string, remember = false): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(LEGACY_TOKEN_KEY);
+  sessionStorage.removeItem(LEGACY_TOKEN_KEY);
+  if (remember) {
+    localStorage.setItem(LEGACY_TOKEN_KEY, token);
+    localStorage.setItem(LEGACY_REMEMBER_KEY, "true");
+  } else {
+    sessionStorage.setItem(LEGACY_TOKEN_KEY, token);
+    localStorage.setItem(LEGACY_REMEMBER_KEY, "false");
+  }
+  stampAuthIndicator();
 }
 
 function clearToken(): void {
   if (typeof window === "undefined") return;
   purgeLegacyTokens();
-  // Best-effort clear of the indicator cookie (real httpOnly cookie is cleared
-  // server-side by /auth/logout). Path must match how it was originally set.
   document.cookie = `${AUTH_INDICATOR_COOKIE}=; path=/; max-age=0; SameSite=Lax`;
+}
+
+function refreshAuthIndicator(): void {
+  if (getStoredToken() || hasAuthCookie()) {
+    stampAuthIndicator();
+  }
 }
 
 async function request<T>(
@@ -76,6 +89,13 @@ async function request<T>(
     ...options?.headers,
   };
 
+  if (!options?.skipAuth) {
+    const token = getStoredToken();
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+  }
+
   const res = await fetch(`${BASE_URL}${path}`, {
     method,
     headers,
@@ -84,15 +104,8 @@ async function request<T>(
     body: isFormData ? body : (body ? JSON.stringify(body) : undefined),
   });
 
-  if (res.status === 401) {
-    console.warn(`[API Debug] 401 Unauthorized from ${method} ${path}`);
-    // Temporarily disable auto-logout for /map endpoints to debug the map page issue
-    if (!path.startsWith("/map/")) {
-      clearToken();
-      if (typeof window !== "undefined" && window.location.pathname !== "/") {
-        window.location.href = "/";
-      }
-    }
+  if (res.status === 401 && !options?.skipAuth) {
+    clearToken();
     const error: ApiError = { message: "Unauthorized", status: 401 };
     throw error;
   }
@@ -123,6 +136,11 @@ async function uploadFile<T>(
     Accept: "application/json",
   };
 
+  const token = getStoredToken();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
   const res = await fetch(`${BASE_URL}${path}`, {
     method: "POST",
     headers,
@@ -132,9 +150,6 @@ async function uploadFile<T>(
 
   if (res.status === 401) {
     clearToken();
-    if (typeof window !== "undefined" && window.location.pathname !== "/") {
-      window.location.href = "/";
-    }
     const error: ApiError = { message: "Unauthorized" };
     throw error;
   }
@@ -160,6 +175,11 @@ async function streamRequest(
     "Content-Type": "application/json",
   };
 
+  const token = getStoredToken();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
   const res = await fetch(`${BASE_URL}${path}`, {
     method: "POST",
     headers,
@@ -170,9 +190,6 @@ async function streamRequest(
 
   if (res.status === 401) {
     clearToken();
-    if (typeof window !== "undefined" && window.location.pathname !== "/") {
-      window.location.href = "/";
-    }
     throw { message: "Unauthorized" } as ApiError;
   }
 
@@ -232,6 +249,7 @@ const api = {
   getToken,
   setToken,
   clearToken,
+  refreshAuthIndicator,
 
   get: <T>(path: string, options?: RequestOptions) =>
     request<T>("GET", path, undefined, options),

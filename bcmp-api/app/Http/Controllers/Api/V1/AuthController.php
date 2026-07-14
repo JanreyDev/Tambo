@@ -163,7 +163,7 @@ class AuthController extends Controller
         $token = $user->createToken(
             $validated['device_name'] ?? 'web',
             ['*'],
-            now()->addHours(12) // Token expires in 12 hours (daily login for gov offices)
+            now()->addHours(24) // Token expires in 24 hours (one login per workday)
         );
 
         // Store device info in the token for session tracking
@@ -223,7 +223,7 @@ class AuthController extends Controller
         ]);
 
         // bcmp_token: httpOnly — actual auth credential; JS cannot read it.
-        $response->withCookie(new Cookie(
+        $response = $response->withCookie(new Cookie(
             name: 'bcmp_token',
             value: $token->plainTextToken,
             expire: time() + $maxAgeSeconds,
@@ -236,7 +236,7 @@ class AuthController extends Controller
         ));
 
         // bcmp_auth: readable by Next.js middleware (route protection only — no sensitive data).
-        $response->withCookie(new Cookie(
+        return $response->withCookie(new Cookie(
             name: 'bcmp_auth',
             value: '1',
             expire: time() + $maxAgeSeconds,
@@ -247,8 +247,6 @@ class AuthController extends Controller
             raw: false,
             sameSite: Cookie::SAMESITE_LAX,
         ));
-
-        return $response;
     }
 
     /**

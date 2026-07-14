@@ -472,6 +472,7 @@ class DocumentPdfService
             'mergeValues' => $mergeValues,   // exposed for id-card.blade.php direct access
             'photoDataUri' => $photoDataUri,
             'sealDataUri' => $sealDataUri,
+            'logoDataUri' => $this->getImageDataUri($barangay->logo_url),
             'municipalityLogoUrl' => $this->getImageDataUri($barangay->municipality_logo_url),
             'nationalLogoUrl' => $this->getImageDataUri($barangay->national_logo_url),
             'qrDataUri' => $qrDataUri,
@@ -592,6 +593,14 @@ class DocumentPdfService
 
         // Purpose from the document itself
         $values['purpose'] = $document->purpose ?? '';
+        $values['or_number'] = $document->or_number ?? '';
+        $values['or_amount'] = $document->or_amount !== null ? (string) $document->or_amount : '';
+        $values['ctc_number'] = $document->ctc_number ?? '';
+        $values['ctc_date'] = $document->ctc_date?->format('F d, Y') ?? '';
+        $values['ctc_place'] = $document->ctc_place ?? '';
+        $values['document_number'] = $document->document_number ?? '';
+        $values['control_number'] = $document->document_number ?? '';
+        $values['issued_date'] = $document->issued_date?->format('F d, Y') ?? now()->setTimezone('Asia/Manila')->format('F d, Y');
 
         return $values;
     }

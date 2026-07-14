@@ -80,7 +80,7 @@ class BarangaySettingsController extends Controller
             'settings.cedula_fee' => ['nullable', 'numeric', 'min:0', 'max:10000'],
             'settings.default_signatory_name' => ['nullable', 'string', 'max:200'],
             'settings.default_signatory_title' => ['nullable', 'string', 'max:200'],
-            'settings.document_layout' => ['nullable', 'in:klasiko,moderno,elegante,digital'],
+            'settings.document_layout' => ['nullable', 'in:klasiko,moderno,elegante,digital,tambo'],
             'settings.document_paper_size' => ['nullable', 'in:a4,letter,legal'],
             'settings.document_font' => ['nullable', 'in:times,arial,inter,poppins,merriweather,playfair'],
             'settings.document_color_theme' => ['nullable', 'in:plain,blue,red,green,yellow,combo-flag,combo-festive,combo-earth,combo-gov,combo-bayanihan,combo-sunrise,combo-coastal,combo-heritage'],

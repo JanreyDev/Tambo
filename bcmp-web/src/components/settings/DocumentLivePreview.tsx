@@ -10,7 +10,7 @@ function toEditorHtml(text: string): string {
   return text.replace(/\n/g, "<br>");
 }
 
-type Layout = "klasiko" | "elegante" | "moderno" | "digital";
+type Layout = "klasiko" | "elegante" | "moderno" | "digital" | "tambo";
 type PaperSize = "a4" | "letter" | "legal";
 type Font = "times" | "arial" | "inter" | "poppins" | "merriweather" | "playfair";
 type ColorTheme =
@@ -119,7 +119,23 @@ const COLORS: Record<ColorTheme, { primary: string; accent: string; tint: string
   "combo-heritage": { primary: "#991b1b", accent: "#15803d", tint: "#fee2e2" },
 };
 
-// Sample Barangay Clearance content — placeholders filled with realistic values.
+// Default intro paragraph for Barangay Tambo official clearance form.
+export const TAMBO_CLEARANCE_INTRO =
+  "This is to certify that the person whose name, signature and thumbmarks appear below has requested a clearance from this barangay and the result/s is/are stated below:";
+
+const TAMBO_SAMPLE_RESIDENT = {
+  full_name: "PEDRO M. PENDUKO",
+  alias: "",
+  date_of_birth: "January 15, 1991",
+  age: "35",
+  place_of_birth: "Parañaque City",
+  civil_status: "Single",
+  sex: "Male",
+  citizenship: "Filipino",
+  address: "Purok 5, Barangay Tambo, Parañaque City",
+  remarks: "",
+};
+
 const SAMPLE = {
   barangay: "TAMBO",
   municipality: "Paranaque City",
@@ -161,10 +177,10 @@ export function DocumentLivePreview({
   const c = COLORS[colorTheme] ?? COLORS.plain;
   const fontFamily = FONT_FAMILY[font];
 
-  const displayTitle = contentTitle ?? SAMPLE.title;
+  const displayTitle = contentTitle ?? (layout === "tambo" ? "BARANGAY CLEARANCE" : SAMPLE.title);
   const displaySalutation = contentSalutation !== undefined ? contentSalutation : SAMPLE.salutation;
-  const displayBody = contentBodyHtml ?? SAMPLE.body;
-  const displayRawContent = rawContent ?? SAMPLE.body;
+  const displayBody = contentBodyHtml ?? (layout === "tambo" ? TAMBO_CLEARANCE_INTRO : SAMPLE.body);
+  const displayRawContent = rawContent ?? (layout === "tambo" ? TAMBO_CLEARANCE_INTRO : SAMPLE.body);
   const displayControlNo = contentControlNo ?? SAMPLE.controlNo;
   const displayIssuedDate = contentIssuedDate ?? SAMPLE.issuedDate;
 
@@ -225,6 +241,7 @@ export function DocumentLivePreview({
         {effectiveLayout === "klasiko" && <KlasikoBody {...sharedProps} />}
         {effectiveLayout === "elegante" && <EleganteBody {...sharedProps} />}
         {effectiveLayout === "moderno" && <ModernoBody {...sharedProps} />}
+        {effectiveLayout === "tambo" && <TamboClearanceBody {...sharedProps} />}
       </div>
     );
 
@@ -300,6 +317,74 @@ interface BodyProps {
   hideProfileTable?: boolean;
   showTamboResident?: boolean;
   showVillageCondo?: boolean;
+}
+
+function FormatToolbar({ editorRef }: { editorRef: React.RefObject<HTMLDivElement | null> }) {
+  const apply = (cmd: string, value?: string) => {
+    editorRef.current?.focus();
+    document.execCommand(cmd, false, value);
+  };
+
+  return (
+    <div
+      className="flex flex-wrap items-center gap-0.5 mb-1.5 p-1 rounded-md border border-gray-200 bg-white/95 shadow-sm"
+      onMouseDown={(e) => e.preventDefault()}
+    >
+      <button
+        type="button"
+        title="Bold"
+        onClick={() => apply("bold")}
+        className="p-1 rounded hover:bg-gray-100 text-gray-700 font-bold text-[11px] min-w-[22px]"
+      >
+        <Bold className="w-3 h-3 mx-auto" />
+      </button>
+      <button
+        type="button"
+        title="Italic"
+        onClick={() => apply("italic")}
+        className="p-1 rounded hover:bg-gray-100 text-gray-700 italic text-[11px] min-w-[22px]"
+      >
+        <Italic className="w-3 h-3 mx-auto" />
+      </button>
+      <button
+        type="button"
+        title="Underline"
+        onClick={() => apply("underline")}
+        className="p-1 rounded hover:bg-gray-100 text-gray-700 underline text-[11px] min-w-[22px]"
+      >
+        <Underline className="w-3 h-3 mx-auto" />
+      </button>
+      <span className="w-px h-4 bg-gray-200 mx-0.5" />
+      <button
+        type="button"
+        title="Smaller text"
+        onClick={() => apply("fontSize", "2")}
+        className="p-1 rounded hover:bg-gray-100 text-gray-600 text-[9px] font-medium min-w-[22px]"
+      >
+        A
+      </button>
+      <button
+        type="button"
+        title="Normal text"
+        onClick={() => apply("fontSize", "3")}
+        className="p-1 rounded hover:bg-gray-100 text-gray-700 text-[11px] font-medium min-w-[22px]"
+      >
+        A
+      </button>
+      <button
+        type="button"
+        title="Larger text"
+        onClick={() => apply("fontSize", "5")}
+        className="p-1 rounded hover:bg-gray-100 text-gray-900 text-[13px] font-medium min-w-[22px]"
+      >
+        A
+      </button>
+      <span className="flex items-center gap-0.5 text-[7px] text-gray-400 ml-0.5">
+        <Type className="w-2.5 h-2.5" />
+        Format
+      </span>
+    </div>
+  );
 }
 
 function FormatToolbar({ editorRef }: { editorRef: React.RefObject<HTMLDivElement | null> }) {
@@ -623,6 +708,56 @@ function HeaderBlock({ c, barangay, municipality, province, logoUrl, municipalit
         </div>
         <Seal url={logoUrl} size={sealSize} fallbackLabel="BRGY" c={c} />
       </div>
+    </div>
+  );
+}
+
+function formatMunicipalityLine(municipality?: string | null): string {
+  const raw = (municipality ?? "").trim();
+  if (!raw) return "";
+  if (/^city of /i.test(raw) || /^municipality of /i.test(raw)) return raw.toUpperCase();
+  if (/\s+city$/i.test(raw)) return `CITY OF ${raw.replace(/\s+city$/i, "").toUpperCase()}`;
+  if (/\s+municipality$/i.test(raw)) return raw.toUpperCase();
+  return `CITY OF ${raw.toUpperCase()}`;
+}
+
+function CenteredModernHeader({
+  props,
+  showTitle = false,
+}: {
+  props: BodyProps;
+  showTitle?: boolean;
+}) {
+  const { c, barangay, municipality, province, logoUrl, municipalityLogoUrl, nationalLogoUrl, title } = props;
+  const officeName = `Office of ${barangay.replace(/^(brgy\.?\s*|barangay\s*)/i, "")} Barangay Council`;
+
+  return (
+    <div className="px-4 pt-5 pb-3 text-center">
+      <div className="flex items-center justify-center gap-3 mb-1.5">
+        <Seal url={logoUrl} size={36} fallbackLabel="BRGY" c={c} />
+        {nationalLogoUrl && <Seal url={nationalLogoUrl} size={36} fallbackLabel="PH" c={c} />}
+        <Seal url={municipalityLogoUrl} size={36} fallbackLabel="LGU" c={c} />
+      </div>
+      <p className="text-[6.5px] tracking-[0.22em] text-gray-500 uppercase">Republic of the Philippines</p>
+      <p className="text-[8.5px] font-bold text-gray-800 uppercase tracking-wide mt-0.5">
+        {formatMunicipalityLine(municipality)}
+      </p>
+      <p className="text-[6.5px] tracking-[0.15em] text-gray-500 uppercase mt-0.5">{province}</p>
+      <p className="font-medium text-gray-800 text-[9.5px] tracking-wide mt-1">{officeName}</p>
+      <div className="h-px w-16 mx-auto mt-1.5" style={{ background: c.primary }} />
+      {showTitle && (
+        <div className="mt-3">
+          <EditableText
+            tag="h2"
+            value={title}
+            onChange={props.onTitleChange}
+            className="text-center font-bold tracking-wider w-full"
+            style={{ color: c.primary, fontSize: 13, letterSpacing: 1 }}
+            title="Click to edit document title"
+          />
+          <div className="h-0.5 w-12 mx-auto mt-1" style={{ background: c.accent }} />
+        </div>
+      )}
     </div>
   );
 }
@@ -1006,46 +1141,143 @@ function EleganteBody(props: BodyProps) {
   );
 }
 
+// ── TAMBO — Official Barangay Clearance Form (Tambo only) ─────────
+
+function FieldRow({ label, value, labelWidth = "auto" }: { label: string; value: string; labelWidth?: string }) {
+  return (
+    <div className="flex items-end gap-1 mb-1">
+      <span className="font-bold shrink-0 text-[6.5px]" style={{ minWidth: labelWidth }}>{label}</span>
+      <span className="flex-1 border-b border-gray-900 text-[6.5px] pb-px min-h-[10px]">{value}</span>
+    </div>
+  );
+}
+
+function TamboClearanceBody(props: BodyProps) {
+  const r = props.resident ?? TAMBO_SAMPLE_RESIDENT;
+  const field = (key: string, fallback = "") => {
+    const map: Record<string, string> = {
+      full_name: r.full_name ?? props.requestedBy ?? TAMBO_SAMPLE_RESIDENT.full_name,
+      alias: r.alias ?? "",
+      date_of_birth: r.date_of_birth ?? "",
+      age: r.age != null ? String(r.age) : "",
+      place_of_birth: r.place_of_birth ?? "",
+      civil_status: r.civil_status ?? "",
+      sex: r.sex ?? "",
+      citizenship: r.citizenship ?? "Filipino",
+      address: r.address ?? r.full_address ?? "",
+      remarks: r.other_remarks ?? r.remarks ?? "",
+    };
+    return map[key] || fallback;
+  };
+
+  const expiryDays = (props.expiryMonths ?? 3) * 30;
+
+  return (
+    <div className="w-full h-full flex flex-col bg-white text-[#111] relative overflow-hidden pb-2">
+      <PatternDecor c={props.c} designPattern={props.designPattern} />
+      <CenteredModernHeader props={props} showTitle />
+
+      <div className="px-4 pb-1 flex justify-end gap-3 text-[5.5px]">
+        <span>No.: <span className="border-b border-gray-900 inline-block min-w-[52px]">{props.controlNo}</span></span>
+        <span>Date.: <span className="border-b border-gray-900 inline-block min-w-[52px]">{props.issuedDate}</span></span>
+      </div>
+
+      <div className="px-4 relative flex-1 min-h-0">
+        <Watermark c={props.c} />
+
+      <EditableText
+        tag="p"
+        value={props.salutation || "TO WHOM IT MAY CONCERN:"}
+        onChange={props.onSalutationChange}
+        className="font-bold text-[6.5px] mb-1"
+        title="Click to edit salutation"
+      />
+
+      <EditableBody
+        className="text-[6px] text-justify leading-snug mb-2"
+        bodyHtml={props.bodyHtml}
+        rawContent={props.rawContent}
+        onContentChange={props.onContentChange}
+      />
+
+      <div className="flex gap-0.5 mb-0.5 text-[6px]">
+        <span className="font-bold shrink-0">NAME:</span>
+        <span className="flex-[2] border-b border-gray-900">{field("full_name")}</span>
+        <span className="font-bold shrink-0 ml-1">ALIAS/ES:</span>
+        <span className="flex-1 border-b border-gray-900">{field("alias")}</span>
+      </div>
+      <div className="flex gap-0.5 mb-0.5 text-[6px]">
+        <span className="font-bold shrink-0">BIRTHDATE:</span>
+        <span className="flex-1 border-b border-gray-900">{field("date_of_birth")}</span>
+        <span className="font-bold shrink-0">AGE:</span>
+        <span className="w-6 border-b border-gray-900">{field("age")}</span>
+        <span className="font-bold shrink-0">BIRTHPLACE:</span>
+        <span className="flex-1 border-b border-gray-900">{field("place_of_birth")}</span>
+      </div>
+      <div className="flex gap-0.5 mb-0.5 text-[6px]">
+        <span className="font-bold shrink-0">CIVIL STATUS:</span>
+        <span className="flex-1 border-b border-gray-900">{field("civil_status")}</span>
+        <span className="font-bold shrink-0">GENDER:</span>
+        <span className="w-10 border-b border-gray-900">{field("sex")}</span>
+        <span className="font-bold shrink-0">CITIZENSHIP:</span>
+        <span className="flex-1 border-b border-gray-900">{field("citizenship")}</span>
+      </div>
+      <FieldRow label="ADDRESS:" value={field("address")} />
+      <FieldRow label="REMARKS:" value={field("remarks")} />
+
+      <div className="flex gap-2 mt-2 flex-1 min-h-0">
+        <div className="w-[48%]">
+          <div className="flex border border-gray-900 mb-0.5">
+            <div className="flex-1 h-8 border-r border-gray-900 flex items-center justify-center text-[5px] text-gray-500">Left</div>
+            <div className="flex-1 h-8 flex items-center justify-center text-[5px] text-gray-500">Right</div>
+          </div>
+          <p className="text-center text-[5px] tracking-[0.25em] mb-1">T H U M B M A R K S</p>
+          <div className="border-b border-gray-900 h-5" />
+          <p className="text-center text-[5.5px] mt-0.5">Signature</p>
+          <div className="mt-2 space-y-0.5 text-[5.5px]">
+            <div className="flex gap-1"><span>Res. Cert No.</span><span className="flex-1 border-b border-gray-900" /></div>
+            <div className="flex gap-1"><span>Issued on</span><span className="flex-1 border-b border-gray-900" /></div>
+            <div className="flex gap-1"><span>Issued at</span><span className="flex-1 border-b border-gray-900" /></div>
+          </div>
+          <p className="text-[4.5px] italic mt-1 leading-tight">
+            Note: This clearance is good only for {expiryDays} days from the date of issue. Not valid without official seal.
+          </p>
+          <div className="flex gap-1 mt-1 text-[5.5px]">
+            <span>OR No.</span>
+            <span className="flex-1 border-b border-gray-900">{props.orNo ?? ""}</span>
+            <span>Amount P</span>
+            <span className="w-10 border-b border-gray-900">{props.orAmount ?? ""}</span>
+          </div>
+        </div>
+        <div className="w-[52%]">
+          <p className="text-[5.5px] font-bold mb-0.5">THIS CLEARANCE IS HEREBY ISSUED FOR PURPOSES OF:</p>
+          <div className="border-b border-gray-900 min-h-[14px] text-[6px] mb-2">{props.purpose}</div>
+          <p className="text-[5.5px]">Processed by:</p>
+          <div className="border-b border-gray-900 w-3/4 h-5 mt-1" />
+          <p className="text-[5.5px] font-bold mt-0.5">Clerk In-charge</p>
+          <p className="text-[5.5px] font-bold mt-3">APPROVED BY:</p>
+          <div className="border-b border-gray-900 w-3/4 h-6 mt-4" />
+          <p className="text-[6.5px] font-bold uppercase mt-0.5">{props.signName}</p>
+          <p className="text-[5.5px]">Barangay Captain</p>
+        </div>
+      </div>
+      </div>
+    </div>
+  );
+}
+
 // ── MODERNO — Centered Modern (clean) ─────────────────────────────
 
 function ModernoBody(props: BodyProps) {
-  const { c, signName, signTitle, designPattern, title, salutation, bodyHtml, controlNo, issuedDate } = props;
+  const { c, signName, signTitle, designPattern, title, controlNo, issuedDate } = props;
   return (
     <div className="w-full h-full flex flex-col bg-white text-[8px] relative overflow-hidden pb-16">
       <PatternDecor c={c} designPattern={designPattern} />
-      {/* Compact centered header */}
-      <div className="px-4 pt-5 pb-3 text-center">
-        <div className="flex items-center justify-center gap-3 mb-1.5">
-          <Seal url={props.logoUrl} size={36} fallbackLabel="BRGY" c={c} />
-          {props.nationalLogoUrl && <Seal url={props.nationalLogoUrl} size={36} fallbackLabel="PH" c={c} />}
-          <Seal url={props.municipalityLogoUrl} size={36} fallbackLabel="LGU" c={c} />
-        </div>
-        <p className="text-[6.5px] tracking-[0.22em] text-gray-500 uppercase">Republic of the Philippines</p>
-        <p className="text-[8.5px] font-bold text-gray-800 uppercase tracking-wide mt-0.5">
-          {props.municipality?.toUpperCase().startsWith("CITY") || props.municipality?.toUpperCase().startsWith("MUNICIPALITY") 
-            ? props.municipality.toUpperCase() 
-            : `CITY OF ${props.municipality?.toUpperCase()}`}
-        </p>
-        <p className="text-[6.5px] tracking-[0.15em] text-gray-500 uppercase mt-0.5">{props.province}</p>
-        <p className="font-medium text-gray-800 text-[9.5px] tracking-wide mt-1">
-          Office of {props.barangay.replace(/^(brgy\.?\s*|barangay\s*)/i, "")} Barangay Council
-        </p>
-        <div className="h-px w-16 mx-auto mt-1.5" style={{ background: c.primary }} />
-      </div>
+      <CenteredModernHeader props={props} showTitle />
 
       <main className="flex-1 px-4 pt-2 pb-3 relative">
         <Watermark c={c} />
         <div className="relative">
-          <EditableText
-            tag="h2"
-            value={title}
-            onChange={props.onTitleChange}
-            className="text-center font-bold tracking-wider mb-1 text-center w-full"
-            style={{ color: c.primary, fontSize: 13, letterSpacing: 1 }}
-            title="Click to edit document title"
-          />
-          <div className="h-0.5 w-12 mx-auto mb-3" style={{ background: c.accent }} />
-
           <EditableBody 
             className="text-[8px] text-justify leading-relaxed text-gray-800 whitespace-pre-line" 
             bodyHtml={props.bodyHtml} rawContent={props.rawContent} onContentChange={props.onContentChange} 
@@ -1102,6 +1334,156 @@ function ModernoBody(props: BodyProps) {
           <p className="text-[8px] font-bold uppercase tracking-wide whitespace-nowrap" style={{ color: c.primary }}>{signName}</p>
           <div className="h-px w-full my-0.5" style={{ background: c.primary }} />
           <p className="text-[6.5px] uppercase tracking-wider text-gray-700 whitespace-nowrap">{signTitle}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── TAMBO — Official Barangay Clearance Form (Tambo only) ─────────
+
+function FieldRow({ label, value, labelWidth = "auto" }: { label: string; value: string; labelWidth?: string }) {
+  return (
+    <div className="flex items-end gap-1 mb-1">
+      <span className="font-bold shrink-0 text-[6.5px]" style={{ minWidth: labelWidth }}>{label}</span>
+      <span className="flex-1 border-b border-gray-900 text-[6.5px] pb-px min-h-[10px]">{value}</span>
+    </div>
+  );
+}
+
+function TamboClearanceBody(props: BodyProps) {
+  const r = props.resident ?? TAMBO_SAMPLE_RESIDENT;
+  const field = (key: string, fallback = "") => {
+    const map: Record<string, string> = {
+      full_name: r.full_name ?? props.requestedBy ?? TAMBO_SAMPLE_RESIDENT.full_name,
+      alias: r.alias ?? "",
+      date_of_birth: r.date_of_birth ?? "",
+      age: r.age != null ? String(r.age) : "",
+      place_of_birth: r.place_of_birth ?? "",
+      civil_status: r.civil_status ?? "",
+      sex: r.sex ?? "",
+      citizenship: r.citizenship ?? "Filipino",
+      address: r.address ?? r.full_address ?? "",
+      remarks: r.other_remarks ?? r.remarks ?? "",
+    };
+    return map[key] || fallback;
+  };
+
+  const cityLine = props.municipality?.toUpperCase().startsWith("CITY") || props.municipality?.toUpperCase().startsWith("MUNICIPALITY")
+    ? props.municipality.toUpperCase()
+    : `CITY OF ${props.municipality?.toUpperCase() ?? "PARAÑAQUE"}`;
+  const officeName = `Office of ${props.barangay.replace(/^(brgy\.?\s*|barangay\s*)/i, "")} Barangay Council`;
+  const expiryDays = (props.expiryMonths ?? 3) * 30;
+
+  return (
+    <div className="w-full h-full flex flex-col bg-white text-[#111] relative overflow-hidden p-3">
+      <table className="w-full mb-1">
+        <tbody>
+          <tr>
+            <td className="w-[18%] align-top">
+              <Seal url={props.logoUrl} size={34} fallbackLabel="BRGY" c={props.c} />
+            </td>
+            <td className="text-center align-top px-1">
+              <div className="flex justify-center mb-0.5">
+                <Seal url={props.nationalLogoUrl} size={32} fallbackLabel="PH" c={props.c} />
+              </div>
+              <p className="text-[5px] tracking-widest uppercase text-gray-600">Republic of the Philippines</p>
+              <p className="text-[7px] font-bold uppercase">{cityLine}</p>
+              <p className="text-[5px] uppercase text-gray-600">{props.province}</p>
+              <p className="text-[6.5px] font-bold mt-0.5">{officeName}</p>
+            </td>
+            <td className="w-[28%] align-top text-right">
+              <Seal url={props.municipalityLogoUrl} size={34} fallbackLabel="LGU" c={props.c} />
+              <p className="text-[5.5px] mt-1">No.: <span className="border-b border-gray-900 inline-block min-w-[48px]">{props.controlNo}</span></p>
+              <p className="text-[5.5px] mt-0.5">Date.: <span className="border-b border-gray-900 inline-block min-w-[48px]">{props.issuedDate}</span></p>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <EditableText
+        tag="h2"
+        value={props.title}
+        onChange={props.onTitleChange}
+        className="text-center font-bold my-2 w-full"
+        style={{ fontSize: 11, letterSpacing: 6 }}
+        title="Click to edit document title"
+      />
+
+      <EditableText
+        tag="p"
+        value={props.salutation || "TO WHOM IT MAY CONCERN:"}
+        onChange={props.onSalutationChange}
+        className="font-bold text-[6.5px] mb-1"
+        title="Click to edit salutation"
+      />
+
+      <EditableBody
+        className="text-[6px] text-justify leading-snug mb-2"
+        bodyHtml={props.bodyHtml}
+        rawContent={props.rawContent}
+        onContentChange={props.onContentChange}
+      />
+
+      <div className="flex gap-0.5 mb-0.5 text-[6px]">
+        <span className="font-bold shrink-0">NAME:</span>
+        <span className="flex-[2] border-b border-gray-900">{field("full_name")}</span>
+        <span className="font-bold shrink-0 ml-1">ALIAS/ES:</span>
+        <span className="flex-1 border-b border-gray-900">{field("alias")}</span>
+      </div>
+      <div className="flex gap-0.5 mb-0.5 text-[6px]">
+        <span className="font-bold shrink-0">BIRTHDATE:</span>
+        <span className="flex-1 border-b border-gray-900">{field("date_of_birth")}</span>
+        <span className="font-bold shrink-0">AGE:</span>
+        <span className="w-6 border-b border-gray-900">{field("age")}</span>
+        <span className="font-bold shrink-0">BIRTHPLACE:</span>
+        <span className="flex-1 border-b border-gray-900">{field("place_of_birth")}</span>
+      </div>
+      <div className="flex gap-0.5 mb-0.5 text-[6px]">
+        <span className="font-bold shrink-0">CIVIL STATUS:</span>
+        <span className="flex-1 border-b border-gray-900">{field("civil_status")}</span>
+        <span className="font-bold shrink-0">GENDER:</span>
+        <span className="w-10 border-b border-gray-900">{field("sex")}</span>
+        <span className="font-bold shrink-0">CITIZENSHIP:</span>
+        <span className="flex-1 border-b border-gray-900">{field("citizenship")}</span>
+      </div>
+      <FieldRow label="ADDRESS:" value={field("address")} />
+      <FieldRow label="REMARKS:" value={field("remarks")} />
+
+      <div className="flex gap-2 mt-2 flex-1 min-h-0">
+        <div className="w-[48%]">
+          <div className="flex border border-gray-900 mb-0.5">
+            <div className="flex-1 h-8 border-r border-gray-900 flex items-center justify-center text-[5px] text-gray-500">Left</div>
+            <div className="flex-1 h-8 flex items-center justify-center text-[5px] text-gray-500">Right</div>
+          </div>
+          <p className="text-center text-[5px] tracking-[0.25em] mb-1">T H U M B M A R K S</p>
+          <div className="border-b border-gray-900 h-5" />
+          <p className="text-center text-[5.5px] mt-0.5">Signature</p>
+          <div className="mt-2 space-y-0.5 text-[5.5px]">
+            <div className="flex gap-1"><span>Res. Cert No.</span><span className="flex-1 border-b border-gray-900" /></div>
+            <div className="flex gap-1"><span>Issued on</span><span className="flex-1 border-b border-gray-900" /></div>
+            <div className="flex gap-1"><span>Issued at</span><span className="flex-1 border-b border-gray-900" /></div>
+          </div>
+          <p className="text-[4.5px] italic mt-1 leading-tight">
+            Note: This clearance is good only for {expiryDays} days from the date of issue. Not valid without official seal.
+          </p>
+          <div className="flex gap-1 mt-1 text-[5.5px]">
+            <span>OR No.</span>
+            <span className="flex-1 border-b border-gray-900">{props.orNo ?? ""}</span>
+            <span>Amount P</span>
+            <span className="w-10 border-b border-gray-900">{props.orAmount ?? ""}</span>
+          </div>
+        </div>
+        <div className="w-[52%]">
+          <p className="text-[5.5px] font-bold mb-0.5">THIS CLEARANCE IS HEREBY ISSUED FOR PURPOSES OF:</p>
+          <div className="border-b border-gray-900 min-h-[14px] text-[6px] mb-2">{props.purpose}</div>
+          <p className="text-[5.5px]">Processed by:</p>
+          <div className="border-b border-gray-900 w-3/4 h-5 mt-1" />
+          <p className="text-[5.5px] font-bold mt-0.5">Clerk In-charge</p>
+          <p className="text-[5.5px] font-bold mt-3">APPROVED BY:</p>
+          <div className="border-b border-gray-900 w-3/4 h-6 mt-4" />
+          <p className="text-[6.5px] font-bold uppercase mt-0.5">{props.signName}</p>
+          <p className="text-[5.5px]">Barangay Captain</p>
         </div>
       </div>
     </div>

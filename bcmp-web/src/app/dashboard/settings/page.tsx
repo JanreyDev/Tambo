@@ -22,11 +22,19 @@ import { useLanguage } from "@/contexts/language-context";
 import { OfficialsTab } from "@/components/settings/OfficialsTab";
 import { SettingsSaveBar } from "@/components/settings/SettingsSaveBar";
 import { CertificateTypesList } from "@/components/settings/CertificateTypesList";
-import { DocumentLivePreview } from "@/components/settings/DocumentLivePreview";
+import { DocumentLivePreview, TAMBO_CLEARANCE_INTRO } from "@/components/settings/DocumentLivePreview";
 import { StructureCardHeader } from "@/components/settings/StructureCardHeader";
 import type { BarangaySettings, BarangayOfficial, BarangayUsage, ApiError } from "@/lib/types";
 
-// ── Reusable Components ──
+type DocLayout = "klasiko" | "moderno" | "elegante" | "digital" | "tambo";
+
+const DOC_LAYOUT_OPTIONS: { id: DocLayout; label: string }[] = [
+  { id: "klasiko", label: "Classic Sidebar" },
+  { id: "elegante", label: "Formal Government" },
+  { id: "moderno", label: "Centered Modern" },
+];
+
+const TAMBO_CLEARANCE_LAYOUT = { id: "tambo" as const, label: "Tambo Official Form" };
 
 function SettingsInput({ label, value, onChange, placeholder, icon: Icon, disabled, error, type = "text" }: {
   label: string; value: string; onChange: (v: string) => void; placeholder?: string;
@@ -826,6 +834,8 @@ export default function SettingsPage() {
   const [certDeleting, setCertDeleting] = useState(false);
   const [certDesignSearch, setCertDesignSearch] = useState("");
   const [certDesignThemeFilter, setCertDesignThemeFilter] = useState<"all" | "global" | "custom">("all");
+  const [certDesignSearch, setCertDesignSearch] = useState("");
+  const [certDesignThemeFilter, setCertDesignThemeFilter] = useState<"all" | "global" | "custom">("all");
 
 
   useEffect(() => {
@@ -853,6 +863,11 @@ export default function SettingsPage() {
         .catch(console.error);
     }
   }, [customizeTab, isModalOpen, editingConstituentType]);
+
+  useEffect(() => {
+    setCertDesignSearch("");
+    setCertDesignThemeFilter("all");
+  }, [customizeTab]);
 
   const findTemplate = useCallback((id: string | null | undefined): DocumentTemplate | undefined => {
     if (!id) return undefined;
@@ -969,7 +984,7 @@ export default function SettingsPage() {
   const [cedulaFee, setCedulaFee] = useState("0");
   const [signatoryName, setSignatoryName] = useState("");
   const [signatoryTitle, setSignatoryTitle] = useState("PUNONG BARANGAY");
-  const [docLayout, setDocLayout] = useState<"klasiko" | "moderno" | "elegante" | "digital">("klasiko");
+  const [docLayout, setDocLayout] = useState<DocLayout>("klasiko");
   const [docCustomContent, setDocCustomContent] = useState<string>("");
   const [docCustomTitle, setDocCustomTitle] = useState<string>("");
   const [docCustomSalutation, setDocCustomSalutation] = useState<string>("");
@@ -1003,6 +1018,25 @@ export default function SettingsPage() {
   // Patterns stay as dummy placeholders until first interaction so the user
   // sees the "patterns are generated from your choices" model clearly.
   const [hasGeneratedPatterns, setHasGeneratedPatterns] = useState(false);
+  const isTamboBarangay = settings?.name?.toLowerCase() === "tambo";
+  const isClearanceTemplate = useCallback((template?: DocumentTemplate | null) => {
+    if (!template) return false;
+    const name = template.name?.toLowerCase() ?? "";
+    return template.category === "clearance" || name.includes("clearance");
+  }, []);
+  const showTamboClearanceLayout = isTamboBarangay && isClearanceTemplate(findTemplate(selectedCertType));
+
+  const applyDocLayout = useCallback((layout: DocLayout) => {
+    setDocLayout(layout);
+    setHasGeneratedPatterns(true);
+    if (layout === "tambo") {
+      setDocPaperSize("legal");
+      setDocDesignPattern("plain");
+      setDocCustomTitle((prev) => prev || "BARANGAY CLEARANCE");
+      setDocCustomSalutation((prev) => prev || "TO WHOM IT MAY CONCERN:");
+      setDocCustomContent((prev) => prev || TAMBO_CLEARANCE_INTRO);
+    }
+  }, []);
 
   // Structure → 6 compatible design patterns (no cross-structure clashes)
   const STRUCTURE_PATTERNS = {
@@ -1010,6 +1044,7 @@ export default function SettingsPage() {
     elegante: ["plain", "wreath", "sunburst", "gothic", "scroll", "diplomatic", "ornate"] as const,
     moderno:  ["plain", "wave", "gradient", "minimal", "geometric", "bold-stripe", "tech"] as const,
     digital:  ["plain", "wave", "gradient", "minimal", "geometric", "bold-stripe", "tech"] as const,
+    tambo:    ["plain"] as const,
   };
 
   // Reset the design pattern when the structure changes if the current pattern
@@ -1021,6 +1056,12 @@ export default function SettingsPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [docLayout]);
+
+  useEffect(() => {
+    if (docLayout === "tambo" && !showTamboClearanceLayout) {
+      setDocLayout("klasiko");
+    }
+  }, [docLayout, showTamboClearanceLayout]);
 
   // Usage/billing data
   const [usage, setUsage] = useState<BarangayUsage | null>(null);
@@ -1194,7 +1235,7 @@ export default function SettingsPage() {
         setCedulaFee(String(s.cedula_fee ?? 0));
         setSignatoryName(s.default_signatory_name || "");
         setSignatoryTitle(s.default_signatory_title || "PUNONG BARANGAY");
-        setDocLayout((s.document_layout as "klasiko" | "moderno" | "elegante" | "digital") || "klasiko");
+        setDocLayout((s.document_layout as DocLayout) || "klasiko");
         setDocPaperSize((s.document_paper_size as "a4" | "letter" | "legal") || "a4");
         setDocFont((s.document_font as "times" | "arial" | "inter" | "poppins" | "merriweather" | "playfair") || "times");
         const loadedColorTheme = (s.document_color_theme as typeof docColorTheme) || "plain";
@@ -1601,14 +1642,14 @@ export default function SettingsPage() {
       indigencyFee: (v) => setIndigencyFee(v as string),
       idFee: (v) => setIdFee(v as string),
       cedulaFee: (v) => setCedulaFee(v as string),
-      docLayout: (v) => setDocLayout(v as "klasiko" | "moderno" | "elegante" | "digital"),
+      docLayout: (v) => setDocLayout(v as DocLayout),
       docPaperSize: (v) => setDocPaperSize(v as "a4" | "letter" | "legal"),
       docFont: (v) => setDocFont(v as "times" | "arial" | "inter" | "poppins" | "merriweather" | "playfair"),
       docColorTheme: (v) => setDocColorTheme(v as typeof docColorTheme),
       docDesignPattern: (v) => setDocDesignPattern(v as typeof docDesignPattern),
     },
     "customize-template": {
-      docLayout: (v) => setDocLayout(v as "klasiko" | "moderno" | "elegante" | "digital"),
+      docLayout: (v) => setDocLayout(v as DocLayout),
       docPaperSize: (v) => setDocPaperSize(v as "a4" | "letter" | "legal"),
       docFont: (v) => setDocFont(v as "times" | "arial" | "inter" | "poppins" | "merriweather" | "playfair"),
       docColorTheme: (v) => setDocColorTheme(v as typeof docColorTheme),
@@ -2516,18 +2557,17 @@ export default function SettingsPage() {
                             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Document Structure</p>
                             <div className="flex-1 h-px bg-border/60" />
                           </div>
-                          <div className="grid grid-cols-3 gap-3">
-                            {([
-                              { id: "klasiko" as const, label: "Classic Sidebar" },
-                              { id: "elegante" as const, label: "Formal Government" },
-                              { id: "moderno" as const, label: "Centered Modern" },
-                            ] as const).map((layout) => {
+                          <div className={cn("grid gap-3", showTamboClearanceLayout ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3")}>
+                            {[
+                              ...DOC_LAYOUT_OPTIONS,
+                              ...(showTamboClearanceLayout ? [TAMBO_CLEARANCE_LAYOUT] : []),
+                            ].map((layout) => {
                               const isActive = docLayout === layout.id;
                               return (
                                 <button
                                   key={layout.id}
                                   type="button"
-                                  onClick={() => { setDocLayout(layout.id as typeof docLayout); setHasGeneratedPatterns(true); }}
+                                  onClick={() => applyDocLayout(layout.id)}
                                   aria-label={layout.label}
                                   className={cn(
                                     "rounded-lg border-2 transition-all overflow-hidden group relative bg-background/40",
@@ -2562,6 +2602,14 @@ export default function SettingsPage() {
                             })}
                           </div>
                         </div>
+                        ) : (
+                          <div className="mb-6 rounded-xl border border-blue-500/20 bg-blue-500/5 px-4 py-3">
+                            <p className="text-xs text-foreground font-medium">Tambo Official Form</p>
+                            <p className="text-[11px] text-muted-foreground mt-1">
+                              This layout uses the official Barangay Tambo clearance structure. Edit the salutation and intro text in the live preview, then save.
+                            </p>
+                          </div>
+                        )}
 
                         {/* Color Theme and Design Pattern - Compressed Grid */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
@@ -2575,6 +2623,7 @@ export default function SettingsPage() {
                           </div>
 
                           {/* Design Pattern */}
+                          {docLayout !== "tambo" ? (
                           <div>
                             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground mb-1.5">Design Pattern</p>
                             <DesignPatternDropdown 
@@ -2583,6 +2632,13 @@ export default function SettingsPage() {
                               onChange={(val) => setDocDesignPattern(val as any)} 
                             />
                           </div>
+                          ) : (
+                          <div className="flex items-center">
+                            <p className="text-[11px] text-muted-foreground">
+                              Tambo Official Form uses the centered header and your selected color theme for the title accents.
+                            </p>
+                          </div>
+                          )}
                         </div>
 
                         {/* Document Font Block — heading row + controls row */}
@@ -2751,7 +2807,7 @@ export default function SettingsPage() {
                         <div className="mt-4 p-3 rounded-xl border border-border bg-background shadow-sm">
                           <h4 className="text-[10px] font-semibold text-foreground uppercase tracking-wider mb-2">Current Settings</h4>
                           <div className="grid grid-cols-2 gap-1.5 text-[11px]">
-                            <div className="text-muted-foreground">Structure</div><div className="text-foreground capitalize font-medium">{docLayout}</div>
+                            <div className="text-muted-foreground">Structure</div><div className="text-foreground capitalize font-medium">{docLayout === "tambo" ? "Tambo Official Form" : docLayout}</div>
                             <div className="text-muted-foreground">Color Theme</div><div className="text-foreground capitalize font-medium">{docColorTheme}</div>
                             <div className="text-muted-foreground">Pattern</div><div className="text-foreground capitalize font-medium">{docDesignPattern}</div>
                             <div className="text-muted-foreground">Font</div><div className="text-foreground capitalize font-medium">{docFont}</div>
@@ -2879,6 +2935,8 @@ export default function SettingsPage() {
                                         setDocDesignPattern((cert.design_settings.document_design_pattern as any) || "wave");
                                         setDocPaperSize((cert.design_settings.document_paper_size as any) || "a4");
                                         setDocCustomContent(cert.design_settings.custom_content || "");
+                                        setDocCustomTitle(cert.design_settings.custom_title || "");
+                                        setDocCustomSalutation(cert.design_settings.custom_salutation || "");
                                         setDocExpiryMonths(cert.design_settings.expiry_months || 3);
                                       } else {
                                         loadGlobalDocumentDesign();
@@ -2996,6 +3054,7 @@ export default function SettingsPage() {
                                         )
                                       })}
                                     </div>
+                                    )}
                                     )}
                                   </>
                                 ) : (
@@ -4320,7 +4379,7 @@ export default function SettingsPage() {
               <CertificateTypesList
                 onToast={(message, type) => addToast(message, type ?? "success")}
                 structureLabel={(() => {
-                  const m: Record<string, string> = { klasiko: "Classic Sidebar", moderno: "Centered Modern", elegante: "Formal Government", digital: "Classic Sidebar" };
+                  const m: Record<string, string> = { klasiko: "Classic Sidebar", moderno: "Centered Modern", elegante: "Formal Government", digital: "Classic Sidebar", tambo: "Tambo Official Form" };
                   return m[docLayout] || "Classic Sidebar";
                 })()}
                 colorThemeLabel={(() => {

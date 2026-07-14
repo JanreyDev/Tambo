@@ -45,9 +45,8 @@ return [
     |
     */
 
-    // 12 hours = 720 minutes. Government office hours: login every morning.
-    // Token dies ~12h after login (7am login expires at 7pm).
-    'expiration' => 720,
+    // 24 hours = 1440 minutes. One login covers a full workday + overtime.
+    'expiration' => 1440,
 
     /*
     |--------------------------------------------------------------------------

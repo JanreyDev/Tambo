@@ -21,7 +21,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   /**
-   * Stamp the bcmp_auth indicator cookie for 12 hours.
+   * Stamp the bcmp_auth indicator cookie for 24 hours.
    *
    * Next.js rewrite() proxies do NOT forward Set-Cookie headers from the
    * backend to the browser, so we must set this non-sensitive flag ourselves
@@ -29,22 +29,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
    * Without this the middleware sees every page load as unauthenticated.
    */
   const stampAuthCookie = useCallback(() => {
-    if (typeof document === "undefined") return;
-    // 12 hours = 43200 seconds — matches the Sanctum token lifetime
-    document.cookie = "bcmp_auth=1; path=/; max-age=43200; SameSite=Lax";
+    api.refreshAuthIndicator();
+  }, []);
+
+  const redirectToLogin = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const path = window.location.pathname;
+    if (path === "/" || path === "/login" || path === "/forgot-password") return;
+    const loginUrl = new URL("/", window.location.origin);
+    loginUrl.searchParams.set("redirect", path);
+    window.location.href = loginUrl.toString();
   }, []);
 
   const refreshUser = useCallback(async () => {
+    if (!api.getToken() && typeof document !== "undefined" && !document.cookie.includes("bcmp_auth=1")) {
+      setUser(null);
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const userData = await api.auth.me();
       setUser(userData);
       applyUserPreferences(userData.preferences);
-      // Re-stamp the auth indicator cookie so it stays alive as long
-      // as the backend token is valid (prevents logout on page refresh).
       stampAuthCookie();
     } catch (err) {
-      // DEV-ONLY mock fallback — gated on BOTH NODE_ENV and localhost hostname.
-      // Defense-in-depth: even if NODE_ENV is misconfigured, this never runs against a real host.
       const host = typeof window !== "undefined" ? window.location.hostname : "";
       const isLocalhost = host === "localhost" || host === "127.0.0.1" || host.startsWith("192.168.");
       if (process.env.NODE_ENV === "development" && isLocalhost) {
@@ -55,31 +64,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (isAuthError) {
           api.clearToken();
           setUser(null);
+          redirectToLogin();
         }
-        // Non-auth errors (network blip, 500, etc.) are swallowed — the user
-        // stays logged in. The cookie is NOT cleared so middleware still lets
-        // them through protected routes.
       }
     } finally {
       setIsLoading(false);
     }
-  }, [stampAuthCookie]);
+  }, [stampAuthCookie, redirectToLogin]);
 
   useEffect(() => {
     refreshUser();
   }, [refreshUser]);
 
-  const login = useCallback(async (username: string, password: string, _remember = false) => {
-    // Backend sets httpOnly bcmp_token via Set-Cookie (carries the real auth credential).
-    // However, Next.js rewrite() proxies silently drop Set-Cookie from API responses,
-    // so bcmp_auth (the non-httpOnly indicator cookie read by middleware) is NEVER
-    // forwarded to the browser when going through the /api/* proxy.
-    // We must set bcmp_auth explicitly in JS after every successful login.
+  // Re-validate session when the user returns to the tab after being idle.
+  useEffect(() => {
+    const onFocus = () => {
+      if (api.getToken()) {
+        void refreshUser();
+      }
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [refreshUser]);
+
+  const login = useCallback(async (username: string, password: string, remember = false) => {
     const res = await api.auth.login(username, password);
-    api.setToken(res.token);
+    api.setToken(res.token, remember);
     setUser(res.user);
     applyUserPreferences(res.user.preferences);
-    // Stamp the auth indicator cookie so middleware sees the user as authenticated.
     stampAuthCookie();
   }, [stampAuthCookie]);
 
